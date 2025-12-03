@@ -4,13 +4,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Linq;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
@@ -62,6 +63,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public long Size { get; }
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         // IRQs are bundled into 10 signals per channel in the following order:
@@ -76,6 +78,16 @@ namespace Antmicro.Renode.Peripherals.Timers
         // 8: OVF - overflow
         // 9: UDF - underflow
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
+        private IEnumerable<OffsetWithLetter> RangeWithLetters(int start, int count, int step = 1)
+        {
+            for(int i = 0; i < count; ++i)
+            {
+                int offset = start + i * step;
+                var c = (char)('A' + i);
+                yield return new OffsetWithLetter(i, offset, c);
+            }
+        }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap()
         {
@@ -291,7 +303,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             foreach(var f in RangeWithLetters(0, 6))
             {
                 statusRegister
-                    .WithTaggedFlag($"TCF{f.c} (Input Capture/Compare Match Flag {f.c})", f.offset);
+                    .WithTaggedFlag($"TCF{f.Ch} (Input Capture/Compare Match Flag {f.Ch})", f.Offset);
             }
             statusRegister
                 .WithFlag(6, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TCFPO (Overflow Flag)",
@@ -317,7 +329,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             foreach(var f in RangeWithLetters(0, 6))
             {
                 skippingSettingResiter
-                    .WithTaggedFlag($"ITL{f.c} (GTCCR{f.c} Compare Match/Input Capture Interrupt Link)", f.offset);
+                    .WithTaggedFlag($"ITL{f.Ch} (GTCCR{f.Ch} Compare Match/Input Capture Interrupt Link)", f.Offset);
             }
             skippingSettingResiter
                 .WithTag("IVTC (OVFn/UNFn Interrupt Skipping Function Select)", 6, 2)
@@ -332,8 +344,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             foreach(var r in RangeWithLetters((int)channelOffset + (int)ChannelRegisters.CompareCaptureA, 6, 4))
             {
                 var compareCaptureRegister = new DoubleWordRegister(this)
-                    .WithTag($"GTCCR{r.c}", 0, 32);
-                registerMap.Add(r.offset, compareCaptureRegister);
+                    .WithTag($"GTCCR{r.Ch}", 0, 32);
+                registerMap.Add(r.Offset, compareCaptureRegister);
             }
 
             return registerMap;
@@ -345,17 +357,17 @@ namespace Antmicro.Renode.Peripherals.Timers
             foreach(var f in RangeWithLetters(0, 4, 2))
             {
                 sourceSelectRegister
-                    .WithTaggedFlag($"{marker}SGTRG{f.c}R (GTETRG{f.c} Pin Rising Input Source {sourceName} {name} Enable)", f.offset)
-                    .WithTaggedFlag($"{marker}SGTRG{f.c}F (GTETRG{f.c} Pin Falling Input Source {sourceName} {name} Enable)", f.offset + 1);
+                    .WithTaggedFlag($"{marker}SGTRG{f.Ch}R (GTETRG{f.Ch} Pin Rising Input Source {sourceName} {name} Enable)", f.Offset)
+                    .WithTaggedFlag($"{marker}SGTRG{f.Ch}F (GTETRG{f.Ch} Pin Falling Input Source {sourceName} {name} Enable)", f.Offset + 1);
             }
             foreach(var f in RangeWithLetters(8, 2, 4))
             {
-                var other = f.c == 'A' ? 'B' : 'A';
+                var other = f.Ch == 'A' ? 'B' : 'A';
                 sourceSelectRegister
-                    .WithTaggedFlag($"{marker}SC{f.c}RBL (GTIOCn{f.c} Pin Rising Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)", f.offset)
-                    .WithTaggedFlag($"{marker}SC{f.c}RBH (GTIOCn{f.c} Pin Rising Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)", f.offset + 1)
-                    .WithTaggedFlag($"{marker}SC{f.c}FBL (GTIOCn{f.c} Pin Falling Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)", f.offset + 2)
-                    .WithTaggedFlag($"{marker}SC{f.c}FBH (GTIOCn{f.c} Pin Falling Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)", f.offset + 3);
+                    .WithTaggedFlag($"{marker}SC{f.Ch}RBL (GTIOCn{f.Ch} Pin Rising Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)", f.Offset)
+                    .WithTaggedFlag($"{marker}SC{f.Ch}RBH (GTIOCn{f.Ch} Pin Rising Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)", f.Offset + 1)
+                    .WithTaggedFlag($"{marker}SC{f.Ch}FBL (GTIOCn{f.Ch} Pin Falling Input during GTIOCn{other} Value Low Source {sourceName} {name} Enable)", f.Offset + 2)
+                    .WithTaggedFlag($"{marker}SC{f.Ch}FBH (GTIOCn{f.Ch} Pin Falling Input during GTIOCn{other} Value High Source {sourceName} {name} Enable)", f.Offset + 3);
             }
             if(hasClear)
             {
@@ -371,174 +383,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             return sourceSelectRegister;
         }
 
-        private class OffsetWithLetter
-        {
-            public int index;
-            public int offset;
-            public char c;
-
-            public OffsetWithLetter(int index, int offset, char c)
-            {
-                this.index = index;
-                this.offset = offset;
-                this.c = c;
-            }
-        }
-
-        private IEnumerable<OffsetWithLetter> RangeWithLetters(int start, int count, int step = 1)
-        {
-            for(int i = 0; i < count; ++i)
-            {
-                int offset = start + i * step;
-                var c = (char)('A' + i);
-                yield return new OffsetWithLetter(i, offset, c);
-            }
-        }
-
         private int TotalChannels => numberOf32BitChannels;
 
         private readonly IMachine machine;
         private readonly int numberOf32BitChannels;
         private readonly long peripheralClockDFrequency;
         private readonly GPTChannel[] channels;
-
-        private class GPTChannel
-        {
-            public GPTChannel(RenesasRZG_GPT parent, long index, int width)
-            {
-                this.parent = parent;
-                this.index = index;
-                this.width = width;
-                IRQ = new GPIO[InterruptCount];
-                for(int i = 0; i < InterruptCount; ++i)
-                {
-                    IRQ[i] = new GPIO();
-                }
-
-                timer = new LimitTimer(parent.machine.ClockSource, parent.peripheralClockDFrequency, parent, $"Timer{index}",
-                    MaxLimit, direction: TimeDirection.Descending, workMode: WorkMode.Periodic, eventEnabled: true
-                );
-                timer.LimitReached += OnMainTimerLimitReached;
-
-                Reset();
-            }
-
-            public void Reset()
-            {
-                Overflow = false;
-                timer.Reset();
-                Cycle = MaxLimit;
-                Direction = Direction.DownCounting;
-                Mode = Mode.SawWave;
-            }
-
-            public Mode Mode
-            {
-                get => mode;
-                set
-                {
-                    if(value != Mode.SawWave)
-                    {
-                        this.parent.Log(LogLevel.Warning, "GPT{0}: Modes other than Saw Wave (default) are not supported yet. Ignoring", index);
-                        return;
-                    }
-                    mode = value;
-                }
-            }
-
-            public Direction Direction
-            {
-                get => direction;
-                set
-                {
-                    direction = value;
-                    timer.Direction = direction == Direction.UpCounting ? TimeDirection.Ascending : TimeDirection.Descending;
-                }
-            }
-
-            public bool Enable
-            {
-                get => timer.Enabled;
-                set => timer.Enabled = value;
-                
-            }
-
-            public ulong Cycle
-            {
-                get => timer.Limit;
-                set
-                {
-                    if(value > MaxLimit)
-                    {
-                        this.parent.Log(LogLevel.Warning, "GPT{0}: Cycle {1} is higher than maximum limit of {2}. Truncating to {3} bits", index, value, MaxLimit, width);
-                    }
-                    timer.Limit = value.Clamp(0u, MaxLimit);
-                }
-            }
-
-            public ulong Value
-            {
-                get => timer.Value;
-                set
-                {
-                    if(Enable)
-                    {
-                        this.parent.Log(LogLevel.Warning, "GPT{0}: Setting GTCNT while counting is still on-going. Ignoring", index);
-                        return;
-                    }
-                    if(value > MaxLimit)
-                    {
-                        this.parent.Log(LogLevel.Warning, "GPT{0}: Value {1} is higher than maximum limit of {2}. Truncating to {3} bits", index, value, MaxLimit, width);
-                    }
-                    var newValue = value.Clamp(0u, MaxLimit);
-                    if(newValue >= Cycle)
-                    {
-                        Overflow = true;
-                        IRQ[OverflowInterruptIndex].Blink();
-                        timer.Reset();
-                    }
-                    else
-                    {
-                        Overflow = false;
-                        timer.Value = newValue;
-                    }
-                }
-            }
-
-            public GPIO[] IRQ { get; }
-
-            public bool Overflow { get; set; }
-            public bool Underflow { get; set; }
-
-            public const long InterruptCount = 10;
-
-            private void OnMainTimerLimitReached()
-            {
-                if(direction == Direction.UpCounting)
-                {
-                    Overflow = true;
-                    IRQ[OverflowInterruptIndex].Blink();
-                }
-                else
-                {
-                    Underflow = true;
-                    IRQ[UnderflowInterruptIndex].Blink();
-                }
-            }
-
-            private ulong MaxLimit => (1ul << width) - 1ul;
-
-            private Mode mode;
-            private Direction direction;
-
-            private readonly LimitTimer timer;
-            private readonly RenesasRZG_GPT parent;
-            private readonly long index;
-            private readonly int width;
-
-            private const long OverflowInterruptIndex = 8;
-            private const long UnderflowInterruptIndex = 9;
-        }
 
         public enum Mode
         {
@@ -602,6 +452,158 @@ namespace Antmicro.Renode.Peripherals.Timers
             DeadTimeBufferD                   = 0x98, // GTDBD
             OutputProtectionStatus            = 0x9C, // GTSOS
             OutputProtectionTempRelease       = 0xA0, // GTSOTR
+        }
+
+        private class OffsetWithLetter
+        {
+            public OffsetWithLetter(int index, int offset, char c)
+            {
+                this.Index = index;
+                this.Offset = offset;
+                this.Ch = c;
+            }
+
+            public int Index;
+            public int Offset;
+            public char Ch;
+        }
+
+        private class GPTChannel
+        {
+            public GPTChannel(RenesasRZG_GPT parent, long index, int width)
+            {
+                this.parent = parent;
+                this.index = index;
+                this.width = width;
+                IRQ = new GPIO[InterruptCount];
+                for(int i = 0; i < InterruptCount; ++i)
+                {
+                    IRQ[i] = new GPIO();
+                }
+
+                timer = new LimitTimer(parent.machine.ClockSource, parent.peripheralClockDFrequency, parent, $"Timer{index}",
+                    MaxLimit, direction: TimeDirection.Descending, workMode: WorkMode.Periodic, eventEnabled: true
+                );
+                timer.LimitReached += OnMainTimerLimitReached;
+
+                Reset();
+            }
+
+            public void Reset()
+            {
+                Overflow = false;
+                timer.Reset();
+                Cycle = MaxLimit;
+                Direction = Direction.DownCounting;
+                Mode = Mode.SawWave;
+            }
+
+            public Mode Mode
+            {
+                get => mode;
+                set
+                {
+                    if(value != Mode.SawWave)
+                    {
+                        this.parent.Log(LogLevel.Warning, "GPT{0}: Modes other than Saw Wave (default) are not supported yet. Ignoring", index);
+                        return;
+                    }
+                    mode = value;
+                }
+            }
+
+            public Direction Direction
+            {
+                get => direction;
+                set
+                {
+                    direction = value;
+                    timer.Direction = direction == Direction.UpCounting ? TimeDirection.Ascending : TimeDirection.Descending;
+                }
+            }
+
+            public bool Enable
+            {
+                get => timer.Enabled;
+                set => timer.Enabled = value;
+            }
+
+            public ulong Cycle
+            {
+                get => timer.Limit;
+                set
+                {
+                    if(value > MaxLimit)
+                    {
+                        this.parent.Log(LogLevel.Warning, "GPT{0}: Cycle {1} is higher than maximum limit of {2}. Truncating to {3} bits", index, value, MaxLimit, width);
+                    }
+                    timer.Limit = value.Clamp(0u, MaxLimit);
+                }
+            }
+
+            public ulong Value
+            {
+                get => timer.Value;
+                set
+                {
+                    if(Enable)
+                    {
+                        this.parent.Log(LogLevel.Warning, "GPT{0}: Setting GTCNT while counting is still on-going. Ignoring", index);
+                        return;
+                    }
+                    if(value > MaxLimit)
+                    {
+                        this.parent.Log(LogLevel.Warning, "GPT{0}: Value {1} is higher than maximum limit of {2}. Truncating to {3} bits", index, value, MaxLimit, width);
+                    }
+                    var newValue = value.Clamp(0u, MaxLimit);
+                    if(newValue >= Cycle)
+                    {
+                        Overflow = true;
+                        IRQ[OverflowInterruptIndex].Blink();
+                        timer.Reset();
+                    }
+                    else
+                    {
+                        Overflow = false;
+                        timer.Value = newValue;
+                    }
+                }
+            }
+
+            public GPIO[] IRQ { get; }
+
+            public bool Overflow { get; set; }
+
+            public bool Underflow { get; set; }
+
+            public const long InterruptCount = 10;
+
+            private void OnMainTimerLimitReached()
+            {
+                if(direction == Direction.UpCounting)
+                {
+                    Overflow = true;
+                    IRQ[OverflowInterruptIndex].Blink();
+                }
+                else
+                {
+                    Underflow = true;
+                    IRQ[UnderflowInterruptIndex].Blink();
+                }
+            }
+
+            private ulong MaxLimit => (1ul << width) - 1ul;
+
+            private Mode mode;
+            private Direction direction;
+
+            private readonly LimitTimer timer;
+            private readonly RenesasRZG_GPT parent;
+            private readonly long index;
+            private readonly int width;
+
+            private const long OverflowInterruptIndex = 8;
+            private const long UnderflowInterruptIndex = 9;
         }
     }
 }

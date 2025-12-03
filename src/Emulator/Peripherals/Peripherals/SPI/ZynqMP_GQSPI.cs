@@ -9,11 +9,14 @@ using System;
 using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+#pragma warning disable IDE0005
+using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
+using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -54,6 +57,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         public long Size => 0x1000;
+
         public GPIO IRQ { get; private set; }
 
         private void UpdateInterrupts()
@@ -228,18 +232,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(6, 26);
 
             GenericQSPIRegisters.GenericFifo.Define(registers, name: "GQSPI_GEN_FIFO")
-                .WithValueField(0, 8, out gqspiCommandImmediate, mode: FieldMode.Write)
-                .WithFlag(8, out gqspiCommandDataXref, mode: FieldMode.Write)
-                .WithFlag(9, out gqspiCommandExponent, mode: FieldMode.Write)
-                .WithEnumField(10, 2, out gqspiCommandSpiMode, mode: FieldMode.Write)
-                .WithFlag(12, out gqspiCommandCsLower, mode: FieldMode.Write)
-                .WithFlag(13, out gqspiCommandCsUpper, mode: FieldMode.Write)
-                .WithFlag(14, out gqspiCommandDataBusLower, mode: FieldMode.Write)
-                .WithFlag(15, out gqspiCommandDataBusUpper, mode: FieldMode.Write)
-                .WithFlag(16, out gqspiCommandTransmit, mode: FieldMode.Write)
-                .WithFlag(17, out gqspiCommandReceive, mode: FieldMode.Write)
-                .WithFlag(18, out gqspiCommandStripe, mode: FieldMode.Write)
-                .WithFlag(19, out gqspiCommandPoll, mode: FieldMode.Write)
+                .WithPacketField(0, 20, out gqspiCommand, mode: FieldMode.Write)
                 .WithReservedBits(20, 12)
                 .WithWriteCallback((_, __) => EnqueueGenericFifo())
                 .WithWriteCallback((_, __) => UpdateInterrupts());
@@ -354,22 +347,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void EnqueueGenericFifo()
         {
-            GenericFifoCommand entry = new GenericFifoCommand
-            {
-                immediate = (byte)gqspiCommandImmediate.Value,
-                dataXref = gqspiCommandDataXref.Value,
-                exponent = gqspiCommandExponent.Value,
-                spiMode = gqspiCommandSpiMode.Value,
-                csLower = gqspiCommandCsLower.Value,
-                csUpper = gqspiCommandCsUpper.Value,
-                dataBusLower = gqspiCommandDataBusLower.Value,
-                dataBusUpper = gqspiCommandDataBusUpper.Value,
-                tx = gqspiCommandTransmit.Value,
-                rx = gqspiCommandReceive.Value,
-                stripe = gqspiCommandStripe.Value,
-            };
-
-            genericFifo.Enqueue(entry);
+            genericFifo.Enqueue(gqspiCommand.Value);
 
             if(!genFifoManualStart.Value)
             {
@@ -402,26 +380,26 @@ namespace Antmicro.Renode.Peripherals.SPI
         // Returns false when execution should stop and true when it can continue
         private bool ExecuteGenericFifoCommand(GenericFifoCommand cmd)
         {
-            if(!(cmd.tx || cmd.rx))
+            if(!(cmd.Tx || cmd.Rx))
             {
-                if(cmd.immediate == 0)
+                if(cmd.Immediate == 0)
                 {
                     return true;
                 }
 
-                if(cmd.dataXref)
+                if(cmd.DataXref)
                 {
-                    if(cmd.csLower)
+                    if(cmd.CsLower)
                     {
-                        this.Log(LogLevel.Noisy, "GQSPI command: Dummy cycles: {0}", cmd.immediate);
+                        this.Log(LogLevel.Noisy, "GQSPI command: Dummy cycles: {0}", cmd.Immediate);
                     }
                 }
                 else
                 {
-                    if(!cmd.csLower)
+                    if(!cmd.CsLower)
                     {
-                        this.Log(LogLevel.Noisy, "GQSPI command: CS Deassert cycles: {0}", cmd.immediate);
-                        if(cmd.immediate > 0)
+                        this.Log(LogLevel.Noisy, "GQSPI command: CS Deassert cycles: {0}", cmd.Immediate);
+                        if(cmd.Immediate > 0)
                         {
                             // Finish transmission on chip select line deassert
                             RegisteredPeripheral?.FinishTransmission();
@@ -429,31 +407,31 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
                     else
                     {
-                        this.Log(LogLevel.Noisy, "GQSPI command: CS Assert cycles: {0}", cmd.immediate);
+                        this.Log(LogLevel.Noisy, "GQSPI command: CS Assert cycles: {0}", cmd.Immediate);
                     }
                 }
                 return true;
             }
-            if(cmd.stripe)
+            if(cmd.Stripe)
             {
                 this.Log(LogLevel.Error, "GQSPI command not executed: Stripe mode not supported");
                 return false;
             }
-            this.Log(LogLevel.Noisy, "GEN FIFO immediate {0} spimode: {1}", cmd.immediate, cmd.spiMode);
-            if(cmd.dataXref)
+            this.Log(LogLevel.Noisy, "GEN FIFO immediate {0} spimode: {1}", cmd.Immediate, cmd.SpiMode);
+            if(cmd.DataXref)
             {
-                uint count = (uint)cmd.immediate;
-                if(cmd.exponent)
+                uint count = (uint)cmd.Immediate;
+                if(cmd.Exponent)
                 {
                     count = (uint)(1 << (int)count);
                 }
 
-                this.Log(LogLevel.Noisy, "GQSPI command: Data transfer TX: {0} RX: {1} CNT: {2}", cmd.tx, cmd.rx, count);
-                if(cmd.rx)
+                this.Log(LogLevel.Noisy, "GQSPI command: Data transfer TX: {0} RX: {1} CNT: {2}", cmd.Tx, cmd.Rx, count);
+                if(cmd.Rx)
                 {
                     bytesToReceive += count;
                 }
-                if(cmd.tx)
+                if(cmd.Tx)
                 {
                     bytesToTransmit += count;
                 }
@@ -461,12 +439,12 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             else
             {
-                this.Log(LogLevel.Noisy, "GQSPI command: Immediate data transfer TX: {0} RX: {1} Data: {2}", cmd.tx, cmd.rx, cmd.immediate);
-                if(cmd.tx)
+                this.Log(LogLevel.Noisy, "GQSPI command: Immediate data transfer TX: {0} RX: {1} Data: {2}", cmd.Tx, cmd.Rx, cmd.Immediate);
+                if(cmd.Tx)
                 {
-                    RegisteredPeripheral?.Transmit(cmd.immediate);
+                    RegisteredPeripheral?.Transmit(cmd.Immediate);
                 }
-                if(cmd.rx)
+                if(cmd.Rx)
                 {
                     receiveFifo.Enqueue(RegisteredPeripheral?.Transmit(0) ?? 0);
                 }
@@ -604,14 +582,23 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         private bool RxFifoEmpty => receiveFifo.Count == 0;
+
         private bool GenericFifoFull => genericFifo.Count == FifoDepth;
+
         private bool GenericFifoNotFull => genericFifo.Count >= (int)genericFifoThreshold.Value;
+
         private bool TxFifoEmpty => transmitFifo.Count == 0;
+
         private bool GenericFifoEmpty => genericFifo.Count == 0;
+
         private bool RxFifoFull => receiveFifo.Count == FifoDepth;
+
         private bool RxFifoNotEmpty => receiveFifo.Count >= (int)rxThreshold.Value;
+
         private bool TxFifoFull => transmitFifo.Count == FifoDepth;
+
         private bool TxFifoNotFull => transmitFifo.Count < (int)txThreshold.Value;
+
         private bool PollTimeExpire => false;
 
         private IEnumRegisterField<FlashMemoryMode> gqspiFlashMemoryMode;
@@ -628,18 +615,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField genFifoManualStart;
         private IFlagRegisterField gqspiBigEndian;
 
-        private IValueRegisterField gqspiCommandImmediate;
-        private IFlagRegisterField gqspiCommandDataXref;
-        private IFlagRegisterField gqspiCommandExponent;
-        private IEnumRegisterField<SpiMode> gqspiCommandSpiMode;
-        private IFlagRegisterField gqspiCommandCsLower;
-        private IFlagRegisterField gqspiCommandCsUpper;
-        private IFlagRegisterField gqspiCommandDataBusUpper;
-        private IFlagRegisterField gqspiCommandDataBusLower;
-        private IFlagRegisterField gqspiCommandTransmit;
-        private IFlagRegisterField gqspiCommandReceive;
-        private IFlagRegisterField gqspiCommandStripe;
-        private IFlagRegisterField gqspiCommandPoll;
+        private IPacketRegisterField<GenericFifoCommand> gqspiCommand;
 
         private IFlagRegisterField rxFifoFullInterruptEnabled;
         private IFlagRegisterField rxFifoFullInterruptStatus;
@@ -684,20 +660,35 @@ namespace Antmicro.Renode.Peripherals.SPI
         private const uint FifoDepth = 63;
         private const uint ModuleId = 0x10A0000;
 
+        [LeastSignificantByteFirst]
         private struct GenericFifoCommand
         {
-            public byte immediate;
-            public bool dataXref;
-            public bool exponent;
-            public SpiMode spiMode;
-            public bool csLower;
-            public bool csUpper;
-            public bool dataBusLower;
-            public bool dataBusUpper;
-            public bool tx;
-            public bool rx;
-            public bool stripe;
-            public bool poll;
+#pragma warning disable 649
+            [PacketField, Width(8), Offset(bits: 0)]
+            public byte Immediate;
+            [PacketField, Width(1), Offset(bits: 8)]
+            public bool DataXref;
+            [PacketField, Width(1), Offset(bits: 9)]
+            public bool Exponent;
+            [PacketField, Width(2), Offset(bits: 10)]
+            public SpiMode SpiMode;
+            [PacketField, Width(1), Offset(bits: 12)]
+            public bool CsLower;
+            [PacketField, Width(1), Offset(bits: 13)]
+            public bool CsUpper;
+            [PacketField, Width(1), Offset(bits: 14)]
+            public bool DataBusLower;
+            [PacketField, Width(1), Offset(bits: 15)]
+            public bool DataBusUpper;
+            [PacketField, Width(1), Offset(bits: 16)]
+            public bool Tx;
+            [PacketField, Width(1), Offset(bits: 17)]
+            public bool Rx;
+            [PacketField, Width(1), Offset(bits: 18)]
+            public bool Stripe;
+            [PacketField, Width(1), Offset(bits: 19)]
+            public bool Poll;
+#pragma warning restore 649
         }
 
         private enum SpiMode

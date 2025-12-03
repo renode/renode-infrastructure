@@ -14,17 +14,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         public CpuAbortException()
         {
         }
-        
 
         public CpuAbortException(string message) : base(message)
         {
         }
-        
 
         public CpuAbortException(string message, Exception innerException) : base(message, innerException)
         {
         }
-        
     }
 }
-

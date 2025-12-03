@@ -4,12 +4,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -119,9 +119,11 @@ namespace Antmicro.Renode.Peripherals.UART
         public long Size => 0x80;
 
         public GPIO TxIRQ { get; }
+
         public GPIO RxIRQ { get; }
 
         public override Bits StopBits => stopBits.Value ? Bits.Two : Bits.One;
+
         public override Parity ParityBit => parityEnable.Value ? Parity.Even : Parity.None;
 
         public override uint BaudRate => 115200;
@@ -165,15 +167,15 @@ namespace Antmicro.Renode.Peripherals.UART
         private uint rxIdx;
         private bool rxStarted;
 
+        private readonly IFlagRegisterField parityEnable;
+        private readonly IFlagRegisterField stopBits;
+        private readonly IValueRegisterField txBufferAddress;
+        private readonly IValueRegisterField txBufferSize;
+        private readonly IValueRegisterField rxBufferAddress;
+        private readonly IValueRegisterField rxBufferSize;
+
         private readonly IBusController sysbus;
         private readonly DoubleWordRegisterCollection registers;
-
-        private IFlagRegisterField parityEnable;
-        private IFlagRegisterField stopBits;
-        private IValueRegisterField txBufferAddress;
-        private IValueRegisterField txBufferSize;
-        private IValueRegisterField rxBufferAddress;
-        private IValueRegisterField rxBufferSize;
 
         private enum Registers : long
         {

@@ -5,8 +5,12 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <sys/queue.h>
 #include <sys/syscall.h>
 #include <stdint.h>
+
+#include "debug.h"
+#include "memory_range.h"
 
 #ifndef SYS_gettid
 #error "SYS_gettid unavailable on this system"
@@ -46,25 +50,33 @@ typedef enum
 #endif
 
 typedef struct CpuState {
-    pid_t tid;  /* id of cpu thread */
-    pid_t tgid; /* id of cpu process */
-
-    /* number of microseconds since calling kvm_execute */
-    ulong execution_time_in_us;
+    bool is_executing;
+    pid_t tid;  /* id of cpu thread, valid when is_executing */
+    pid_t tgid; /* id of cpu process, valid when is_executing */
 
     /* KVM specific file descriptors */
     int kvm_fd;
     int vm_fd;
     int vcpu_fd;
+
+    int kvm_run_size;
     /* struct containing KVM execution details */
     struct kvm_run *kvm_run;
 
-    /* Flag set when there is exit request from from C# or timer */
-    bool exit_requested;
+    /* Flag set when KVM is set to single stepping mode */
+    bool single_step;
+
+    /* cached special register state */
+    struct kvm_regs regs;
+    RegisterState regs_state;
 
     /* cached special register state */
     struct kvm_sregs sregs;
     RegisterState sregs_state;
+
+    LIST_HEAD(, MemoryRegion) memory_regions;
+
+    LIST_HEAD(, Breakpoint) breakpoints;
 
 #ifdef TARGET_X86KVM
     Detected64BitBehaviour on64BitDetected;

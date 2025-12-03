@@ -6,19 +6,80 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Utilities;
-
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class USBEthernetControlModelDevicesSubclass : USBCommunicationClass
     {
-        public USBEthernetControlModelDevicesSubclass ()
+        public USBEthernetControlModelDevicesSubclass()
         {
             //base.deviceDescriptor.DeviceSubClass = DeviceSubclassCode;
         }
+
         protected const byte DeviceSubclassCode = (byte)SubclassCode.EthernetNetworkingControlModel;
         protected const byte ProtocolSubclassCode = (byte)ProtocolCode.NoClassSpecific;
+
+        protected class EthernetNetworkingFuncionalDescriptor : USBDescriptor
+        {
+            public EthernetNetworkingFuncionalDescriptor()
+            {
+                base.Length = 0x0D;
+                base.Type = (DescriptorType)CommunicationClassDescriptorType.Interface;
+            }
+
+            public override byte[] ToArray()
+            {
+                var arr = base.ToArray ();
+                arr[0x02] = DescriptorSubtype;
+                arr[0x03] = MacAddressIndex;
+                BitConverter.GetBytes(EthernetStatistics).CopyTo(arr, 0x04);
+                BitConverter.GetBytes(MaxSegmentSize).CopyTo(arr, 0x08);
+                BitConverter.GetBytes(MulticastFiltersNumber).CopyTo(arr, 0x0A);
+                arr[0x0C] = PowerFiltersNumber;
+                return arr;
+            }
+
+            public byte MacAddressIndex;
+            public uint EthernetStatistics;
+            public ushort MaxSegmentSize;
+            public ushort MulticastFiltersNumber;
+            public byte PowerFiltersNumber;
+
+            public const byte DescriptorSubtype = DeviceSubclassCode;
+        }
+
+        protected struct EthernetStatistics
+        {
+            public uint XmitOK;
+            public uint RvcOK;
+            public uint XmitError;
+            public uint RvcError;
+            public uint RvcNoBuffer;
+            public uint DirectedBytesXmit;
+            public uint DirectedFramesXmit;
+            public uint MulticastBytesXmit;
+            public uint MulticastFramesXmit;
+            public uint BroadcastBytesXmit;
+            public uint BroadcastFramesXmit;
+            public uint DirectedBytesRcv;
+            public uint DirectedFramesRcv;
+            public uint MulticastBytesRcv;
+            public uint MulticastFramesRcv;
+            public uint BroadcastBytesRcv;
+            public uint BroadcastFramesRcv;
+            public uint RcvCRCError;
+            public uint TransmitQueueLength;
+            public uint RcvErrorAlignment;
+            public uint XmitOneCollision;
+            public uint XmitMoreCollision;
+            public uint XmitDeferred;
+            public uint XmitMaxCollisions;
+            public uint RcvOverrun;
+            public uint XmitUnderrun;
+            public uint XmitHeartbeatFailure;
+            public uint XmitTimesCrsLost;
+            public uint XmitLateCollisions;
+        }
 
         [Flags]
         protected enum EthernetStatisticsCapability : uint
@@ -61,7 +122,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             GetEthernetPowerManagementPatternFilter = 0x42,
             SetEthernetPacketFilter = 0x43,
             GetEthernetStatistic = 0x44
-
         }
 
         protected enum SubclassSpecificNotificationCode
@@ -103,71 +163,5 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             XmitTimesCrsLost = 0x1D,
             XmitLateCollisions = 0x1D
         }
-
-        protected struct EthernetStatistics
-        {
-            public uint XmitOK;
-            public uint RvcOK;
-            public uint XmitError;
-            public uint RvcError;
-            public uint RvcNoBuffer;
-            public uint DirectedBytesXmit;
-            public uint DirectedFramesXmit;
-            public uint MulticastBytesXmit;
-            public uint MulticastFramesXmit;
-            public uint BroadcastBytesXmit;
-            public uint BroadcastFramesXmit;
-            public uint DirectedBytesRcv;
-            public uint DirectedFramesRcv;
-            public uint MulticastBytesRcv;
-            public uint MulticastFramesRcv;
-            public uint BroadcastBytesRcv;
-            public uint BroadcastFramesRcv;
-            public uint RcvCRCError;
-            public uint TransmitQueueLength;
-            public uint RcvErrorAlignment;
-            public uint XmitOneCollision;
-            public uint XmitMoreCollision;
-            public uint XmitDeferred;
-            public uint XmitMaxCollisions;
-            public uint RcvOverrun;
-            public uint XmitUnderrun;
-            public uint XmitHeartbeatFailure;
-            public uint XmitTimesCrsLost;
-            public uint XmitLateCollisions;
-        }
-
-        protected class EthernetNetworkingFuncionalDescriptor : USBDescriptor
-        {
-            public EthernetNetworkingFuncionalDescriptor ()
-            {
-                base.Length = 0x0D;
-                base.Type = (DescriptorType) CommunicationClassDescriptorType.Interface;
-            }
-
-            public const byte DescriptorSubtype = DeviceSubclassCode;
-            public byte MacAddressIndex;
-            public uint EthernetStatistics;
-            public ushort MaxSegmentSize;
-            public ushort MulticastFiltersNumber;
-            public byte PowerFiltersNumber;
-
-
-            public override byte[] ToArray ()
-            {
-                var arr = base.ToArray ();
-                arr[0x02] = DescriptorSubtype;
-                arr[0x03] = MacAddressIndex;
-                BitConverter.GetBytes(EthernetStatistics).CopyTo(arr,0x04);
-                BitConverter.GetBytes(MaxSegmentSize).CopyTo(arr,0x08);
-                BitConverter.GetBytes(MulticastFiltersNumber).CopyTo(arr,0x0A);
-                arr[0x0C] = PowerFiltersNumber;
-                return arr;
-            }
-
-        }
-
-
     }
 }
-

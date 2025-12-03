@@ -5,11 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System.Text;
 using System.Linq;
+
+using Antmicro.Renode.Core.ACPI;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Core.ACPI;
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.Extensions
@@ -18,33 +18,37 @@ namespace Antmicro.Renode.Core.Extensions
     {
         public static void GenerateACPITable(this IBusController bus, ulong address)
         {
-            var rootSystemDescriptionTableOffset =
-                (uint)address + (uint)Packet.CalculateLength<RootSystemDescriptionPointer>();
+            var rootSystemDescriptionPointerLength = (uint)Packet.CalculateLength<RootSystemDescriptionPointer>();
+            var rootSystemDescriptionTableLength = (uint)Packet.CalculateLength<RootSystemDescriptionTable>();
+            var fixedACPIDescriptionTableLength = (uint)Packet.CalculateLength<FixedACPIDescriptionTable>();
+            var differentiatedSystemDescriptionTableLength = (uint)Packet.CalculateLength<DifferentiatedSystemDescriptionTable>();
+            var multipleAPICDescriptionTableLength = (uint)Packet.CalculateLength<MultipleAPICDescriptionTable>();
+
+            var rootSystemDescriptionTableOffset = (uint)address + rootSystemDescriptionPointerLength;
+            var fixedACPIDescriptionTableAddress = rootSystemDescriptionTableOffset + rootSystemDescriptionTableLength;
+            var differentiatedSystemDescriptionTableAddress = fixedACPIDescriptionTableAddress + fixedACPIDescriptionTableLength;
+            var multipleAPICDescriptionTableHeaderAddress = differentiatedSystemDescriptionTableAddress + differentiatedSystemDescriptionTableLength;
+
             var rootSystemDescriptionPointer = new RootSystemDescriptionPointer(rootSystemDescriptionTableOffset);
             bus.WriteBytes(Packet.Encode(rootSystemDescriptionPointer), address);
-
-            var fixedACPIDescriptionTableAddress =
-                rootSystemDescriptionTableOffset + (uint)Packet.CalculateLength<RootSystemDescriptionTable>();
-            var multipleAPICDescriptionTableHeaderAddress =
-                fixedACPIDescriptionTableAddress + (uint)Packet.CalculateLength<FixedACPIDescriptionTable>();
 
             var rootSystemDescriptionTable = new RootSystemDescriptionTable(fixedACPIDescriptionTableAddress, multipleAPICDescriptionTableHeaderAddress);
             bus.WriteBytes(Packet.Encode(rootSystemDescriptionTable), rootSystemDescriptionTableOffset);
 
-            var fixedACPIDescriptionTable = new FixedACPIDescriptionTable(multipleAPICDescriptionTableHeaderAddress - (uint)address, fixedACPIDescriptionTableAddress);
+            var fixedACPIDescriptionTable = new FixedACPIDescriptionTable(fixedACPIDescriptionTableLength, differentiatedSystemDescriptionTableAddress);
             bus.WriteBytes(Packet.Encode(fixedACPIDescriptionTable), fixedACPIDescriptionTableAddress);
 
-            var ids = bus.GetCPUs().OfType<BaseX86>().Select(x => (ulong)x.Lapic.ID).ToList();
+            var fixedACPIDifferentiatedSystemDescriptionTable = new DifferentiatedSystemDescriptionTable(differentiatedSystemDescriptionTableLength);
+            bus.WriteBytes(Packet.Encode(fixedACPIDifferentiatedSystemDescriptionTable), differentiatedSystemDescriptionTableAddress);
 
-            var multipleAPICDescriptionTableLength = Packet.CalculateLength<MultipleAPICDescriptionTable>();
+            var ids = bus.GetCPUs().OfType<BaseX86>().Select(x => (ulong)x.Lapic.PhysicalID).ToList();
             var recordLength = (uint)Packet.CalculateLength<ProcessorLocalAPICRecord>();
 
             // Define table without records. They will be defined based on CPUs.
             var multipleAPICDescriptionTable = new MultipleAPICDescriptionTable((uint)(multipleAPICDescriptionTableLength + ids.Count() * recordLength));
             bus.WriteBytes(Packet.Encode(multipleAPICDescriptionTable), multipleAPICDescriptionTableHeaderAddress);
 
-            var recordAddress =
-                multipleAPICDescriptionTableHeaderAddress + (uint)Packet.CalculateLength<MultipleAPICDescriptionTable>();
+            var recordAddress = multipleAPICDescriptionTableHeaderAddress + multipleAPICDescriptionTableLength;
 
             foreach(var id in ids)
             {
@@ -53,7 +57,7 @@ namespace Antmicro.Renode.Core.Extensions
                     EntryType = 0x0,    // 0x0 means local APIC entry type
                     RecordLength = 0x8,
                     APICID = (byte)id,
-                    Flags = 0x01        // bit 0 = Processor Enabled
+                    Flags = 0x01,       // bit 0 = Processor Enabled
                 };
                 var table = Packet.Encode(processorLocalAPICRecord).ToArray();
                 bus.WriteBytes(table, recordAddress);

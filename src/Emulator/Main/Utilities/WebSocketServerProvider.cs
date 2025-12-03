@@ -8,11 +8,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Net.WebSockets;
-using Antmicro.Renode.WebSockets;
-using Antmicro.Renode.Logging;
+using System.Threading;
 using System.Threading.Tasks;
+
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.WebSockets;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -104,9 +105,13 @@ namespace Antmicro.Renode.Utilities
         }
 
         public int ConnectionsCount => connections.Count;
+
         public bool IsAnythingReceiving => connectionsSharedData.DataReceived != null && connectionsSharedData.DataBlockReceived != null;
+
         public IReadOnlyList<WebSocketConnection> Connections => connections;
+
         public event Action<WebSocketConnection, List<string>> NewConnection;
+
         public event Action<WebSocketConnection, int> DataReceived
         {
             add => connectionsSharedData.DataReceived += value;
@@ -176,6 +181,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         public bool IsConnected => connections.Count != 0;
+
         public WebSocketConnection CurrentConnection => connections.FirstOrDefault();
 
         private void NewConnectionEventHandler(WebSocketConnection sender, List<string> extraSegments)
@@ -339,7 +345,7 @@ namespace Antmicro.Renode.Utilities
                         await webSocket.SendAsync(new ArraySegment<byte>(dequeued, 0, dequeued.Length), WebSocketMessageType.Text, true, cancellationToken.Token);
                     }
                 }
-                catch(Exception e)
+                catch(Exception)
                 {
                     break;
                 }

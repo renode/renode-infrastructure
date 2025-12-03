@@ -5,12 +5,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Peripherals.Bus;
+using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using System.Linq;
-using System.Collections.Generic;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -24,6 +24,11 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 channels[i] = new Channel(this, i);
             }
+        }
+
+        public void Reset()
+        {
+            // TODO
         }
 
         public uint ReadDoubleWord(long offset)
@@ -40,7 +45,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             this.LogUnhandledRead(offset);
             return 0;
         }
-
 
         public void WriteDoubleWord(long offset, uint value)
         {
@@ -62,11 +66,6 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get { var i = 0; return channels.ToDictionary(x => i++, y => (IGPIO)y.IRQ); } }
-            
-        public void Reset()
-        {
-            // TODO
-        }
 
         public long Size
         {
@@ -99,6 +98,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
+        private readonly DmaEngine engine;
+        private readonly Channel[] channels;
+
         private sealed class Channel
         {
             public Channel(STM32LDMA parent, int channelNo)
@@ -109,8 +111,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 IRQ = new GPIO();
                 this.channelNo = channelNo;
             }
-
-            public GPIO IRQ { get; private set; }
 
             public uint Read(long offset)
             {
@@ -173,6 +173,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 direction = 0;
             }
 
+            public GPIO IRQ { get; private set; }
+
             private uint HandleConfigurationRead()
             {
                 var returnValue = 0u;
@@ -229,12 +231,27 @@ namespace Antmicro.Renode.Peripherals.DMA
                     sourceTransferType = peripheralTransferType;
                     destinationTransferType = memoryTransferType;
                 }
-               
+
                 var request = new Request(sourceAddress, destinationAddress, numberOfData, sourceTransferType, destinationTransferType,
                                   incrementSourceAddress, incrementDestinationAddress);
                 parent.engine.IssueCopy(request);
                 IRQ.Set();
             }
+
+            private Direction direction;
+            private byte priority;
+            private int numberOfData;
+            private bool transferErrorInterruptEnabled;
+            private bool completeInterruptEnabled;
+            private TransferType memoryTransferType;
+            private uint memoryAddress;
+            private uint peripheralAddress;
+            private bool peripheralIncrement;
+
+            private bool memoryIncrement;
+            private TransferType peripheralTransferType;
+            private readonly STM32LDMA parent;
+            private readonly int channelNo;
 
             private enum Offset
             {
@@ -243,20 +260,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 PeripheralAddress = 0x8,
                 MemoryAddress = 0xC
             }
-
-            private bool memoryIncrement;
-            private bool peripheralIncrement;
-            private uint peripheralAddress;
-            private uint memoryAddress;
-            private TransferType memoryTransferType;
-            private TransferType peripheralTransferType;
-            private bool completeInterruptEnabled;
-            private bool transferErrorInterruptEnabled;
-            private int numberOfData;
-            private byte priority;
-            private Direction direction;
-            private readonly STM32LDMA parent;
-            private readonly int channelNo;
         }
 
         private enum Offset
@@ -270,9 +273,5 @@ namespace Antmicro.Renode.Peripherals.DMA
             ReadFromPeripheral = 0,
             ReadFromMemory = 1
         }
-
-        private readonly DmaEngine engine;
-        private readonly Channel[] channels;
     }
 }
-

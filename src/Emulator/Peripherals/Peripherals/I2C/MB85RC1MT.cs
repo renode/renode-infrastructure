@@ -1,15 +1,13 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -97,10 +95,11 @@ namespace Antmicro.Renode.Peripherals.I2C
             address = (uint)((address + 1) % memory.Length);
         }
 
-        private readonly byte[] memory = new byte[8 * 128 * 1 << 10];
         private uint address;
         private bool writeProtected;
         private bool transmissionPending;
+
+        private readonly byte[] memory = new byte[8 * 128 * 1 << 10];
     }
 
     public class MB85RC1MTI2CRelay : II2CPeripheral

@@ -5,16 +5,17 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities.Binding;
-using System.Collections.Generic;
 using System;
-using Antmicro.Renode.Time;
-using ELFSharp.ELF;
-using Machine = Antmicro.Renode.Core.Machine;
-using ELFSharp.ELF.Sections;
+using System.Collections.Generic;
 using System.Linq;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities.Binding;
+
+using ELFSharp.ELF;
+using ELFSharp.ELF.Sections;
 using ELFSharp.UImage;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -30,6 +31,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.ClockSource.AddClockEntry(
                 new ClockEntry(long.MaxValue / 2, 128000000, DecrementerHandler, this, String.Empty, false, Direction.Descending));
             TlibSetLittleEndianMode(initialEndianess == Endianess.LittleEndian ? 1u : 0u);
+        }
+
+        [Export]
+        public uint ReadTbl()
+        {
+            tb += 0x100;
+            return tb;
+        }
+
+        [Export]
+        public uint ReadTbu()
+        {
+            return 0;
         }
 
         public override void Reset()
@@ -95,9 +109,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public bool WaitAsNop 
-        { 
-            get => neverWaitForInterrupt; 
+        public bool StartInVle
+        {
+            get;
+            set;
+        }
+
+        public bool WaitAsNop
+        {
+            get => neverWaitForInterrupt;
             set
             {
                 neverWaitForInterrupt = value;
@@ -121,28 +141,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        public uint ReadTbl()
-        {
-            tb += 0x100;
-            return tb;
-        }
-
-        [Export]
-        public uint ReadTbu()
-        {
-            return 0;
-        }
-
-        [Export]
         private ulong ReadDecrementer()
         {
             return checked((uint)machine.ClockSource.GetClockEntry(DecrementerHandler).Value);
-        }
-
-        public bool StartInVle
-        {
-            get;
-            set;
         }
 
         [Export]
@@ -183,18 +184,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             return StartInVle ? 1u : 0u;
         }
 
-        // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
-
-        [Import]
-        private Func<int, int, int> TlibSetPendingInterrupt;
-
-        [Import]
-        private Action<uint> TlibSetLittleEndianMode;
-
-        #pragma warning restore 649
-
         private uint tb;
+
+#pragma warning disable 649
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+        [Import]
+        private readonly Func<int, int, int> TlibSetPendingInterrupt;
+
+        [Import]
+        private readonly Action<uint> TlibSetLittleEndianMode;
+#pragma warning restore 649
+
         private readonly object irqSync;
         private readonly Endianess initialEndianess;
 
@@ -253,7 +253,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {92, "Instruction TLB error"},
             {93, "Data TLB error"},
             {96, "EOL"},
-            //tlib exceptions: used internally during code translation 
+            //tlib exceptions: used internally during code translation
             {512, "Stop translation"},
             {513, "Branch instruction"},
             //tlib exceptions: special cases we want to stop translation

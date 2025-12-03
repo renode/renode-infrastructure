@@ -7,13 +7,14 @@
 //
 using System.IO;
 using System.Linq;
-using Antmicro.Renode.Logging;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
@@ -104,11 +105,11 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.AlertTest.Define(this)
-                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverableAlert.Blink(); }, name:"recov_err")
-                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalStandardAlert.Blink(); }, name:"fatal_std_err")
-                .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name:"fatal_err")
-                .WithFlag(3, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalPrimitiveFlashAlert.Blink(); }, name:"fatal_prim_flash_alert")
-                .WithFlag(4, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverablePrimitiveFlashAlert.Blink(); }, name:"recov_prim_flash_alert")
+                .WithFlag(0, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverableAlert.Blink(); }, name: "recov_err")
+                .WithFlag(1, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalStandardAlert.Blink(); }, name: "fatal_std_err")
+                .WithFlag(2, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalAlert.Blink(); }, name: "fatal_err")
+                .WithFlag(3, FieldMode.Write, writeCallback: (_, val) => { if(val) FatalPrimitiveFlashAlert.Blink(); }, name: "fatal_prim_flash_alert")
+                .WithFlag(4, FieldMode.Write, writeCallback: (_, val) => { if(val) RecoverablePrimitiveFlashAlert.Blink(); }, name: "recov_prim_flash_alert")
                 .WithReservedBits(5, 27);
 
             Registers.DisableFlashFunctionality.Define(this)
@@ -130,7 +131,8 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithReservedBits(1, 31);
 
             Registers.Control.Define(this)
-                .WithFlag(0, name: "START", writeCallback: (o, n) => {
+                .WithFlag(0, name: "START", writeCallback: (o, n) =>
+                {
                     if(n)
                     {
                         StartOperation();
@@ -147,7 +149,8 @@ namespace Antmicro.Renode.Peripherals.MTD
                 .WithReservedBits(28, 4);
 
             Registers.AddressForFlashOperation.Define(this)
-                .WithValueField(0, 32, out address, changeCallback: (_, address) => {
+                .WithValueField(0, 32, out address, changeCallback: (_, address) =>
+                {
                     // This is required as the tests use full address or just flash offset
                     this.address.Value = address & flashAddressMask;
                     flashAddress = null;
@@ -447,7 +450,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         public void LoadFlashInfoPartitionFromBinary(uint bankNumber, uint infoType, long offset, ReadFilePath fileName)
         {
-            if (bankNumber >= FlashNumberOfBanks || infoType >= FlashNumberOfInfoTypes)
+            if(bankNumber >= FlashNumberOfBanks || infoType >= FlashNumberOfInfoTypes)
             {
                 throw new RecoverableException("Invalid bank number or info type.");
             }
@@ -482,56 +485,65 @@ namespace Antmicro.Renode.Peripherals.MTD
         public long Size => 0x1000;
 
         public GPIO ProgramEmptyIRQ { get; }
+
         public GPIO ProgramLevelIRQ { get; }
+
         public GPIO ReadFullIRQ { get; }
+
         public GPIO ReadLevelIRQ { get; }
+
         public GPIO OperationDoneIRQ { get; }
+
         public GPIO CorrectableErrorIRQ { get; }
 
         public GPIO RecoverableAlert { get; }
+
         public GPIO FatalStandardAlert { get; }
+
         public GPIO FatalAlert { get; }
+
         public GPIO FatalPrimitiveFlashAlert { get; }
+
         public GPIO RecoverablePrimitiveFlashAlert { get; }
 
         private void StartOperation()
         {
             switch(operation.Value)
             {
-                case ControlOp.FlashRead:
-                {
-                    this.Log(
-                        LogLevel.Noisy,
-                        "OpenTitan_FlashController/StartOperation: Read");
-                    StartReadOperation();
-                    break;
-                }
+            case ControlOp.FlashRead:
+            {
+                this.Log(
+                    LogLevel.Noisy,
+                    "OpenTitan_FlashController/StartOperation: Read");
+                StartReadOperation();
+                break;
+            }
 
-                case ControlOp.FlashProgram:
-                {
-                    this.Log(
-                        LogLevel.Noisy,
-                        "OpenTitan_FlashController/StartOperation: Program");
-                    StartProgramOperation();
-                    break;
-                }
+            case ControlOp.FlashProgram:
+            {
+                this.Log(
+                    LogLevel.Noisy,
+                    "OpenTitan_FlashController/StartOperation: Program");
+                StartProgramOperation();
+                break;
+            }
 
-                case ControlOp.FlashErase:
-                {
-                    this.Log(
-                        LogLevel.Noisy,
-                        "OpenTitan_FlashController/StartOperation: Erase");
-                    StartEraseOperation();
-                    break;
-                }
+            case ControlOp.FlashErase:
+            {
+                this.Log(
+                    LogLevel.Noisy,
+                    "OpenTitan_FlashController/StartOperation: Erase");
+                StartEraseOperation();
+                break;
+            }
 
-                default:
-                {
-                    this.Log(
-                        LogLevel.Warning,
-                        "OpenTitan_FlashController/StartOperation: invalid controlOpValue: 0x{0:X}", operation.Value);
-                    break;
-                }
+            default:
+            {
+                this.Log(
+                    LogLevel.Warning,
+                    "OpenTitan_FlashController/StartOperation: invalid controlOpValue: 0x{0:X}", operation.Value);
+                break;
+            }
             }
         }
 
@@ -598,15 +610,15 @@ namespace Antmicro.Renode.Peripherals.MTD
             {
                 switch(bankNumber)
                 {
-                    case 0:
-                        notAllowed = !eraseBank0.Value;
-                        break;
-                    case 1:
-                        notAllowed = !eraseBank1.Value;
-                        break;
-                    default:
-                        notAllowed = true;
-                        break;
+                case 0:
+                    notAllowed = !eraseBank0.Value;
+                    break;
+                case 1:
+                    notAllowed = !eraseBank1.Value;
+                    break;
+                default:
+                    notAllowed = true;
+                    break;
                 }
             }
             else
@@ -624,7 +636,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                 return;
             }
 
-            for(var i = 0 ; i < size ; i += 4)
+            for(var i = 0; i < size; i += 4)
             {
                 WriteFlashDoubleWord(truncatedOffset + i, 0xffffffff);
             }
@@ -691,26 +703,26 @@ namespace Antmicro.Renode.Peripherals.MTD
             var ret = false;
             switch(opType)
             {
-                case OperationType.ReadData:
-                    ret = (bankInfoPageReadEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
-                    break;
-                case OperationType.ProgramData:
-                    ret = (bankInfoPageProgramEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
-                    break;
-                case OperationType.EraseDataPage:
-                    ret = (bankInfoPageEraseEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
-                    break;
-                case OperationType.ScrambleData:
-                    ret = (bankInfoPageScrambleEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
-                    break;
-                case OperationType.Ecc:
-                    ret = (bankInfoPageEccEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
-                    break;
-                case OperationType.HighEndurance:
-                    ret = (bankInfoPageHighEnduranceEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
-                    break;
-                default:
-                    break;
+            case OperationType.ReadData:
+                ret = (bankInfoPageReadEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
+                break;
+            case OperationType.ProgramData:
+                ret = (bankInfoPageProgramEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
+                break;
+            case OperationType.EraseDataPage:
+                ret = (bankInfoPageEraseEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
+                break;
+            case OperationType.ScrambleData:
+                ret = (bankInfoPageScrambleEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
+                break;
+            case OperationType.Ecc:
+                ret = (bankInfoPageEccEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
+                break;
+            case OperationType.HighEndurance:
+                ret = (bankInfoPageHighEnduranceEnabled[bankNumber, infoType][pageNumber].Value == MultiBitBool4.True);
+                break;
+            default:
+                break;
             }
 
             if(!ret)
@@ -727,26 +739,26 @@ namespace Antmicro.Renode.Peripherals.MTD
             var ret = false;
             switch(opType)
             {
-                case OperationType.ReadData:
-                    ret = (defaultMpRegionReadEnabled.Value == MultiBitBool4.True);
-                    break;
-                case OperationType.ProgramData:
-                    ret = (defaultMpRegionProgEnabled.Value == MultiBitBool4.True);
-                    break;
-                case OperationType.EraseDataPage:
-                    ret = (defaultMpRegionEraseEnabled.Value == MultiBitBool4.True);
-                    break;
-                case OperationType.ScrambleData:
-                    ret = (defaultMpRegionScrambleEnabled.Value == MultiBitBool4.True);
-                    break;
-                case OperationType.Ecc:
-                    ret = (defaultMpRegionEccEnabled.Value == MultiBitBool4.True);
-                    break;
-                case OperationType.HighEndurance:
-                    ret = (defaultMpRegionHighEnduranceEnabled.Value == MultiBitBool4.True);
-                    break;
-                default:
-                    break;
+            case OperationType.ReadData:
+                ret = (defaultMpRegionReadEnabled.Value == MultiBitBool4.True);
+                break;
+            case OperationType.ProgramData:
+                ret = (defaultMpRegionProgEnabled.Value == MultiBitBool4.True);
+                break;
+            case OperationType.EraseDataPage:
+                ret = (defaultMpRegionEraseEnabled.Value == MultiBitBool4.True);
+                break;
+            case OperationType.ScrambleData:
+                ret = (defaultMpRegionScrambleEnabled.Value == MultiBitBool4.True);
+                break;
+            case OperationType.Ecc:
+                ret = (defaultMpRegionEccEnabled.Value == MultiBitBool4.True);
+                break;
+            case OperationType.HighEndurance:
+                ret = (defaultMpRegionHighEnduranceEnabled.Value == MultiBitBool4.True);
+                break;
+            default:
+                break;
             }
 
             if(!ret)
@@ -797,26 +809,26 @@ namespace Antmicro.Renode.Peripherals.MTD
             var ret = false;
             switch(opType)
             {
-                case OperationType.ReadData:
-                    ret = (mpRegionReadEnabled[regionId].Value == MultiBitBool4.True);
-                    break;
-                case OperationType.ProgramData:
-                    ret = (mpRegionProgEnabled[regionId].Value == MultiBitBool4.True);
-                    break;
-                case OperationType.EraseDataPage:
-                    ret = (mpRegionEraseEnabled[regionId].Value == MultiBitBool4.True);
-                    break;
-                case OperationType.ScrambleData:
-                    ret = (mpRegionScrambleEnabled[regionId].Value == MultiBitBool4.True);
-                    break;
-                case OperationType.Ecc:
-                    ret = (mpRegionEccEnabled[regionId].Value == MultiBitBool4.True);
-                    break;
-                case OperationType.HighEndurance:
-                    ret = (mpRegionHighEnduranceEnabled[regionId].Value == MultiBitBool4.True);
-                    break;
-                default:
-                    break;
+            case OperationType.ReadData:
+                ret = (mpRegionReadEnabled[regionId].Value == MultiBitBool4.True);
+                break;
+            case OperationType.ProgramData:
+                ret = (mpRegionProgEnabled[regionId].Value == MultiBitBool4.True);
+                break;
+            case OperationType.EraseDataPage:
+                ret = (mpRegionEraseEnabled[regionId].Value == MultiBitBool4.True);
+                break;
+            case OperationType.ScrambleData:
+                ret = (mpRegionScrambleEnabled[regionId].Value == MultiBitBool4.True);
+                break;
+            case OperationType.Ecc:
+                ret = (mpRegionEccEnabled[regionId].Value == MultiBitBool4.True);
+                break;
+            case OperationType.HighEndurance:
+                ret = (mpRegionHighEnduranceEnabled[regionId].Value == MultiBitBool4.True);
+                break;
+            default:
+                break;
             }
 
             if(!ret)
@@ -968,7 +980,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private const uint BytesPerPage = FlashWordsPerPage * FlashWordSize;
         private const uint BytesPerBank = FlashPagesPerBank * BytesPerPage;
 
-        #pragma warning restore format
+#pragma warning restore format
         private enum Registers : long
         {
             InterruptState                  = 0x000,
@@ -1099,6 +1111,6 @@ namespace Antmicro.Renode.Peripherals.MTD
             Ecc,
             HighEndurance
         }
-        #pragma warning restore format
+#pragma warning restore format
     } // class
 } // namespace

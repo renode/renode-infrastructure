@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
@@ -220,6 +221,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
+        private State state;
+        private Command lastCommand;
+
+        private uint column;
+
         private readonly Queue<byte> sendQueue;
         private readonly Stack<byte> receiveStack;
         private readonly MappedMemory dataMemory;
@@ -231,11 +237,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly uint pagesPerBlock;
         private readonly uint blocksPerLun;
         private readonly uint lunsPerChip;
-
-        private State state;
-        private Command lastCommand;
-
-        private uint column;
 
         private static readonly byte[] ReadIdBytes = new byte[] { 0x0, 0xef, 0xbc };
         private static readonly byte[] PageReadBytes = new byte[] { 0x0, 0x0, 0x0 };

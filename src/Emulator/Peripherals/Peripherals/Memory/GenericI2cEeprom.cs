@@ -7,15 +7,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Memory
 {
-    public class GenericI2cEeprom: II2CPeripheral
+    public class GenericI2cEeprom : II2CPeripheral
     {
         public GenericI2cEeprom(IMemory memory, int addressBitSize = DefaultAddressBitSize, bool writable = DefaultWritable, int pageSize = DefaultPageSize)
         {
@@ -160,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 .Skip(offset)
                 .Take(count)
             ;
-         }
+        }
 
         private int addressBytes;
         private int currentAddress;

@@ -9,10 +9,9 @@ using System;
 
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
-    
     public class StringToken : Token
     {
-        public StringToken(string value):base(value)
+        public StringToken(string value) : base(value)
         {
             var trim = false;
             if(value.StartsWith("\"", StringComparison.Ordinal))
@@ -35,8 +34,6 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             }
         }
 
-        public string Value { get; protected set; }
-        
         public override object GetObjectValue()
         {
             return Value;
@@ -46,7 +43,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
             return string.Format("[StringToken: Value={0}]", Value);
         }
+
+        public string Value { get; protected set; }
     }
-
 }
-

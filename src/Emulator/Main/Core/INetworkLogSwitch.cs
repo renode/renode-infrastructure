@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Network;
 
 namespace Antmicro.Renode.Core
@@ -13,4 +12,3 @@ namespace Antmicro.Renode.Core
     {
     }
 }
-

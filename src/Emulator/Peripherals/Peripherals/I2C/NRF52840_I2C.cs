@@ -7,6 +7,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -210,17 +211,17 @@ namespace Antmicro.Renode.Peripherals.I2C
                 {
                     switch(val)
                     {
-                        case 0:
-                            enabled = false;
-                            break;
+                    case 0:
+                        enabled = false;
+                        break;
 
-                        case 5:
-                            enabled = true;
-                            break;
+                    case 5:
+                        enabled = true;
+                        break;
 
-                        default:
-                            this.Log(LogLevel.Warning, "Wrong enabled value");
-                            break;
+                    default:
+                        this.Log(LogLevel.Warning, "Wrong enabled value");
+                        break;
                     }
                 })
                 .WithReservedBits(4, 28)
@@ -381,9 +382,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             IRQ.Set(flag);
         }
 
-        private readonly Queue<byte> slaveToMasterBuffer;
-        private readonly Queue<byte> masterToSlaveBuffer;
-
         private II2CPeripheral selectedSlave;
         private bool enabled;
         private bool transmissionInProgress;
@@ -404,6 +402,9 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IFlagRegisterField byteBoundaryStopShortcut;
 
         private IFlagRegisterField addressNackError;
+
+        private readonly Queue<byte> slaveToMasterBuffer;
+        private readonly Queue<byte> masterToSlaveBuffer;
 
         private enum Registers
         {
@@ -432,4 +433,3 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
     }
 }
-

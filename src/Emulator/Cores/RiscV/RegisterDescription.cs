@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public static void AddCpuFeature(ref List<GDBFeatureDescriptor> features, uint registerWidth)
         {
             var cpuGroup = new GDBFeatureDescriptor("org.gnu.gdb.riscv.cpu");
-            var intType = $"uint{registerWidth}";
+            var intType = $"int{registerWidth}";
 
             for(var index = 0u; index < NumberOfXRegisters; ++index)
             {
@@ -93,12 +93,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 fpuGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.F0 + index, fWidth, $"f{index}", floatType, "float"));
             }
 
-            // fflags, frm and fcsr are not implemented but are required for architecture description
-            var fflagsIndex = (uint)RiscV32Registers.F0 + NumberOfFRegisters;
-            fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex, registerWidth, "fflags", "", "float"));
-            fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex + 1, registerWidth, "frm", "", "float"));
-            fpuGroup.Registers.Add(new GDBRegisterDescriptor(fflagsIndex + 2, registerWidth, "fcsr", "", "float"));
-
+            // Only FFLAGS and FRM registers are mapped in tlib and we emulate FCSR in C# as non-mapped register
+            fpuGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.FFLAGS, registerWidth, "fflags", "", "float"));
+            fpuGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.FRM, registerWidth, "frm", "", "float"));
+            fpuGroup.Registers.Add(new GDBRegisterDescriptor(IndexOfFcsrRegister, registerWidth, "fcsr", "", "float"));
             {
                 var fields = new List<GDBTypeBitField>();
                 fields.Add(new GDBTypeBitField("NX", 0, 0, "bool"));
@@ -147,7 +145,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var csrGroup = new GDBFeatureDescriptor("org.gnu.gdb.riscv.csr");
             var intType = $"uint{registerWidth}";
-
             {
                 var fields = new List<GDBTypeEnumValue>();
                 fields.Add(new GDBTypeEnumValue("32", 1));
@@ -457,28 +454,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             var riscvVectorTypeFields = new List<GDBTypeField>();
 
-            if(registerWidth / 128 > 0)
+            if(registerWidth / 8 > 0)
             {
-                var vu128TypeID = $"vector_u128_{registerWidth / 128}";
-                var vu128Type = GDBCustomType.Vector(vu128TypeID, "uint128", registerWidth / 128);
-                vectorGroup.Types.Add(vu128Type);
-                riscvVectorTypeFields.Add(new GDBTypeField("q", vu128TypeID));
-            }
-
-            if(registerWidth / 64 > 0)
-            {
-                var vu64TypeID = $"vector_u64_{registerWidth / 64}";
-                var vu64Type = GDBCustomType.Vector(vu64TypeID, "uint64", registerWidth / 64);
-                vectorGroup.Types.Add(vu64Type);
-                riscvVectorTypeFields.Add(new GDBTypeField("l", vu64TypeID));
-            }
-
-            if(registerWidth / 32 > 0)
-            {
-                var vu32TypeID = $"vector_u32_{registerWidth / 32}";
-                var vu32Type = GDBCustomType.Vector(vu32TypeID, "uint32", registerWidth / 32);
-                vectorGroup.Types.Add(vu32Type);
-                riscvVectorTypeFields.Add(new GDBTypeField("w", vu32TypeID));
+                var vu8TypeID = $"vector_u8_{registerWidth / 8}";
+                var vu8Type = GDBCustomType.Vector(vu8TypeID, "uint8", registerWidth / 8);
+                vectorGroup.Types.Add(vu8Type);
+                riscvVectorTypeFields.Add(new GDBTypeField("b", vu8TypeID));
             }
 
             if(registerWidth / 16 > 0)
@@ -489,14 +470,30 @@ namespace Antmicro.Renode.Peripherals.CPU
                 riscvVectorTypeFields.Add(new GDBTypeField("s", vu16TypeID));
             }
 
-            if(registerWidth / 8 > 0)
+            if(registerWidth / 32 > 0)
             {
-                var vu8TypeID = $"vector_u8_{registerWidth / 8}";
-                var vu8Type = GDBCustomType.Vector(vu8TypeID, "uint8", registerWidth / 8);
-                vectorGroup.Types.Add(vu8Type);
-                riscvVectorTypeFields.Add(new GDBTypeField("b", vu8TypeID));
+                var vu32TypeID = $"vector_u32_{registerWidth / 32}";
+                var vu32Type = GDBCustomType.Vector(vu32TypeID, "uint32", registerWidth / 32);
+                vectorGroup.Types.Add(vu32Type);
+                riscvVectorTypeFields.Add(new GDBTypeField("w", vu32TypeID));
             }
-            
+
+            if(registerWidth / 64 > 0)
+            {
+                var vu64TypeID = $"vector_u64_{registerWidth / 64}";
+                var vu64Type = GDBCustomType.Vector(vu64TypeID, "uint64", registerWidth / 64);
+                vectorGroup.Types.Add(vu64Type);
+                riscvVectorTypeFields.Add(new GDBTypeField("l", vu64TypeID));
+            }
+
+            if(registerWidth / 128 > 0)
+            {
+                var vu128TypeID = $"vector_u128_{registerWidth / 128}";
+                var vu128Type = GDBCustomType.Vector(vu128TypeID, "uint128", registerWidth / 128);
+                vectorGroup.Types.Add(vu128Type);
+                riscvVectorTypeFields.Add(new GDBTypeField("q", vu128TypeID));
+            }
+
             var riscvVectorType = GDBCustomType.Union("riscv_vector", riscvVectorTypeFields);
             vectorGroup.Types.Add(riscvVectorType);
 
@@ -504,13 +501,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 vectorGroup.Registers.Add(new GDBRegisterDescriptor(StartOfVRegisters + index, registerWidth, $"v{index}", "riscv_vector", "vector"));
             }
-            
+
             features.Add(vectorGroup);
         }
 
         public const uint NumberOfXRegisters = 32;
         public const uint NumberOfFRegisters = 32;
         public const uint NumberOfAdditionalFRegisters = 3;
+        public const uint IndexOfFcsrRegister = (uint)RiscV32Registers.FRM + 1;
         public const uint StartOfVRegisters = 68;
         public const uint NumberOfVRegisters = 32;
     }

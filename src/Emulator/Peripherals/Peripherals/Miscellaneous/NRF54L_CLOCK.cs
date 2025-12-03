@@ -1,8 +1,8 @@
 //
 // Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System.Text;
@@ -27,7 +27,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             hfxoStarted = false;
             pllStarted = false;
             lfclkStarted = false;
-            hfxoTuneStarted = false;
             UpdateInterrupts();
         }
 
@@ -104,22 +103,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     }, name: "TASKS_PLLSTART")
                 .WithReservedBits(1, 31);
 
-             Registers.StopPLL.Define(this)
-                .WithFlag(0, FieldMode.Write,
-                    writeCallback: (_, val) =>
-                    {
-                        if(!val)
-                        {
-                            return;
-                        }
-                        pllStarted = false;
-                        pllEventGenerated.Value = false;
-                        UpdateInterrupts();
-                    }, name: "TASKS_PLLSTOP")
-                .WithReservedBits(1, 31);
+            Registers.StopPLL.Define(this)
+               .WithFlag(0, FieldMode.Write,
+                   writeCallback: (_, val) =>
+                   {
+                       if(!val)
+                       {
+                           return;
+                       }
+                       pllStarted = false;
+                       pllEventGenerated.Value = false;
+                       UpdateInterrupts();
+                   }, name: "TASKS_PLLSTOP")
+               .WithReservedBits(1, 31);
 
             Registers.StartLFCLK.Define(this)
-                .WithFlag(0, FieldMode.Write, 
+                .WithFlag(0, FieldMode.Write,
                     writeCallback: (_, val) =>
                     {
                         if(!val)
@@ -161,14 +160,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(1, 31);
 
             Registers.StartHFXOTune.Define(this)
-                .WithFlag(0, FieldMode.Write, 
+                .WithFlag(0, FieldMode.Write,
                     writeCallback: (_, val) =>
                     {
                         if(!val)
                         {
                             return;
                         }
-                        hfxoTuneStarted = true;
                         hfxoTuneEventGenerated.Value = true;
                         UpdateInterrupts();
                     }, name: "TASKS_XOTUNE")
@@ -182,7 +180,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         {
                             return;
                         }
-                        hfxoTuneStarted = false;
                         hfxoTuneEventGenerated.Value = false;
                         UpdateInterrupts();
                     }, name: "TASKS_XOTUNEABORT")
@@ -388,17 +385,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private bool HfxoEvent => hfxoEventGenerated.Value && hfxoEventEnabled.Value;
+
         private bool PllEvent => pllEventGenerated.Value && pllEventEnabled.Value;
+
         private bool LfclkEvent => lfclkEventGenerated.Value && lfclkEventEnabled.Value;
+
         private bool LfrcCalibrationEvent => lfrcCalibrationEventGenerated.Value && lfrcCalibrationEventEnabled.Value;
+
         private bool HfxoTuneEvent => hfxoTuneEventGenerated.Value && hfxoTuneEventEnabled.Value;
+
         private bool HfxoTuneErrorEvent => hfxoTuneErrorEventGenerated.Value && hfxoTuneErrorEventEnabled.Value;
+
         private bool HfxoTuneFailedEvent => hfxoTuneFailedEventGenerated.Value && hfxoTuneFailedEventEnabled.Value;
 
         private bool hfxoStarted;
         private bool pllStarted;
         private bool lfclkStarted;
-        private bool hfxoTuneStarted;
 
         private IFlagRegisterField hfxoEventGenerated;
         private IFlagRegisterField pllEventGenerated;

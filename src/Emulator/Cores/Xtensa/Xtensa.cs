@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
@@ -13,6 +14,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Utilities.Binding;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -27,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 var j = i;
                 innerTimers[i] = new ComparingTimer(machine.ClockSource, frequency, this, "", enabled: true, eventEnabled: true);
-                innerTimers[i].CompareReached += () => HandleCompareReached(j) ;
+                innerTimers[i].CompareReached += () => HandleCompareReached(j);
             }
             Reset();
         }
@@ -91,7 +93,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             uint op = A[2];
 
-            switch((XtensaSimcallOperation)op){
+            switch((XtensaSimcallOperation)op)
+            {
             case XtensaSimcallOperation.Write:
                 uint fd = A[3];
                 uint vaddr = A[4];
@@ -157,19 +160,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             innerTimers[id].Compare = value;
         }
 
-        private readonly ComparingTimer[] innerTimers;
         private SemihostingUart semihostingUart = null;
 
-        private const int InnerTimersCount = 3;
-
-        // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
+        // 649:  Field '...' is never assigned to, and will always have its default value null
         [Import]
-        private Action<uint, uint> TlibSetIrqPendingBit;
+        private readonly Action<uint, uint> TlibSetIrqPendingBit;
 
         [Import]
-        private Action<uint> TlibSetSingleStep;
+        private readonly Action<uint> TlibSetSingleStep;
 #pragma warning restore 649
+
+        private readonly ComparingTimer[] innerTimers;
+
+        private const int InnerTimersCount = 3;
 
         private enum XtensaSimcallOperation : uint
         {
@@ -187,4 +191,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

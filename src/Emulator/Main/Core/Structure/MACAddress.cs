@@ -6,8 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Net.NetworkInformation;
 using System.Globalization;
+using System.Net.NetworkInformation;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.Structure
@@ -27,7 +28,7 @@ namespace Antmicro.Renode.Core.Structure
 
         public byte F { get; private set; }
 
-        public byte[] Bytes { get { return new [] { A, B, C, D, E, F }; } }
+        public byte[] Bytes { get { return new[] { A, B, C, D, E, F }; } }
 
         public MACAddress(ulong address) : this()
         {
@@ -61,7 +62,7 @@ namespace Antmicro.Renode.Core.Structure
             }
 
             return this;
-	}
+        }
 
         public MACAddress Previous()
         {
@@ -300,4 +301,3 @@ namespace Antmicro.Renode.Core.Structure
         }
     }
 }
-

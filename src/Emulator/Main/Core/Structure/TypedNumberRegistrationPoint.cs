@@ -5,15 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Core.Structure
 {
     public class TypedNumberRegistrationPoint<T> : IRegistrationPoint, IJsonSerializable
     {
-        public T Address { get; private set; }
-        public Type Type { get; private set; }
-
         public TypedNumberRegistrationPoint(T address)
         {
             Address = address;
@@ -41,14 +39,6 @@ namespace Antmicro.Renode.Core.Structure
             };
         }
 
-        public string PrettyString
-        {
-            get
-            {
-                return ToString();
-            }
-        }
-
         public override string ToString()
         {
             return string.Format("Type: {0}, Address: {1}", Type, Address);
@@ -73,6 +63,18 @@ namespace Antmicro.Renode.Core.Structure
             unchecked
             {
                 return (Address != null ? new Tuple<Type, T>(Type, Address).GetHashCode() : 0);
+            }
+        }
+
+        public T Address { get; private set; }
+
+        public Type Type { get; private set; }
+
+        public string PrettyString
+        {
+            get
+            {
+                return ToString();
             }
         }
     }

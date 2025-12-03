@@ -5,12 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
@@ -363,16 +362,16 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 switch(recvTrigger.Value)
                 {
-                    case TriggerLevel.FifoEmpty:
-                        return 0;
-                    case TriggerLevel.OneFourthFull:
-                        return ReceiveFIFOSize / 4;
-                    case TriggerLevel.OneHalfFull:
-                        return ReceiveFIFOSize / 2;
-                    case TriggerLevel.TwoLessThanFull:
-                        return ReceiveFIFOSize - 2;
-                    default:
-                        throw new Exception("Unreachable");
+                case TriggerLevel.FifoEmpty:
+                    return 0;
+                case TriggerLevel.OneFourthFull:
+                    return ReceiveFIFOSize / 4;
+                case TriggerLevel.OneHalfFull:
+                    return ReceiveFIFOSize / 2;
+                case TriggerLevel.TwoLessThanFull:
+                    return ReceiveFIFOSize - 2;
+                default:
+                    throw new Exception("Unreachable");
                 }
             }
         }
@@ -496,4 +495,3 @@ namespace Antmicro.Renode.Peripherals.UART
         }
     }
 }
-

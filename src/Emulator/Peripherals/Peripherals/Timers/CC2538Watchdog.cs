@@ -45,4 +45,3 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint previousValue;
     }
 }
-

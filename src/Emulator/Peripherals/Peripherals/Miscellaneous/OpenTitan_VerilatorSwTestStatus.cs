@@ -1,8 +1,8 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             DefineRegisters();
         }
 
-        public long Size =>  0x8;
+        public long Size => 0x8;
 
         private void DefineRegisters()
         {
@@ -27,24 +27,24 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     this.Log(LogLevel.Info, "Opentitan Software test status set to 0x{0:x}", value);
                     switch((SoftwareTestStatusCode)value)
                     {
-                        case SoftwareTestStatusCode.InBootRom: 
-                            this.Log(LogLevel.Info, "Opentitan in boot ROM");
-                            break;
-                        case SoftwareTestStatusCode.InTest:
-                            this.Log(LogLevel.Info, "Opentitan in test");
-                            break;
-                        case SoftwareTestStatusCode.InWfi:
-                            this.Log(LogLevel.Info, "Opentitan in WFI");
-                            break;
-                        case SoftwareTestStatusCode.Passed:
-                            this.Log(LogLevel.Info, "Opentitan PASSED Test");
-                            break;
-                        case SoftwareTestStatusCode.Failed:
-                            this.Log(LogLevel.Info, "Opentitan FAILED Test");
-                            break;
+                    case SoftwareTestStatusCode.InBootRom:
+                        this.Log(LogLevel.Info, "Opentitan in boot ROM");
+                        break;
+                    case SoftwareTestStatusCode.InTest:
+                        this.Log(LogLevel.Info, "Opentitan in test");
+                        break;
+                    case SoftwareTestStatusCode.InWfi:
+                        this.Log(LogLevel.Info, "Opentitan in WFI");
+                        break;
+                    case SoftwareTestStatusCode.Passed:
+                        this.Log(LogLevel.Info, "Opentitan PASSED Test");
+                        break;
+                    case SoftwareTestStatusCode.Failed:
+                        this.Log(LogLevel.Info, "Opentitan FAILED Test");
+                        break;
                     }
                 })
-                .WithIgnoredBits(16,16)
+                .WithIgnoredBits(16, 16)
             ;
         }
 

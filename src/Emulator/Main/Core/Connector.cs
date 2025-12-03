@@ -7,9 +7,11 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities.Collections;
-using System.Linq;
+
 using Microsoft.CSharp.RuntimeBinder;
 
 namespace Antmicro.Renode.Core
@@ -27,8 +29,8 @@ namespace Antmicro.Renode.Core
             {
                 ((dynamic)connector).AttachTo((dynamic)connectee);
                 connections.Add(connector, connectee);
-            } 
-            catch (RuntimeBinderException)
+            }
+            catch(RuntimeBinderException)
             {
                 ThrowConnectionException(connectee.GetType(), connector.GetType());
             }

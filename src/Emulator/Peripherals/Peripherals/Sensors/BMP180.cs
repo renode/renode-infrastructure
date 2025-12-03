@@ -6,12 +6,11 @@
 //
 using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sensors
@@ -125,10 +124,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Registers.CoefficientCalibrationBA.Define(this, 0x80); //RO
             Registers.CoefficientCalibrationBB.Define(this, 0x0); //RO
 
-            Registers.CoefficientCalibrationBC.Define(this, unchecked((byte)(calibMB >> 8)))
+            Registers.CoefficientCalibrationBC.Define(this, unchecked((byte)(CalibMB >> 8)))
                 .WithValueField(0, 8, out coeffCalibBC, FieldMode.Read, name: "MC[15-8]");
 
-            Registers.CoefficientCalibrationBD.Define(this, unchecked((byte)calibMB))
+            Registers.CoefficientCalibrationBD.Define(this, unchecked((byte)CalibMB))
                 .WithValueField(0, 8, out coeffCalibBD, FieldMode.Read, name: "MC[7-0]");
 
             Registers.CoefficientCalibrationBE.Define(this, 0x0B)
@@ -142,14 +141,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Registers.SoftReset.Define(this, 0x0) //WO
                 .WithWriteCallback((_, val) =>
                 {
-                    if(val == resetCommand)
+                    if(val == ResetCommand)
                     {
                         Reset();
                     }
                 });
 
             Registers.CtrlMeasurement.Define(this, 0x0) //RW
-                .WithValueField(0, 5, out ctrlMeasurement , name: "CTRL_MEAS")
+                .WithValueField(0, 5, out ctrlMeasurement, name: "CTRL_MEAS")
                 .WithFlag(5, out startConversion, name: "SCO")
                 .WithValueField(6, 2, out controlOversampling, name: "OSS")
                 .WithWriteCallback((_, __) => HandleMeasurement());
@@ -191,7 +190,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             int x2 = (int)((int)(b5 + md + Math.Sqrt(delta)) >> 1);
             // X1 = B5-X2
             // X1 = (UT-AC6)*AC5/2^15 => UT = ((2^15X1)/AC5)+AC6 = (2^15(B5-X2)/AC5)+AC6
-            return (int)((((b5-x2) << 15)/ac5)+ac6);
+            return (int)((((b5 - x2) << 15) / ac5) + ac6);
         }
 
         private void HandleMeasurement()
@@ -199,19 +198,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
             this.Log(LogLevel.Noisy, "HandleMeasurement set {0}", (MeasurementModes)ctrlMeasurement.Value);
             switch((MeasurementModes)ctrlMeasurement.Value)
             {
-                case MeasurementModes.Temperature:
-                    var uncompensatedTemp = GetUncompensatedTemperature();
-                    outMSB.Value = (byte)((uncompensatedTemp >> 8) & 0xFF);
-                    outLSB.Value = (byte)(uncompensatedTemp & 0xFF);
-                    break;
-                case MeasurementModes.Pressure:
-                    var uPressure = UncompensatedPressure << (byte)(8 - controlOversampling.Value);
-                    outMSB.Value = (byte)((uPressure >> 16) & 0xFF);
-                    outLSB.Value = (byte)((uPressure >> 8) & 0xFF);
-                    outXLSB.Value = (byte)(uPressure & 0xFF);
-                    break;
-                default:
-                    break;
+            case MeasurementModes.Temperature:
+                var uncompensatedTemp = GetUncompensatedTemperature();
+                outMSB.Value = (byte)((uncompensatedTemp >> 8) & 0xFF);
+                outLSB.Value = (byte)(uncompensatedTemp & 0xFF);
+                break;
+            case MeasurementModes.Pressure:
+                var uPressure = UncompensatedPressure << (byte)(8 - controlOversampling.Value);
+                outMSB.Value = (byte)((uPressure >> 16) & 0xFF);
+                outLSB.Value = (byte)((uPressure >> 8) & 0xFF);
+                outXLSB.Value = (byte)(uPressure & 0xFF);
+                break;
+            default:
+                break;
             }
             // Clear SCO bit (start of conversion)
             startConversion.Value = false;
@@ -238,8 +237,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private decimal temperature;
         private const decimal MinTemperature = -40;
         private const decimal MaxTemperature = 85;
-        private const byte resetCommand = 0xB6;
-        private const short calibMB = -8711;
+        private const byte ResetCommand = 0xB6;
+        private const short CalibMB = -8711;
 
         private enum MeasurementModes
         {
@@ -280,4 +279,3 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
     }
 }
-

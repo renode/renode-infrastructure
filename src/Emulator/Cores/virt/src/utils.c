@@ -4,16 +4,16 @@
  * This file is licensed under the MIT License.
  */
 
-#include "cpu.h"
 #include "callbacks.h"
+#include "registers.h"
 #include "utils.h"
 
-#include <string.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <linux/kvm.h>
+#include <stdbool.h>
 #include <sys/ioctl.h>
-#include <errno.h>
 
 #define VSNPRINTF_BUFFER_SIZE 1024
 
@@ -30,9 +30,7 @@ void kvm_abortf(const char *fmt, ...)
 
 void kvm_runtime_abortf(const char *fmt, ...)
 {
-    struct kvm_regs regs;
-    get_regs(&regs);
-    uint64_t pc = regs.rip;
+    uint64_t pc = get_register_value(RIP);
 
     char result[VSNPRINTF_BUFFER_SIZE];
     va_list ap;
@@ -52,26 +50,22 @@ void kvm_logf(LogLevel level, const char *fmt, ...)
     va_end(ap);
 }
 
-void get_regs(struct kvm_regs *regs) {
-    if (ioctl(cpu->vcpu_fd, KVM_GET_REGS, regs) < 0) {
-        kvm_abortf("KVM_GET_REGS: %s", strerror(errno));
-    }
-}
+// Used to ignore unexpected signals.
+int ioctl_with_retry(int fd, unsigned long op, ...)
+{
+    int result;
+    va_list ap;
+    bool failed_with_eintr;
+    unsigned retry_count = 0;
 
-void set_regs(struct kvm_regs *regs) {
-    if (ioctl(cpu->vcpu_fd, KVM_SET_REGS, regs) < 0) {
-        kvm_abortf("KVM_SET_REGS: %s", strerror(errno));
-    }
-}
+    do {
+        va_start(ap, op);
+        void* arg = va_arg(ap, void*);
+        result = ioctl(fd, op, arg);
+        va_end(ap);
 
-void get_sregs(struct kvm_sregs *sregs) {
-    if (ioctl(cpu->vcpu_fd, KVM_GET_SREGS, sregs) < 0) {
-        kvm_abortf("KVM_GET_SREGS: %s", strerror(errno));
-    }
-}
-
-void set_sregs(struct kvm_sregs *sregs) {
-    if (ioctl(cpu->vcpu_fd, KVM_SET_SREGS, sregs) < 0) {
-        kvm_abortf("KVM_SET_SREGS: %s", strerror(errno));
-    }
+        failed_with_eintr = (result == -1 && errno == EINTR);
+    } while (failed_with_eintr && retry_count++ < IOCTL_RETRY_LIMIT);
+    
+    return result;
 }

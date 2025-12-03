@@ -4,18 +4,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.PCI.BAR;
 using Antmicro.Renode.Peripherals.PCI.Capabilities;
-using Antmicro.Renode.Utilities;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -23,6 +19,64 @@ namespace Antmicro.Renode.Peripherals.PCI
 {
     public abstract class PCIeBasePeripheral : IPCIePeripheral
     {
+        public virtual uint ConfigurationReadDoubleWord(long offset)
+        {
+            var value = registers.Read(offset);
+            this.Log(LogLevel.Noisy, "Accessing Configuration space, reading from {0} (0x{1:X}), read 0x{2:X}.", (Registers)offset, offset, value);
+            return value;
+        }
+
+        public virtual void Reset()
+        {
+            registers.Reset();
+        }
+
+        public virtual void ConfigurationWriteDoubleWord(long offset, uint value)
+        {
+            this.Log(LogLevel.Noisy, "Accessing Configuration space, writing to {0} (0x{1:X}), value {2:X}.", (Registers)offset, offset, value);
+            registers.Write(offset, value);
+        }
+
+        public uint MemoryReadDoubleWord(uint bar, long offset)
+        {
+            if(bar >= baseAddressRegisters.Length || baseAddressRegisters[bar] == null)
+            {
+                this.Log(LogLevel.Warning, "Trying to read from unimplemented BAR {0}, offset 0x{1:X}.", bar, offset);
+                return 0;
+            }
+            if(baseAddressRegisters[bar].RequestedSize < offset)
+            {
+                this.Log(LogLevel.Error, "Trying to read outside the limits of BAR {0}, offset 0x{1:X}. The BAR requested 0x{2:X} bytes. This may indicate a problem in PCIe routing.", bar, offset, baseAddressRegisters[bar].RequestedSize);
+                return 0;
+            }
+            return ReadDoubleWordFromBar(bar, offset);
+        }
+
+        public void MemoryWriteDoubleWord(uint bar, long offset, uint value)
+        {
+            if(bar >= baseAddressRegisters.Length || baseAddressRegisters[bar] == null)
+            {
+                this.Log(LogLevel.Warning, "Trying to write to unimplemented BAR {0}, offset 0x{1:X}, value 0x{2:X}.", bar, offset, value);
+                return;
+            }
+            if(baseAddressRegisters[bar].RequestedSize < offset)
+            {
+                this.Log(LogLevel.Error, "Trying to write outside the limits of BAR {0}, offset 0x{1:X}, value 0x{2:X}. The BAR requested 0x{3:X} bytes. This may indicate a problem in PCIe routing.", bar, offset, value, baseAddressRegisters[bar].RequestedSize);
+                return;
+            }
+            WriteDoubleWordToBar(bar, offset, value);
+        }
+
+        public ushort DeviceId { get; set; }
+
+        public ushort VendorId { get; set; }
+
+        public byte RevisionId { get; set; }
+
+        public uint ClassCode { get; set; }
+
+        public HeaderType HeaderType { get; }
+
         protected PCIeBasePeripheral(IPCIeRouter parent, HeaderType headerType)
         {
             if(!IsHeaderAcceptable(headerType))
@@ -83,60 +137,6 @@ namespace Antmicro.Renode.Peripherals.PCI
             registers = new DoubleWordRegisterCollection(this, registerMap);
             AddCapability(0x80, new PCIeCapability(this));
         }
-
-        public virtual uint ConfigurationReadDoubleWord(long offset)
-        {
-            var value = registers.Read(offset);
-            this.Log(LogLevel.Noisy, "Accessing Configuration space, reading from {0} (0x{1:X}), read 0x{2:X}.", (Registers)offset, offset, value);
-            return value;
-        }
-
-        public virtual void Reset()
-        {
-            registers.Reset();
-        }
-
-        public virtual void ConfigurationWriteDoubleWord(long offset, uint value)
-        {
-            this.Log(LogLevel.Noisy, "Accessing Configuration space, writing to {0} (0x{1:X}), value {2:X}.", (Registers)offset, offset, value);
-            registers.Write(offset, value);
-        }
-
-        public uint MemoryReadDoubleWord(uint bar, long offset)
-        {
-            if(bar >= baseAddressRegisters.Length || baseAddressRegisters[bar] == null)
-            {
-                this.Log(LogLevel.Warning, "Trying to read from unimplemented BAR {0}, offset 0x{1:X}.", bar, offset);
-                return 0;
-            }
-            if(baseAddressRegisters[bar].RequestedSize < offset)
-            {
-                this.Log(LogLevel.Error, "Trying to read outside the limits of BAR {0}, offset 0x{1:X}. The BAR requested 0x{2:X} bytes. This may indicate a problem in PCIe routing.", bar, offset, baseAddressRegisters[bar].RequestedSize);
-                return 0;
-            }
-            return ReadDoubleWordFromBar(bar, offset);
-        }
-
-        public void MemoryWriteDoubleWord(uint bar, long offset, uint value)
-        {
-            if(bar >= baseAddressRegisters.Length || baseAddressRegisters[bar] == null)
-            {
-                this.Log(LogLevel.Warning, "Trying to write to unimplemented BAR {0}, offset 0x{1:X}, value 0x{2:X}.", bar, offset, value);
-                return;
-            }
-            if(baseAddressRegisters[bar].RequestedSize < offset)
-            {
-                this.Log(LogLevel.Error, "Trying to write outside the limits of BAR {0}, offset 0x{1:X}, value 0x{2:X}. The BAR requested 0x{3:X} bytes. This may indicate a problem in PCIe routing.", bar, offset, value, baseAddressRegisters[bar].RequestedSize);
-                return;
-            }
-            WriteDoubleWordToBar(bar, offset, value);
-        }
-
-        public ushort DeviceId { get; set; }
-        public ushort VendorId { get; set; }
-        public byte RevisionId { get; set; }
-        public uint ClassCode { get; set; }
-        public HeaderType HeaderType { get; }
 
         protected virtual void WriteDoubleWordToBar(uint bar, long offset, uint value)
         {
@@ -218,4 +218,3 @@ namespace Antmicro.Renode.Peripherals.PCI
         }
     }
 }
-

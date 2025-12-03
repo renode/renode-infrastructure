@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.USB
@@ -51,19 +52,20 @@ namespace Antmicro.Renode.Core.USB
         }
 
         public virtual int DescriptorLength { get; }
-        public int RecursiveDescriptorLength => DescriptorLength + subdescriptors.Sum(sds => sds.Sum(sd => sd.RecursiveDescriptorLength));
 
-        protected abstract void FillDescriptor(BitStream buffer);
+        public int RecursiveDescriptorLength => DescriptorLength + subdescriptors.Sum(sds => sds.Sum(sd => sd.RecursiveDescriptorLength));
 
         protected void RegisterSubdescriptor(IProvidesDescriptor subdescriptor, int? index = null)
         {
-            subdescriptors.Insert(index ?? subdescriptors.Count , new IProvidesDescriptor[] { subdescriptor });
+            subdescriptors.Insert(index ?? subdescriptors.Count, new IProvidesDescriptor[] { subdescriptor });
         }
 
         protected void RegisterSubdescriptors(IEnumerable<IProvidesDescriptor> subdescriptors, int? index = null)
         {
-            this.subdescriptors.Insert(index ?? this.subdescriptors.Count , subdescriptors);
+            this.subdescriptors.Insert(index ?? this.subdescriptors.Count, subdescriptors);
         }
+
+        protected abstract void FillDescriptor(BitStream buffer);
 
         private readonly List<IEnumerable<IProvidesDescriptor>> subdescriptors;
         private readonly byte type;

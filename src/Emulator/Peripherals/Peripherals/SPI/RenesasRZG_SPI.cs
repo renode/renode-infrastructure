@@ -5,15 +5,15 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -271,19 +271,19 @@ namespace Antmicro.Renode.Peripherals.SPI
             uint data = 0;
             switch(width)
             {
-                case AccessWidth.Byte:
-                    data = receiveQueue.Dequeue();
-                    break;
-                case AccessWidth.Word:
-                    data = (uint)receiveQueue.Dequeue() << 8 |
-                           (uint)receiveQueue.Dequeue();
-                    break;
-                case AccessWidth.LongWord:
-                    data = (uint)receiveQueue.Dequeue() << 24 |
-                           (uint)receiveQueue.Dequeue() << 16 |
-                           (uint)receiveQueue.Dequeue() << 8  |
-                           (uint)receiveQueue.Dequeue();
-                    break;
+            case AccessWidth.Byte:
+                data = receiveQueue.Dequeue();
+                break;
+            case AccessWidth.Word:
+                data = (uint)receiveQueue.Dequeue() << 8 |
+                       (uint)receiveQueue.Dequeue();
+                break;
+            case AccessWidth.LongWord:
+                data = (uint)receiveQueue.Dequeue() << 24 |
+                       (uint)receiveQueue.Dequeue() << 16 |
+                       (uint)receiveQueue.Dequeue() << 8 |
+                       (uint)receiveQueue.Dequeue();
+                break;
             }
 
             UpdateInterrupts();
@@ -319,21 +319,21 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(dataAccessWidth.Value)
             {
-                case AccessWidth.Byte:
-                    transmitQueue.Enqueue((byte)data);
-                    break;
-                case AccessWidth.Word:
-                    foreach(var b in BitHelper.GetBytesFromValue(data, 2))
-                    {
-                        transmitQueue.Enqueue((byte)b);
-                    }
-                    break;
-                case AccessWidth.LongWord:
-                    foreach(var b in BitHelper.GetBytesFromValue(data, 4))
-                    {
-                        transmitQueue.Enqueue((byte)b);
-                    }
-                    break;
+            case AccessWidth.Byte:
+                transmitQueue.Enqueue((byte)data);
+                break;
+            case AccessWidth.Word:
+                foreach(var b in BitHelper.GetBytesFromValue(data, 2))
+                {
+                    transmitQueue.Enqueue((byte)b);
+                }
+                break;
+            case AccessWidth.LongWord:
+                foreach(var b in BitHelper.GetBytesFromValue(data, 4))
+                {
+                    transmitQueue.Enqueue((byte)b);
+                }
+                break;
             }
         }
 
@@ -347,21 +347,21 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             switch(dataAccessWidth.Value)
             {
-                case AccessWidth.Byte:
-                    receiveQueue.Enqueue(selectedPeripheral.Transmit((byte)data));
-                    break;
-                case AccessWidth.Word:
-                    foreach(var b in BitHelper.GetBytesFromValue(data, 2))
-                    {
-                        receiveQueue.Enqueue(selectedPeripheral.Transmit(b));
-                    }
-                    break;
-                case AccessWidth.LongWord:
-                    foreach(var b in BitHelper.GetBytesFromValue(data, 4))
-                    {
-                        receiveQueue.Enqueue(selectedPeripheral.Transmit(b));
-                    }
-                    break;
+            case AccessWidth.Byte:
+                receiveQueue.Enqueue(selectedPeripheral.Transmit((byte)data));
+                break;
+            case AccessWidth.Word:
+                foreach(var b in BitHelper.GetBytesFromValue(data, 2))
+                {
+                    receiveQueue.Enqueue(selectedPeripheral.Transmit(b));
+                }
+                break;
+            case AccessWidth.LongWord:
+                foreach(var b in BitHelper.GetBytesFromValue(data, 4))
+                {
+                    receiveQueue.Enqueue(selectedPeripheral.Transmit(b));
+                }
+                break;
             }
         }
 
@@ -383,12 +383,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private readonly Queue<byte> receiveQueue = new Queue<byte>();
-        private readonly Queue<byte> transmitQueue = new Queue<byte>();
-
-        private readonly ByteRegisterCollection byteRegisters;
-        private readonly WordRegisterCollection wordRegisters;
-
         private IFlagRegisterField isMaster;
         private IFlagRegisterField transmitInterruptEnabled;
         private IFlagRegisterField receiveInterruptEnabled;
@@ -398,6 +392,12 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IEnumRegisterField<AccessWidth> dataAccessWidth;
         private IValueRegisterField receiveTriggerNumber;
         private IValueRegisterField transmitTriggerNumber;
+
+        private readonly Queue<byte> receiveQueue = new Queue<byte>();
+        private readonly Queue<byte> transmitQueue = new Queue<byte>();
+
+        private readonly ByteRegisterCollection byteRegisters;
+        private readonly WordRegisterCollection wordRegisters;
 
         private const int NrOfInterrupts = 3;
         private const int ReceiveInterruptIdx = 0;

@@ -1,18 +1,18 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Threading;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities.GDB;
-using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
 {
@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
         }
 
         [Execute("vCont;")]
-        public PacketData Continue([Argument(Encoding = ArgumentAttribute.ArgumentEncoding.String)]string data)
+        public PacketData Continue([Argument(Encoding = ArgumentAttribute.ArgumentEncoding.String)] string data)
         {
             if(!TryParseData(data, out var operations))
             {
@@ -250,18 +250,18 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             var cpu = manager.ManagedCpus[operation.CoreId];
             switch(operation.Type)
             {
-                case OperationType.Continue:
-                    cpu.ExecutionMode = ExecutionMode.Continuous;
-                    cpu.Resume();
-                    break;
-                case OperationType.Step:
-                    cpu.Step(1);
-                    break;
-                case OperationType.None:
-                    break;
-                default:
-                    cpu.Log(LogLevel.Info, "Encountered an unsupported operation.");
-                    break;
+            case OperationType.Continue:
+                cpu.ExecutionMode = ExecutionMode.Continuous;
+                cpu.Resume();
+                break;
+            case OperationType.Step:
+                cpu.Step(1);
+                break;
+            case OperationType.None:
+                break;
+            default:
+                cpu.Log(LogLevel.Info, "Encountered an unsupported operation.");
+                break;
             }
         }
 
@@ -280,16 +280,17 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             {
                 switch(str)
                 {
-                    case "c":
-                        return OperationType.Continue;
-                    case "s":
-                        return OperationType.Step;
-                    default:
-                        return null;
+                case "c":
+                    return OperationType.Continue;
+                case "s":
+                    return OperationType.Step;
+                default:
+                    return null;
                 }
             }
 
             public uint CoreId { get; }
+
             public OperationType Type { get; }
         }
 

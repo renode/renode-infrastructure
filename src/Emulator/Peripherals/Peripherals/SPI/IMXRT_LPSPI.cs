@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -106,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 })
                 .WithReservedBits(26, 1)
                 .WithTag("PRESCALE - Prescaler Value", 27, 3) // enum
-                // Unused but don't warn when it's set.
+                                                              // Unused but don't warn when it's set.
                 .WithFlag(30, name: "CPHA - Clock Phase")
                 .WithTaggedFlag("CPOL - Clock Polarity", 31)
                 .WithWriteCallback((_, cmd) =>
@@ -546,6 +547,17 @@ namespace Antmicro.Renode.Peripherals.SPI
             } while(currentCommand.Continuous || sizeLeft != 0);
         }
 
+        private ISPIPeripheral selectedDevice;
+        private TCFifoCmd currentCommand;
+        private uint sizeLeft;
+
+        private IValueRegisterField match0;
+        private IValueRegisterField match1;
+        private IValueRegisterField matchConfig;
+
+        private IFlagRegisterField rxDataMatchOnly;
+        private IFlagRegisterField dataMatch;
+
         private IFlagRegisterField masterMode;
         private IFlagRegisterField moduleEnable;
         private IValueRegisterField frameSize;
@@ -564,31 +576,25 @@ namespace Antmicro.Renode.Peripherals.SPI
         private bool continuousTransferInProgress;
         private readonly uint fifoSize;
         private readonly Queue<uint> receiveFifo;
-        private ISPIPeripheral selectedDevice;
         private readonly Queue<TCFifoEntry> transmitFifo;
         private readonly Queue<TCFifoEntry> transmitFifoRestore;
-        private TCFifoCmd currentCommand;
-        private uint sizeLeft;
-
-        private IValueRegisterField match0;
-        private IValueRegisterField match1;
-        private IValueRegisterField matchConfig;
-
-        private IFlagRegisterField rxDataMatchOnly;
-        private IFlagRegisterField dataMatch;
 
         private readonly DataMatcher dataMatcher;
-
-        private abstract class TCFifoEntry { }
 
         private class TCFifoCmd : TCFifoEntry
         {
             public byte XferWidth { get; set; }
+
             public bool TxMask { get; set; }
+
             public bool RxMask { get; set; }
+
             public ISPIPeripheral Pcs { get; set; }
+
             public bool Continuous { get; set; }
+
             public bool ContinuingCommand { get; set; }
+
             public bool ByteSwap { get; set; }
         }
 
@@ -617,17 +623,17 @@ namespace Antmicro.Renode.Peripherals.SPI
                 matchFirstOnly = ((int)mode & 0b001) == 0;
                 switch(mode)
                 {
-                    case MatchMode.SeqFirst:
-                    case MatchMode.SeqAny:
-                        match1Mode = Match1Mode.Seq;
-                        break;
-                    case MatchMode.FirstCompareMasked:
-                    case MatchMode.AnyCompareMasked:
-                        match1Mode = Match1Mode.Mask;
-                        break;
-                    default:
-                        match1Mode = Match1Mode.None;
-                        break;
+                case MatchMode.SeqFirst:
+                case MatchMode.SeqAny:
+                    match1Mode = Match1Mode.Seq;
+                    break;
+                case MatchMode.FirstCompareMasked:
+                case MatchMode.AnyCompareMasked:
+                    match1Mode = Match1Mode.Mask;
+                    break;
+                default:
+                    match1Mode = Match1Mode.None;
+                    break;
                 }
             }
 
@@ -713,8 +719,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             public bool Active { get; set; }
+
             public MatchMode Mode => matchMode;
+
             public uint Match0 { get; set; }
+
             public uint Match1 { get; set; }
 
             private static uint WordSizeMask(int wordSizeInBits)
@@ -745,6 +754,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 Mask,
             }
         }
+
+        private abstract class TCFifoEntry { }
 
         private enum MatchMode : long
         {

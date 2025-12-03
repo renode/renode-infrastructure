@@ -1,16 +1,15 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Memory;
 
 namespace Antmicro.Renode.Peripherals.MTD
@@ -18,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.MTD
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class CC2538FlashController : IDoubleWordPeripheral, IKnownSize
     {
-        public CC2538FlashController(IMachine machine, MappedMemory flash)
+        public CC2538FlashController(MappedMemory flash)
         {
             this.flash = flash;
             var registersMap = new Dictionary<long, DoubleWordRegister>
@@ -116,6 +115,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         }
 
         private uint writeAddress;
+        private readonly byte[] ErasePattern = (byte[])Enumerable.Repeat((byte)0xFF, PageSize).ToArray();
         private readonly IFlagRegisterField write;
 
         private readonly DoubleWordRegisterCollection registers;
@@ -123,7 +123,6 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         private const int PageSize = 2048;
         private const int PageNumber = 256;
-        private readonly byte[] ErasePattern = (byte[])Enumerable.Repeat((byte)0xFF, PageSize).ToArray();
 
         private enum Registers : long
         {

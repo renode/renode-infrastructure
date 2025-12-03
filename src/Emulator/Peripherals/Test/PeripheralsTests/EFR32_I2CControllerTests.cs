@@ -4,17 +4,17 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using NUnit.Framework;
+using System.Collections.Generic;
+using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Peripherals.I2C;
-using System.Threading;
-using System.Diagnostics;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Mocks;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.Mocks;
 using Antmicro.Renode.Peripherals.Sensors;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.PeripheralsTests
 {
@@ -39,14 +39,14 @@ namespace Antmicro.Renode.PeripheralsTests
             controller.WriteDoubleWord(0x40, 0x7FFFF);
 
             machine.SystemBus.Register(controller, new BusRangeRegistration(0x4A010000, 0x400));
-            controller.Register(readTestPeripheral, new NumberRegistrationPoint<int>(readTestPeripheralAddress));
-            controller.Register(writeTestPeripheral, new NumberRegistrationPoint<int>(writeTestPeripheralAddress));
+            controller.Register(readTestPeripheral, new NumberRegistrationPoint<int>(ReadTestPeripheralAddress));
+            controller.Register(writeTestPeripheral, new NumberRegistrationPoint<int>(WriteTestPeripheralAddress));
         }
 
         [Test]
         public void WriteToSlaveUsingSingleByteTransfer()
         {
-            BeginTransmission(writeTestPeripheralAddress, TransmissionType.Write);
+            BeginTransmission(WriteTestPeripheralAddress, TransmissionType.Write);
             // Send some magic bytes to the device
             foreach(var b in testMagicSequence)
             {
@@ -64,7 +64,7 @@ namespace Antmicro.Renode.PeripheralsTests
             // Write some data that will be mirrored back to the controller
             EnqueueDummyBytes(testMagicSequence);
 
-            BeginTransmission(readTestPeripheralAddress, TransmissionType.Read);
+            BeginTransmission(ReadTestPeripheralAddress, TransmissionType.Read);
             var bytes = ReadBytes(testMagicSequence.Length);
             EndTransmission();
 
@@ -77,7 +77,7 @@ namespace Antmicro.Renode.PeripheralsTests
             // Write some data that will be mirrored back to the controller
             EnqueueDummyBytes(testMagicSequence);
 
-            BeginTransmission(readTestPeripheralAddress, TransmissionType.Read);
+            BeginTransmission(ReadTestPeripheralAddress, TransmissionType.Read);
             Assert.AreEqual(testMagicSequence[0], PeekRxByte());
             EndTransmission();
         }
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void WriteToSlaveUsingDoubleByteTransfer()
         {
-            BeginTransmission(writeTestPeripheralAddress, TransmissionType.Write);
+            BeginTransmission(WriteTestPeripheralAddress, TransmissionType.Write);
             // Send some magic bytes to the device, two bytes at a time
             for(var i = 0; i < testMagicSequence.Length; i += 2)
             {
@@ -103,7 +103,7 @@ namespace Antmicro.Renode.PeripheralsTests
             // Write some data that will be mirrored back to the controller
             EnqueueDummyBytes(testMagicSequence);
 
-            BeginTransmission(readTestPeripheralAddress, TransmissionType.Read);
+            BeginTransmission(ReadTestPeripheralAddress, TransmissionType.Read);
             var bytes = ReadBytesDouble(testMagicSequence.Length);
             EndTransmission();
 
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.PeripheralsTests
             // Write some data that will be mirrored back to the controller
             EnqueueDummyBytes(testMagicSequence);
 
-            BeginTransmission(readTestPeripheralAddress, TransmissionType.Read);
+            BeginTransmission(ReadTestPeripheralAddress, TransmissionType.Read);
 
             var value = PeekRxDoubleByte();
             Assert.AreEqual(testMagicSequence[0], (byte)value);
@@ -130,7 +130,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             ReadRxByte(); // we only care about the IRQ flags afterwards
 
-            AssertInterrupt(irqRxUnderflow);
+            AssertInterrupt(IrqRxUnderflow);
         }
 
         [Test]
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.PeripheralsTests
             // Send stop command
             controller.WriteDoubleWord(0x04, 0x2);
 
-            AssertInterrupt(irqMasterStop);
+            AssertInterrupt(IrqMasterStop);
         }
 
         [Test]
@@ -148,15 +148,15 @@ namespace Antmicro.Renode.PeripheralsTests
             // Send start command
             controller.WriteDoubleWord(0x4, 0x1);
             // Start should have fired
-            AssertInterrupt(irqStart);
+            AssertInterrupt(IrqStart);
         }
 
         [Test]
         public void InterruptAck()
         {
-            BeginTransmission(readTestPeripheralAddress, TransmissionType.Read);
+            BeginTransmission(ReadTestPeripheralAddress, TransmissionType.Read);
             // As there is a peripheral connected at that address, this should be ACK'd
-            AssertInterrupt(irqAck);
+            AssertInterrupt(IrqAck);
         }
 
         [Test]
@@ -164,7 +164,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             BeginTransmission(0x40, TransmissionType.Read);
             // No peripheral at that address, this should be NACK'd
-            AssertInterrupt(irqNack);
+            AssertInterrupt(IrqNack);
         }
 
         [Test]
@@ -172,38 +172,38 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             // On HW, the controller can lose bus arbitration at any time during the transmission
             // For simulation purposes, the bus is "virtually" held by the controller for the entire duration of the transmission
-            BeginTransmission(readTestPeripheralAddress, TransmissionType.Read);
-            AssertInterrupt(irqBusHold);
+            BeginTransmission(ReadTestPeripheralAddress, TransmissionType.Read);
+            AssertInterrupt(IrqBusHold);
             EndTransmission();
         }
 
         [Test]
         public void InterruptTransmitBufferLevel()
         {
-            BeginTransmission(writeTestPeripheralAddress, TransmissionType.Write);
+            BeginTransmission(WriteTestPeripheralAddress, TransmissionType.Write);
             // Write test byte
             controller.WriteDoubleWord(0x2C, 0x42);
             EndTransmission();
 
             // TXBL should have fired
-            AssertInterrupt(irqTxBufferLevel);
+            AssertInterrupt(IrqTxBufferLevel);
 
             // Write a test byte to the transmit buffer
             controller.WriteDoubleWord(0x2C, 0x42);
             // This should have cleared the TXBL condition
-            AssertInterruptCleared(irqTxBufferLevel);
+            AssertInterruptCleared(IrqTxBufferLevel);
         }
 
         [Test]
         public void InterruptTransferCompleted()
         {
-            BeginTransmission(writeTestPeripheralAddress, TransmissionType.Write);
+            BeginTransmission(WriteTestPeripheralAddress, TransmissionType.Write);
             // Write test byte
             controller.WriteDoubleWord(0x2C, 0x42);
             EndTransmission();
 
             // TXC should have fired
-            AssertInterrupt(irqTransferCompleted);
+            AssertInterrupt(IrqTransferCompleted);
         }
 
         [Test]
@@ -228,6 +228,9 @@ namespace Antmicro.Renode.PeripheralsTests
             Assert.AreEqual(0x80, bytes[0]);
         }
 
+        // The length of the below sequence needs to be a multiple of 2 for double-width transfer tests to work
+        private static readonly byte[] testMagicSequence = { 0x11, 0x22, 0x33, 0x44, 0xFF, 0xEE, 0xDD, 0xCC, 0x11, 0x22, 0x33, 0x44, 0xFF, 0xEE, 0xDD, 0xCC };
+
         private void BeginTransmission(int address, TransmissionType type)
         {
             // Start transmission
@@ -246,7 +249,7 @@ namespace Antmicro.Renode.PeripheralsTests
 
         private void EnqueueDummyBytes(IEnumerable<byte> response)
         {
-            foreach (var @byte in response)
+            foreach(var @byte in response)
             {
                 readTestPeripheral.EnqueueResponseByte(@byte);
             }
@@ -291,7 +294,7 @@ namespace Antmicro.Renode.PeripheralsTests
             while(received < count && (ReadStatus() & 0x100) != 0)
             {
                 // Make sure there's actually a byte waiting in the Rx buffer
-                Assert.AreEqual(irqMasterStop, ReadStatus() & irqMasterStop);
+                Assert.AreEqual(IrqMasterStop, ReadStatus() & IrqMasterStop);
                 bytes.Enqueue(ReadRxByte());
                 received += 1;
             }
@@ -330,27 +333,25 @@ namespace Antmicro.Renode.PeripheralsTests
             Assert.AreEqual(0, ReadInterruptStatus() & irqMask);
         }
 
+        private IMachine machine;
+        private EFR32_I2CController controller;
+        private EchoI2CDevice writeTestPeripheral;
+        private DummyI2CSlave readTestPeripheral;
+        private const int ReadTestPeripheralAddress = 0x10;
+        private const int WriteTestPeripheralAddress = 0x20;
+        private const int IrqRxUnderflow = 1 << 13;
+        private const int IrqMasterStop = 1 << 8;
+        private const int IrqStart = 1 << 0;
+        private const int IrqAck = 1 << 6;
+        private const int IrqNack = 1 << 7;
+        private const int IrqBusHold = 1 << 11;
+        private const int IrqTxBufferLevel = 1 << 4;
+        private const int IrqTransferCompleted = 1 << 3;
+
         private enum TransmissionType
         {
             Read,
             Write
         }
-
-        private IMachine machine;
-        private EFR32_I2CController controller;
-        private EchoI2CDevice writeTestPeripheral;
-        private DummyI2CSlave readTestPeripheral;
-        private const int readTestPeripheralAddress = 0x10;
-        private const int writeTestPeripheralAddress = 0x20;
-        private const int irqRxUnderflow = 1 << 13;
-        private const int irqMasterStop = 1 << 8;
-        private const int irqStart = 1 << 0;
-        private const int irqAck = 1 << 6;
-        private const int irqNack = 1 << 7;
-        private const int irqBusHold = 1 << 11;
-        private const int irqTxBufferLevel = 1 << 4;
-        private const int irqTransferCompleted = 1 << 3;
-        // The length of the below sequence needs to be a multiple of 2 for double-width transfer tests to work
-        private static byte[] testMagicSequence = { 0x11, 0x22, 0x33, 0x44, 0xFF, 0xEE, 0xDD, 0xCC, 0x11, 0x22, 0x33, 0x44, 0xFF, 0xEE, 0xDD, 0xCC };
     }
 }

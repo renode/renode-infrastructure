@@ -4,13 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -102,7 +99,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(3, 29);
 
             var coreSize = Registers.Partition0Core1ProcessConfiguration - Registers.Partition0Core0ProcessConfiguration;
-            foreach (var index in Enumerable.Range(0, cores.Length).Where(x => x != 2))
+            foreach(var index in Enumerable.Range(0, cores.Length).Where(x => x != 2))
             {
                 var offset = index * coreSize;
                 (Registers.Partition0Core0ProcessConfiguration + offset).Define(this)

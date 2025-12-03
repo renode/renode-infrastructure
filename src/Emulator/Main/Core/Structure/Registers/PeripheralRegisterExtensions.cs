@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.Structure.Registers
@@ -72,9 +73,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="readCallback">Method to be called whenever the containing register is read. The first parameter is the index of the flag field, the second is the value of this field before read,
         /// the third parameter is the value after read. Note that it will also be called for unreadable fields.</param>
         /// <param name="writeCallback">Method to be called whenever the containing register is written to. The first parameter is the index of the flag, the second is the value of this field before write,
-        /// the third parameter is the value written (without any modification). Note that it will also be called for unwrittable fields.</param>
+        /// the third parameter is the value written (without any modification). Note that it will also be called for unwritable fields.</param>
         /// <param name="changeCallback">Method to be called whenever this field's value is changed, either due to read or write. The first parameter is the index of the flag, the second is the value of this field before change,
-        /// the third parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
+        /// the third parameter is the value after change. Note that it will also be called for unwritable fields.</param>
         /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
         /// the value returned from it. This returned value is eventually passed as the second parameter of <paramref name="readCallback"/>.</param>
         /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
@@ -109,9 +110,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="readCallback">Method to be called whenever the containing register is read. The first parameter is the index of the value field, the second is the value of this field before read,
         /// the third parameter is the value after read. Note that it will also be called for unreadable fields.</param>
         /// <param name="writeCallback">Method to be called whenever the containing register is written to. The first parameter is the index of the field, the second is the value of this field before write,
-        /// the third parameter is the value written (without any modification). Note that it will also be called for unwrittable fields.</param>
+        /// the third parameter is the value written (without any modification). Note that it will also be called for unwritable fields.</param>
         /// <param name="changeCallback">Method to be called whenever this field's value is changed, either due to read or write. The first parameter is the index of the field, the second is the value of this field before change,
-        /// the third parameter is the value after change. Note that it will also be called for unwrittable fields.</param>
+        /// the third parameter is the value after change. Note that it will also be called for unwritable fields.</param>
         /// <param name="valueProviderCallback">Method to be called whenever this field is read. The value passed is the current field's value, that will be overwritten by
         /// the value returned from it. This returned value is eventually passed as the second parameter of <paramref name="readCallback"/>.</param>
         /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
@@ -235,7 +236,6 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         /// <summary>
         /// Fluent API for creation of set of enum fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithEnumFields"/>.
-        /// This overload allows you to retrieve the created array of fields via <c>enumFields</c> parameter.
         /// </summary>
         /// <returns>This register with defined enum fields.</returns>
         public static R WithEnumFields<R, T>(this R register, int position, int width, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, T, T> readCallback = null,
@@ -262,6 +262,57 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 var j = i;
 
                 enumFields[j] = register.DefineEnumField<T>(position + (j * width), width, mode,
+                    readCallback == null ? null : (Action<T, T>)((x, y) => readCallback(j, x, y)),
+                    writeCallback == null ? null : (Action<T, T>)((x, y) => writeCallback(j, x, y)),
+                    changeCallback == null ? null : (Action<T, T>)((x, y) => changeCallback(j, x, y)),
+                    valueProviderCallback == null ? null : (Func<T, T>)((x) => valueProviderCallback(j, x)),
+                    softResettable,
+                    name == null ? null : $"{name}_{j}");
+            }
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for packet field creation. For parameters see <see cref="PeripheralRegister.DefinePacketField"/>.
+        /// This overload allows you to retrieve the created field via <c>packetField</c> parameter.
+        /// </summary>
+        /// <returns>This register with a defined packet field.</returns>
+        public static R WithPacketField<R, T>(this R register, int position, int width, out IPacketRegisterField<T> packetField, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<T, T> readCallback = null,
+            Action<T, T> writeCallback = null, Action<T, T> changeCallback = null, Func<T, T> valueProviderCallback = null, bool softResettable = true, string name = null) where R : PeripheralRegister
+            where T : struct
+        {
+            packetField = register.DefinePacketField<T>(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for creation of set of packet fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithPacketFields"/>.
+        /// </summary>
+        /// <returns>This register with defined packet fields.</returns>
+        public static R WithPacketFields<R, T>(this R register, int position, int width, int count, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, T, T> readCallback = null,
+            Action<int, T, T> writeCallback = null, Action<int, T, T> changeCallback = null, Func<int, T, T> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where R : PeripheralRegister
+            where T : struct
+        {
+            return WithPacketFields<R, T>(register, position, width, count, out var _, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, softResettable, name);
+        }
+
+        /// <summary>
+        /// Fluent API for creation of set of packet fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithPacketFields"/>.
+        /// This overload allows you to retrieve the created array of fields via <c>packetFields</c> parameter.
+        /// </summary>
+        /// <returns>This register with defined packet fields.</returns>
+        public static R WithPacketFields<R, T>(this R register, int position, int width, int count, out IPacketRegisterField<T>[] packetFields, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<int, T, T> readCallback = null,
+            Action<int, T, T> writeCallback = null, Action<int, T, T> changeCallback = null, Func<int, T, T> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where R : PeripheralRegister
+            where T : struct
+        {
+            packetFields = new IPacketRegisterField<T>[count];
+            for(var i = 0; i < count; i++)
+            {
+                var j = i;
+
+                packetFields[j] = register.DefinePacketField<T>(position + (j * width), width, mode,
                     readCallback == null ? null : (Action<T, T>)((x, y) => readCallback(j, x, y)),
                     writeCallback == null ? null : (Action<T, T>)((x, y) => writeCallback(j, x, y)),
                     changeCallback == null ? null : (Action<T, T>)((x, y) => changeCallback(j, x, y)),

@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -18,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ = new GPIO();
 
             // HACK: There is a bug in LimitTimer which requires to set limit argument to be bigger than any limit given later
-            internalTimer = new LimitTimer(machine.ClockSource, 32000 , this, "wdt", eventEnabled: true);
+            internalTimer = new LimitTimer(machine.ClockSource, 32000, this, "wdt", eventEnabled: true);
             internalTimer.Limit = DefaultWatchdogTimeout;
             internalTimer.LimitReached += HandleTimeout;
 
@@ -45,19 +46,20 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             switch((Registers)offset)
             {
-                case Registers.Control:
-                case Registers.Timeout:
-                case Registers.Window:
-                case Registers.ServiceKey:
-                    this.Log(LogLevel.Warning, "Tried to write {0} while in soft lock", (Registers)offset);
-                    return;
-                default:
-                    base.WriteDoubleWord(offset, value);
-                    break;
+            case Registers.Control:
+            case Registers.Timeout:
+            case Registers.Window:
+            case Registers.ServiceKey:
+                this.Log(LogLevel.Warning, "Tried to write {0} while in soft lock", (Registers)offset);
+                return;
+            default:
+                base.WriteDoubleWord(offset, value);
+                break;
             }
         }
 
         public long Size => 0x4000;
+
         public GPIO IRQ { get; }
 
         public ushort ServiceKey
@@ -111,23 +113,23 @@ namespace Antmicro.Renode.Peripherals.Timers
             var resetCondition = false;
             switch(serviceMode.Value)
             {
-                case ServiceMode.FixedSequence:
-                    if(keyGiven.Equals(fixedSequenceServiceKey))
-                    {
-                        resetCondition = true;
-                    }
-                    break;
+            case ServiceMode.FixedSequence:
+                if(keyGiven.Equals(fixedSequenceServiceKey))
+                {
+                    resetCondition = true;
+                }
+                break;
 
-                case ServiceMode.KeyedSequence:
-                    if(keyGiven.Equals(KeyedSequenceServiceKey))
-                    {
-                        resetCondition = true;
-                    }
-                    if(value == NextServiceKey)
-                    {
-                        ServiceKey = NextServiceKey;
-                    }
-                    break;
+            case ServiceMode.KeyedSequence:
+                if(keyGiven.Equals(KeyedSequenceServiceKey))
+                {
+                    resetCondition = true;
+                }
+                if(value == NextServiceKey)
+                {
+                    ServiceKey = NextServiceKey;
+                }
+                break;
             }
 
             if(resetCondition)
@@ -212,15 +214,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         private Tuple<ushort, ushort> KeyedSequenceServiceKey =>
             new Tuple<ushort, ushort>(ServiceKey, NextServiceKey);
 
-        private readonly LimitTimer internalTimer;
-        private readonly Tuple<ushort, ushort> fixedSequenceServiceKey =
-            new Tuple<ushort, ushort>(0xA602, 0xB480);
-        private readonly Tuple<ushort, ushort> softLockSequenceServiceKey =
-            new Tuple<ushort, ushort>(0xC520, 0xD928);
-
-        private const int MinimalWatchdogTimeout = 3;
-        private const uint DefaultWatchdogTimeout = 0x320;
-
         private IFlagRegisterField generateInterrupt;
         private IFlagRegisterField windowMode;
         private IFlagRegisterField interruptPending;
@@ -234,6 +227,16 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private ushort previousServiceKeyWrite;
         private bool pendingReset;
+
+        private readonly LimitTimer internalTimer;
+        private readonly Tuple<ushort, ushort> fixedSequenceServiceKey =
+            new Tuple<ushort, ushort>(0xA602, 0xB480);
+
+        private readonly Tuple<ushort, ushort> softLockSequenceServiceKey =
+            new Tuple<ushort, ushort>(0xC520, 0xD928);
+
+        private const int MinimalWatchdogTimeout = 3;
+        private const uint DefaultWatchdogTimeout = 0x320;
 
         private enum ServiceMode
         {

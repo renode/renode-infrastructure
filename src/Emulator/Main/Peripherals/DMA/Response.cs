@@ -10,7 +10,7 @@ namespace Antmicro.Renode.Peripherals.DMA
     public struct Response
     {
         public ulong? ReadAddress { get; set; }
+
         public ulong? WriteAddress { get; set; }
     }
 }
-

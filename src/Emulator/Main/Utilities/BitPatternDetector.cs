@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 
@@ -41,12 +42,12 @@ namespace Antmicro.Renode.Utilities
 
             for(var i = 0; i < items.Count; i++)
             {
-                if(items[i].patternDecoder(previousState, state))
+                if(items[i].PatternDecoder(previousState, state))
                 {
-                    loggingParent?.Log(LogLevel.Noisy, "Pattern {0} decoded", items[i].name);
-                    if(items[i].action != null)
+                    loggingParent?.Log(LogLevel.Noisy, "Pattern {0} decoded", items[i].Name);
+                    if(items[i].Action != null)
                     {
-                        items[i].action(state);
+                        items[i].Action(state);
                     }
                     result = i;
                     break;
@@ -59,7 +60,7 @@ namespace Antmicro.Renode.Utilities
 
         public int RegisterPatternHandler(Func<bool[], bool[], bool> patternDecoder, Action<bool[]> action = null, string name = null)
         {
-            items.Add(new Item { patternDecoder = patternDecoder, action = action, name = name });
+            items.Add(new Item { PatternDecoder = patternDecoder, Action = action, Name = name });
             return items.Count - 1;
         }
 
@@ -71,9 +72,9 @@ namespace Antmicro.Renode.Utilities
 
         private struct Item
         {
-            public Func<bool[], bool[], bool> patternDecoder;
-            public Action<bool[]> action;
-            public string name;
+            public Func<bool[], bool[], bool> PatternDecoder;
+            public Action<bool[]> Action;
+            public string Name;
         }
     }
 }

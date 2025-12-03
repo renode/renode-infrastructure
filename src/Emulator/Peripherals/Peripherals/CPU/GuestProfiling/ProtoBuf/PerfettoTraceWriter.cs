@@ -5,15 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using Antmicro.Renode.Debugging;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities.Binding;
 
 namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling.ProtoBuf
 {
@@ -146,9 +138,9 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling.ProtoBuf
         // Perfetto will look for this exact sequence when it is parsing a longer trace
         // Emitting this sequence can be used to partition the trace, so Perfetto doesn't have to load everything at once
         private static readonly byte[] SyncMarkerBytes = Guid.ParseExact("{82477a76-b28d-42ba-81dc-33326d57a079}", "B").ToByteArray();
-        
-        private readonly Trace trace;
         private uint lastSyncMarker;
+
+        private readonly Trace trace;
 
         private const uint SequenceId = 0;
         private const uint SyncMarkerInterval = 10000;

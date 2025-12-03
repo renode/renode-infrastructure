@@ -6,6 +6,7 @@
 //
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
+
 using NUnit.Framework;
 
 namespace Antmicro.Renode.MonitorTests.CommandTests
@@ -21,6 +22,7 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
 
             var file = GetType().Assembly.FromResourceToTemporaryFile("MockExtension.cs");
             monitor.Parse($"i @{file}", commandEater);
+            monitor.Parse("emulation AddMockExternal");
             commandEater.Clear();
         }
 
@@ -143,11 +145,38 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
 
         [TestCase("emulation MethodWithNullableIntList []", "numbers: []",
             TestName = "NullableIntListEmpty")]
-        public void CommandResultShouldContain(string command, string expected)
+
+        [TestCase("external[\"a\"]", "1D: a",
+            TestName = "IndexerOneDGet")]
+
+        [TestCase("external[\"a\"] \"b\"; external[\"c\"]", "1D: [a]=b and c",
+            TestName = "IndexerOneDSetGet")]
+
+        [TestCase("external[\"a\", \"b\"]", "2D: a and b",
+            TestName = "IndexerTwoDGet")]
+
+        [TestCase("external[\"a\", \"b\"] \"c\"; external[\"d\", \"e\"]", "2D: [a, b]=c and d and e",
+            TestName = "IndexerTwoDSetGet")]
+
+        [TestCase("external WrappedInts Select Ok; external WrappedInts ForEach Ok true; external WrappedInts Select Ok", "False, False, False", "True, True, True",
+            TestName = "ForEachAndSelect")]
+
+        [TestCase("external Ints Select ToString \"x4\"", "0001, 0002, 0003",
+            TestName = "SelectWithListOfValueType")]
+
+        [TestCase("external WrappedInts Select WithExtraValues 0 9", "1, 0, 9, 2, 0, 9, 3, 0, 9",
+            TestName = "SelectWithParamArray")]
+
+        [TestCase("external WrappedInts Select AsList Select AsList", "[\r\r\n[\r\r\n[", // will print a List<List<List<Wrapped<int>>>
+            TestName = "SelectChainWithProperty")]
+        public void CommandResultShouldContain(string command, params string[] expecteds)
         {
             monitor.Parse(command, commandEater);
             var contentsAfter = commandEater.GetContents();
-            StringAssert.Contains(expected, contentsAfter);
+            foreach(var expected in expecteds)
+            {
+                StringAssert.Contains(expected, contentsAfter);
+            }
         }
 
         [TestCase("emulation MethodWithOptionalParameters c=5 c=3",
@@ -179,6 +208,12 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
 
         [TestCase("emulation MethodWithArrayThenString [1, 2, 3, ,] \",\"",
             TestName = "TwoTrailingCommas")]
+
+        [TestCase("emulation MethodWithListOfStrings \"a\"",
+            TestName = "SingleElementPassedAsListParameter")]
+
+        [TestCase("emulation MethodWithArrayThenString 1 \",\"",
+            TestName = "SingleElementPassedAsNonParamsArrayParameter")]
         public void CommandShouldFail(string command)
         {
             CommandResultShouldContain(command, "The following methods are available");
@@ -187,6 +222,7 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
         [TearDown]
         public void TearDown()
         {
+            monitor.Parse("external Clear");
             commandEater.Clear();
         }
 
@@ -194,4 +230,3 @@ namespace Antmicro.Renode.MonitorTests.CommandTests
         private Monitor monitor;
     }
 }
-

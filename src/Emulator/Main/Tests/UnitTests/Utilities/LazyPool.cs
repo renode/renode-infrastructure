@@ -25,6 +25,7 @@ namespace Antmicro.Renode.UnitTests.Utilities
                 CheckIndex(index);
                 return list[index];
             }
+
             set
             {
                 CheckIndex(index);

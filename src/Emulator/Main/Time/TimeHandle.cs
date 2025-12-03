@@ -6,6 +6,8 @@
 //
 using System;
 using System.Threading;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -139,6 +141,7 @@ namespace Antmicro.Renode.Time
                 sourceSideInProgress = true;
 
                 intervalGranted = interval;
+                finishedTimeInterval = false;
 
                 if(enabled)
                 {
@@ -351,6 +354,7 @@ namespace Antmicro.Renode.Time
                 DebugHelper.Assert(slaveTimeResiduum == TimeInterval.Empty, "Time residuum should be empty here.");
                 slaveTimeResiduum = timeLeft;
                 intervalToReport = intervalGranted;
+                finishedTimeInterval = true;
 
                 reportPending = true;
 
@@ -807,6 +811,8 @@ namespace Antmicro.Renode.Time
             }
         }
 
+        public bool FinishedTimeInterval => finishedTimeInterval;
+
         /// <summary>
         /// Informs the sink that the source wants to pause its execution.
         /// </summary>
@@ -873,6 +879,7 @@ namespace Antmicro.Renode.Time
 
         private bool enabled;
         private bool sinkSideActive;
+        [Transient]
         private bool sourceSideActive;
 
         private bool changingEnabled;
@@ -881,6 +888,7 @@ namespace Antmicro.Renode.Time
         private bool recentlyUnblocked;
         private bool delayGrant;
         private bool interrupt;
+        private bool finishedTimeInterval;
         private volatile bool isDone;
 
         private readonly object innerLock;
@@ -899,6 +907,7 @@ namespace Antmicro.Renode.Time
             }
 
             public bool IsDone { get; private set; }
+
             public bool IsUnblockedRecently { get; private set; }
         }
     }

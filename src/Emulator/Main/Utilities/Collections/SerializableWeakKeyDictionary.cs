@@ -7,8 +7,9 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Linq;
+using System.Runtime.CompilerServices;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 
@@ -16,7 +17,59 @@ namespace Antmicro.Renode.Utilities.Collections
 {
     public class SerializableWeakKeyDictionary<TKey, TValue> : IDictionary<TKey, TValue> where TKey : class where TValue : class
     {
-        #region IDictionary implementation
+        public SerializableWeakKeyDictionary()
+        {
+            cwt = new ConditionalWeakTable<TKey, TValue>();
+            wl = new List<WeakReference>();
+            sync = new object();
+        }
+
+        public void Add(KeyValuePair<TKey, TValue> item)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Clear()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Contains(KeyValuePair<TKey, TValue> item)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Remove(KeyValuePair<TKey, TValue> item)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        {
+            var result = new List<KeyValuePair<TKey, TValue>>();
+            lock(sync)
+            {
+                foreach(var weakKey in wl)
+                {
+                    TKey key;
+                    TValue value;
+                    if(TryGetTarget(weakKey, out key) && cwt.TryGetValue(key, out value))
+                    {
+                        result.Add(new KeyValuePair<TKey, TValue>(key, value));
+                    }
+                }
+            }
+
+            for(var i = 0; i < result.Count; i++)
+            {
+                yield return result[i];
+            }
+        }
 
         public void Add(TKey key, TValue value)
         {
@@ -31,7 +84,7 @@ namespace Antmicro.Renode.Utilities.Collections
         {
             lock(sync)
             {
-                return wl.Any(x => 
+                return wl.Any(x =>
                 {
                     TKey lkey;
                     return TryGetTarget(x, out lkey) && lkey != null && lkey.Equals(key);
@@ -43,7 +96,7 @@ namespace Antmicro.Renode.Utilities.Collections
         {
             lock(sync)
             {
-                wl.RemoveAll(x => 
+                wl.RemoveAll(x =>
                 {
                     TKey lkey;
                     return TryGetTarget(x, out lkey) && lkey.Equals(key);
@@ -74,6 +127,7 @@ namespace Antmicro.Renode.Utilities.Collections
                     throw new KeyNotFoundException();
                 }
             }
+
             set
             {
                 lock(sync)
@@ -122,81 +176,13 @@ namespace Antmicro.Renode.Utilities.Collections
             }
         }
 
-        #endregion
-
-        #region ICollection implementation
-
-        public void Add(KeyValuePair<TKey, TValue> item)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Clear()
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool Contains(KeyValuePair<TKey, TValue> item)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool Remove(KeyValuePair<TKey, TValue> item)
-        {
-            throw new NotImplementedException();
-        }
-
         public int Count { get { return wl.Count; } }
 
         public bool IsReadOnly { get { return false; } }
 
-        #endregion
-
-        #region IEnumerable implementation
-
-        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
-        {
-            var result = new List<KeyValuePair<TKey, TValue>>();
-            lock(sync)
-            {
-                foreach(var weakKey in wl)
-                {
-                    TKey key;
-                    TValue value;
-                    if(TryGetTarget(weakKey, out key) && cwt.TryGetValue(key, out value))
-                    {
-                        result.Add(new KeyValuePair<TKey, TValue>(key, value));
-                    }
-                }
-            }
-
-            for(var i = 0; i < result.Count; i++)
-            {
-                yield return result[i];
-            }
-        }
-
-        #endregion
-
-        #region IEnumerable implementation
-
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
-        }
-
-        #endregion
-
-        public SerializableWeakKeyDictionary()
-        {
-            cwt = new ConditionalWeakTable<TKey, TValue>();
-            wl = new List<WeakReference>();
-            sync = new object();
         }
 
         [PreSerialization]
@@ -207,7 +193,7 @@ namespace Antmicro.Renode.Utilities.Collections
 
             lock(sync)
             {
-                foreach (var x in wl)
+                foreach(var x in wl)
                 {
                     TKey target;
                     TValue value;
@@ -241,14 +227,13 @@ namespace Antmicro.Renode.Utilities.Collections
             return (result != null);
         }
 
+        private List<TKey> keys;
+        private List<TValue> values;
+
         [Constructor]
         private readonly ConditionalWeakTable<TKey, TValue> cwt;
         [Constructor]
         private readonly List<WeakReference> wl;
         private readonly object sync;
-
-        private List<TKey> keys;
-        private List<TValue> values;
     }
 }
-

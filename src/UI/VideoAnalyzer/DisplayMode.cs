@@ -14,4 +14,3 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
         Center
     }
 }
-

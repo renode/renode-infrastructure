@@ -6,16 +6,19 @@
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+
 #if !PLATFORM_WINDOWS
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
+
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+
 using AntShell.Terminal;
+
 using Mono.Unix;
 #endif
 
@@ -41,15 +44,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             this.linkName = linkName;
             buffer = new List<byte>();
             Initialize();
-        }
-
-        [PostDeserialization]
-        private void Initialize()
-        {
-            ptyStream = new PtyUnixStream();
-            io = new IOProvider { Backend = new StreamIOSource(ptyStream) };
-            io.ByteRead += CharReceived;
-            CreateSymlink(linkName);
         }
 
         public virtual void ReceiveFrame(byte[] frame, IRadio sender)
@@ -88,9 +82,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
-        public event Action<IRadio, byte[]> FrameSent;
-
         public int Channel { get; set; }
+
+        public event Action<IRadio, byte[]> FrameSent;
 
         protected virtual void HandleFrame(byte[] frame)
         {
@@ -113,22 +107,22 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 switch(value)
                 {
-                    case END:
-                        result.Add(ESC);
-                        result.Add(ESC_END);
-                        break;
-                    case ESC:
-                        result.Add(ESC);
-                        result.Add(ESC_ESC);
-                        break;
-                    default:
-                        result.Add(value);
-                        break;
+                case END:
+                    result.Add(ESC);
+                    result.Add(ESC_END);
+                    break;
+                case ESC:
+                    result.Add(ESC);
+                    result.Add(ESC_ESC);
+                    break;
+                default:
+                    result.Add(value);
+                    break;
                 }
             }
             var engine = new CRCEngine(CRCPolynomial.CRC32);
             var crc = engine.Calculate(result);
-            result.AddRange(new byte[] {(byte)(crc & 0xFF), (byte)((crc >> 8) & 0xFF), (byte)((crc >> 16) & 0xFF), (byte)((crc >> 24) & 0xFF)});
+            result.AddRange(new byte[] { (byte)(crc & 0xFF), (byte)((crc >> 8) & 0xFF), (byte)((crc >> 16) & 0xFF), (byte)((crc >> 24) & 0xFF) });
             result.Add(END);
             return result.ToArray();
         }
@@ -142,37 +136,37 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 switch(value)
                 {
-                    case END:
-                        return result.ToArray();
-                    case ESC:
-                        isEscaped = true;
-                        continue;
-                    case ESC_END:
-                        if(isEscaped)
-                        {
-                            result.Add(END);
-                            isEscaped = false;
-                        }
-                        else
-                        {
-                            result.Add(ESC_END);
-                        }
-                        break;
-                    case ESC_ESC:
-                        if(isEscaped)
-                        {
-                            result.Add(ESC);
-                            isEscaped = false;
-                        }
-                        else
-                        {
-                            result.Add(ESC_ESC);
-                        }
-                        break;
-                    default:
+                case END:
+                    return result.ToArray();
+                case ESC:
+                    isEscaped = true;
+                    continue;
+                case ESC_END:
+                    if(isEscaped)
+                    {
+                        result.Add(END);
                         isEscaped = false;
-                        result.Add(value);
-                        break;
+                    }
+                    else
+                    {
+                        result.Add(ESC_END);
+                    }
+                    break;
+                case ESC_ESC:
+                    if(isEscaped)
+                    {
+                        result.Add(ESC);
+                        isEscaped = false;
+                    }
+                    else
+                    {
+                        result.Add(ESC_ESC);
+                    }
+                    break;
+                default:
+                    isEscaped = false;
+                    result.Add(value);
+                    break;
                 }
             }
 
@@ -184,6 +178,18 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             var encoded = Encapsulate(data);
             ptyStream.Write(encoded, 0, encoded.Length);
+        }
+
+        [Transient]
+        protected PtyUnixStream ptyStream;
+
+        [PostDeserialization]
+        private void Initialize()
+        {
+            ptyStream = new PtyUnixStream();
+            io = new IOProvider { Backend = new StreamIOSource(ptyStream) };
+            io.ByteRead += CharReceived;
+            CreateSymlink(linkName);
         }
 
         private void CreateSymlink(string linkName)
@@ -211,14 +217,12 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Logger.Log(LogLevel.Info, "Created a Slip Radio pty connection to {0}", linkName);
         }
 
-        [Transient]
-        protected PtyUnixStream ptyStream;
+        private UnixSymbolicLinkInfo symlink;
         [Transient]
         private IOProvider io;
 
         private readonly List<byte> buffer;
         private readonly string linkName;
-        private UnixSymbolicLinkInfo symlink;
 
         private const byte END = 0xC0;
         private const byte ESC = 0xDB;

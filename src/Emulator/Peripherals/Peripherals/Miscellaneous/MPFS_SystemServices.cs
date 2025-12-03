@@ -1,8 +1,8 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Extensions;
@@ -87,16 +87,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             status = RequestResult.Success;
             switch(opcode)
             {
-                case Commands.SerialNumberService:
-                    GenerateSerialNumber(offset);
-                    break;
-                case Commands.SPICopy:
-                    CopyData(offset);
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unknown request: {0}", opcode);
-                    status = RequestResult.Error;
-                    break;
+            case Commands.SerialNumberService:
+                GenerateSerialNumber(offset);
+                break;
+            case Commands.SPICopy:
+                CopyData(offset);
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unknown request: {0}", opcode);
+                status = RequestResult.Error;
+                break;
             }
         }
 

@@ -5,8 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Migrant;
 using System;
+
+using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Utilities.Binding
 {
@@ -14,9 +15,10 @@ namespace Antmicro.Renode.Utilities.Binding
     public class ImportAttribute : TransientAttribute
     {
         public string Name { get; set; }
+
         public bool UseExceptionWrapper { get; set; } = true;
+
         // By default all [Import]s are required
         public bool Optional { get; set; }
     }
 }
-

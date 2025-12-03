@@ -61,11 +61,11 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public bool Sync;
         [PacketField, Offset(bytes: 7, bits: 5), Width(1)]
         public bool WBUS16;
-        [PacketField, Offset(bytes: 8), Width(8)]
+        [PacketField, Offset(bytes: 8), Width(bytes: 8)]
         public byte[] VendorIdentification;
-        [PacketField, Offset(bytes: 16), Width(16)]
+        [PacketField, Offset(bytes: 16), Width(bytes: 16)]
         public byte[] ProductIdentification;
-        [PacketField, Offset(bytes: 32), Width(4)]
+        [PacketField, Offset(bytes: 32), Width(bytes: 4)]
         public byte[] ProductRevisionLevel;
     }
 
@@ -92,7 +92,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         [PacketField, Offset(bytes: 2, bits: 7), Width(1)]
         public bool MultipleLogicalUnitsShare;
         [PacketField, Offset(bytes: 4)]
-        private byte Reserved;
+        private readonly byte Reserved;
     }
 
     public struct ReadCapcity10Result
@@ -125,8 +125,8 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public bool ThinProvisioningEnable;
         [PacketField, Offset(bytes: 15)]
         public byte LowestAlignedLogicalBlockAddressHighLSB;
-        [PacketField, Offset(bytes: 16), Width(16)]
-        private byte[] Reserved;
+        [PacketField, Offset(bytes: 16), Width(bytes: 16)]
+        private readonly byte[] Reserved;
     }
 #pragma warning restore 649, 169
 }

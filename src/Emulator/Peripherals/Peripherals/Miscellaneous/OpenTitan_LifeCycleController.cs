@@ -7,6 +7,7 @@
 
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -14,17 +15,17 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class OpenTitan_LifeCycleController: BasicDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_LifeCycleController : BasicDoubleWordPeripheral, IKnownSize
     {
         public OpenTitan_LifeCycleController(IMachine machine, OpenTitan_ResetManager resetManager, OpenTitan_OneTimeProgrammableMemoryController otpController) : base(machine)
         {
             this.resetManager = resetManager;
             this.otpController = otpController;
 
-            rmaToken = new byte[TokenRegistersCount * 4] ;
+            rmaToken = new byte[TokenRegistersCount * 4];
             deviceId = new byte[DeviceIdRegistersCount * 4];
-            testExitToken = new byte[TokenRegistersCount * 4] ;
-            testUnlockToken = new byte[TokenRegistersCount * 4] ;
+            testExitToken = new byte[TokenRegistersCount * 4];
+            testUnlockToken = new byte[TokenRegistersCount * 4];
             token = new byte[TokenRegistersCount * 4];
 
             FatalProgAlert = new GPIO();
@@ -49,7 +50,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public long Size => 0x1000;
 
         public GPIO FatalProgAlert { get; }
+
         public GPIO FatalStateAlert { get; }
+
         public GPIO FatalBusAlert { get; }
 
         public string TestExitToken
@@ -82,6 +85,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 return deviceIdString;
             }
+
             set
             {
                 // This array was reversed to comply with the OpenTitan tests suite - the spec does not specify this
@@ -278,8 +282,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         IFlagRegisterField transitionCountErorFlag;
         IFlagRegisterField transitionErrorFlag;
         IFlagRegisterField tokenErrorFlag;
-
-        private byte[] token;
         private byte[] rmaToken;
         private byte[] deviceId;
         private byte[] testExitToken;
@@ -287,6 +289,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private bool mutexClaimed;
         private string deviceIdString;
+
+        private readonly byte[] token;
         private readonly OpenTitan_ResetManager resetManager;
         private readonly OpenTitan_OneTimeProgrammableMemoryController otpController;
 
@@ -297,6 +301,43 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const uint TokenRegistersCount = 4;
         private const uint DeviceIdRegistersCount = 8;
         private const uint ManufacturingStateRegistersCount = 8;
+
+        public enum Registers
+        {
+            AlertTest                     = 0x00,
+            Status                        = 0x04,
+            ClaimTransitionIf             = 0x08,
+            TransitionRegisterWriteEnable = 0x0C,
+            TransitionCommand             = 0x10,
+            TransitionControl             = 0x14,
+            TransitionToken0              = 0x18,
+            TransitionToken1              = 0x1C,
+            TransitionToken2              = 0x20,
+            TransitionToken3              = 0x24,
+            TransitionTarget              = 0x28,
+            OtpVendorTestControl          = 0x2C,
+            OtpVendorTestStatus           = 0x30,
+            LifeCycleState                = 0x34,
+            LifeCycleTransitionCounter    = 0x38,
+            LifeCycleIdState              = 0x3C,
+            HardwareRevision              = 0x40,
+            DeviceId0                     = 0x44,
+            DeviceId1                     = 0x48,
+            DeviceId2                     = 0x4C,
+            DeviceId3                     = 0x50,
+            DeviceId4                     = 0x54,
+            DeviceId5                     = 0x58,
+            DeviceId6                     = 0x5C,
+            DeviceId7                     = 0x60,
+            ManufacturingState0           = 0x64,
+            ManufacturingState1           = 0x68,
+            ManufacturingState2           = 0x6C,
+            ManufacturingState3           = 0x70,
+            ManufacturingState4           = 0x74,
+            ManufacturingState5           = 0x78,
+            ManufacturingState6           = 0x7C,
+            ManufacturingState7           = 0x80,
+        }
 
         #pragma warning disable format
         private enum IdState
@@ -337,43 +378,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Prod_end      = OpenTitan_LifeCycleState.Prod_end      ,  // Same as PROD, but transition into RMA is not possible from this state.
             Rma           = OpenTitan_LifeCycleState.Rma           ,  // RMA life cycle state.
             Scrap         = OpenTitan_LifeCycleState.Scrap         ,  // SCRAP life cycle state where all functions are disabled.
-        }
-
-        public enum Registers
-        {
-            AlertTest                     = 0x00,
-            Status                        = 0x04,
-            ClaimTransitionIf             = 0x08,
-            TransitionRegisterWriteEnable = 0x0C,
-            TransitionCommand             = 0x10,
-            TransitionControl             = 0x14,
-            TransitionToken0              = 0x18,
-            TransitionToken1              = 0x1C,
-            TransitionToken2              = 0x20,
-            TransitionToken3              = 0x24,
-            TransitionTarget              = 0x28,
-            OtpVendorTestControl          = 0x2C,
-            OtpVendorTestStatus           = 0x30,
-            LifeCycleState                = 0x34,
-            LifeCycleTransitionCounter    = 0x38,
-            LifeCycleIdState              = 0x3C,
-            HardwareRevision              = 0x40,
-            DeviceId0                     = 0x44,
-            DeviceId1                     = 0x48,
-            DeviceId2                     = 0x4C,
-            DeviceId3                     = 0x50,
-            DeviceId4                     = 0x54,
-            DeviceId5                     = 0x58,
-            DeviceId6                     = 0x5C,
-            DeviceId7                     = 0x60,
-            ManufacturingState0           = 0x64,
-            ManufacturingState1           = 0x68,
-            ManufacturingState2           = 0x6C,
-            ManufacturingState3           = 0x70,
-            ManufacturingState4           = 0x74,
-            ManufacturingState5           = 0x78,
-            ManufacturingState6           = 0x7C,
-            ManufacturingState7           = 0x80,
         }
         #pragma warning restore format
     }

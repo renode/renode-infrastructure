@@ -1,24 +1,25 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using NUnit.Framework;
-using Antmicro.Renode.Time;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Threading;
-using System.Collections.Concurrent;
-using System.Linq;
+using System.Threading.Tasks;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.EventRecording;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
+
+using NUnit.Framework;
+
+using IdentifiableObject = Antmicro.Renode.Debugging.IdentifiableObject;
 
 namespace UnitTests
 {
@@ -237,7 +238,7 @@ namespace UnitTests
                 Assert.AreEqual(30, timeSource.ElapsedVirtualTime.Ticks);
                 Assert.AreEqual(30, timeSlave.ElapsedVirtualTime.Ticks);
                 Assert.AreEqual(30, timeSink.ElapsedVirtualTime.Ticks);
-                
+
                 timeSource.Run(1);
 
                 Assert.AreEqual(5, timeSource.NumberOfSyncPoints);
@@ -247,7 +248,7 @@ namespace UnitTests
                 Assert.AreEqual(40, timeSource.ElapsedVirtualTime.Ticks);
                 Assert.AreEqual(39, timeSlave.ElapsedVirtualTime.Ticks);
                 Assert.AreEqual(39, timeSink.ElapsedVirtualTime.Ticks);
-                
+
                 timeSource.Run(1);
 
                 Assert.AreEqual(6, timeSource.NumberOfSyncPoints);
@@ -257,9 +258,9 @@ namespace UnitTests
                 Assert.AreEqual(50, timeSource.ElapsedVirtualTime.Ticks);
                 Assert.AreEqual(48, timeSlave.ElapsedVirtualTime.Ticks);
                 Assert.AreEqual(48, timeSink.ElapsedVirtualTime.Ticks);
-                
+
                 timeSource.Run(1);
-                
+
                 Assert.AreEqual(7, timeSource.NumberOfSyncPoints);
                 Assert.AreEqual(21, timeSlave.NumberOfSyncPoints);
                 Assert.AreEqual(20, timeSink.NumberOfRounds);
@@ -704,7 +705,8 @@ namespace UnitTests
                         Assert.AreEqual(10, ti.Ticks);
                         ts.TimeHandle.ReportBackAndContinue(TimeInterval.Empty);
                     });
-                }){ Name = "tester thread" };
+                })
+                { Name = "tester thread" };
                 testerThread.Start();
 
                 master.RegisterSink(timeSlave);
@@ -807,6 +809,20 @@ namespace UnitTests
                 this.name = name;
             }
 
+            public void ExecuteOnDispatcherThread(Action<ITimeSink, TimeInterval> action, bool wait = true)
+            {
+                this.Trace("About to execute on dispatcher thread");
+                this.action = action;
+                barrier.Set();
+                if(wait)
+                {
+                    this.Trace("Waiting until execution is finished");
+                    barrierBack.WaitOne();
+                    this.Trace("It's finished");
+                    dispatcherThread.CheckExceptions();
+                }
+            }
+
             public void Dispose()
             {
                 isDisposed = true;
@@ -821,20 +837,6 @@ namespace UnitTests
                     this.handle = value;
                     dispatcherThread = new TestThread(Dispatcher) { Name = $"MoreComplicatedTimeSink: {name}" };
                     dispatcherThread.Start();
-                }
-            }
-
-            public void ExecuteOnDispatcherThread(Action<ITimeSink, TimeInterval> action, bool wait = true)
-            {
-                this.Trace("About to execute on dispatcher thread");
-                this.action = action;
-                barrier.Set();
-                if(wait)
-                {
-                    this.Trace("Waiting until execution is finished");
-                    barrierBack.WaitOne();
-                    this.Trace("It's finished");
-                    dispatcherThread.CheckExceptions();
                 }
             }
 
@@ -906,6 +908,7 @@ namespace UnitTests
             public TimeHandle TimeHandle
             {
                 get { return handle; }
+
                 set
                 {
                     this.handle = value;
@@ -1055,9 +1058,10 @@ namespace UnitTests
                 }
             }
 
-            private readonly Action underlyingAction;
             private Exception caughtException;
             private Thread underlyingThread;
+
+            private readonly Action underlyingAction;
         }
     }
 }

@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Exceptions;
@@ -61,7 +62,6 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
-
         public void Start()
         {
             Resume();
@@ -83,13 +83,15 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
+        public bool UseNetworkByteOrderForLogging { get; set; }
+
         public bool IsPaused => !started;
 
         public event Action<IExternal, ICAN, ICAN, byte[]> FrameTransmitted;
-        public event Action<IExternal, ICAN, byte[]> FrameProcessed;
-        public event Action<IExternal, ICAN, CANMessageFrame> FrameReceived;
 
-        public bool UseNetworkByteOrderForLogging { get; set; }
+        public event Action<IExternal, ICAN, byte[]> FrameProcessed;
+
+        public event Action<IExternal, ICAN, CANMessageFrame> FrameReceived;
 
         private void Transmit(ICAN sender, CANMessageFrame message)
         {
@@ -128,11 +130,11 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
+        private bool started;
+
         private readonly List<ICAN> attached;
         private readonly Dictionary<ICAN, Action<CANMessageFrame>> handlers;
-        private bool started;
         private readonly object sync;
         private readonly bool loopback;
     }
 }
-

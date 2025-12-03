@@ -1,16 +1,14 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.DMA
@@ -58,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             for(var i = 0; i < ChannelCount; i++)
             {
                 var channelIdx = i;
-                
+
                 DMAChannelContext context;
                 switch(channelIdx)
                 {
@@ -187,22 +185,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             IRQ.Set(state);
         }
 
-        private enum Registers
-        {
-            Channel0Control = 0x0,
-            Channel0SourceBaseAddress = 0x4,
-            Channel0DestinationBaseAddress = 0x8,
-            Channel0TransferCount = 0xC,
-            Channel0CurrentDestination = 0x14,
-            Channel0CurrentTransferCount = 0x18,
-            Channel1Control = 0x20,
-            Channel1SourceBaseAddress = 0x24,
-            Channel1DestinationBaseAddress = 0x28,
-            Channel1TransferCount = 0x2C,
-            Channel1CurrentSource = 0x30,
-            Channel1CurrentTransferCount = 0x38
-        }
-
         private readonly DMAChannelContext[] channelContexts;
 
         private const int ChannelCount = 2;
@@ -283,7 +265,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             public TransferDirection Direction { get; }
+
             public ushort TransferCount { get; set; }
+
             public ushort CurrentTransferCount { get; set; }
 
             public IFlagRegisterField Enabled;
@@ -293,6 +277,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             public uint SourceAddress;
             public uint DestinationAddress;
 
+            private readonly NPCX_MDMA owner;
+            private readonly DmaEngine engine;
+
             private readonly uint defaultSourceAddress;
             private readonly uint defaultDestinationAddress;
 
@@ -301,9 +288,22 @@ namespace Antmicro.Renode.Peripherals.DMA
                 FromPeripheral,
                 ToPeripheral,
             }
+        }
 
-            private readonly NPCX_MDMA owner;
-            private readonly DmaEngine engine;
+        private enum Registers
+        {
+            Channel0Control = 0x0,
+            Channel0SourceBaseAddress = 0x4,
+            Channel0DestinationBaseAddress = 0x8,
+            Channel0TransferCount = 0xC,
+            Channel0CurrentDestination = 0x14,
+            Channel0CurrentTransferCount = 0x18,
+            Channel1Control = 0x20,
+            Channel1SourceBaseAddress = 0x24,
+            Channel1DestinationBaseAddress = 0x28,
+            Channel1TransferCount = 0x2C,
+            Channel1CurrentSource = 0x30,
+            Channel1CurrentTransferCount = 0x38
         }
     }
 }

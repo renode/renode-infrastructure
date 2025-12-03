@@ -1,11 +1,12 @@
 ﻿//
 // Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -71,11 +72,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Unset();
         }
 
-        public event Action<uint> EventTriggered;
-
         public GPIO IRQ { get; }
 
         public long Size => 0x1000;
+
+        public event Action<uint> EventTriggered;
 
         private void DefineRegisters()
         {
@@ -204,7 +205,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             compareTimers[j].Compare += value;
                         },
                         valueProviderCallback: _ => (uint)compareTimers[j].Compare)
-                    .WithTag("REFERENCE", 31 ,1)
+                    .WithTag("REFERENCE", 31, 1)
                 );
 
                 registersMap.Add((long)Register.CaptureCompareConfig + j * 0x10, new DoubleWordRegister(this)
@@ -316,7 +317,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 var thisEventEnabledAndSet = compareInterruptEnabled[i].Value && compareReached[i].Value;
                 if(thisEventEnabledAndSet)
                 {
-                   this.Log(LogLevel.Noisy, "Interrupt set by CC{0}.", i);
+                    this.Log(LogLevel.Noisy, "Interrupt set by CC{0}.", i);
+                    EventTriggered?.Invoke((uint)(Register.CompareEvent + i * 0x4));
                 }
                 flag |= thisEventEnabledAndSet;
             }

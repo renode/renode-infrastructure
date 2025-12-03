@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Core
             }
 
             // if no constructor was matched, throw exception
-            throw new ArgumentException(string.Format("Couldn't spawn object of type: {0}\nAvailable surrogate types are:\n{1}", type.FullName, 
+            throw new ArgumentException(string.Format("Couldn't spawn object of type: {0}\nAvailable surrogate types are:\n{1}", type.FullName,
                 string.Join("\n", contexts.SelectMany(x => x.Types).Distinct().Select(x => x.FullName))));
         }
 
@@ -142,4 +142,3 @@ namespace Antmicro.Renode.Core
         }
     }
 }
-

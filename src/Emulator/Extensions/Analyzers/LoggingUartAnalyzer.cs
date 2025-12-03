@@ -7,14 +7,14 @@
 //
 using System;
 using System.Text;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.UART;
-using Antmicro.Renode.Utilities;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Analyzers
 {
@@ -60,6 +60,10 @@ namespace Antmicro.Renode.Analyzers
                 WriteChar(10); // this allows us to flush the last, unfinished line (e.g. the prompt) to the log
             }
             uart.CharReceived -= WriteChar;
+        }
+
+        public override void Clear()
+        {
         }
 
         public LogLevel LogLevel { get; set; }
@@ -167,4 +171,3 @@ namespace Antmicro.Renode.Analyzers
         }
     }
 }
-

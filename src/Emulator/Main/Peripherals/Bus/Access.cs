@@ -16,4 +16,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         ReadAndWrite = 3
     }
 }
-

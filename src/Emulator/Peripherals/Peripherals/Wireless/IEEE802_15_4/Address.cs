@@ -72,17 +72,17 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
         {
             switch(Bytes.Count)
             {
-                case 2:
-                    return (ulong)BitConverter.ToUInt16(Bytes.ToArray(), 0);
-                case 8:
-                    return BitConverter.ToUInt64(Bytes.ToArray(), 0);
-                default:
-                    throw new ArgumentException();
+            case 2:
+                return (ulong)BitConverter.ToUInt16(Bytes.ToArray(), 0);
+            case 8:
+                return BitConverter.ToUInt64(Bytes.ToArray(), 0);
+            default:
+                throw new ArgumentException();
             }
         }
 
         public IList<byte> Bytes { get; private set; }
+
         public bool IsShortBroadcast { get { return Bytes.Count == 2 && Bytes.All(x => x == 0xFF); } }
     }
 }
-

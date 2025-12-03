@@ -1,12 +1,13 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Logging;
 using System.Collections.Generic;
 using System.Linq;
+
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 {

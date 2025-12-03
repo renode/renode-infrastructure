@@ -4,14 +4,15 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+using System.Globalization;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Time;
-using System;
-using static Antmicro.Renode.Utilities.BitHelper;
 using Antmicro.Renode.Utilities;
-using System.Globalization;
+
+using static Antmicro.Renode.Utilities.BitHelper;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -38,7 +39,9 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO MatchIRQ { get; private set; }
+
         public GPIO WakeupIRQ { get; private set; }
+
         public long Size => 0x1000;
 
         private void DefineRegisters()
@@ -52,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithFlag(5, writeCallback: (_, value) => { if(value) currentTime = timeToUpload; }, valueProviderCallback: _ => false, name: "Upload")
                 .WithFlag(6, writeCallback: (_, value) => { if(value) { timeToUpload = currentTime; }; }, name: "Download")
                 .WithFlag(7, out match, FieldMode.Read, name: "Match")
-                .WithFlag(8, out wakeup, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (_, value) => { if(value) WakeupIRQ.Set(false) ; }, name: "Wakeup_clear/Wakeup")
+                .WithFlag(8, out wakeup, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (_, value) => { if(value) WakeupIRQ.Set(false); }, name: "Wakeup_clear/Wakeup")
                 .WithFlag(9, FieldMode.Write, writeCallback: (_, value) => { if(value) { wakeup.Value = true; WakeupIRQ.Set(true); } }, name: "Wakeup_set")
                 .WithFlag(10, out updated, FieldMode.Read | FieldMode.WriteOneToClear, name: "Updated")
             ;
@@ -87,33 +90,33 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         switch(clockMode.Value)
                         {
-                            case ClockMode.BinaryCounter:
-                                return (uint)CalculateElapsedSeconds(currentTime);
-                            case ClockMode.DateTimeCounter:
-                                return GetDateTimeAlarmCompareLower().Bits.AsUInt32();
-                            default:
-                                throw new ArgumentException("Unexpected clock mode");
+                        case ClockMode.BinaryCounter:
+                            return (uint)CalculateElapsedSeconds(currentTime);
+                        case ClockMode.DateTimeCounter:
+                            return GetDateTimeAlarmCompareLower().Bits.AsUInt32();
+                        default:
+                            throw new ArgumentException("Unexpected clock mode");
                         }
                     },
                     writeCallback: (_, value) =>
                     {
                         switch(clockMode.Value)
                         {
-                            case ClockMode.BinaryCounter:
-                                var currentValue = CalculateElapsedSeconds(timeToUpload);
-                                var newValue = BitHelper.ReplaceBits(currentValue, source: (ulong)value, width: 32);
-                                timeToUpload = ResetTimeValue.AddSeconds(newValue);
-                                break;
-                            case ClockMode.DateTimeCounter:
-                                timeToUpload = timeToUpload.With(
-                                    second: (int)BitHelper.GetMaskedValue(value, 0, 8),
-                                    minute: (int)BitHelper.GetMaskedValue(value, 8, 8),
-                                    hour: (int)BitHelper.GetMaskedValue(value, 16, 8),
-                                    day: (int)BitHelper.GetMaskedValue(value, 24, 8)
-                                );
-                                break;
-                            default:
-                                throw new ArgumentException("Unexpected clock mode");
+                        case ClockMode.BinaryCounter:
+                            var currentValue = CalculateElapsedSeconds(timeToUpload);
+                            var newValue = BitHelper.ReplaceBits(currentValue, source: (ulong)value, width: 32);
+                            timeToUpload = ResetTimeValue.AddSeconds(newValue);
+                            break;
+                        case ClockMode.DateTimeCounter:
+                            timeToUpload = timeToUpload.With(
+                                second: (int)BitHelper.GetMaskedValue(value, 0, 8),
+                                minute: (int)BitHelper.GetMaskedValue(value, 8, 8),
+                                hour: (int)BitHelper.GetMaskedValue(value, 16, 8),
+                                day: (int)BitHelper.GetMaskedValue(value, 24, 8)
+                            );
+                            break;
+                        default:
+                            throw new ArgumentException("Unexpected clock mode");
                         }
                     })
             ;
@@ -124,38 +127,38 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         switch(clockMode.Value)
                         {
-                            case ClockMode.BinaryCounter:
-                                return (uint)(CalculateElapsedSeconds(currentTime) >> 32);
-                            case ClockMode.DateTimeCounter:
-                                return GetDateTimeAlarmCompareUpper().Bits.AsUInt32();
-                            default:
-                                throw new ArgumentException("Unexpected clock mode");
+                        case ClockMode.BinaryCounter:
+                            return (uint)(CalculateElapsedSeconds(currentTime) >> 32);
+                        case ClockMode.DateTimeCounter:
+                            return GetDateTimeAlarmCompareUpper().Bits.AsUInt32();
+                        default:
+                            throw new ArgumentException("Unexpected clock mode");
                         }
                     },
                     writeCallback: (_, value) =>
                     {
                         switch(clockMode.Value)
                         {
-                            case ClockMode.BinaryCounter:
-                                var currentValue = CalculateElapsedSeconds(timeToUpload);
-                                var newValue = BitHelper.ReplaceBits(currentValue, source: value, width: 11, destinationPosition: 32);
-                                timeToUpload = ResetTimeValue.AddSeconds(newValue);
-                                break;
-                            case ClockMode.DateTimeCounter:
-                                timeToUpload = timeToUpload.With(
-                                    month: (int)BitHelper.GetMaskedValue(value, 0, 8),
-                                    year: (int)BitHelper.GetMaskedValue(value, 8, 8)
-                                    // WARNING
-                                    // -------
-                                    // The rest of bits:
-                                    // bits 16-23: weekday,
-                                    // bits 24-29: week
-                                    // are intentionally *ignored* as those values can be inferred from day+month+year.
-                                    // This might lead to an inconsistency between Renode and actual hardware.
-                                );
-                                break;
-                            default:
-                                throw new ArgumentException("Unexpected clock mode");
+                        case ClockMode.BinaryCounter:
+                            var currentValue = CalculateElapsedSeconds(timeToUpload);
+                            var newValue = BitHelper.ReplaceBits(currentValue, source: value, width: 11, destinationPosition: 32);
+                            timeToUpload = ResetTimeValue.AddSeconds(newValue);
+                            break;
+                        case ClockMode.DateTimeCounter:
+                            timeToUpload = timeToUpload.With(
+                                month: (int)BitHelper.GetMaskedValue(value, 0, 8),
+                                year: (int)BitHelper.GetMaskedValue(value, 8, 8)
+                            // WARNING
+                            // -------
+                            // The rest of bits:
+                            // bits 16-23: weekday,
+                            // bits 24-29: week
+                            // are intentionally *ignored* as those values can be inferred from day+month+year.
+                            // This might lead to an inconsistency between Renode and actual hardware.
+                            );
+                            break;
+                        default:
+                            throw new ArgumentException("Unexpected clock mode");
                         }
                     })
             ;
@@ -204,19 +207,19 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
 
             Registers.DateTimeSynchronizedWeekday.Define(this)
-                .WithValueField(0, 3, valueProviderCallback: _ => CalculateWeekday(bufferedCurrentTime), name: "Weekday")
-                // WARNING
-                // -------
-                // The write to this register intentionally *ignored* as the weekday can be inferred from day+month+year.
-                // This might lead to an inconsistency between Renode and actual hardware.
+                .WithValueField(0, 3, valueProviderCallback: _ => CalculateWeekday(), name: "Weekday")
+            // WARNING
+            // -------
+            // The write to this register intentionally *ignored* as the weekday can be inferred from day+month+year.
+            // This might lead to an inconsistency between Renode and actual hardware.
             ;
 
             Registers.DateTimeSynchronizedWeek.Define(this)
                 .WithValueField(0, 6, valueProviderCallback: _ => CalculateWeek(bufferedCurrentTime), name: "Week")
-                // WARNING
-                // -------
-                // The write to this register intentionally *ignored* as the week number can be inferred from day+month+year.
-                // This might lead to an inconsistency between Renode and actual hardware.
+            // WARNING
+            // -------
+            // The write to this register intentionally *ignored* as the week number can be inferred from day+month+year.
+            // This might lead to an inconsistency between Renode and actual hardware.
             ;
 
             Registers.DateTimeSeconds.Define(this)
@@ -257,19 +260,19 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
 
             Registers.DateTimeWeekday.Define(this)
-                .WithValueField(0, 3, valueProviderCallback: _ => CalculateWeekday(currentTime), name: "Weekday")
-                // WARNING
-                // -------
-                // The write to this register intentionally *ignored* as the weekday can be inferred from day+month+year.
-                // This might lead to an inconsistency between Renode and actual hardware.
+                .WithValueField(0, 3, valueProviderCallback: _ => CalculateWeekday(), name: "Weekday")
+            // WARNING
+            // -------
+            // The write to this register intentionally *ignored* as the weekday can be inferred from day+month+year.
+            // This might lead to an inconsistency between Renode and actual hardware.
             ;
 
             Registers.DateTimeWeek.Define(this)
                 .WithValueField(0, 6, valueProviderCallback: _ => CalculateWeek(currentTime), name: "Week")
-                // WARNING
-                // -------
-                // The write to this register intentionally *ignored* as the week number can be inferred from day+month+year.
-                // This might lead to an inconsistency between Renode and actual hardware.
+            // WARNING
+            // -------
+            // The write to this register intentionally *ignored* as the week number can be inferred from day+month+year.
+            // This might lead to an inconsistency between Renode and actual hardware.
             ;
         }
 
@@ -295,7 +298,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             return (int)year + 2000;
         }
 
-        private uint CalculateWeekday(DateTime dt)
+        private uint CalculateWeekday()
         {
             // documentation says:
             // "Weekday, 1: Sunday, 2: Monday ….  7:Saturday"
@@ -315,11 +318,11 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private BitConcatenator GetDateTimeAlarmCompareLower(BitConcatenator source = null)
         {
-             return (source ?? BitConcatenator.New())
-                .StackAbove((uint)currentTime.Second, 8)
-                .StackAbove((uint)currentTime.Minute, 8)
-                .StackAbove((uint)currentTime.Hour, 8)
-                .StackAbove((uint)currentTime.Day, 8);
+            return (source ?? BitConcatenator.New())
+               .StackAbove((uint)currentTime.Second, 8)
+               .StackAbove((uint)currentTime.Minute, 8)
+               .StackAbove((uint)currentTime.Hour, 8)
+               .StackAbove((uint)currentTime.Day, 8);
         }
 
         private BitConcatenator GetDateTimeAlarmCompareUpper(BitConcatenator source = null)
@@ -327,7 +330,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             return (source ?? BitConcatenator.New())
                 .StackAbove((uint)currentTime.Month, 8)
                 .StackAbove(CalculateYear(currentTime), 8)
-                .StackAbove(CalculateWeekday(currentTime), 8)
+                .StackAbove(CalculateWeekday(), 8)
                 .StackAbove(CalculateWeek(currentTime), 6);
         }
 

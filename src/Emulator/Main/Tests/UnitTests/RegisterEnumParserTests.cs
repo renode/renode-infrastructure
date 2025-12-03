@@ -5,8 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using NUnit.Framework;
 using System.IO;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.CoresSourceParser
 {
@@ -78,7 +79,7 @@ namespace Antmicro.Renode.CoresSourceParser
             Assert.AreEqual(128, parser.Registers[1].Width);
             Assert.AreEqual(2, parser.Registers[1].Value);
         }
-        
+
         [Test]
         public void ShouldParseEnumWithDefinedIfdef()
         {
@@ -158,4 +159,3 @@ namespace Antmicro.Renode.CoresSourceParser
         }
     }
 }
-

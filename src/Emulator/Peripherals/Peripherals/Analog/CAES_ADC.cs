@@ -1,18 +1,18 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             // Values below are derived from the "Calculating Channel Conversion Time" section in the ADC chapter of the UT32M0R500 Functional Manual
             samplingTimer.Frequency = GetClockFrequency(oscillatorDivider.Value);
-            samplingTimer.Limit = (ulong) enabledChannelsCount * (sequenceDelay.Value * SequenceDelayDuration + oversamplingRate.Value);
+            samplingTimer.Limit = (ulong)enabledChannelsCount * (sequenceDelay.Value * SequenceDelayDuration + oversamplingRate.Value);
             samplingTimer.Enabled = true;
         }
 
@@ -197,29 +197,29 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 switch(gainSetting)
                 {
-                    case Gain.DivideBy2:
-                        gain = 0.5F;
-                        break;
-                    case Gain.NoGain:
-                        gain = 1.0F;
-                        break;
-                    case Gain.MultiplyBy2:
-                        gain = 2.0F;
-                        break;
-                    case Gain.MultiplyBy4:
-                        gain = 4.0F;
-                        break;
-                    case Gain.MultiplyBy8:
-                        gain = 8.0F;
-                        break;
-                    case Gain.MultiplyBy16:
-                    case Gain.MultiplyBy16Alt1:
-                    case Gain.MultiplyBy16Alt2:
-                        gain = 16.0F;
-                        break;
-                    default:
-                        this.Log(LogLevel.Warning, "Unsupported value of the gain setting.");
-                        break;
+                case Gain.DivideBy2:
+                    gain = 0.5F;
+                    break;
+                case Gain.NoGain:
+                    gain = 1.0F;
+                    break;
+                case Gain.MultiplyBy2:
+                    gain = 2.0F;
+                    break;
+                case Gain.MultiplyBy4:
+                    gain = 4.0F;
+                    break;
+                case Gain.MultiplyBy8:
+                    gain = 8.0F;
+                    break;
+                case Gain.MultiplyBy16:
+                case Gain.MultiplyBy16Alt1:
+                case Gain.MultiplyBy16Alt2:
+                    gain = 16.0F;
+                    break;
+                default:
+                    this.Log(LogLevel.Warning, "Unsupported value of the gain setting.");
+                    break;
                 }
             }
             return gain;
@@ -232,21 +232,21 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             switch(oscillatorDividerSetting)
             {
-                case OscillatorDivider.DivideBy2:
-                    oscillatorDivider = 2;
-                    break;
-                case OscillatorDivider.DivideBy4:
-                    oscillatorDivider = 4;
-                    break;
-                case OscillatorDivider.DivideBy8:
-                    oscillatorDivider = 8;
-                    break;
-                case OscillatorDivider.DivideBy16:
-                    oscillatorDivider = 16;
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unsupported value of the oscillator divider setting.");
-                    break;
+            case OscillatorDivider.DivideBy2:
+                oscillatorDivider = 2;
+                break;
+            case OscillatorDivider.DivideBy4:
+                oscillatorDivider = 4;
+                break;
+            case OscillatorDivider.DivideBy8:
+                oscillatorDivider = 8;
+                break;
+            case OscillatorDivider.DivideBy16:
+                oscillatorDivider = 16;
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unsupported value of the oscillator divider setting.");
+                break;
             }
 
             clockFrequency = oscillatorDivider == 0 ? 0 : frequency / (uint)oscillatorDivider;
@@ -302,21 +302,21 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithTaggedFlag("EN_AAF", 3)
                 .WithTaggedFlag("DDF2_CLK_EN", 4)
                 .WithTaggedFlag("EN_REFP", 5)
-                .WithReservedBits(6,1)
+                .WithReservedBits(6, 1)
                 .WithTaggedFlag("EN_REFC", 7)
-                .WithReservedBits(8,1)
+                .WithReservedBits(8, 1)
                 .WithTaggedFlag("EN_BIASGEN", 9)
                 .WithTaggedFlag("EN_CLKGEN", 10)
-                .WithReservedBits(11,2)
+                .WithReservedBits(11, 2)
                 .WithTaggedFlag("ADC_SINGLESWEEP", 13)
                 .WithTag("ODB", 14, 2)
-                .WithReservedBits(16,8)
+                .WithReservedBits(16, 8)
                 .WithFlag(24, out adcInterruptEnabled, name: "ADC_INTR_EN",
                     writeCallback: (_, val) =>
                     {
                         UpdateInterrupts();
                     })
-                .WithReservedBits(25,2)
+                .WithReservedBits(25, 2)
                 .WithTaggedFlag("COI_OVER_IEN", 27)
                 .WithTaggedFlag("SINC4_OVER_IEN", 28)
                 .WithTaggedFlag("DSM_OVL_IEN", 29)
@@ -337,11 +337,11 @@ namespace Antmicro.Renode.Peripherals.Analog
                             StartConversion();
                         }
                     })
-                .WithReservedBits(1,6)
+                .WithReservedBits(1, 6)
                 .WithTaggedFlag("ADC_RST_CCONV", 7)
-                .WithReservedBits(8,1)
+                .WithReservedBits(8, 1)
                 .WithTaggedFlag("ADC_READYFLAG", 9)
-                .WithReservedBits(10,20)
+                .WithReservedBits(10, 20)
                 .WithFlag(31, name: "ADC_REGDEF",
                     writeCallback: (_, value) =>
                     {
@@ -358,10 +358,10 @@ namespace Antmicro.Renode.Peripherals.Analog
                 {
                     register
                         .WithFlag(0, out channelEnable[SingleEndedChannelsOffset + idx], name: "EN")
-                        .WithReservedBits(1,2)
+                        .WithReservedBits(1, 2)
                         .WithTaggedFlag("DDF2", 3)
                         .WithEnumField(4, 3, out channelGain[SingleEndedChannelsOffset + idx], name: "GAIN")
-                        .WithReservedBits(7,25)
+                        .WithReservedBits(7, 25)
                     ;
                 }, resetValue: 0x10);
 
@@ -370,45 +370,45 @@ namespace Antmicro.Renode.Peripherals.Analog
                 {
                     register
                         .WithFlag(0, out channelEnable[DifferentialChannelsOffset + idx], name: "EN")
-                        .WithReservedBits(1,2)
+                        .WithReservedBits(1, 2)
                         .WithTaggedFlag("DDF2", 3)
                         .WithEnumField(4, 3, out channelGain[DifferentialChannelsOffset + idx], name: "GAIN")
-                        .WithReservedBits(7,25)
+                        .WithReservedBits(7, 25)
                     ;
                 }, resetValue: 0x10);
 
             Registers.TemperatureChannelConfiguration.Define(this, resetValue: 0x10)
                 .WithFlag(0, out channelEnable[TemperatureChannelsOffset], name: "EN")
-                .WithReservedBits(1,2)
+                .WithReservedBits(1, 2)
                 .WithTaggedFlag("DDF2", 3)
                 .WithEnumField(4, 3, out channelGain[TemperatureChannelsOffset], name: "GAIN")
-                .WithReservedBits(7,25)
+                .WithReservedBits(7, 25)
             ;
 
             Registers.TimingControl.Define(this, resetValue: 0x64)
                 .WithValueField(0, 8, out oversamplingRate, name: "ADC_DSMOSR")
                 .WithEnumField(8, 2, out oscillatorDivider, name: "ADC_OSCDIV")
-                .WithReservedBits(10,22)
+                .WithReservedBits(10, 22)
             ;
 
             Registers.SequenceControl.Define(this)
                 .WithValueField(0, 6, out sequenceDelay, name: "ADC_SEQDLY")
-                .WithReservedBits(6,26)
+                .WithReservedBits(6, 26)
             ;
 
             Registers.DSMDigitalStabilityControl.Define(this, resetValue: 0x81e)
                 .WithTag("DSM_OVL_CNT", 0, 7)
-                .WithReservedBits(7,1)
+                .WithReservedBits(7, 1)
                 .WithTag("DSM_OVL_RST", 8, 5)
-                .WithReservedBits(13,3)
+                .WithReservedBits(13, 3)
                 .WithTaggedFlag("DSM_OVL_FLAG", 16)
-                .WithReservedBits(17,15)
+                .WithReservedBits(17, 15)
             ;
 
             Registers.InterruptStatus.Define(this)
                 // SET_CHNL_INTR_PEND, DIFF_CHNL_INTR_PEND and TEMP_CHNL_INTR_PEND combined
                 .WithValueField(0, 25, out channelInterruptPending, FieldMode.ReadToClear, name: "CHNL_INTR_PEND")
-                .WithReservedBits(25,2)
+                .WithReservedBits(25, 2)
                 .WithTaggedFlag("COI_OVER_COMB", 27)
                 .WithTaggedFlag("SINC4_OVER_COMB", 28)
                 .WithTaggedFlag("DSM_OVL_FLAG_COMB", 29)
@@ -421,18 +421,18 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 register
                     .WithValueField(0, 12, out channelData[idx], FieldMode.Read, name: "DATA_OUT")
-                    .WithReservedBits(12,2)
+                    .WithReservedBits(12, 2)
                     .WithTaggedFlag("DATA_ERROR", 14)
-                    .WithReservedBits(15,1)
+                    .WithReservedBits(15, 1)
                     .WithTaggedFlag("CHNL_EN", 16)
-                    .WithReservedBits(17,2)
+                    .WithReservedBits(17, 2)
                     .WithTaggedFlag("DD", 19)
                     .WithTag("GAIN", 20, 3)
                     .WithTaggedFlag("COI_OVER", 23)
                     .WithTaggedFlag("SINC4_OVER", 24)
                     .WithTaggedFlag("DSM_OVL_FLAG", 25)
                     .WithTaggedFlag("TRIG_UNDER", 26)
-                    .WithReservedBits(27,1)
+                    .WithReservedBits(27, 1)
                     .WithTag("DATA_OUT_LSB", 28, 4)
                     .WithReadCallback((_, __) =>
                     {
@@ -443,21 +443,26 @@ namespace Antmicro.Renode.Peripherals.Analog
             });
         }
 
+        private IEnumRegisterField<OscillatorDivider> oscillatorDivider;
+
+        private IValueRegisterField oversamplingRate;
+        private IValueRegisterField sequenceDelay;
+
         private IFlagRegisterField adcEnabled;
         private IFlagRegisterField adcInterruptEnabled;
         private IFlagRegisterField conversionCompleteInterruptEnabled;
         private IFlagRegisterField conversionCompleteCombined;
         private IValueRegisterField channelInterruptPending;
         private IFlagRegisterField gainAmplifierEnabled;
-        private IFlagRegisterField[] channelEnable = new IFlagRegisterField[NumberOfConfigChannels];
-        private IValueRegisterField[] channelData = new IValueRegisterField[NumberOfDataChannels];
-        private IEnumRegisterField<Gain>[] channelGain = new IEnumRegisterField<Gain>[NumberOfConfigChannels];
-        private IEnumRegisterField<OscillatorDivider> oscillatorDivider;
+        private readonly IFlagRegisterField[] channelEnable = new IFlagRegisterField[NumberOfConfigChannels];
+        private readonly IValueRegisterField[] channelData = new IValueRegisterField[NumberOfDataChannels];
+        private readonly IEnumRegisterField<Gain>[] channelGain = new IEnumRegisterField<Gain>[NumberOfConfigChannels];
 
-        private IValueRegisterField oversamplingRate;
-        private IValueRegisterField sequenceDelay;
+        private readonly uint[] rawVoltage;
 
-        private uint[] rawVoltage;
+        private readonly LimitTimer samplingTimer;
+        private readonly RESDStream<VoltageSample>[] resdStream;
+        private readonly uint frequency;
 
         private const uint MaxValue = 0xFFF;
         private const uint MaxVoltage = 1500000; // [μV]
@@ -472,10 +477,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         private const uint TemperatureChannelsOffset = 24;
         private const uint TemperatureDataChannelsOffset = 16;
         private const uint DefaultChannelVoltage = 0;
-
-        private readonly LimitTimer samplingTimer;
-        private readonly RESDStream<VoltageSample>[] resdStream;
-        private readonly uint frequency;
 
         private enum OscillatorDivider
         {

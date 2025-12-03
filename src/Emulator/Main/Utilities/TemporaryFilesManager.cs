@@ -6,9 +6,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Diagnostics;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 
@@ -21,12 +22,12 @@ namespace Antmicro.Renode.Utilities
             Initialize(Path.GetTempPath(), DefaultDirectoryPrefix, !EmulationManager.DisableEmulationFilesCleanup);
         }
 
-        public static TemporaryFilesManager Instance { get; private set; }
-
         public static void Initialize(string tempDirectory, string tempDirPrefix, bool cleanFiles)
         {
             Instance = new TemporaryFilesManager(tempDirectory, tempDirPrefix, cleanFiles);
         }
+
+        public static TemporaryFilesManager Instance { get; private set; }
 
         public string GetTemporaryFile(string fileNameSuffix = null)
         {
@@ -126,13 +127,28 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public event Action<string> OnFileCreated;
-
         public string EmulatorTemporaryPath
         {
             get
-            { 
+            {
                 return emulatorTemporaryPath;
+            }
+        }
+
+        public event Action<string> OnFileCreated;
+
+        public const string CrashSuffix = "-crash";
+
+        private static bool IsProcessAlive(int pid)
+        {
+            try
+            {
+                var proc = Process.GetProcessById(pid);
+                return proc != null && !proc.HasExited;
+            }
+            catch(ArgumentException)
+            {
+                return false;
             }
         }
 
@@ -166,23 +182,10 @@ namespace Antmicro.Renode.Utilities
             Cleanup();
         }
 
-        private static bool IsProcessAlive(int pid)
-        {
-            try
-            {
-                var proc = Process.GetProcessById(pid);
-                return proc != null && !proc.HasExited;
-            }
-            catch(ArgumentException)
-            {
-                return false;
-            }
-        }
-
         ~TemporaryFilesManager()
         {
             Cleanup();
-            ClearDirectory(emulatorTemporaryPath);           
+            ClearDirectory(emulatorTemporaryPath);
         }
 
         private void ClearDirectory(string path)
@@ -201,10 +204,8 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public const string CrashSuffix = "-crash";
-
         private readonly string otherEmulatorTempPrefix;
-        private readonly string emulatorTemporaryPath; 
+        private readonly string emulatorTemporaryPath;
         private readonly string id;
         private readonly bool shouldCleanFiles;
 

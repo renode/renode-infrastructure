@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,13 +7,13 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Storage;
 using Antmicro.Renode.Storage.VirtIO;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
@@ -25,10 +25,10 @@ namespace Antmicro.Renode.Peripherals.Storage
     {
         public VirtIOBlockDevice(IMachine machine) : base(machine)
         {
-            storage = DataStorage.Create(size: 0);
+            storage = DataStorage.CreateInTemporaryFile(size: 0);
             lastQueueIdx = 0;
             Virtqueues = new Virtqueue[lastQueueIdx + 1];
-            for (int i = 0; i <= lastQueueIdx; i++)
+            for(int i = 0; i <= lastQueueIdx; i++)
             {
                 Virtqueues[i] = new Virtqueue(this, Virtqueue.QueueMaxSize);
             }
@@ -42,10 +42,10 @@ namespace Antmicro.Renode.Peripherals.Storage
             storage?.Dispose();
         }
 
-        public void LoadImage(WriteFilePath file, bool persistent = false)
+        public void LoadImage(WriteFilePath file, bool persistent = false, CompressionType compression = CompressionType.None)
         {
             storage?.Dispose();
-            storage = DataStorage.Create(file, persistent: persistent);
+            storage = DataStorage.CreateFromFile(file, persistent: persistent, compression: compression);
             capacity = (long)Math.Ceiling((decimal)storage.Length / SectorSize);
             configHasChanged.Value = true;
             UpdateInterrupts();
@@ -77,48 +77,48 @@ namespace Antmicro.Renode.Peripherals.Storage
                 this.Log(LogLevel.Error, "Error decoding block request header");
                 return false;
             }
-            if(!SeekToSector(hdr.sector))
+            if(!SeekToSector(hdr.Sector))
             {
                 this.Log(LogLevel.Error, "Driver tried to seek beyond the loaded image end.");
                 return false;
             }
-            
+
             vqueue.ReadDescriptorMetadata();
             var length = vqueue.Descriptor.Length;
 
-            switch(hdr.type)
+            switch(hdr.Type)
             {
-                case BlockOperations.Out:
-                    if(!vqueue.TryReadFromBuffers(length, out var res))
-                    {
-                        return false;
-                    }
-                    storage.Write(res, 0, length);
-                    break;
+            case BlockOperations.Out:
+                if(!vqueue.TryReadFromBuffers(length, out var res))
+                {
+                    return false;
+                }
+                storage.Write(res, 0, length);
+                break;
 
-                case BlockOperations.In:
-                    byte[] driverBytes = new byte[length];
-                    storage.Read(driverBytes, 0, length);
-                    if(!vqueue.TryWriteToBuffers(driverBytes))
-                    {
-                        return false;
-                    }
-                    break;
+            case BlockOperations.In:
+                byte[] driverBytes = new byte[length];
+                storage.Read(driverBytes, 0, length);
+                if(!vqueue.TryWriteToBuffers(driverBytes))
+                {
+                    return false;
+                }
+                break;
 
-                case BlockOperations.Flush:
-                    if(IsFeatureEnabled((byte)FeatureBits.BlockFlagFlush))
-                    {
-                        Flush();
-                    }
-                    else
-                    {
-                        MarkAsUnsupported();
-                    }
-                    break;
+            case BlockOperations.Flush:
+                if(IsFeatureEnabled((byte)FeatureBits.BlockFlagFlush))
+                {
+                    Flush();
+                }
+                else
+                {
+                    MarkAsUnsupported();
+                }
+                break;
 
-                default:
-                    this.Log(LogLevel.Error, "Unsupported block operation ({0})", hdr.type);
-                    break;
+            default:
+                this.Log(LogLevel.Error, "Unsupported block operation ({0})", hdr.Type);
+                break;
             }
 
             WriteStatus(vqueue);
@@ -158,6 +158,18 @@ namespace Antmicro.Renode.Peripherals.Storage
         private byte status;
 
         private const int SectorSize = 0x200;
+
+        [LeastSignificantByteFirst]
+        private struct Header
+        {
+#pragma warning disable 0649
+            [PacketField, Width(32)]
+            public BlockOperations Type;
+            [PacketField, Offset(doubleWords: 2), Width(64)]
+            public long Sector;
+#pragma warning restore 0649
+            // we don't use other fields from the documentation
+        }
 
         private enum FeatureBits : byte
         {
@@ -216,18 +228,6 @@ namespace Antmicro.Renode.Peripherals.Storage
             MaxWriteZeroesSectors = 0x130,
             MaxWriteZeroesSeg = 0x134,
             WriteZeroesMayUnmap = 0x138,
-        }
-
-        [LeastSignificantByteFirst]
-        private struct Header
-        {
-            #pragma warning disable 0649
-            [PacketField, Width(32)]
-            public BlockOperations type;
-            [PacketField, Offset(doubleWords: 2), Width(64)]
-            public long sector;
-            #pragma warning restore 0649
-            // we don't use other fields from the documentation
         }
     }
 }

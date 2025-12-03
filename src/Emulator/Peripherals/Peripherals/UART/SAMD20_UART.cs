@@ -4,21 +4,24 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+using System.Collections.Generic;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
-using Antmicro.Migrant;
-using System;
-using System.Collections.Generic;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.UART
 {
     // Due to unusual register offsets we cannot use address translations
     public class SAMD20_UART : IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IUART, IKnownSize
     {
-        public SAMD20_UART(IMachine machine) 
+        public SAMD20_UART()
         {
             IRQ = new GPIO();
 
@@ -55,8 +58,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTag("Data order (DORD)", 30, 1)
                     .WithReservedBits(31, 1)
                 },
-
-                {(long)Registers.ControlB, new DoubleWordRegister(this)                    
+                {(long)Registers.ControlB, new DoubleWordRegister(this)
                     .WithTag("Character Size (CHSIZE)", 0, 3)
                     .WithReservedBits(3, 3)
                     .WithFlag(6, out stopBitMode, name: "Stop bit mode (SBMODE)")
@@ -67,18 +69,15 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(17, out receiverEnabled, name: "Receiver enable (RXEN)")
                     .WithReservedBits(18, 14)
                 },
-
                 {(long)Registers.DebugControl, new DoubleWordRegister(this)
                     .WithTag("Debug stop mode (DGBSTOP)", 0, 1)
                     .WithReservedBits(1, 7)
                     .WithIgnoredBits(8, 24)
                 },
-
                 {(long)Registers.Baudrate, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out baudrate, name: "Baudrate (BAUD)")
                     .WithIgnoredBits(16, 16)
                 },
-
                 {(long)Registers.InterruptEnableClear, new DoubleWordRegister(this)
                     .WithFlag(0, out dataRegisterEmptyInterruptEnabled, FieldMode.Read | FieldMode.WriteOneToClear, name: "Data register empty interrupt disabled (DRE)")
                     .WithFlag(1, out transmitCompleteInterruptEnabled, FieldMode.Read | FieldMode.WriteOneToClear, name: "Transmit complete interrupt disabled (TXC)")
@@ -88,7 +87,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithIgnoredBits(8, 24)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
-
                 {(long)Registers.InterruptEnableSet, new DoubleWordRegister(this)
                     .WithFlag(0,
                         writeCallback: (_, val) => dataRegisterEmptyInterruptEnabled.Value |= val,
@@ -110,7 +108,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithIgnoredBits(8, 24)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
-
                 {(long)Registers.InterruptFlagStatusAndClear, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read,
                         valueProviderCallback: _ => receiveQueue.Count == 0, name: "Data register empty (DRE)")
@@ -121,7 +118,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(4, 4)
                     .WithIgnoredBits(8, 24)
                 },
-
                 {(long)Registers.Status, new DoubleWordRegister(this)
                     .WithTag("Parity error (PERR)", 0, 1)
                     .WithTag("Frame error (FERR)", 1, 1)
@@ -130,7 +126,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTag("Synchronization busy (SYNCBUSY))", 15, 1)
                     .WithIgnoredBits(16, 16)
                 },
-
                 {(long)Registers.Data, new DoubleWordRegister(this)
                     .WithValueField(0, 9,
                         writeCallback: (_, val) => HandleTransmitData((uint)val),
@@ -174,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public byte ReadByte(long offset)
         {
-            return (byte) ReadDoubleWord(offset);
+            return (byte)ReadDoubleWord(offset);
         }
 
         public void WriteByte(long offset, byte value)
@@ -192,6 +187,8 @@ namespace Antmicro.Renode.Peripherals.UART
             receiveQueue.Enqueue(value);
             UpdateInterrupts();
         }
+
+        public long Size => 0x100;
 
         public uint BaudRate => (uint)baudrate.Value;
 
@@ -213,8 +210,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         [field: Transient]
         public event Action<byte> CharReceived;
-
-        public long Size => 0x100;
 
         private void HandleTransmitData(uint value)
         {

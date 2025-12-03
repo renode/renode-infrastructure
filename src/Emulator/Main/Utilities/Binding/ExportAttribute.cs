@@ -12,7 +12,5 @@ namespace Antmicro.Renode.Utilities.Binding
     [AttributeUsage(AttributeTargets.Method)]
     public class ExportAttribute : Attribute
     {
-
     }
 }
-

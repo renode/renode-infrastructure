@@ -5,10 +5,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 parent.LogUnhandledRead(offset);
                 return 0;
             }
-            return data[8 - (peripheralSize - offset)/4];
+            return data[8 - (peripheralSize - offset) / 4];
         }
 
         private readonly int peripheralSize;
@@ -40,4 +40,3 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly byte[] data;
     }
 }
-

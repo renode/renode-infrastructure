@@ -5,8 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.SPI;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -49,4 +49,3 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private readonly SensorSamplesFifo<ScalarSample> samplesFifo;
     }
 }
-

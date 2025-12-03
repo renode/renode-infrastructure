@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
 
@@ -75,20 +76,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        public GPIO IRQ { get; }
-
-        public event Action<bool> StateChanged;
-
         public bool Pressed { get; private set; }
 
         public bool Inverted { get; private set; }
 
         public bool ReleaseOnReset { get; set; }
 
+        public GPIO IRQ { get; }
+
+        public event Action<bool> StateChanged;
+
         private void OnStateChange(bool pressed)
         {
             var sc = StateChanged;
-            if (sc != null)
+            if(sc != null)
             {
                 sc(pressed);
             }

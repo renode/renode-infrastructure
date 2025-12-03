@@ -7,17 +7,12 @@
 //
 
 using System;
-using System.Diagnostics;
-using System.IO;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
@@ -29,6 +24,49 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             this.delayTicks = startupDelayTicks;
         }
+
+        public void OnEm2Wakeup()
+        {
+            this.Log(LogLevel.Debug, "Reached HFXO for early wakeup");
+            wakeUpRequester = WakeupSource.PRS;
+
+            // Set status bits indicating wakeup was due to a HW request from PRS, and set ENS
+            status_prshwreq_bit.Value = true;
+            status_ens_bit.Value = true;
+
+            // Configure delay timer
+            StartDelayTimer();
+
+            // Notify subscribers that the Hfxo is enabled and de-assert the PRSHWREQ bit
+            this.Log(LogLevel.Debug, "Start-up delay timer began at: {0}", machine.ElapsedVirtualTime);
+            HfxoEnabled?.Invoke();
+            status_prshwreq_bit.Value = false;
+        }
+
+        public void OnRequest(HFXO_REQUESTER req)
+        {
+            //TODO: Combine OnEm2Wakeup into this function when we add an argument (PRS)
+        }
+
+        public void OnClksel()
+        {
+            // This function is only used for the PRS usecase for now, but I do not think the PRS needs to have
+            // requested the HFXO to wakeup for the CMU to be used to finish the wake-up process, thus
+            // we simply check if a wakeup is in progress by ensuring there is a wakeup requester.
+            if(wakeUpRequester != WakeupSource.NONE)
+            {
+                this.Log(LogLevel.Debug, "HFXO selected as a source by the CMU");
+
+                // Complete wakeup after receiving a HW signal by triggering rdy interrupt
+                wakeUpRequester = WakeupSource.NONE;
+                status_rdy_bit.Value = true;
+                status_prsrdy_bit.Value = false;
+                if_rdy_bit.Value = true;
+                UpdateInterrupts();
+            }
+        }
+
+        public GPIO IRQ { get; private set; }
 
         public event Action HfxoEnabled;
 
@@ -45,14 +83,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         partial void Ctrl_Forceen_Write(bool a, bool b)
         {
             status_corebiasoptrdy_bit.Value = false;
-            
-            if (!a && b)
+
+            if(!a && b)
             {
                 // If we are setting Forceen from 0 to 1, begin start-up delay process
-                wakeUpRequester = WAKEUP_SOURCE.FORCE;
+                wakeUpRequester = WakeupSource.FORCE;
                 StartDelayTimer();
             }
-            else if (!b)    // Add !b condition to avoid scenario where two sequential writes to forceen cause us to skip the wakeup delay
+            else if(!b)    // Add !b condition to avoid scenario where two sequential writes to forceen cause us to skip the wakeup delay
             {
                 oscillatorForceEn = b;
             }
@@ -66,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Cmd_Corebiasopt_Write(bool a, bool b)
         {
-            if (b)
+            if(b)
             {
                 xtalctrl_corebiasana_field.Value = 0x3D;
             }
@@ -78,16 +116,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Status_Rdy_ValueProvider(bool a)
         {
-            status_rdy_bit.Value = isUsed;
+            status_rdy_bit.Value = IsUsed;
         }
 
         partial void Status_Corebiasoptrdy_ValueProvider(bool a)
         {
-            if (a == false)
+            if(a == false)
             {
                 status_corebiasoptrdy_bit.Value = true;
             }
-            else if (a == true && temp_incr > 10)
+            else if(a == true && temp_incr > 10)
             {
                 status_corebiasoptrdy_bit.Value = false;
                 temp_incr = 0;
@@ -100,7 +138,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Status_Ens_ValueProvider(bool a)
         {
-            status_ens_bit.Value = isUsed;
+            status_ens_bit.Value = IsUsed;
         }
 
         partial void Status_Hwreq_ValueProvider(bool a)
@@ -110,7 +148,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Lock_Lockkey_Write(ulong a, ulong b)
         {
-            if (b == 0x580E)
+            if(b == 0x580E)
             {
                 status_lock_bit.Value = STATUS_LOCK.UNLOCKED;
             }
@@ -129,16 +167,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             UpdateInterrupts();
         }
-        
-        private bool isEnabled
-        {
-            get { return cmu.OscHfxoEnabled; }
-        }
-
-        private bool isUsed
-        {
-            get { return oscillatorForceEn || (oscillatorOnDemand && cmu.OscHfxoRequested); }
-        }
 
         private void StartDelayTimer(uint startValue = 0)
         {
@@ -149,77 +177,37 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             timer.Enabled = true;
         }
 
-        public void OnEm2Wakeup()
-        {
-            this.Log(LogLevel.Debug, "Reached HFXO for early wakeup");
-            wakeUpRequester = WAKEUP_SOURCE.PRS;
-
-            // Set status bits indicating wakeup was due to a HW request from PRS, and set ENS
-            status_prshwreq_bit.Value = true; 
-            status_ens_bit.Value = true;
-
-            // Configure delay timer
-            StartDelayTimer();
-
-            // Notify subscribers that the Hfxo is enabled and de-assert the PRSHWREQ bit
-            this.Log(LogLevel.Debug, "Start-up delay timer began at: {0}", machine.ElapsedVirtualTime);
-            HfxoEnabled?.Invoke();
-            status_prshwreq_bit.Value = false;
-        }
-
-        public void OnRequest(HFXO_REQUESTER req)
-        {
-            //TODO: Combine OnEm2Wakeup into this function when we add an argument (PRS)
-        }
-        
-        public void OnClksel()
-        {
-            // This function is only used for the PRS usecase for now, but I do not think the PRS needs to have
-            // requested the HFXO to wakeup for the CMU to be used to finish the wake-up process, thus
-            // we simply check if a wakeup is in progress by ensuring there is a wakeup requester.
-            if (wakeUpRequester != WAKEUP_SOURCE.NONE)
-            {
-                this.Log(LogLevel.Debug, "HFXO selected as a source by the CMU");
-
-                // Complete wakeup after receiving a HW signal by triggering rdy interrupt
-                wakeUpRequester = WAKEUP_SOURCE.NONE;
-                status_rdy_bit.Value = true;
-                status_prsrdy_bit.Value = false;
-                if_rdy_bit.Value = true;
-                UpdateInterrupts();
-            }
-        }
-
         private void OnStartUpTimerExpired()
         {
             this.Log(LogLevel.Debug, "Start-up delay timer expired at: {0}", machine.ElapsedVirtualTime);
             this.Log(LogLevel.Debug, "Wakeup Requester = {0}", wakeUpRequester);
 
-            if (wakeUpRequester == WAKEUP_SOURCE.PRS)
+            if(wakeUpRequester == WakeupSource.PRS)
             {
                 // Set PRSRDY bit in Status to true, stop the delay timer and raise an interrupt.
                 // This is assumed to only be entered in an early wakeup scenario
                 status_prsrdy_bit.Value = true;
                 if_prsrdy_bit.Value = true;
             }
-            else if (wakeUpRequester == WAKEUP_SOURCE.FORCE)
+            else if(wakeUpRequester == WakeupSource.FORCE)
             {
                 // Set status rdy and ens bits to 1
                 oscillatorForceEn = true;
 
                 // In the case of a forced wakeup (not early wakeup) we want the oscillator to be ready immediately
                 // and do not wait for a subsequent hardware request, thus the wakeup ends here and we raise rdy interrupt
-                wakeUpRequester = WAKEUP_SOURCE.NONE;
+                wakeUpRequester = WakeupSource.NONE;
                 if_rdy_bit.Value = true;
             }
-            
+
             timer.Enabled = false;
             UpdateInterrupts();
         }
 
         private void UpdateInterrupts()
         {
-            machine.ClockSource.ExecuteInLock(delegate {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
                 var irq = ((ien_rdy_bit.Value && if_rdy_bit.Value)
                             ||(ien_prsrdy_bit.Value && if_prsrdy_bit.Value)
                             // Can be expanded to handle all hfxo interrupts
@@ -227,14 +215,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 IRQ.Set(irq);
             });
         }
-        public GPIO IRQ { get; private set; }
+
+        private bool IsEnabled
+        {
+            get { return cmu.OscHfxoEnabled; }
+        }
+
+        private bool IsUsed
+        {
+            get { return oscillatorForceEn || (oscillatorOnDemand && cmu.OscHfxoRequested); }
+        }
+
         private ulong temp_incr = 0;
         private bool oscillatorOnDemand = false;
         private bool oscillatorForceEn = false;
 
         // Variable which represents which source could have requested the wakeup (and if a wakeup is in progress)
-        private WAKEUP_SOURCE wakeUpRequester = WAKEUP_SOURCE.NONE;
-        private enum WAKEUP_SOURCE  
+        private WakeupSource wakeUpRequester = WakeupSource.NONE;
+        private LimitTimer timer;
+        private readonly uint delayTicks;    // Amount of ticks we delay for simulated start-up time
+
+        private enum WakeupSource
         {
             NONE = 0,   // No source has requested a wakeup (there is no wakeup in progress)
             PRS = 1,    // PRS has requested a wakeup (wakeup is in progress)
@@ -242,7 +243,5 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             // Can be expanded with more wakeup sources as needed
         }
-        private LimitTimer timer;
-        private uint delayTicks;    // Amount of ticks we delay for simulated start-up time
     }
 }

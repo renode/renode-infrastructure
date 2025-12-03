@@ -1,15 +1,15 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -25,24 +25,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.bus = machine.SystemBus;
             this.cpu = cpu;
 
-            cpu.RegisterCSR((ulong)CustomCSR.MachineMiscellaneousControl, () => machineMiscellaneousControlValue, value =>
+            cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousControl, () => machineMiscellaneousControlValue, value =>
             {
                 cpu.AllowUnalignedAccesses = BitHelper.IsBitSet(value, AllowUnalignedAccessesBit);
                 machineMiscellaneousControlValue = value;
             }, "mmisc_ctl");
 
             // stub CSRs to make software happy
-            cpu.RegisterCSR((ulong)CustomCSR.MachineExtendedStatus, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Extended Status CSR (0x7c4) is currently not supported"); });
-            cpu.RegisterCSR((ulong)CustomCSR.MachineCacheControl, () => 0xffffffff, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Cache Control CSR (0x7ca) is currently not supported"); });
-            cpu.RegisterCSR((ulong)CustomCSR.InstructionCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc0) is not supported"); });
-            cpu.RegisterCSR((ulong)CustomCSR.DataCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc1) is not supported"); });
-            cpu.RegisterCSR((ulong)CustomCSR.MachineMiscellaneousConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc2) is not supported"); });
-            cpu.RegisterCSR((ulong)CustomCSR.MachineMiscellaneousConfigurationRV32, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc3) is not supported"); });
-            cpu.RegisterCSR((ulong)CustomCSR.VectorProcessorConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc7) is not supported"); });
-            cpu.RegisterCSR((ulong)CustomCSR.ClusterCacheControlBaseAddress, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfcf) is not supported"); });
-            cpu.RegisterCSR((ulong)CustomCSR.Architecture, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfca) is not supported"); });
-            cpu.RegisterCSR((ulong)CustomCSR.CurrentStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc8) is not supported"); });
-            cpu.RegisterCSR((ulong)CustomCSR.MstatusStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc9) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.MachineExtendedStatus, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Extended Status CSR (0x7c4) is currently not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.MachineCacheControl, () => 0xffffffff, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Cache Control CSR (0x7ca) is currently not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.InstructionCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc0) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.DataCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc1) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc2) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfigurationRV32, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc3) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.VectorProcessorConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc7) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.ClusterCacheControlBaseAddress, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfcf) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.Architecture, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfca) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.CurrentStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc8) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.MstatusStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc9) is not supported"); });
 
             // Custom0
             cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiiii00ddddd0001011", opc => ReadFromMemoryToRegister(opc, AccessWidth.Byte, LoadExtractorByte), "LBGP");
@@ -68,21 +68,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             ulong data;
             switch(width)
             {
-                case AccessWidth.Byte:
-                    data = bus.ReadByte(memoryOffset, cpu);
-                    valueBits = 8;
-                    break;
-                case AccessWidth.Word:
-                    data = bus.ReadWord(memoryOffset, cpu);
-                    valueBits = 16;
-                    break;
-                case AccessWidth.DoubleWord:
-                    data = bus.ReadDoubleWord(memoryOffset, cpu);
-                    valueBits = 32;
-                    break;
-                default:
-                    cpu.Log(LogLevel.Error, "Invalid memory access type: {0}", width);
-                    return;
+            case AccessWidth.Byte:
+                data = bus.ReadByte(memoryOffset, cpu);
+                valueBits = 8;
+                break;
+            case AccessWidth.Word:
+                data = bus.ReadWord(memoryOffset, cpu);
+                valueBits = 16;
+                break;
+            case AccessWidth.DoubleWord:
+                data = bus.ReadDoubleWord(memoryOffset, cpu);
+                valueBits = 32;
+                break;
+            default:
+                cpu.Log(LogLevel.Error, "Invalid memory access type: {0}", width);
+                return;
             }
 
             if(extendSign)
@@ -105,18 +105,18 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             switch(width)
             {
-                case AccessWidth.Byte:
-                    bus.WriteByte(memoryOffset, (byte)regValue, cpu);
-                    break;
-                case AccessWidth.Word:
-                    bus.WriteWord(memoryOffset, (ushort)regValue, cpu);
-                    break;
-                case AccessWidth.DoubleWord:
-                    bus.WriteDoubleWord(memoryOffset, (uint)regValue, cpu);
-                    break;
-                default:
-                    cpu.Log(LogLevel.Error, "Invalid memory access type: {0}", width);
-                    break;
+            case AccessWidth.Byte:
+                bus.WriteByte(memoryOffset, (byte)regValue, cpu);
+                break;
+            case AccessWidth.Word:
+                bus.WriteWord(memoryOffset, (ushort)regValue, cpu);
+                break;
+            case AccessWidth.DoubleWord:
+                bus.WriteDoubleWord(memoryOffset, (uint)regValue, cpu);
+                break;
+            default:
+                cpu.Log(LogLevel.Error, "Invalid memory access type: {0}", width);
+                break;
             }
         }
 

@@ -1,17 +1,14 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Timers;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -126,20 +123,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private const uint SemaphoreCount = 32;
 
-        private enum Registers
-        {
-            Semaphore = 0x0,
-            //  The above serves as a base offset, 32 double word registers follow
-            ReadLockSemaphore = 0x80,
-            //  The above serves as a base offset, 32 double word registers follow
-            InterruptEnable = 0x100,
-            InterruptClear = 0x104,
-            InterruptStatus = 0x108,
-            MaskedInterruptStatus = 0x10c,
-            Clear = 0x140,
-            Key = 0x144
-        }
-
         private class Semaphore
         {
             public Semaphore()
@@ -176,7 +159,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             public bool Locked { get; private set; }
+
             public uint ProcessID { get; private set; }
+
             public uint MasterID { get; private set; }
 
             //  Tries to acquire a lock on the semaphore, with the given process ID and master ID
@@ -212,6 +197,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                 Reset();
             }
+        }
+
+        private enum Registers
+        {
+            Semaphore = 0x0,
+            //  The above serves as a base offset, 32 double word registers follow
+            ReadLockSemaphore = 0x80,
+            //  The above serves as a base offset, 32 double word registers follow
+            InterruptEnable = 0x100,
+            InterruptClear = 0x104,
+            InterruptStatus = 0x108,
+            MaskedInterruptStatus = 0x10c,
+            Clear = 0x140,
+            Key = 0x144
         }
     }
 }

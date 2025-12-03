@@ -39,4 +39,3 @@ namespace Antmicro.Renode.Utilities.GDB
         public PacketData Data { get; private set; }
     }
 }
-

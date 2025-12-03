@@ -5,18 +5,18 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU;
 using System.Collections.Generic;
-using Antmicro.Renode.Network;
-using Antmicro.Renode.Utilities;
+using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Network;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -54,17 +54,28 @@ namespace Antmicro.Renode.Peripherals.Network
                 {(long)Registers.NetworkControl, new DoubleWordRegister(this)
                     .WithTag("loopback", 0, 1)
                     .WithTag("loopback_local", 1, 1)
-                    .WithFlag(2, out receiveEnabled, name: "enable_receive")
-                    .WithFlag(3, name: "enable_transmit",
-                        writeCallback: (_, value) =>
+                    .WithFlag(2, name: "enable_receive",
+                        changeCallback: (_, value) =>
                         {
-                            if(!value)
+                            if(value)
                             {
-                                isTransmissionStarted = false;
+                                rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(sysbus, this, rxDescriptorsQueueBase, (sb, ctx, addr) => new DmaRxBufferDescriptor(sb, ctx, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
                             }
-                            if(txDescriptorsQueue != null && !value)
+                            else
                             {
-                                txDescriptorsQueue.GoToBaseAddress();
+                                rxDescriptorsQueue = null;
+                            }
+                        })
+                    .WithFlag(3, name: "enable_transmit",
+                        changeCallback: (_, value) =>
+                        {
+                            if(value)
+                            {
+                                txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(sysbus, this, txDescriptorsQueueBase, (sb, ctx, addr) => new DmaTxBufferDescriptor(sb, ctx, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
+                            }
+                            else
+                            {
+                                txDescriptorsQueue = null;
                             }
                         })
                     .WithTag("man_port_en", 4, 1)
@@ -75,20 +86,12 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithFlag(9, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_start_pclk",
                         writeCallback: (_, value) =>
                         {
-                            if(value)
+                            if(value && txDescriptorsQueue != null)
                             {
-                                isTransmissionStarted = true;
                                 SendFrames();
                             }
                         })
-                    .WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_halt_pclk",
-                        writeCallback: (_, value) =>
-                        {
-                            if(value)
-                            {
-                                isTransmissionStarted = false;
-                            }
-                        })
+                    .WithFlag(10, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_halt_pclk")
                     .WithTag("tx_pause_frame_req", 11, 1)
                     .WithTag("tx_pause_frame_zero", 12, 1)
                     .WithReservedBits(13, 2)
@@ -104,7 +107,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("one_step_sync_mode", 24, 1)
                     .WithReservedBits(25, 7)
                 },
-
                 {(long)Registers.NetworkConfiguration, new DoubleWordRegister(this, 0x80000)
                     .WithTag("speed", 0, 1)
                     .WithTag("full_duplex", 1, 1)
@@ -135,7 +137,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("ignore_ipg_rx_er", 30, 1)
                     .WithTag("uni_direction_enable", 31, 1)
                 },
-
                 {(long)Registers.NetworkStatus, new DoubleWordRegister(this)
                     .WithTag("pcs_link_state", 0, 1)
                     .WithTag("mdio_in", 1, 1)
@@ -147,7 +148,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("lpi_indicate_pclk", 7, 1)
                     .WithReservedBits(8, 24)
                 },
-
                 {(long)Registers.DmaConfiguration, new DoubleWordRegister(this, 0x00020784)
                     .WithTag("amba_burst_length", 0, 4)
                     .WithReservedBits(5, 1)
@@ -167,7 +167,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithEnumField(30, 1, out dmaAddressBusWith, name: "dma_addr_bus_width_1")
                     .WithReservedBits(31, 1)
                 },
-
                 {(long)Registers.TransmitStatus, new DoubleWordRegister(this)
                     .WithFlag(0, out usedBitRead, FieldMode.Read | FieldMode.WriteOneToClear, name: "used_bit_read")
                     .WithTag("collision_occurred", 1, 1)
@@ -180,79 +179,82 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("resp_not_ok", 8, 1)
                     .WithReservedBits(9, 23)
                 },
-
                 {(long)Registers.ReceiveBufferQueueBaseAddress, new DoubleWordRegister(this)
                     .WithReservedBits(0, 2)
                     .WithValueField(2, 30, name: "dma_rx_q_ptr",
                         valueProviderCallback: _ =>
                         {
-                            return rxDescriptorsQueue.CurrentDescriptor.LowerDescriptorAddress;
+                            return rxDescriptorsQueue?.CurrentDescriptor?.LowerDescriptorAddress ?? (rxDescriptorsQueueBase >> 2);
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            if(receiveEnabled.Value)
+                            if(rxDescriptorsQueue != null)
                             {
                                 this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address while reception is enabled is illegal");
                                 return;
                             }
-                            rxDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaRxBufferDescriptor>(sysbus, GetCurrentContext(), (uint)value << 2, (sb, ctx, addr) => new DmaRxBufferDescriptor(sb, ctx, addr, dmaAddressBusWith.Value, extendedRxBufferDescriptorEnabled.Value));
+                            rxDescriptorsQueueBase = rxDescriptorsQueueBase.ReplaceBits(value, 30, destinationPosition: 2, sourcePosition: 0);
                         })
                 },
-
                 {(long)Registers.ReceiveBufferQueueBaseAddressUpper, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "upper_rx_q_base_addr",
                         valueProviderCallback: _ =>
                         {
-                            return rxDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress;
+                            return rxDescriptorsQueue?.CurrentDescriptor?.UpperDescriptorAddress ?? (rxDescriptorsQueueBase >> 32);
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            rxDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress = (uint)value;
+                            if(rxDescriptorsQueue != null)
+                            {
+                                this.Log(LogLevel.Warning, "Changing value of receive buffer queue base address while reception is enabled is illegal");
+                                return;
+                            }
+                            rxDescriptorsQueueBase = rxDescriptorsQueueBase.ReplaceBits(value, 32, destinationPosition: 32, sourcePosition: 0);
                         })
                 },
-
                 {(long)Registers.ReceiveBufferDescriptorControl, new DoubleWordRegister(this)
                     .WithReservedBits(0, 4)
                     .WithEnumField(4, 2, out rxBufferDescriptorTimeStampMode, name: "rx_bd_ts_mode")
                     .WithReservedBits(6, 26)
                 },
-
                 {(long)Registers.TransmitBufferQueueBaseAddress, new DoubleWordRegister(this)
                     .WithReservedBits(0, 2)
                     .WithValueField(2, 30, name: "dma_tx_q_ptr",
                         valueProviderCallback: _ =>
                         {
-                            return txDescriptorsQueue.CurrentDescriptor.LowerDescriptorAddress;
+                            return txDescriptorsQueue?.CurrentDescriptor?.LowerDescriptorAddress ?? (txDescriptorsQueueBase >> 2);
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            if(isTransmissionStarted)
+                            if(txDescriptorsQueue != null)
                             {
-                                this.Log(LogLevel.Warning, "Changing value of transmit buffer queue base address while transmission is started is illegal");
+                                this.Log(LogLevel.Warning, "Changing value of transmit buffer queue base address while transmission is enabled is illegal");
                                 return;
                             }
-                            txDescriptorsQueue = new DmaBufferDescriptorsQueue<DmaTxBufferDescriptor>(sysbus, GetCurrentContext(), (uint)value << 2, (sb, ctx, addr) => new DmaTxBufferDescriptor(sb, ctx, addr, dmaAddressBusWith.Value, extendedTxBufferDescriptorEnabled.Value));
+                            txDescriptorsQueueBase = txDescriptorsQueueBase.ReplaceBits(value, 30, destinationPosition: 2, sourcePosition: 0);
                         })
                 },
-
                 {(long)Registers.TransmitBufferQueueBaseAddressUpper, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: "upper_tx_q_base_addr",
                         valueProviderCallback: _ =>
                         {
-                            return txDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress;
+                            return txDescriptorsQueue?.CurrentDescriptor?.UpperDescriptorAddress ?? (txDescriptorsQueueBase >> 32);
                         },
                         writeCallback: (oldValue, value) =>
                         {
-                            txDescriptorsQueue.CurrentDescriptor.UpperDescriptorAddress = (uint)value;
+                            if(txDescriptorsQueue != null)
+                            {
+                                this.Log(LogLevel.Warning, "Changing value of transmit buffer queue base address while transmission is enabled is illegal");
+                                return;
+                            }
+                            txDescriptorsQueueBase = txDescriptorsQueueBase.ReplaceBits(value, 32, destinationPosition: 32, sourcePosition: 0);
                         })
                 },
-
                 {(long)Registers.TransmitBufferDescriptorControl, new DoubleWordRegister(this)
                     .WithReservedBits(0, 4)
                     .WithEnumField(4, 2, out txBufferDescriptorTimeStampMode, name: "tx_bd_ts_mode")
                     .WithReservedBits(6, 26)
                 },
-
                 {(long)Registers.ReceiveStatus, new DoubleWordRegister(this)
                     .WithFlag(0, out bufferNotAvailable, FieldMode.Read | FieldMode.WriteOneToClear, name: "buffer_not_available")
                     .WithFlag(1, out frameReceived, FieldMode.Read | FieldMode.WriteOneToClear, name: "frame_received")
@@ -260,7 +262,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("resp_not_ok", 3, 1)
                     .WithReservedBits(4, 28)
                 },
-
                 {(long)Registers.InterruptStatus, interruptManager.GetRegister<DoubleWordRegister>(
                     valueProviderCallback: (interrupt, oldValue) =>
                     {
@@ -277,7 +278,6 @@ namespace Antmicro.Renode.Peripherals.Network
                         }
                     })
                 },
-
                 {(long)Registers.InterruptEnable, interruptManager.GetRegister<DoubleWordRegister>(
                     writeCallback: (interrupt, oldValue, newValue) =>
                     {
@@ -287,7 +287,6 @@ namespace Antmicro.Renode.Peripherals.Network
                         }
                     })
                 },
-
                 {(long)Registers.InterruptDisable, interruptManager.GetRegister<DoubleWordRegister>(
                     writeCallback: (interrupt, oldValue, newValue) =>
                     {
@@ -297,31 +296,25 @@ namespace Antmicro.Renode.Peripherals.Network
                         }
                     })
                 },
-
                 {(long)Registers.InterruptMaskStatus, interruptManager.GetRegister<DoubleWordRegister>(
                     valueProviderCallback: (interrupt, oldValue) => !interruptManager.IsEnabled(interrupt))
                 },
-
                 {(long)Registers.PhyMaintenance, new DoubleWordRegister(this)
                     .WithValueField(0, 31, name: "phy_management", writeCallback: (_, value) => HandlePhyWrite((uint)value), valueProviderCallback: _ => HandlePhyRead())
                 },
-
                 {(long)Registers.SpecificAddress1Bottom, new DoubleWordRegister(this)
                     .WithValueField(0, 32, valueProviderCallback: _ => BitConverter.ToUInt32(MAC.Bytes, 0))
                 },
-
                 {(long)Registers.SpecificAddress1Top, new DoubleWordRegister(this)
                     .WithValueField(0, 16, valueProviderCallback: _ => BitConverter.ToUInt16(MAC.Bytes, 4))
                     .WithTag("filter_type", 16, 1)
                     .WithReservedBits(17, 15)
                 },
-
                 {(long)Registers.ModuleId, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, name: "module_revision", valueProviderCallback: _ => ModuleRevision)
                     .WithValueField(16, 12, FieldMode.Read, name: "module_identification_number", valueProviderCallback: _ => ModuleId)
                     .WithTag("fix_number", 28, 4)
                 },
-
                 {(long)Registers.DesignConfiguration1, new DoubleWordRegister(this)
                     .WithTag("no_pcs", 0, 1)
                     .WithTag("serdes", 1, 1)
@@ -343,7 +336,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithValueField(25, 3, FieldMode.Read, name: "dma_bus_width", valueProviderCallback: _ => 1) // DMA data bus width - 32 bits
                     .WithTag("axi_cache_value", 28, 4)
                 },
-
                 {(long)Registers.DesignConfiguration2, new DoubleWordRegister(this)
                     .WithTag("jumbo_max_length", 0, 16)
                     .WithTag("hprot_value", 16, 4)
@@ -354,7 +346,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("axi", 30, 1)
                     .WithTag("spram", 31, 1)
                 },
-
                 {(long)Registers.DesignConfiguration6, new DoubleWordRegister(this)
                     .WithReservedBits(0, 1)
                     .WithTaggedFlags("dma_priority_queue", 1, 15)
@@ -367,11 +358,9 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTag("pbuf_cutthru", 25, 1)
                     .WithReservedBits(26, 6)
                 },
-
                 {(long)Registers.Timer1588SecondsLow, new DoubleWordRegister(this)
                     .WithValueField(0, 32, out secTimer, name: "tsu_timer_sec")
                 },
-
                 {(long)Registers.Timer1588SecondsHigh, new DoubleWordRegister(this)
                     .WithValueField(0, 16, valueProviderCallback: _ => 0, writeCallback: (_, value) =>
                     {
@@ -382,7 +371,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     }, name: "tsu_timer_msb_sec")
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.Timer1588Nanoseconds, new DoubleWordRegister(this)
                     .WithValueField(0, 30, valueProviderCallback: _ =>
                     {
@@ -393,7 +381,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     }, name: "tsu_timer_nsec")
                     .WithReservedBits(30, 2)
                 },
-
                 {(long)Registers.Timer1588Adjust, new DoubleWordRegister(this)
                     .WithValueField(0, 30, out var timerIncrementDecrement, FieldMode.Write, name: "increment_value")
                     .WithReservedBits(30, 1)
@@ -410,60 +397,48 @@ namespace Antmicro.Renode.Peripherals.Network
                         }
                     })
                 },
-
                 {(long)Registers.PtpEventFrameTransmittedSecondsHigh, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_ptp_tx_msb_sec")
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.PtpEventFrameTransmittedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "tsu_ptp_tx_sec")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.Seconds, name: "tsu_ptp_tx_sec")
                 },
-
                 {(long)Registers.PtpEventFrameTransmittedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "tsu_ptp_tx_nsec")
+                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.Nanos, name: "tsu_ptp_tx_nsec")
                     .WithReservedBits(30, 2)
                 },
-
                 {(long)Registers.PtpEventFrameReceivedSecondsHigh, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_ptp_rx_msb_sec")
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.PtpEventFrameReceivedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "tsu_ptp_rx_sec")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.Seconds, name: "tsu_ptp_rx_sec")
                 },
-
                 {(long)Registers.PtpEventFrameReceivedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "tsu_ptp_rx_nsec")
+                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.Nanos, name: "tsu_ptp_rx_nsec")
                     .WithReservedBits(30, 2)
                 },
-
                 {(long)Registers.PtpPeerEventFrameTransmittedSecondsHigh, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_peer_tx_msb_sec")
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.PtpPeerEventFrameTransmittedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.seconds, name: "tsu_peer_tx_sec")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.Seconds, name: "tsu_peer_tx_sec")
                 },
-
                 {(long)Registers.PtpPeerEventFrameTransmittedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.nanos, name: "tsu_peer_tx_nsec")
+                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => txPacketTimestamp.Nanos, name: "tsu_peer_tx_nsec")
                     .WithReservedBits(30, 2)
                 },
-
                 {(long)Registers.PtpPeerEventFrameReceivedSecondsHigh, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => 0, name: "tsu_peer_rx_msb_sec")
                     .WithReservedBits(16, 16)
                 },
-
                 {(long)Registers.PtpPeerEventFrameReceivedSeconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.seconds, name: "tsu_peer_rx_sec")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.Seconds, name: "tsu_peer_rx_sec")
                 },
-
                 {(long)Registers.PtpPeerEventFrameReceivedNanoseconds, new DoubleWordRegister(this)
-                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.nanos, name: "tsu_peer_rx_nsec")
+                    .WithValueField(0, 30, FieldMode.Read, valueProviderCallback: _ => rxPacketTimestamp.Nanos, name: "tsu_peer_rx_nsec")
                     .WithReservedBits(30, 2)
                 }
             };
@@ -478,8 +453,9 @@ namespace Antmicro.Renode.Peripherals.Network
             interruptManager.Reset();
             txDescriptorsQueue = null;
             rxDescriptorsQueue = null;
+            txDescriptorsQueueBase = 0;
+            rxDescriptorsQueueBase = 0;
             phyDataRead = 0;
-            isTransmissionStarted = false;
             nanoTimer.Reset();
             nanoTimer.Enabled = true;
         }
@@ -505,7 +481,7 @@ namespace Antmicro.Renode.Peripherals.Network
             lock(sync)
             {
                 this.Log(LogLevel.Debug, "Received packet, length {0}", frame.Bytes.Length);
-                if(!receiveEnabled.Value)
+                if(rxDescriptorsQueue == null)
                 {
                     this.Log(LogLevel.Info, "Receiver not enabled, dropping frame");
                     return;
@@ -519,8 +495,8 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
                 // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
-                rxPacketTimestamp.seconds = (uint)secTimer.Value;
-                rxPacketTimestamp.nanos = (uint)nanoTimer.Value;
+                rxPacketTimestamp.Seconds = (uint)secTimer.Value;
+                rxPacketTimestamp.Nanos = (uint)nanoTimer.Value;
 
                 rxDescriptorsQueue.CurrentDescriptor.Invalidate();
                 if(!rxDescriptorsQueue.CurrentDescriptor.Ownership)
@@ -560,17 +536,18 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        public event Action<EthernetFrame> FrameReady;
-
         public long Size => 0x1000;
 
         public MACAddress MAC { get; set; }
 
         public ushort ModuleRevision { get; private set; }
+
         public ushort ModuleId { get; private set; }
 
         [IrqProvider]
         public GPIO IRQ { get; private set; }
+
+        public event Action<EthernetFrame> FrameReady;
 
         private uint HandlePhyRead()
         {
@@ -593,15 +570,15 @@ namespace Antmicro.Renode.Peripherals.Network
 
             switch(op)
             {
-                case PhyOperation.Read:
-                    phyDataRead = phy.Read(reg);
-                    break;
-                case PhyOperation.Write:
-                    phy.Write(reg, data);
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unknown PHY operation code 0x{0:X}", op);
-                    break;
+            case PhyOperation.Read:
+                phyDataRead = phy.Read(reg);
+                break;
+            case PhyOperation.Write:
+                phy.Write(reg, data);
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unknown PHY operation code 0x{0:X}", op);
+                break;
             }
 
             interruptManager.SetInterrupt(Interrupts.ManagementDone);
@@ -620,8 +597,8 @@ namespace Antmicro.Renode.Peripherals.Network
             }
             if(addCrc)
             {
-                frame.FillWithChecksums(new [] { EtherType.IpV4, EtherType.IpV6 },
-                    new [] { IPProtocolType.TCP, IPProtocolType.UDP });
+                frame.FillWithChecksums(new[] { EtherType.IpV4, EtherType.IpV6 },
+                    new[] { IPProtocolType.TCP, IPProtocolType.UDP });
             }
 
             this.Log(LogLevel.Noisy, "Sending packet, length {0}", frame.Bytes.Length);
@@ -629,8 +606,8 @@ namespace Antmicro.Renode.Peripherals.Network
 
             // the time obtained here is not single-instruction-precise (unless maximum block size is set to 1 and block chaining is disabled),
             // because timers are not updated instruction-by-instruction, but in batches when `TranslationCPU.ExecuteInstructions` finishes
-            txPacketTimestamp.seconds = (uint)secTimer.Value;
-            txPacketTimestamp.nanos = (uint)nanoTimer.Value;
+            txPacketTimestamp.Seconds = (uint)secTimer.Value;
+            txPacketTimestamp.Nanos = (uint)nanoTimer.Value;
 
             if(txBufferDescriptorTimeStampMode.Value != TimestampingMode.Disabled)
             {
@@ -686,18 +663,12 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        private ICPU GetCurrentContext()
-        {
-            if(!sysbus.TryGetCurrentCPU(out var cpu))
-            {
-                this.Log(LogLevel.Debug, "Failed to retrieve context, only global peripherals will be accessible by DMA");
-                return null;
-            }
-            return cpu;
-        }
+        private PTPTimestamp txPacketTimestamp;
+        private PTPTimestamp rxPacketTimestamp;
 
         private uint phyDataRead;
-        private bool isTransmissionStarted;
+        private ulong txDescriptorsQueueBase;
+        private ulong rxDescriptorsQueueBase;
         private DmaBufferDescriptorsQueue<DmaTxBufferDescriptor> txDescriptorsQueue;
         private DmaBufferDescriptorsQueue<DmaRxBufferDescriptor> rxDescriptorsQueue;
 
@@ -707,7 +678,6 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly IEnumRegisterField<DMAAddressWidth> dmaAddressBusWith;
         private readonly IFlagRegisterField transmitComplete;
         private readonly IFlagRegisterField usedBitRead;
-        private readonly IFlagRegisterField receiveEnabled;
         private readonly IFlagRegisterField ignoreRxFCS;
         private readonly IFlagRegisterField bufferNotAvailable;
         private readonly IFlagRegisterField frameReceived;
@@ -724,179 +694,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private readonly LimitTimer nanoTimer;
 
-        private PTPTimestamp txPacketTimestamp;
-        private PTPTimestamp rxPacketTimestamp;
-
-        private class DmaBufferDescriptorsQueue<T> where T : DmaBufferDescriptor
-        {
-            public DmaBufferDescriptorsQueue(IBusController bus, ICPU context, ulong baseAddress, Func<IBusController, ICPU, ulong, T> creator)
-            {
-                this.bus = bus;
-                this.context = context;
-                this.creator = creator;
-                this.baseAddress = baseAddress;
-                descriptors = new List<T>();
-
-                GoToNextDescriptor();
-            }
-
-            public void GoToNextDescriptor()
-            {
-                if(descriptors.Count == 0)
-                {
-                    // this is the first descriptor - read it from baseAddress
-                    descriptors.Add(creator(bus, context, baseAddress));
-                    currentDescriptorIndex = 0;
-                }
-                else
-                {
-                    CurrentDescriptor.Update();
-
-                    if(CurrentDescriptor.Wrap)
-                    {
-                        currentDescriptorIndex = 0;
-                    }
-                    else
-                    {
-                        if(currentDescriptorIndex == descriptors.Count - 1)
-                        {
-                            // we need to generate new descriptor
-                            descriptors.Add(creator(bus, context, CurrentDescriptor.GetDescriptorAddress() + CurrentDescriptor.SizeInBytes));
-                        }
-                        currentDescriptorIndex++;
-                    }
-                }
-
-                CurrentDescriptor.Invalidate();
-            }
-
-            public void GoToBaseAddress()
-            {
-                currentDescriptorIndex = 0;
-                CurrentDescriptor.Invalidate();
-            }
-
-            public T CurrentDescriptor => descriptors[currentDescriptorIndex];
-
-            private int currentDescriptorIndex;
-
-            private readonly List<T> descriptors;
-            private readonly ulong baseAddress;
-            private readonly IBusController bus;
-            private readonly ICPU context;
-            private readonly Func<IBusController, ICPU, ulong, T> creator;
-        }
-
-        private abstract class DmaBufferDescriptor
-        {
-            protected DmaBufferDescriptor(IBusController bus, ICPU context, ulong address, DMAAddressWidth dmaAddressWidth, bool isExtendedModeEnabled)
-            {
-                this.dmaAddressWidth = dmaAddressWidth;
-                Bus = bus;
-                Context = context;
-                LowerDescriptorAddress = (uint)address;
-                UpperDescriptorAddress = (uint)(address >> 32);
-                IsExtendedModeEnabled = isExtendedModeEnabled;
-                SizeInBytes = InitWords();
-            }
-
-            public void Invalidate()
-            {
-                var tempOffset = 0UL;
-                for(var i = 0; i < words.Length; ++i)
-                {
-                    words[i] = Bus.ReadDoubleWord(GetDescriptorAddress() + tempOffset, Context);
-                    tempOffset += 4;
-                }
-            }
-
-            public void Update()
-            {
-                var tempOffset = 0UL;
-                foreach(var word in words)
-                {
-                    Bus.WriteDoubleWord(GetDescriptorAddress() + tempOffset, word, Context);
-                    tempOffset += 4;
-                }
-            }
-
-            public ulong GetDescriptorAddress()
-            {
-                return dmaAddressWidth == DMAAddressWidth.Bit64 ? (((ulong)UpperDescriptorAddress << 32) | LowerDescriptorAddress) : LowerDescriptorAddress;
-            }
-
-            public ulong GetBufferAddress()
-            {
-                return dmaAddressWidth == DMAAddressWidth.Bit64 ? (((ulong)UpperBufferAddress << 32) | LowerBufferAddress) : LowerBufferAddress;
-            }
-
-            public IBusController Bus { get; }
-            // The descriptor and its buffers are bound to the CPU that configured the descriptor into the
-            // peripheral, this means they can access memory that is local to the CPU.
-            // If the descriptor was not configured by a CPU, this field is null and only global peripherals
-            // can be accessed.
-            public ICPU Context { get; }
-            public uint SizeInBytes { get; }
-            public bool IsExtendedModeEnabled { get; }
-            public uint LowerDescriptorAddress { get; set; }
-            public uint UpperDescriptorAddress { get; set; }
-
-            public uint UpperBufferAddress
-            {
-                get { return BitHelper.GetMaskedValue(words[2], 0, 32); }
-                set { BitHelper.SetMaskedValue(ref words[2], value, 0, 32); }
-            }
-
-            public PTPTimestamp Timestamp
-            {
-                get
-                {
-                    var ptpTimestamp = new PTPTimestamp();
-                    if(!IsExtendedModeEnabled)
-                    {
-                        return ptpTimestamp;
-                    }
-                    ptpTimestamp.nanos = BitHelper.GetMaskedValue(words[4], 0, 30);
-                    ptpTimestamp.seconds = (BitHelper.GetMaskedValue(words[4], 30, 2) << 4) | BitHelper.GetMaskedValue(words[5], 0, 4);
-                    return ptpTimestamp;
-                }
-                set
-                {
-                    if(IsExtendedModeEnabled)
-                    {
-                        BitHelper.SetMaskedValue(ref words[4], value.nanos, 0, 30);
-                        BitHelper.SetMaskedValue(ref words[4], value.seconds >> 4, 30, 2);
-                        BitHelper.SetMaskedValue(ref words[5], value.seconds & 0xF, 0, 4);
-                        HasValidTimestamp = true;
-                    }
-                }
-            }
-
-            public abstract bool Wrap { get; }
-            public abstract bool HasValidTimestamp { set; }
-            public abstract uint LowerBufferAddress { get; set; }
-
-            protected uint[] words;
-
-            private uint InitWords()
-            {
-                if(dmaAddressWidth == DMAAddressWidth.Bit64 && IsExtendedModeEnabled)
-                {
-                    words = new uint[6];
-                }
-                else if((dmaAddressWidth == DMAAddressWidth.Bit32 && IsExtendedModeEnabled) || (dmaAddressWidth == DMAAddressWidth.Bit64 && !IsExtendedModeEnabled))
-                {
-                    words = new uint[4];
-                }
-                else if(dmaAddressWidth == DMAAddressWidth.Bit32 && !IsExtendedModeEnabled)
-                {
-                    words = new uint[2];
-                }
-                return (uint)words.Length * 4;
-            }
-
-            private readonly DMAAddressWidth dmaAddressWidth;
-        }
+        private const uint NanosPerSecond = 1000000000;
 
         /// RX buffer descriptor format:
         /// * word 0:
@@ -938,7 +736,7 @@ namespace Antmicro.Renode.Peripherals.Network
         ///     * 4-31: Reserved
         private class DmaRxBufferDescriptor : DmaBufferDescriptor
         {
-            public DmaRxBufferDescriptor(IBusController bus, ICPU context, ulong address, DMAAddressWidth addressWidth, bool extendedModeEnabled) : base(bus, context, address, addressWidth, extendedModeEnabled)
+            public DmaRxBufferDescriptor(IBusController bus, IPeripheral context, ulong address, DMAAddressWidth addressWidth, bool extendedModeEnabled) : base(bus, context, address, addressWidth, extendedModeEnabled)
             {
             }
 
@@ -966,6 +764,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
                     return BitHelper.GetMaskedValue(words[0], 2, 30);
                 }
+
                 set
                 {
                     if(IsExtendedModeEnabled)
@@ -1040,7 +839,7 @@ namespace Antmicro.Renode.Peripherals.Network
         ///     * 4-31: Reserved
         private class DmaTxBufferDescriptor : DmaBufferDescriptor
         {
-            public DmaTxBufferDescriptor(IBusController bus, ICPU context, ulong address, DMAAddressWidth addressWidth, bool extendedModeEnabled) : base(bus, context, address, addressWidth, extendedModeEnabled)
+            public DmaTxBufferDescriptor(IBusController bus, IPeripheral context, ulong address, DMAAddressWidth addressWidth, bool extendedModeEnabled) : base(bus, context, address, addressWidth, extendedModeEnabled)
             {
             }
 
@@ -1080,6 +879,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     return words[0];
                 }
+
                 set
                 {
                     words[0] = value;
@@ -1089,12 +889,185 @@ namespace Antmicro.Renode.Peripherals.Network
             public override bool Wrap => BitHelper.IsBitSet(words[1], 30);
         }
 
-        private const uint NanosPerSecond = 1000000000;
+        private class DmaBufferDescriptorsQueue<T> where T : DmaBufferDescriptor
+        {
+            public DmaBufferDescriptorsQueue(IBusController bus, IPeripheral context, ulong baseAddress, Func<IBusController, IPeripheral, ulong, T> creator)
+            {
+                this.bus = bus;
+                this.context = context;
+                this.creator = creator;
+                this.baseAddress = baseAddress;
+                descriptors = new List<T>();
+
+                GoToNextDescriptor();
+            }
+
+            public void GoToNextDescriptor()
+            {
+                if(descriptors.Count == 0)
+                {
+                    // this is the first descriptor - read it from baseAddress
+                    descriptors.Add(creator(bus, context, baseAddress));
+                    currentDescriptorIndex = 0;
+                }
+                else
+                {
+                    CurrentDescriptor.Update();
+
+                    if(CurrentDescriptor.Wrap)
+                    {
+                        currentDescriptorIndex = 0;
+                    }
+                    else
+                    {
+                        if(currentDescriptorIndex == descriptors.Count - 1)
+                        {
+                            // we need to generate new descriptor
+                            descriptors.Add(creator(bus, context, CurrentDescriptor.GetDescriptorAddress() + CurrentDescriptor.SizeInBytes));
+                        }
+                        currentDescriptorIndex++;
+                    }
+                }
+
+                CurrentDescriptor.Invalidate();
+            }
+
+            public void GoToBaseAddress()
+            {
+                currentDescriptorIndex = 0;
+                CurrentDescriptor.Invalidate();
+            }
+
+            public T CurrentDescriptor => descriptors[currentDescriptorIndex];
+
+            private int currentDescriptorIndex;
+
+            private readonly List<T> descriptors;
+            private readonly ulong baseAddress;
+            private readonly IBusController bus;
+            private readonly IPeripheral context;
+            private readonly Func<IBusController, IPeripheral, ulong, T> creator;
+        }
+
+        private abstract class DmaBufferDescriptor
+        {
+            public void Invalidate()
+            {
+                var tempOffset = 0UL;
+                for(var i = 0; i < words.Length; ++i)
+                {
+                    words[i] = Bus.ReadDoubleWord(GetDescriptorAddress() + tempOffset, Context);
+                    tempOffset += 4;
+                }
+            }
+
+            public void Update()
+            {
+                var tempOffset = 0UL;
+                foreach(var word in words)
+                {
+                    Bus.WriteDoubleWord(GetDescriptorAddress() + tempOffset, word, Context);
+                    tempOffset += 4;
+                }
+            }
+
+            public ulong GetDescriptorAddress()
+            {
+                return dmaAddressWidth == DMAAddressWidth.Bit64 ? (((ulong)UpperDescriptorAddress << 32) | LowerDescriptorAddress) : LowerDescriptorAddress;
+            }
+
+            public ulong GetBufferAddress()
+            {
+                return dmaAddressWidth == DMAAddressWidth.Bit64 ? (((ulong)UpperBufferAddress << 32) | LowerBufferAddress) : LowerBufferAddress;
+            }
+
+            public IBusController Bus { get; }
+
+            public IPeripheral Context { get; }
+
+            public uint SizeInBytes { get; }
+
+            public bool IsExtendedModeEnabled { get; }
+
+            public uint LowerDescriptorAddress { get; set; }
+
+            public uint UpperDescriptorAddress { get; set; }
+
+            public uint UpperBufferAddress
+            {
+                get { return BitHelper.GetMaskedValue(words[2], 0, 32); }
+                set { BitHelper.SetMaskedValue(ref words[2], value, 0, 32); }
+            }
+
+            public PTPTimestamp Timestamp
+            {
+                get
+                {
+                    var ptpTimestamp = new PTPTimestamp();
+                    if(!IsExtendedModeEnabled)
+                    {
+                        return ptpTimestamp;
+                    }
+                    ptpTimestamp.Nanos = BitHelper.GetMaskedValue(words[4], 0, 30);
+                    ptpTimestamp.Seconds = (BitHelper.GetMaskedValue(words[4], 30, 2) << 4) | BitHelper.GetMaskedValue(words[5], 0, 4);
+                    return ptpTimestamp;
+                }
+
+                set
+                {
+                    if(IsExtendedModeEnabled)
+                    {
+                        BitHelper.SetMaskedValue(ref words[4], value.Nanos, 0, 30);
+                        BitHelper.SetMaskedValue(ref words[4], value.Seconds >> 4, 30, 2);
+                        BitHelper.SetMaskedValue(ref words[5], value.Seconds & 0xF, 0, 4);
+                        HasValidTimestamp = true;
+                    }
+                }
+            }
+
+            public abstract bool Wrap { get; }
+
+            public abstract bool HasValidTimestamp { set; }
+
+            public abstract uint LowerBufferAddress { get; set; }
+
+            protected DmaBufferDescriptor(IBusController bus, IPeripheral context, ulong address, DMAAddressWidth dmaAddressWidth, bool isExtendedModeEnabled)
+            {
+                this.dmaAddressWidth = dmaAddressWidth;
+                Bus = bus;
+                Context = context;
+                LowerDescriptorAddress = (uint)address;
+                UpperDescriptorAddress = (uint)(address >> 32);
+                IsExtendedModeEnabled = isExtendedModeEnabled;
+                SizeInBytes = InitWords();
+            }
+
+            protected uint[] words;
+
+            private uint InitWords()
+            {
+                if(dmaAddressWidth == DMAAddressWidth.Bit64 && IsExtendedModeEnabled)
+                {
+                    words = new uint[6];
+                }
+                else if((dmaAddressWidth == DMAAddressWidth.Bit32 && IsExtendedModeEnabled) || (dmaAddressWidth == DMAAddressWidth.Bit64 && !IsExtendedModeEnabled))
+                {
+                    words = new uint[4];
+                }
+                else if(dmaAddressWidth == DMAAddressWidth.Bit32 && !IsExtendedModeEnabled)
+                {
+                    words = new uint[2];
+                }
+                return (uint)words.Length * 4;
+            }
+
+            private readonly DMAAddressWidth dmaAddressWidth;
+        }
 
         private struct PTPTimestamp
         {
-            public uint seconds;
-            public uint nanos;
+            public uint Seconds;
+            public uint Nanos;
         }
 
         private enum TimestampingMode

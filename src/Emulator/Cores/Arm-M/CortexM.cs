@@ -9,16 +9,15 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Logging;
-using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Exceptions;
+
 using ELFSharp.ELF;
 using ELFSharp.UImage;
-using Machine = Antmicro.Renode.Core.Machine;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -78,13 +77,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public class ContextState : IContextState
-        {
-            public bool Privileged;
-            public bool CpuSecure;
-            public bool AttributionSecure;
-        }
-
         public override void Reset()
         {
             pcNotInitialized = true;
@@ -92,19 +84,104 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.Reset();
         }
 
+        public override void InitFromElf(IELF elf)
+        {
+            // do nothing
+        }
+
+        public override void InitFromUImage(UImage uImage)
+        {
+            // do nothing
+        }
+
         public void SetSleepOnExceptionExit(bool value)
         {
             tlibSetSleepOnExceptionExit(value ? 1 : 0);
         }
 
-        protected override void OnResume()
+        public uint GetFaultmask(bool secure)
         {
-            // Suppress initialization when processor is turned off as binary may not even be loaded yet
-            if(!IsHalted)
+            return tlibGetFaultmask(secure ? 1u : 0u);
+        }
+
+        public bool TryConvertUlongToStateObj(ulong? state, out IContextState stateObj)
+        {
+            stateObj = null;
+            if(!state.HasValue)
             {
-                InitPCAndSP();
+                return false;
             }
-            base.OnResume();
+            stateObj = (ContextState)state.Value;
+            return true;
+        }
+
+        /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
+        public bool TryRemoveImplementationDefinedExemptionRegion(uint startAddress, uint endAddress)
+        {
+            AssertTrustZoneEnabled($"remove implementation-defined exemption region 0x{startAddress:X8}-0x{endAddress:X8}");
+
+            return tlibTryRemoveImplementationDefinedExemptionRegion(startAddress, endAddress) == 1u;
+        }
+
+        /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
+        public bool TryAddImplementationDefinedExemptionRegion(uint startAddress, uint endAddress)
+        {
+            AssertTrustZoneEnabled($"add implementation-defined exemption region 0x{startAddress:X8}-0x{endAddress:X8}");
+
+            return tlibTryAddImplementationDefinedExemptionRegion(startAddress, endAddress) == 1u;
+        }
+
+        public uint GetPrimask(bool secure)
+        {
+            return tlibGetPrimask(secure ? 1u : 0u);
+        }
+
+        public void SetIDAURegion(uint regionIndex, uint baseAddress, uint limitAddress, bool enabled, bool nonSecureCallable)
+        {
+            SetIDAURegion(regionIndex, new IDAURegion(baseAddress, limitAddress, enabled, nonSecureCallable));
+        }
+
+        /// <remarks>
+        /// Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.
+        /// It's also thrown in case <paramref name="region"/>'s index is greater than <see cref="NumberOfIDAURegions"/>.
+        /// </remarks>
+        public void SetIDAURegion(uint regionIndex, IDAURegion region)
+        {
+            AssertTrustZoneEnabled($"set IDAU region {regionIndex}");
+
+            if(regionIndex >= NumberOfIDAURegions)
+            {
+                throw new RecoverableException($"Invalid IDAU region: {regionIndex}, {nameof(NumberOfIDAURegions)}: {NumberOfIDAURegions}");
+            }
+
+            tlibSetIdauRegionBaseAddressRegister(regionIndex, region.ToRBAR());
+            tlibSetIdauRegionLimitAddressRegister(regionIndex, region.ToRLAR());
+        }
+
+        /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
+        public IDAURegion GetIDAURegion(uint regionIndex)
+        {
+            AssertTrustZoneEnabled($"get IDAU region {regionIndex}");
+
+            var rbar = tlibGetIdauRegionBaseAddressRegister(regionIndex);
+            var rlar = tlibGetIdauRegionLimitAddressRegister(regionIndex);
+            return new IDAURegion(rbar, rlar);
+        }
+
+        public bool TryConvertStateObjToUlong(IContextState stateObj, out ulong? state)
+        {
+            state = null;
+            if((stateObj == null) || !(stateObj is ContextState cortexMStateObj))
+            {
+                return false;
+            }
+            state = cortexMStateObj;
+            return true;
+        }
+
+        public void SetIDAURegion(uint regionIndex, uint rbar, uint rlar)
+        {
+            SetIDAURegion(regionIndex, new IDAURegion(rbar, rlar));
         }
 
         public override string Architecture { get { return "arm-m"; } }
@@ -158,67 +235,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                         mVfpFeature.Registers.Add(new GDBRegisterDescriptor(reg + vfpRegisterOffset, 64, $"d{reg}", "ieee_double", "float"));
                     }
                     // The fpscr is always reg# = 74
-                    mVfpFeature.Registers.Add(new GDBRegisterDescriptor(74, 64, "fpscr", "int", "float"));
+                    mVfpFeature.Registers.Add(new GDBRegisterDescriptor(74, 32, "fpscr", "int", "float"));
                     features.Add(mVfpFeature);
                 }
 
                 return features;
             }
-        }
-
-        public IReadOnlyDictionary<string, int> StateBits { get { return stateBits; } }
-
-        /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
-        public IDAURegion GetIDAURegion(uint regionIndex)
-        {
-            AssertTrustZoneEnabled($"get IDAU region {regionIndex}");
-
-            var rbar = tlibGetIdauRegionBaseAddressRegister(regionIndex);
-            var rlar = tlibGetIdauRegionLimitAddressRegister(regionIndex);
-            return new IDAURegion(rbar, rlar);
-        }
-
-        /// <remarks>
-        /// Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.
-        /// It's also thrown in case <paramref name="region"/>'s index is greater than <see cref="NumberOfIDAURegions"/>.
-        /// </remarks>
-        public void SetIDAURegion(uint regionIndex, IDAURegion region)
-        {
-            AssertTrustZoneEnabled($"set IDAU region {regionIndex}");
-
-            if(regionIndex >= NumberOfIDAURegions)
-            {
-                throw new RecoverableException($"Invalid IDAU region: {regionIndex}, {nameof(NumberOfIDAURegions)}: {NumberOfIDAURegions}");
-            }
-
-            tlibSetIdauRegionBaseAddressRegister(regionIndex, region.ToRBAR());
-            tlibSetIdauRegionLimitAddressRegister(regionIndex, region.ToRLAR());
-        }
-
-        public void SetIDAURegion(uint regionIndex, uint baseAddress, uint limitAddress, bool enabled, bool nonSecureCallable)
-        {
-            SetIDAURegion(regionIndex, new IDAURegion(baseAddress, limitAddress, enabled, nonSecureCallable));
-        }
-
-        public void SetIDAURegion(uint regionIndex, uint rbar, uint rlar)
-        {
-            SetIDAURegion(regionIndex, new IDAURegion(rbar, rlar));
-        }
-
-        /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
-        public bool TryAddImplementationDefinedExemptionRegion(uint startAddress, uint endAddress)
-        {
-            AssertTrustZoneEnabled($"add implementation-defined exemption region 0x{startAddress:X8}-0x{endAddress:X8}");
-
-            return tlibTryAddImplementationDefinedExemptionRegion(startAddress, endAddress) == 1u;
-        }
-
-        /// <remark>Should only be used for TrustZone CPUs, <see cref="RecoverableException"/> is thrown otherwise.</remark>
-        public bool TryRemoveImplementationDefinedExemptionRegion(uint startAddress, uint endAddress)
-        {
-            AssertTrustZoneEnabled($"remove implementation-defined exemption region 0x{startAddress:X8}-0x{endAddress:X8}");
-
-            return tlibTryRemoveImplementationDefinedExemptionRegion(startAddress, endAddress) == 1u;
         }
 
         public override MemorySystemArchitectureType MemorySystemArchitecture => NumberOfMPURegions > 0 ? MemorySystemArchitectureType.Physical_PMSA : MemorySystemArchitectureType.None;
@@ -229,298 +251,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             set => VectorTableOffset = value;
         }
 
-        // Sets VTOR for the current Security State the CPU is in right now
-        public uint VectorTableOffset
+        public UInt32 PmsaV8Mair0
         {
             get
             {
-                return tlibGetInterruptVectorBase(ShouldAccessBeSecure());
+                return tlibGetPmsav8Mair(0, ShouldAccessBeSecure());
             }
+
             set
             {
-                vtorInitialized = true;
-                if(!machine.SystemBus.IsMemory(value, this))
-                {
-                    this.Log(LogLevel.Warning, "Tried to set VTOR address at 0x{0:X} which does not lay in memory. Aborted.", value);
-                    return;
-                }
-                this.NoisyLog("VectorTableOffset set to 0x{0:X}.", value);
-                tlibSetInterruptVectorBase(value, ShouldAccessBeSecure());
+                tlibSetPmsav8Mair(0, value, ShouldAccessBeSecure());
             }
-        }
-
-        // NS alias for VTOR
-        public uint VectorTableOffsetNonSecure
-        {
-            get
-            {
-                if(!TrustZoneEnabled)
-                {
-                    throw new RecoverableException("You need to enable TrustZone to use VTOR_NS");
-                }
-                return tlibGetInterruptVectorBase(0u);
-            }
-            set
-            {
-                if(!TrustZoneEnabled)
-                {
-                    throw new RecoverableException("You need to enable TrustZone to use VTOR_NS");
-                }
-                vtorInitialized = true;
-                if(machine.SystemBus.FindMemory(value, this) == null)
-                {
-                    this.Log(LogLevel.Warning, "Tried to set VTOR_NS address at 0x{0:X} which does not lay in memory. Aborted.", value);
-                    return;
-                }
-                this.NoisyLog("VectorTableOffset_NS set to 0x{0:X}.", value);
-                tlibSetInterruptVectorBase(value, 0u);
-            }
-        }
-
-        [Register]
-        public RegisterValue FPCAR_NS
-        {
-            get => GetTrustZoneRelatedRegister(nameof(FPCAR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPCAR));
-            set => SetTrustZoneRelatedRegister(nameof(FPCAR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPCAR, val), value);
-        }
-
-        [Register]
-        public RegisterValue FPDSCR_NS
-        {
-            get => GetTrustZoneRelatedRegister(nameof(FPDSCR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPDSCR));
-            set => SetTrustZoneRelatedRegister(nameof(FPDSCR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPDSCR, val), value);
-        }
-
-        [Register]
-        public RegisterValue FPCCR_NS
-        {
-            get => GetTrustZoneRelatedRegister(nameof(FPCCR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPCCR));
-            set => SetTrustZoneRelatedRegister(nameof(FPCCR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPCCR, val), value);
-        }
-        [Register]
-        public RegisterValue CPACR_NS
-        {
-            get => GetTrustZoneRelatedRegister(nameof(CPACR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.CPACR));
-            set => SetTrustZoneRelatedRegister(nameof(CPACR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.CPACR, val), value);
-        }
-
-        public bool IDAUEnabled
-        {
-            get => GetTrustZoneRelatedRegister(nameof(IDAUEnabled), () => tlibGetIdauEnabled()) == 1u;
-            set => SetTrustZoneRelatedRegister(nameof(IDAUEnabled), val => tlibSetIdauEnabled(val), value ? 1u : 0u);
-        }
-
-        public uint NumberOfIDAURegions
-        {
-            get => GetTrustZoneRelatedRegister(nameof(NumberOfIDAURegions), () => tlibGetNumberOfIdauRegions());
-            set => SetTrustZoneRelatedRegister(nameof(NumberOfIDAURegions), val => tlibSetNumberOfIdauRegions(val), value);
-        }
-
-        public uint NumberOfSAURegions
-        {
-            get => GetTrustZoneRelatedRegister(nameof(NumberOfSAURegions), () => tlibGetNumberOfSauRegions());
-            set => SetTrustZoneRelatedRegister(nameof(NumberOfSAURegions), val => tlibSetNumberOfSauRegions(val), value);
-        }
-
-        public bool SecureState
-        {
-            get
-            {
-                AssertTrustZoneEnabled("get SecurityState");
-                return tlibGetSecurityState() > 0;
-            }
-            set
-            {
-                AssertTrustZoneEnabled("modify SecurityState");
-                tlibSetSecurityState(value ? 1u : 0u);
-            }
-        }
-
-        public bool FpuEnabled
-        {
-            set
-            {
-                tlibToggleFpu(value ? 1 : 0);
-            }
-        }
-
-        public bool TrustZoneEnabled { get; }
-
-        public UInt32 FaultStatus
-        {
-            get
-            {
-                return tlibGetFaultStatus(ShouldAccessBeSecure());
-            }
-            set
-            {
-                tlibSetFaultStatus(value, ShouldAccessBeSecure());
-            }
-        }
-
-        public UInt32 FaultStatusNonSecure
-        {
-            get
-            {
-                AssertTrustZoneEnabled("get FaultStatus_NS");
-                return tlibGetFaultStatus(0u);
-            }
-            set
-            {
-                AssertTrustZoneEnabled("set FaultStatus_NS");
-                tlibSetFaultStatus(value, 0u);
-            }
-        }
-
-        public UInt32 MemoryFaultAddress
-        {
-            get
-            {
-                return tlibGetMemoryFaultAddress(ShouldAccessBeSecure());
-            }
-        }
-
-        public UInt32 MemoryFaultAddressNonSecure
-        {
-            get
-            {
-                AssertTrustZoneEnabled("get MemoryFaultAddress_NS");
-                return tlibGetMemoryFaultAddress(0u);
-            }
-        }
-
-        public UInt32 SecureFaultAddress
-        {
-            get
-            {
-                AssertTrustZoneEnabled("get SecureFaultAddress");
-                return tlibGetSecureFaultAddress();
-            }
-        }
-
-
-        public UInt32 SecureFaultStatus
-        {
-            get
-            {
-                AssertTrustZoneEnabled("get SecureFaultStatus");
-                return tlibGetSecureFaultStatus();
-            }
-            set
-            {
-                AssertTrustZoneEnabled("set SecureFaultStatus");
-                tlibSetSecureFaultStatus(value);
-            }
-        }
-
-        public bool IsV8
-        {
-            get
-            {
-                return tlibIsV8() > 0;
-            }
-        }
-
-        public UInt32 PmsaV8Ctrl
-        {
-            get
-            {
-                return tlibGetPmsav8Ctrl(ShouldAccessBeSecure());
-            }
-            set
-            {
-                tlibSetPmsav8Ctrl(value, ShouldAccessBeSecure());
-            }
-        }
-
-        public UInt32 PmsaV8Ctrl_NS
-        {
-            get => GetTrustZoneRelatedRegister(nameof(PmsaV8Ctrl_NS), () => tlibGetPmsav8Ctrl(0));
-            set => SetTrustZoneRelatedRegister(nameof(PmsaV8Ctrl_NS), val => tlibSetPmsav8Ctrl(val, 0), value);
-        }
-
-        public UInt32 PmsaV8Rnr
-        {
-            get
-            {
-                return tlibGetPmsav8Rnr(ShouldAccessBeSecure());
-            }
-            set
-            {
-                tlibSetPmsav8Rnr(value, ShouldAccessBeSecure());
-            }
-        }
-
-        public UInt32 PmsaV8Rnr_NS
-        {
-            get => GetTrustZoneRelatedRegister(nameof(PmsaV8Rnr_NS), () => tlibGetPmsav8Rnr(0));
-            set => SetTrustZoneRelatedRegister(nameof(PmsaV8Rnr_NS), val => tlibSetPmsav8Rnr(val, 0), value);
-        }
-
-        public UInt32 PmsaV8Rbar
-        {
-            get
-            {
-                return tlibGetPmsav8Rbar(0, ShouldAccessBeSecure());
-            }
-            set
-            {
-                tlibSetPmsav8Rbar(value, 0, ShouldAccessBeSecure());
-            }
-        }
-
-        public UInt32 PmsaV8RbarAlias1
-        {
-            get
-            {
-                return tlibGetPmsav8Rbar(1, ShouldAccessBeSecure());
-            }
-            set
-            {
-                tlibSetPmsav8Rbar(value, 1, ShouldAccessBeSecure());
-            }
-        }
-
-        public UInt32 PmsaV8RbarAlias2
-        {
-            get
-            {
-                return tlibGetPmsav8Rbar(2, ShouldAccessBeSecure());
-            }
-            set
-            {
-                tlibSetPmsav8Rbar(value, 2, ShouldAccessBeSecure());
-            }
-        }
-
-        public UInt32 PmsaV8RbarAlias3
-        {
-            get
-            {
-                return tlibGetPmsav8Rbar(3, ShouldAccessBeSecure());
-            }
-            set
-            {
-                tlibSetPmsav8Rbar(value, 3, ShouldAccessBeSecure());
-            }
-        }
-
-        public UInt32 PmsaV8Rbar_NS
-        {
-            get => GetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), () => tlibGetPmsav8Rbar(0, 0));
-            set => SetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), val => tlibSetPmsav8Rbar(val, 0, 0), value);
-        }
-
-        public UInt32 PmsaV8RbarAlias1_NS
-        {
-            get => GetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), () => tlibGetPmsav8Rbar(1, 0));
-            set => SetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), val => tlibSetPmsav8Rbar(val, 1, 0), value);
-        }
-
-        public UInt32 PmsaV8RbarAlias2_NS
-        {
-            get => GetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), () => tlibGetPmsav8Rbar(2, 0));
-            set => SetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), val => tlibSetPmsav8Rbar(val, 2, 0), value);
         }
 
         public UInt32 PmsaV8RbarAlias3_NS
@@ -535,6 +276,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return tlibGetPmsav8Rlar(0, ShouldAccessBeSecure());
             }
+
             set
             {
                 tlibSetPmsav8Rlar(value, 0, ShouldAccessBeSecure());
@@ -547,6 +289,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return tlibGetPmsav8Rlar(1, ShouldAccessBeSecure());
             }
+
             set
             {
                 tlibSetPmsav8Rlar(value, 1, ShouldAccessBeSecure());
@@ -559,6 +302,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return tlibGetPmsav8Rlar(2, ShouldAccessBeSecure());
             }
+
             set
             {
                 tlibSetPmsav8Rlar(value, 2, ShouldAccessBeSecure());
@@ -571,6 +315,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return tlibGetPmsav8Rlar(3, ShouldAccessBeSecure());
             }
+
             set
             {
                 tlibSetPmsav8Rlar(value, 3, ShouldAccessBeSecure());
@@ -601,33 +346,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             set => SetTrustZoneRelatedRegister(nameof(PmsaV8Rlar_NS), val => tlibSetPmsav8Rlar(val, 3, 0), value);
         }
 
-        public UInt32 PmsaV8Mair0
-        {
-            get
-            {
-                return tlibGetPmsav8Mair(0, ShouldAccessBeSecure());
-            }
-            set
-            {
-                tlibSetPmsav8Mair(0, value, ShouldAccessBeSecure());
-            }
-        }
-
         public UInt32 PmsaV8Mair0_NS
         {
             get => GetTrustZoneRelatedRegister(nameof(PmsaV8Mair0_NS), () => tlibGetPmsav8Mair(0, 0));
             set => SetTrustZoneRelatedRegister(nameof(PmsaV8Mair0_NS), val => tlibSetPmsav8Mair(0, val, 0), value);
         }
 
-        public UInt32 PmsaV8Mair1
+        public UInt32 MPURegionNumber
         {
-            get
-            {
-                return tlibGetPmsav8Mair(1, ShouldAccessBeSecure());
-            }
             set
             {
-                tlibSetPmsav8Mair(1, value, ShouldAccessBeSecure());
+                tlibSetMpuRegionNumber(value);
+            }
+
+            get
+            {
+                return tlibGetMpuRegionNumber();
             }
         }
 
@@ -643,6 +377,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return tlibIsMpuEnabled() != 0;
             }
+
             set
             {
                 tlibEnableMpu(value ? 1 : 0);
@@ -655,6 +390,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 tlibSetMpuRegionBaseAddress(value);
             }
+
             get
             {
                 return tlibGetMpuRegionBaseAddress();
@@ -667,22 +403,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 tlibSetMpuRegionSizeAndEnable(value);
             }
+
             get
             {
                 return tlibGetMpuRegionSizeAndEnable();
             }
         }
 
-        public UInt32 MPURegionNumber
+        public UInt32 PmsaV8RbarAlias2_NS
         {
-            set
-            {
-                tlibSetMpuRegionNumber(value);
-            }
-            get
-            {
-                return tlibGetMpuRegionNumber();
-            }
+            get => GetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), () => tlibGetPmsav8Rbar(2, 0));
+            set => SetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), val => tlibSetPmsav8Rbar(val, 2, 0), value);
         }
 
         public uint SAUControl
@@ -715,11 +446,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 if(value != null)
                 {
-                   tlibSetCustomIdauHandlerEnabled(1);
+                    tlibSetCustomIdauHandlerEnabled(1);
                 }
                 else
                 {
-                   tlibSetCustomIdauHandlerEnabled(0);
+                    tlibSetCustomIdauHandlerEnabled(0);
                 }
                 idau = value;
             }
@@ -733,24 +464,340 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public uint GetPrimask(bool secure)
+        public UInt32 PmsaV8Mair1
         {
-            return tlibGetPrimask(secure ? 1u : 0u);
+            get
+            {
+                return tlibGetPmsav8Mair(1, ShouldAccessBeSecure());
+            }
+
+            set
+            {
+                tlibSetPmsav8Mair(1, value, ShouldAccessBeSecure());
+            }
         }
 
-        public uint GetFaultmask(bool secure)
+        public UInt32 PmsaV8RbarAlias1_NS
         {
-            return tlibGetFaultmask(secure ? 1u : 0u);
+            get => GetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), () => tlibGetPmsav8Rbar(1, 0));
+            set => SetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), val => tlibSetPmsav8Rbar(val, 1, 0), value);
         }
 
-        public override void InitFromElf(IELF elf)
+        public UInt32 PmsaV8Rbar_NS
         {
-            // do nothing
+            get => GetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), () => tlibGetPmsav8Rbar(0, 0));
+            set => SetTrustZoneRelatedRegister(nameof(PmsaV8Rbar_NS), val => tlibSetPmsav8Rbar(val, 0, 0), value);
         }
 
-        public override void InitFromUImage(UImage uImage)
+        public UInt32 PmsaV8RbarAlias3
         {
-            // do nothing
+            get
+            {
+                return tlibGetPmsav8Rbar(3, ShouldAccessBeSecure());
+            }
+
+            set
+            {
+                tlibSetPmsav8Rbar(value, 3, ShouldAccessBeSecure());
+            }
+        }
+
+        public IReadOnlyDictionary<string, int> StateBits { get { return stateBits; } }
+
+        // Sets VTOR for the current Security State the CPU is in right now
+        public uint VectorTableOffset
+        {
+            get
+            {
+                return tlibGetInterruptVectorBase(ShouldAccessBeSecure());
+            }
+
+            set
+            {
+                vtorInitialized = true;
+                if(!machine.SystemBus.IsMemory(value, this, secureState))
+                {
+                    this.Log(LogLevel.Warning, "Tried to set VTOR address at 0x{0:X} which does not lay in memory. Aborted.", value);
+                    return;
+                }
+                this.NoisyLog("VectorTableOffset set to 0x{0:X}.", value);
+                tlibSetInterruptVectorBase(value, ShouldAccessBeSecure());
+            }
+        }
+
+        // NS alias for VTOR
+        public uint VectorTableOffsetNonSecure
+        {
+            get
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use VTOR_NS");
+                }
+                return tlibGetInterruptVectorBase(0u);
+            }
+
+            set
+            {
+                if(!TrustZoneEnabled)
+                {
+                    throw new RecoverableException("You need to enable TrustZone to use VTOR_NS");
+                }
+                vtorInitialized = true;
+                if(!machine.SystemBus.IsMemory(value, this))
+                {
+                    this.Log(LogLevel.Warning, "Tried to set VTOR_NS address at 0x{0:X} which does not lay in memory. Aborted.", value);
+                    return;
+                }
+                this.NoisyLog("VectorTableOffset_NS set to 0x{0:X}.", value);
+                tlibSetInterruptVectorBase(value, 0u);
+            }
+        }
+
+        [Register]
+        public RegisterValue FPCAR_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(FPCAR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPCAR));
+            set => SetTrustZoneRelatedRegister(nameof(FPCAR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPCAR, val), value);
+        }
+
+        [Register]
+        public RegisterValue FPDSCR_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(FPDSCR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPDSCR));
+            set => SetTrustZoneRelatedRegister(nameof(FPDSCR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPDSCR, val), value);
+        }
+
+        [Register]
+        public RegisterValue FPCCR_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(FPCCR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPCCR));
+            set => SetTrustZoneRelatedRegister(nameof(FPCCR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPCCR, val), value);
+        }
+
+        [Register]
+        public RegisterValue FPSCR_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(FPSCR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.FPSCR));
+            set => SetTrustZoneRelatedRegister(nameof(FPSCR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.FPSCR, val), value);
+        }
+
+        [Register]
+        public RegisterValue CPACR_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(CPACR_NS), () => GetRegisterValue32NonSecure((int)CortexMRegisters.CPACR));
+            set => SetTrustZoneRelatedRegister(nameof(CPACR_NS), val => SetRegisterValue32NonSecure((int)CortexMRegisters.CPACR, val), value);
+        }
+
+        public bool IDAUEnabled
+        {
+            get => GetTrustZoneRelatedRegister(nameof(IDAUEnabled), () => tlibGetIdauEnabled()) == 1u;
+            set => SetTrustZoneRelatedRegister(nameof(IDAUEnabled), val => tlibSetIdauEnabled(val), value ? 1u : 0u);
+        }
+
+        public uint NumberOfIDAURegions
+        {
+            get => GetTrustZoneRelatedRegister(nameof(NumberOfIDAURegions), () => tlibGetNumberOfIdauRegions());
+            set => SetTrustZoneRelatedRegister(nameof(NumberOfIDAURegions), val => tlibSetNumberOfIdauRegions(val), value);
+        }
+
+        public uint NumberOfSAURegions
+        {
+            get => GetTrustZoneRelatedRegister(nameof(NumberOfSAURegions), () => tlibGetNumberOfSauRegions());
+            set => SetTrustZoneRelatedRegister(nameof(NumberOfSAURegions), val => tlibSetNumberOfSauRegions(val), value);
+        }
+
+        public bool FpuEnabled
+        {
+            set
+            {
+                tlibToggleFpu(value ? 1 : 0);
+            }
+        }
+
+        public bool TrustZoneEnabled { get; }
+
+        public UInt32 FaultStatus
+        {
+            get
+            {
+                return tlibGetFaultStatus(ShouldAccessBeSecure());
+            }
+
+            set
+            {
+                tlibSetFaultStatus(value, ShouldAccessBeSecure());
+            }
+        }
+
+        public bool SecureState
+        {
+            get
+            {
+                AssertTrustZoneEnabled("get SecurityState");
+                return tlibGetSecurityState() > 0;
+            }
+
+            set
+            {
+                AssertTrustZoneEnabled("modify SecurityState");
+                tlibSetSecurityState(value ? 1u : 0u);
+            }
+        }
+
+        public UInt32 MemoryFaultAddress
+        {
+            get
+            {
+                return tlibGetMemoryFaultAddress(ShouldAccessBeSecure());
+            }
+        }
+
+        public UInt32 PmsaV8RbarAlias2
+        {
+            get
+            {
+                return tlibGetPmsav8Rbar(2, ShouldAccessBeSecure());
+            }
+
+            set
+            {
+                tlibSetPmsav8Rbar(value, 2, ShouldAccessBeSecure());
+            }
+        }
+
+        public UInt32 PmsaV8RbarAlias1
+        {
+            get
+            {
+                return tlibGetPmsav8Rbar(1, ShouldAccessBeSecure());
+            }
+
+            set
+            {
+                tlibSetPmsav8Rbar(value, 1, ShouldAccessBeSecure());
+            }
+        }
+
+        public UInt32 PmsaV8Rbar
+        {
+            get
+            {
+                return tlibGetPmsav8Rbar(0, ShouldAccessBeSecure());
+            }
+
+            set
+            {
+                tlibSetPmsav8Rbar(value, 0, ShouldAccessBeSecure());
+            }
+        }
+
+        public UInt32 FaultStatusNonSecure
+        {
+            get
+            {
+                AssertTrustZoneEnabled("get FaultStatus_NS");
+                return tlibGetFaultStatus(0u);
+            }
+
+            set
+            {
+                AssertTrustZoneEnabled("set FaultStatus_NS");
+                tlibSetFaultStatus(value, 0u);
+            }
+        }
+
+        public UInt32 PmsaV8Rnr
+        {
+            get
+            {
+                return tlibGetPmsav8Rnr(ShouldAccessBeSecure());
+            }
+
+            set
+            {
+                tlibSetPmsav8Rnr(value, ShouldAccessBeSecure());
+            }
+        }
+
+        public UInt32 PmsaV8Ctrl_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(PmsaV8Ctrl_NS), () => tlibGetPmsav8Ctrl(0));
+            set => SetTrustZoneRelatedRegister(nameof(PmsaV8Ctrl_NS), val => tlibSetPmsav8Ctrl(val, 0), value);
+        }
+
+        public UInt32 PmsaV8Rnr_NS
+        {
+            get => GetTrustZoneRelatedRegister(nameof(PmsaV8Rnr_NS), () => tlibGetPmsav8Rnr(0));
+            set => SetTrustZoneRelatedRegister(nameof(PmsaV8Rnr_NS), val => tlibSetPmsav8Rnr(val, 0), value);
+        }
+
+        public bool IsV8
+        {
+            get
+            {
+                return tlibIsV8() > 0;
+            }
+        }
+
+        public UInt32 SecureFaultStatus
+        {
+            get
+            {
+                AssertTrustZoneEnabled("get SecureFaultStatus");
+                return tlibGetSecureFaultStatus();
+            }
+
+            set
+            {
+                AssertTrustZoneEnabled("set SecureFaultStatus");
+                tlibSetSecureFaultStatus(value);
+            }
+        }
+
+        public UInt32 SecureFaultAddress
+        {
+            get
+            {
+                AssertTrustZoneEnabled("get SecureFaultAddress");
+                return tlibGetSecureFaultAddress();
+            }
+        }
+
+        public UInt32 MemoryFaultAddressNonSecure
+        {
+            get
+            {
+                AssertTrustZoneEnabled("get MemoryFaultAddress_NS");
+                return tlibGetMemoryFaultAddress(0u);
+            }
+        }
+
+        public UInt32 PmsaV8Ctrl
+        {
+            get
+            {
+                return tlibGetPmsav8Ctrl(ShouldAccessBeSecure());
+            }
+
+            set
+            {
+                tlibSetPmsav8Ctrl(value, ShouldAccessBeSecure());
+            }
+        }
+
+        public const uint IDAU_SAURegionMinSize = 32u;
+
+        public const uint IDAU_SAURegionAddressMask = ~(IDAU_SAURegionMinSize - 1u);
+
+        protected override void OnResume()
+        {
+            // Suppress initialization when processor is turned off as binary may not even be loaded yet
+            if(!IsHalted)
+            {
+                InitPCAndSP();
+            }
+            base.OnResume();
         }
 
         protected override UInt32 BeforePCWrite(UInt32 value)
@@ -773,6 +820,68 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.OnLeavingResetState();
         }
 
+        [Export]
+        private int FindPendingIRQ()
+        {
+            return nvic != null ? nvic.FindPendingInterrupt() : -1;
+        }
+
+        [Export]
+        private int CustomIdauHandler(IntPtr request, IntPtr region, IntPtr attribution)
+        {
+            if(idau == null)
+            {
+                return 0;
+            }
+
+            var parsedRequest = (ExternalIDAURequest)Marshal.PtrToStructure(request, typeof(ExternalIDAURequest));
+            var attributionFound = idau.AttributionCheckCallback(parsedRequest.Address, parsedRequest.Secure != 0, (AccessType)parsedRequest.AccessType, parsedRequest.AccessWidth, out var reg, out var attrib);
+            if(attributionFound)
+            {
+                Marshal.WriteInt32(region, reg);
+                Marshal.WriteInt32(attribution, (int)attrib);
+            }
+            return attributionFound ? 1 : 0;
+        }
+
+        [Export]
+        private uint InterruptTargetsSecure(int interruptNumber)
+        {
+            return nvic.GetTargetInterruptSecurityState(interruptNumber) == NVIC.InterruptTargetSecurityState.Secure ? 1u : 0u;
+        }
+
+        [Export]
+        private int PendingMaskedIRQ()
+        {
+            return nvic.MaskedInterruptPresent ? 1 : 0;
+        }
+
+        [Export]
+        private void OnBASEPRIWrite(int value, uint secure)
+        {
+            if(secure > 0)
+            {
+                nvic.BASEPRI_S = (byte)value;
+            }
+            else
+            {
+                nvic.BASEPRI_NS = (byte)value;
+            }
+        }
+
+        [Export]
+        private void CompleteIRQ(int number)
+        {
+            nvic.CompleteIRQ(number);
+        }
+
+        [Export]
+        private int AcknowledgeIRQ()
+        {
+            var result = nvic.AcknowledgeIRQ();
+            return result;
+        }
+
         private uint ShouldAccessBeSecure()
         {
             var secure = 0u;
@@ -781,15 +890,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 secure = SecureState ? 1u : 0u;
             }
             return secure;
-        }
-
-        /// <remarks>Use <see cref="GetTrustZoneRelatedRegister"/> and <see cref="SetTrustZoneRelatedRegister"/> to wrap accesses which have to succeed.</remarks>
-        private void AssertTrustZoneEnabled(string actionName)
-        {
-            if(!TrustZoneEnabled)
-            {
-                throw new RecoverableException($"Tried to {actionName} in CPU with TrustZone disabled");
-            }
         }
 
         private uint GetTrustZoneRelatedRegister(string registerName, Func<uint> getter)
@@ -828,9 +928,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // stack pointer and program counter are being sent according
                 // to VTOR (vector table offset register)
                 var sysbus = machine.SystemBus;
-                var pc = sysbus.ReadDoubleWord(VectorTableOffset + 4, this);
-                var sp = sysbus.ReadDoubleWord(VectorTableOffset, this);
-                if(!sysbus.IsMemory(pc, this) || (pc == 0 && sp == 0))
+                var pc = sysbus.ReadDoubleWordWithState(VectorTableOffset + 4, this, secureState);
+                var sp = sysbus.ReadDoubleWordWithState(VectorTableOffset, this, secureState);
+                if(!sysbus.IsMemory(pc, this, secureState) || (pc == 0 && sp == 0))
                 {
                     this.Log(LogLevel.Error, "PC does not lay in memory or PC and SP are equal to zero. CPU was halted.");
                     IsHalted = true;
@@ -842,14 +942,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private void SetTrustZoneRelatedRegister(string registerName, Action<uint> setter, uint value)
+        /// <remarks>Use <see cref="GetTrustZoneRelatedRegister"/> and <see cref="SetTrustZoneRelatedRegister"/> to wrap accesses which have to succeed.</remarks>
+        private void AssertTrustZoneEnabled(string actionName)
         {
             if(!TrustZoneEnabled)
             {
-                this.Log(LogLevel.Warning, "Tried to write to {0} (value: 0x{1:X}) in CPU without TrustZone implemented, write ignored", registerName, value);
-                return;
+                throw new RecoverableException($"Tried to {actionName} in CPU with TrustZone disabled");
             }
-            setter(value);
         }
 
         [Export]
@@ -864,122 +963,227 @@ namespace Antmicro.Renode.Peripherals.CPU
             nvic.SetPendingIRQ(number);
         }
 
-        [Export]
-        private int AcknowledgeIRQ()
+        private void SetTrustZoneRelatedRegister(string registerName, Action<uint> setter, uint value)
         {
-            var result = nvic.AcknowledgeIRQ();
-            return result;
-        }
-
-        [Export]
-        private void CompleteIRQ(int number)
-        {
-            nvic.CompleteIRQ(number);
-        }
-
-        [Export]
-        private void OnBASEPRIWrite(int value, uint secure)
-        {
-            if(secure > 0)
+            if(!TrustZoneEnabled)
             {
-                nvic.BASEPRI_S = (byte)value;
+                this.Log(LogLevel.Warning, "Tried to write to {0} (value: 0x{1:X}) in CPU without TrustZone implemented, write ignored", registerName, value);
+                return;
             }
-            else
-            {
-                nvic.BASEPRI_NS = (byte)value;
-            }
+            setter(value);
         }
 
-        [Export]
-        private int FindPendingIRQ()
-        {
-            return nvic != null ? nvic.FindPendingInterrupt() : -1;
-        }
-
-        [Export]
-        private int PendingMaskedIRQ()
-        {
-            return nvic.MaskedInterruptPresent ? 1 : 0;
-        }
-
-        [Export]
-        private uint InterruptTargetsSecure(int interruptNumber)
-        {
-            return nvic.GetTargetInterruptSecurityState(interruptNumber) == NVIC.InterruptTargetSecurityState.Secure ? 1u : 0u;
-        }
-
-        [Export]
-        private int CustomIdauHandler(IntPtr request, IntPtr region, IntPtr attribution)
-        {
-            if(idau == null)
-            {
-                return 0;
-            }
-
-            var parsedRequest = (ExternalIDAURequest)Marshal.PtrToStructure(request, typeof(ExternalIDAURequest));
-            var attributionFound = idau.AttributionCheckCallback(parsedRequest.Address, parsedRequest.Secure != 0, (AccessType)parsedRequest.AccessType, parsedRequest.AccessWidth, out var reg, out var attrib);
-            if(attributionFound)
-            {
-                Marshal.WriteInt32(region, reg);
-                Marshal.WriteInt32(attribution, (int)attrib);
-            }
-            return attributionFound ? 1 : 0;
-        }
-
-        public const uint IDAU_SAURegionAddressMask = ~(IDAU_SAURegionMinSize - 1u);
-        public const uint IDAU_SAURegionMinSize = 32u;
-
-        private NVIC nvic;
         private CortexMImplementationDefinedAttributionUnit idau;
         private bool pcNotInitialized = true;
         private bool vtorInitialized;
 
-        // Keep in line with ExternalIDAURequest struct in tlib's arm/arch_callbacks.h
-        [StructLayout(LayoutKind.Sequential)]
-        private struct ExternalIDAURequest
-        {
-            public uint Address;
-            public int Secure;
-            public int AccessType;
-            public int AccessWidth;
-        }
+#pragma warning disable 649
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+        [Import]
+        private readonly Func<uint> tlibGetNumberOfSauRegions;
 
-        private static readonly IReadOnlyDictionary<string, int> stateBits = new Dictionary<string, int>
-        {
-            ["privileged"] = 0,
-            ["cpuSecure"] = 1,
-            ["attributionSecure"] = 2,
-        };
+        /* TrustZone SAU */
+        [Import]
+        private readonly Action<uint> tlibSetNumberOfSauRegions;
 
-        public bool TryConvertStateObjToUlong(IContextState stateObj, out ulong? state)
+        [Import]
+        private readonly Func<uint, uint, uint> tlibTryRemoveImplementationDefinedExemptionRegion;
+
+        [Import]
+        private readonly Func<uint, uint, uint> tlibTryAddImplementationDefinedExemptionRegion;
+
+        [Import]
+        private readonly Func<uint, uint> tlibGetIdauRegionLimitAddressRegister;
+
+        [Import]
+        private readonly Action<uint, uint> tlibSetIdauRegionLimitAddressRegister;
+
+        [Import]
+        private readonly Func<uint, uint> tlibGetIdauRegionBaseAddressRegister;
+
+        [Import]
+        private readonly Action<uint> tlibSetSauControl;
+
+        [Import]
+        private readonly Action<uint, uint> tlibSetIdauRegionBaseAddressRegister;
+
+        [Import]
+        private readonly Func<uint> tlibGetIdauEnabled;
+
+        [Import]
+        private readonly Action<uint> tlibSetIdauEnabled;
+
+        [Import]
+        private readonly Func<uint> tlibGetNumberOfIdauRegions;
+
+        [Import]
+        private readonly Action<uint> tlibSetCustomIdauHandlerEnabled;
+
+        [Import]
+        private readonly Func<uint> tlibGetSauControl;
+
+        [Import]
+        private readonly Func<uint> tlibGetSauRegionBaseAddress;
+
+        [Import]
+        private readonly Func<uint> tlibGetSauRegionNumber;
+
+        [Import]
+        private readonly Action<uint> tlibSetSauRegionBaseAddress;
+
+        /* TrustZone IDAU */
+        [Import]
+        private readonly Action<uint> tlibSetNumberOfIdauRegions;
+
+        [Import]
+        private readonly Action<uint> tlibSetSauRegionLimitAddress;
+
+        [Import]
+        private readonly Func<uint> tlibGetSauRegionLimitAddress;
+
+        /* PMSAv8 MPU */
+        [Import]
+        private readonly Action<uint, uint> tlibSetPmsav8Ctrl;
+
+        [Import]
+        private readonly Action<uint, uint> tlibSetPmsav8Rnr;
+
+        [Import]
+        private readonly Action<uint, uint, uint> tlibSetPmsav8Rbar;
+
+        [Import]
+        private readonly Action<uint, uint, uint> tlibSetPmsav8Rlar;
+
+        [Import]
+        private readonly Action<uint, uint, uint> tlibSetPmsav8Mair;
+
+        [Import]
+        private readonly Func<uint, uint> tlibGetPmsav8Ctrl;
+
+        [Import]
+        private readonly Func<uint, uint> tlibGetPmsav8Rnr;
+
+        [Import]
+        private readonly Func<uint, uint, uint> tlibGetPmsav8Rbar;
+
+        [Import]
+        private readonly Action<uint> tlibSetSauRegionNumber;
+
+        [Import(Name = "tlib_get_register_value_32_non_secure")]
+        private readonly Func<int, uint> GetRegisterValue32NonSecure;
+
+        [Import]
+        private readonly Func<uint> tlibIsV8;
+
+        [Import]
+        private readonly Func<uint> tlibGetSecurityState;
+
+        [Import]
+        private readonly Action<int> tlibToggleFpu;
+
+        [Import]
+        private readonly Func<uint, uint> tlibGetFaultStatus;
+
+        [Import]
+        private readonly Action<uint, uint> tlibSetFaultStatus;
+
+        [Import]
+        private readonly Func<uint, uint> tlibGetMemoryFaultAddress;
+
+        [Import]
+        private readonly Func<uint> tlibGetSecureFaultAddress;
+
+        [Import]
+        private readonly Func<uint> tlibGetSecureFaultStatus;
+
+        [Import]
+        private readonly Action<uint> tlibSetSecureFaultStatus;
+
+        [Import]
+        private readonly Action<int> tlibEnableMpu;
+
+        [Import]
+        private readonly Func<int> tlibIsMpuEnabled;
+
+        [Import(Name = "tlib_set_register_value_32_non_secure")]
+        private readonly Action<int, uint> SetRegisterValue32NonSecure;
+
+        [Import]
+        private readonly Action<uint> tlibSetMpuRegionBaseAddress;
+
+        [Import]
+        private readonly Action<uint> tlibSetMpuRegionSizeAndEnable;
+
+        [Import]
+        private readonly Func<uint> tlibGetMpuRegionSizeAndEnable;
+
+        [Import]
+        private readonly Action<uint> tlibSetMpuRegionNumber;
+
+        [Import]
+        private readonly Func<uint> tlibGetMpuRegionNumber;
+
+        [Import]
+        private readonly Action<int> tlibSetFpuInterruptNumber;
+
+        [Import]
+        private readonly Func<uint, uint> tlibGetInterruptVectorBase;
+
+        [Import]
+        private readonly Action<uint, uint> tlibSetInterruptVectorBase;
+
+        [Import]
+        private readonly Func<uint> tlibGetXpsr;
+
+        [Import]
+        private readonly Action<int> tlibSetSleepOnExceptionExit;
+
+        [Import]
+        private readonly Func<uint, uint> tlibGetPrimask;
+
+        [Import]
+        private readonly Func<uint, uint> tlibGetFaultmask;
+
+        [Import]
+        private readonly Func<uint, uint, uint> tlibGetPmsav8Rlar;
+
+        /* TrustZone */
+        [Import]
+        private readonly Action<uint> tlibSetSecurityState;
+
+        [Import]
+        private readonly Func<uint> tlibGetMpuRegionBaseAddress;
+
+        [Import]
+        private readonly Func<uint, uint, uint> tlibGetPmsav8Mair;
+#pragma warning restore 649
+
+        private readonly NVIC nvic;
+
+        public class ContextState : IContextState
         {
-            state = null;
-            if((stateObj == null) || !(stateObj is ContextState cortexMStateObj))
+            public bool Privileged;
+            public bool CpuSecure;
+            public bool AttributionSecure;
+
+            public static implicit operator ulong(ContextState stateObj)
             {
-                return false;
+                var state = 0u;
+                state |= (stateObj.Privileged ? 1u : 0) & 1u;
+                state |= (stateObj.CpuSecure ? 2u : 0) & 2u;
+                state |= (stateObj.AttributionSecure ? 4u : 0) & 4u;
+                return state;
             }
-            state = 0u;
-            state |= (cortexMStateObj.Privileged ? 1u : 0) & 1u;
-            state |= (cortexMStateObj.CpuSecure ? 2u : 0) & 2u;
-            state |= (cortexMStateObj.AttributionSecure ? 4u : 0) & 4u;
-            return true;
-        }
 
-        public bool TryConvertUlongToStateObj(ulong? state, out IContextState stateObj)
-        {
-            stateObj = null;
-            if(!state.HasValue)
+            public static implicit operator ContextState(ulong state)
             {
-                return false;
+                return new ContextState
+                {
+                    Privileged = (state & 1u) == 1u,
+                    CpuSecure = (state & 2u) == 2u,
+                    AttributionSecure = (state & 4u) == 4u,
+                };
             }
-            var cortexMStateObj = new ContextState
-            {
-                Privileged = (state & 1u) == 1u,
-                CpuSecure = (state & 2u) == 2u,
-                AttributionSecure = (state & 4u) == 4u
-            };
-            stateObj = cortexMStateObj;
-            return true;
         }
 
         public struct IDAURegion
@@ -1033,205 +1237,43 @@ namespace Antmicro.Renode.Peripherals.CPU
             public override string ToString()
             {
                 return $"{nameof(IDAURegion)} [\n"
-                    +$"  Enabled: {Enabled}\n"
-                    +$"  From: 0x{BaseAddress:x}, To: 0x{LimitAddress:x}\n"
-                    +$"  Is Non-secure Callable: {NonSecureCallable}\n"
+                    + $"  Enabled: {Enabled}\n"
+                    + $"  From: 0x{BaseAddress:x}, To: 0x{LimitAddress:x}\n"
+                    + $"  Is Non-secure Callable: {NonSecureCallable}\n"
                     + "]";
             }
 
             // The struct is intentionally immutable so that nobody tries to just modify the struct and call it a day
             // without passing the modified region to tlib.
             public uint BaseAddress { get; private set; }
+
             public bool Enabled { get; private set; }
+
             public uint LimitAddress { get; private set; }
+
             public bool NonSecureCallable { get; private set; }
 
             private const uint IDAURlarEnabledFlag = 1u << 0;
             private const uint IDAURlarNonSecureCallableFlag = 1u << 1;
         }
 
-        // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
+        // Keep in line with ExternalIDAURequest struct in tlib's arm/arch_callbacks.h
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ExternalIDAURequest
+        {
+            public uint Address;
+            public int Secure;
+            public int AccessType;
+            public int AccessWidth;
+        }
 
-        [Import]
-        private Action<int> tlibToggleFpu;
+        private static readonly ContextState secureState = new ContextState { Privileged = true, CpuSecure = true, AttributionSecure = true };
 
-        [Import]
-        private Func<uint, uint> tlibGetFaultStatus;
-
-        [Import]
-        private Action<uint, uint> tlibSetFaultStatus;
-
-        [Import]
-        private Func<uint, uint> tlibGetMemoryFaultAddress;
-
-        [Import]
-        private Func<uint> tlibGetSecureFaultAddress;
-
-        [Import]
-        private Func<uint> tlibGetSecureFaultStatus;
-
-        [Import]
-        private Action<uint> tlibSetSecureFaultStatus;
-
-        [Import]
-        private Action<int> tlibEnableMpu;
-
-        [Import]
-        private Func<int> tlibIsMpuEnabled;
-
-        [Import]
-        private Action<uint> tlibSetMpuRegionBaseAddress;
-
-        [Import]
-        private Func<uint> tlibGetMpuRegionBaseAddress;
-
-        [Import]
-        private Action<uint> tlibSetMpuRegionSizeAndEnable;
-
-        [Import]
-        private Func<uint> tlibGetMpuRegionSizeAndEnable;
-
-        [Import]
-        private Action<uint> tlibSetMpuRegionNumber;
-
-        [Import]
-        private Func<uint> tlibGetMpuRegionNumber;
-
-        [Import]
-        private Action<int> tlibSetFpuInterruptNumber;
-
-        [Import]
-        private Func<uint, uint> tlibGetInterruptVectorBase;
-
-        [Import]
-        private Action<uint, uint> tlibSetInterruptVectorBase;
-
-        [Import]
-        private Func<uint> tlibGetXpsr;
-
-        [Import]
-        private Action<int> tlibSetSleepOnExceptionExit;
-
-        [Import]
-        private Func<uint, uint> tlibGetPrimask;
-
-        [Import]
-        private Func<uint, uint> tlibGetFaultmask;
-
-        [Import]
-        private Func<uint> tlibIsV8;
-
-        /* TrustZone */
-        [Import]
-        private Action<uint> tlibSetSecurityState;
-
-        [Import]
-        private Func<uint> tlibGetSecurityState;
-
-        [Import(Name = "tlib_set_register_value_32_non_secure")]
-        private Action<int, uint> SetRegisterValue32NonSecure;
-
-        [Import(Name = "tlib_get_register_value_32_non_secure")]
-        private Func<int, uint> GetRegisterValue32NonSecure;
-
-        /* TrustZone IDAU */
-        [Import]
-        private Action<uint> tlibSetNumberOfIdauRegions;
-
-        [Import]
-        private Func<uint> tlibGetNumberOfIdauRegions;
-
-        [Import]
-        private Action<uint> tlibSetIdauEnabled;
-
-        [Import]
-        private Func<uint> tlibGetIdauEnabled;
-
-        [Import]
-        private Action<uint, uint> tlibSetIdauRegionBaseAddressRegister;
-
-        [Import]
-        private Action<uint> tlibSetCustomIdauHandlerEnabled;
-
-        [Import]
-        private Func<uint, uint> tlibGetIdauRegionBaseAddressRegister;
-
-        [Import]
-        private Action<uint, uint> tlibSetIdauRegionLimitAddressRegister;
-
-        [Import]
-        private Func<uint, uint> tlibGetIdauRegionLimitAddressRegister;
-
-        [Import]
-        private Func<uint, uint, uint> tlibTryAddImplementationDefinedExemptionRegion;
-
-        [Import]
-        private Func<uint, uint, uint> tlibTryRemoveImplementationDefinedExemptionRegion;
-
-        /* TrustZone SAU */
-        [Import]
-        private Action<uint> tlibSetNumberOfSauRegions;
-
-        [Import]
-        private Func<uint> tlibGetNumberOfSauRegions;
-
-        [Import]
-        private Action<uint> tlibSetSauControl;
-
-        [Import]
-        private Func<uint> tlibGetSauControl;
-
-        [Import]
-        private Action<uint> tlibSetSauRegionNumber;
-
-        [Import]
-        private Func<uint> tlibGetSauRegionNumber;
-
-        [Import]
-        private Action<uint> tlibSetSauRegionBaseAddress;
-
-        [Import]
-        private Func<uint> tlibGetSauRegionBaseAddress;
-
-        [Import]
-        private Action<uint> tlibSetSauRegionLimitAddress;
-
-        [Import]
-        private Func<uint> tlibGetSauRegionLimitAddress;
-
-        /* PMSAv8 MPU */
-        [Import]
-        private Action<uint, uint> tlibSetPmsav8Ctrl;
-
-        [Import]
-        private Action<uint, uint> tlibSetPmsav8Rnr;
-
-        [Import]
-        private Action<uint, uint, uint> tlibSetPmsav8Rbar;
-
-        [Import]
-        private Action<uint, uint, uint> tlibSetPmsav8Rlar;
-
-        [Import]
-        private Action<uint, uint, uint> tlibSetPmsav8Mair;
-
-        [Import]
-        private Func<uint, uint> tlibGetPmsav8Ctrl;
-
-        [Import]
-        private Func<uint, uint> tlibGetPmsav8Rnr;
-
-        [Import]
-        private Func<uint, uint, uint> tlibGetPmsav8Rbar;
-
-        [Import]
-        private Func<uint, uint, uint> tlibGetPmsav8Rlar;
-
-        [Import]
-        private Func<uint, uint, uint> tlibGetPmsav8Mair;
-
-        #pragma warning restore 649
+        private static readonly IReadOnlyDictionary<string, int> stateBits = new Dictionary<string, int>
+        {
+            ["privileged"] = 0,
+            ["cpuSecure"] = 1,
+            ["attributionSecure"] = 2,
+        };
     }
 }
-

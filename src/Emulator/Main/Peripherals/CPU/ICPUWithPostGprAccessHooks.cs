@@ -8,10 +8,10 @@ using System;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public interface ICPUWithPostGprAccessHooks: ICPU
+    public interface ICPUWithPostGprAccessHooks : ICPU
     {
         void InstallPostGprAccessHookOn(UInt32 registerIndex, Action<bool> callback, UInt32 value);
+
         void EnablePostGprAccessHooks(UInt32 value);
     }
 }
-

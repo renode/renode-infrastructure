@@ -17,10 +17,7 @@ typedef enum {
 
 void kvm_logf(LogLevel level, const char *fmt, ...);
 
-void get_regs(struct kvm_regs *regs);
+#define IOCTL_RETRY_LIMIT 10
 
-void set_regs(struct kvm_regs *regs);
-
-void get_sregs(struct kvm_sregs *sregs);
-
-void set_sregs(struct kvm_sregs *sregs);
+// Wrapper that will retry ioctl on EINTR a maximum of IOCTL_RETRY_LIMIT times.
+int ioctl_with_retry(int fd, unsigned long op, ...);

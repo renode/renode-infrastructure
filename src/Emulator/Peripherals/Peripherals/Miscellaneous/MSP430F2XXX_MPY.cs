@@ -52,38 +52,38 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(currentMode)
             {
-                case Mode.Unsigned:
-                {
-                    var result = operand1 * operand2;
+            case Mode.Unsigned:
+            {
+                var result = operand1 * operand2;
 
-                    StoreResult(result);
-                    sumExtend.Value = 0;
-                    break;
-                }
+                StoreResult(result);
+                sumExtend.Value = 0;
+                break;
+            }
 
-                case Mode.Signed:
-                {
-                    var result = (short)operand1 * (short)operand2;
-                    StoreResult((ulong)result);
-                    sumExtend.Value = result < 0 ? 0xFFFFU : 0U;
-                    break;
-                }
+            case Mode.Signed:
+            {
+                var result = (short)operand1 * (short)operand2;
+                StoreResult((ulong)result);
+                sumExtend.Value = result < 0 ? 0xFFFFU : 0U;
+                break;
+            }
 
-                case Mode.UnsignedAccumulate:
-                {
-                    var result = LastResult + (int)(operand1 * operand2);
-                    StoreResult((ulong)result);
-                    sumExtend.Value = result > ushort.MaxValue ? 1U : 0U;
-                    break;
-                }
+            case Mode.UnsignedAccumulate:
+            {
+                var result = LastResult + (int)(operand1 * operand2);
+                StoreResult((ulong)result);
+                sumExtend.Value = result > ushort.MaxValue ? 1U : 0U;
+                break;
+            }
 
-                case Mode.SignedAccumulate:
-                {
-                    var result = LastResult + (short)operand1 * (short)operand2;
-                    StoreResult((ulong)result);
-                    sumExtend.Value = result < 0 ? 0xFFFFU : 0U;
-                    break;
-                }
+            case Mode.SignedAccumulate:
+            {
+                var result = LastResult + (short)operand1 * (short)operand2;
+                StoreResult((ulong)result);
+                sumExtend.Value = result < 0 ? 0xFFFFU : 0U;
+                break;
+            }
             }
         }
 

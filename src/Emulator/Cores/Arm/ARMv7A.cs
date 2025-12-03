@@ -5,12 +5,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Peripherals.IRQControllers;
-using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Peripherals.Timers;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -53,10 +55,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         // Currently unsupported
         public bool FIQMaskOverride => false;
+
         public bool IRQMaskOverride => false;
 
         public Affinity Affinity { get; }
+
         public SecurityState SecurityState => SecurityState.Secure;
+
         public ExceptionLevel ExceptionLevel => ExceptionLevel.EL1_SystemMode;
 
         protected override void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)

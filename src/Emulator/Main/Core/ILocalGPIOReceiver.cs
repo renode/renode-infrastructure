@@ -5,8 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Core
 {
     public interface ILocalGPIOReceiver
@@ -14,4 +12,3 @@ namespace Antmicro.Renode.Core
         IGPIOReceiver GetLocalReceiver(int index);
     }
 }
-

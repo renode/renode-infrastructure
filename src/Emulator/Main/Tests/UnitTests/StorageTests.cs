@@ -6,12 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Storage;
-using NUnit.Framework;
 using System.IO;
 using System.Linq;
-using Antmicro.Renode.Utilities;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Storage;
+using Antmicro.Renode.Utilities;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -59,4 +61,3 @@ namespace Antmicro.Renode.UnitTests
         private const int MaxBlocksCount = 1024 * 256;
     }
 }
-

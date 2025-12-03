@@ -5,14 +5,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Utilities
 {
     public interface IProgressMonitorHandler
     {
         void Finish(int id);
+
         void Update(int id, string description, int? progress);
     }
 }
-

@@ -5,11 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             skippedOnLifeCycleReset = new HashSet<IPeripheral>();
             skippedOnSystemReset = new HashSet<IPeripheral>();
             skippedOnLowPowerExitReset = new HashSet<IPeripheral>();
-            modules = new IPeripheral[numberOfModules];
+            modules = new IPeripheral[NumberOfModules];
 
             // Outputs
             LifeCycleState = new GPIO();    // Current state of rst_lc_n tree.
@@ -76,17 +76,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             // Reset initiated by peripheral
             ExecutePeripheralInitiatedResetWithSkipped(skippedOnSystemReset);
-            
+
             hardwareResetRequest.Value = resetReason;
             lowPowerExitFlag.Value = lowPower;
             powerOnResetFlag.Value = false;
             softwareResetFlag.Value = false;
         }
-        
+
         public void LowPowerExitReset()
         {
             ExecutePeripheralInitiatedResetWithSkipped(skippedOnLowPowerExitReset);
-            
+
             hardwareResetRequest.Value = 0;
             lowPowerExitFlag.Value = true;
             powerOnResetFlag.Value = false;
@@ -112,41 +112,41 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var ignored = false;
             switch(signal)
             {
-                case GPIOInput.PowerOnReset:
-                    if(value)
-                    {
-                        ExecuteResetWithSkipped(null);
-                    }
-                    break;
-                case GPIOInput.CPUReset:
-                case GPIOInput.NonDebugModeReset:
-                    if(value)
-                    {
-                        SystemReset();
-                    }
-                    break;
-                case GPIOInput.CPUDump:
-                    ignored = true;
-                    break;
-                case GPIOInput.LifeCycleReset:
-                    if(value)
-                    {
-                        LifeCycleReset();
-                    }
-                    break;
-                case GPIOInput.SystemReset:
-                    if(value)
-                    {
-                        SystemReset();
-                    }
-                    break;
-                case GPIOInput.ResetCause:
-                case GPIOInput.PeripheralReset:
-                    ignored = true;
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Received GPIO signal on an unsupported port #{0}.", number);
-                    break;
+            case GPIOInput.PowerOnReset:
+                if(value)
+                {
+                    ExecuteResetWithSkipped(null);
+                }
+                break;
+            case GPIOInput.CPUReset:
+            case GPIOInput.NonDebugModeReset:
+                if(value)
+                {
+                    SystemReset();
+                }
+                break;
+            case GPIOInput.CPUDump:
+                ignored = true;
+                break;
+            case GPIOInput.LifeCycleReset:
+                if(value)
+                {
+                    LifeCycleReset();
+                }
+                break;
+            case GPIOInput.SystemReset:
+                if(value)
+                {
+                    SystemReset();
+                }
+                break;
+            case GPIOInput.ResetCause:
+            case GPIOInput.PeripheralReset:
+                ignored = true;
+                break;
+            default:
+                this.Log(LogLevel.Error, "Received GPIO signal on an unsupported port #{0}.", number);
+                break;
             }
             if(ignored)
             {
@@ -157,10 +157,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public long Size => 0x1000;
 
         public GPIO LifeCycleState { get; }
+
         public GPIO SystemState { get; }
+
         public GPIO Resets { get; }
 
         public GPIO FatalAlert { get; }
+
         public GPIO FatalConsistencyAlert { get; }
 
         private void ExecuteResetWithSkipped(ICollection<IPeripheral> toSkip)
@@ -299,7 +302,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly HashSet<IPeripheral> skippedOnLowPowerExitReset;
         private readonly IPeripheral[] modules;
 
-        private const int numberOfModules = 8;
+        private const int NumberOfModules = 8;
 
         public enum GPIOInput
         {

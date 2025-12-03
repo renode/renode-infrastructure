@@ -5,26 +5,16 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class EFMGPIOPort : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
     {
-        public EFMGPIOPort(IMachine machine) : base(machine, 6*16)
+        public EFMGPIOPort(IMachine machine) : base(machine, 6 * 16)
         {
-
-        }
-
-        public long Size
-        {
-            get
-            {
-                return 0x140;
-            }
         }
 
         public uint ReadDoubleWord(long offset)
@@ -58,6 +48,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             else
             {
                 this.LogUnhandledWrite(offset, value);
+            }
+        }
+
+        public long Size
+        {
+            get
+            {
+                return 0x140;
             }
         }
 
@@ -100,4 +98,3 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
     }
 }
-

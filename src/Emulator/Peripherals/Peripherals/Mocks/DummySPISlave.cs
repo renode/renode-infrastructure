@@ -1,13 +1,13 @@
+﻿//
+// Copyright (c) 2010-2025 Antmicro
 //
-// Copyright (c) 2010-2021 Antmicro
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
-//
-using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.SPI;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.Mocks
 {

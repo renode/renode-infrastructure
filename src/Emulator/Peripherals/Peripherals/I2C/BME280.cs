@@ -7,12 +7,9 @@
 
 using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Sensor;
 
 namespace Antmicro.Renode.Peripherals.I2C
@@ -44,23 +41,23 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 switch(state)
                 {
-                    case State.Idle:
-                        selectedRegister = (Registers)b;
-                        state = State.ReceivedFirstByte;
-                        break;
-                    case State.ReceivedFirstByte:
-                    case State.WritingWaitingForValue:
-                        RegistersCollection.Write((byte)selectedRegister, b); //bme280 have 256 addressable registers the same as byte max value
-                        state = State.WaitingForAddress;
-                        break;
-                    case State.WaitingForAddress:
-                        selectedRegister = (Registers)b;
-                        state = State.WritingWaitingForValue;
-                        break;
-                    case State.Reading:
-                        //this isn't documented, but reads are able to use address set during write transfer, opposite isn't true
-                        this.Log(LogLevel.Warning, "Trying to write without specifying address, byte is omitted");
-                        break;
+                case State.Idle:
+                    selectedRegister = (Registers)b;
+                    state = State.ReceivedFirstByte;
+                    break;
+                case State.ReceivedFirstByte:
+                case State.WritingWaitingForValue:
+                    RegistersCollection.Write((byte)selectedRegister, b); //bme280 have 256 addressable registers the same as byte max value
+                    state = State.WaitingForAddress;
+                    break;
+                case State.WaitingForAddress:
+                    selectedRegister = (Registers)b;
+                    state = State.WritingWaitingForValue;
+                    break;
+                case State.Reading:
+                    //this isn't documented, but reads are able to use address set during write transfer, opposite isn't true
+                    this.Log(LogLevel.Warning, "Trying to write without specifying address, byte is omitted");
+                    break;
                 }
             }
         }
@@ -98,6 +95,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 return temperature;
             }
+
             set
             {
                 temperature = value;
@@ -111,6 +109,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 return pressure;
             }
+
             set
             {
                 pressure = value;
@@ -124,6 +123,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 return humidity;
             }
+
             set
             {
                 humidity = value;
@@ -163,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithValueField(0, 8)
                 .WithWriteCallback((_, val) =>
                 {
-                    if(val == resetRequestVal)
+                    if(val == ResetRequestVal)
                     {
                         Reset();
                     }
@@ -245,7 +245,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             var digT2 = RegistersToShort(Registers.Calib2, Registers.Calib3);
 
             //formula and constants derived from the compensation formula in datasheet
-            return (int)Math.Round(((Temperature * 100 * 256 - 128)/(5 * digT2) * 2048 + digT1 * 2) * 8);
+            return (int)Math.Round(((Temperature * 100 * 256 - 128) / (5 * digT2) * 2048 + digT1 * 2) * 8);
         }
 
         private void EncodeTemperature()
@@ -301,7 +301,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IValueRegisterField pressMsb;
         private IValueRegisterField pressXlsb;
 
-        private const byte resetRequestVal = 0xB6;
+        private const byte ResetRequestVal = 0xB6;
 
         private enum Registers
         {

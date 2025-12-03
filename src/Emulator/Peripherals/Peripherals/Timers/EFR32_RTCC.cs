@@ -4,11 +4,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
 using System;
 using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -289,14 +289,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             });
         }
 
-        private readonly EFR32_RTCCCounter innerTimer;
-
         private IFlagRegisterField overflowInterrupt;
         private IFlagRegisterField overflowInterruptEnabled;
         private IFlagRegisterField[] captureCompareInterruptPending;
         private IFlagRegisterField[] captureCompareInterruptEnabled;
         private IFlagRegisterField counterTick;
         private IFlagRegisterField counterTickEnabled;
+
+        private readonly EFR32_RTCCCounter innerTimer;
 
         private const int NumberOfRetentionRegisters = 32;
         private const int NumberOfCaptureCompareChannels = 3;

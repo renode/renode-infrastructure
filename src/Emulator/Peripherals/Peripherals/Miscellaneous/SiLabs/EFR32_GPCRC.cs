@@ -1,14 +1,15 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
+
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
@@ -84,10 +85,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             }
         }
 
-        private CRCEngine gpcrc;
-        private readonly DoubleWordRegisterCollection registers;
         private bool isEnabled;
-        private IValueRegisterField initDataField;
+        private readonly IValueRegisterField initDataField;
+
+        private readonly CRCEngine gpcrc;
+        private readonly DoubleWordRegisterCollection registers;
 
         private readonly CRCPolynomial DefaultPolynomial = CRCPolynomial.CRC32;
 

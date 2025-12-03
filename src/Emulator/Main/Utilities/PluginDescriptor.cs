@@ -6,10 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Mono.Cecil;
 using System.Linq;
-using Antmicro.Renode.Plugins;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Plugins;
+
+using Mono.Cecil;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -34,29 +36,6 @@ namespace Antmicro.Renode.Utilities
                 var modes = pluginAttribute.Properties.SingleOrDefault(x => x.Name == "Modes").Argument.Value;
                 Modes = modes != null ? ((CustomAttributeArgument[])modes).Select(x => x.Value).Cast<string>().ToArray() : new string[0];
             }
-        }
-
-        public string FullName
-        {
-            get
-            {
-                return "{0}:{1}:{2}".FormatWith(Name, Version, Vendor);
-            }
-        }
-
-        public string Name { get; private set; }
-        public Version Version { get; private set; }
-        public string Description { get; private set; }
-        public string Vendor { get; private set; }
-        public TypeDefinition ThisType { get; private set; }
-        public TypeDefinition[] Dependencies { get; private set; }
-        public string[] Modes { get; private set; }
-        public bool IsHidden { get; private set; }
-
-        public object CreatePlugin()
-        {
-            var type = TypeManager.Instance.GetTypeByName(ThisType.GetFullNameOfMember());
-            return ObjectCreator.Instance.Spawn(type);
         }
 
         public override bool Equals(object obj)
@@ -102,6 +81,35 @@ namespace Antmicro.Renode.Utilities
                 return hash;
             }
         }
+
+        public object CreatePlugin()
+        {
+            var type = TypeManager.Instance.GetTypeByName(ThisType.GetFullNameOfMember());
+            return ObjectCreator.Instance.Spawn(type);
+        }
+
+        public string FullName
+        {
+            get
+            {
+                return "{0}:{1}:{2}".FormatWith(Name, Version, Vendor);
+            }
+        }
+
+        public string Name { get; private set; }
+
+        public Version Version { get; private set; }
+
+        public string Description { get; private set; }
+
+        public string Vendor { get; private set; }
+
+        public TypeDefinition ThisType { get; private set; }
+
+        public TypeDefinition[] Dependencies { get; private set; }
+
+        public string[] Modes { get; private set; }
+
+        public bool IsHidden { get; private set; }
     }
 }
-

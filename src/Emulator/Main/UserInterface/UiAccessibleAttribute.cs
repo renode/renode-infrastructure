@@ -14,4 +14,3 @@ namespace Antmicro.Renode.UserInterface
         public string FriendlyName { get; set; }
     }
 }
-

@@ -6,12 +6,13 @@
 //
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Helpers;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Helpers;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
@@ -67,9 +68,11 @@ namespace Antmicro.Renode.Peripherals.SPI
         public GPIO IRQ { get; } = new GPIO();
 
         public GPIO TxFifoFullIRQ { get; } = new GPIO();
+
         public GPIO TxFifoFillLevelThresholdIRQ { get; } = new GPIO();
 
         public GPIO RxFifoFullIRQ { get; } = new GPIO();
+
         public GPIO RxFifoFillLevelThresholdIRQ { get; } = new GPIO();
 
         private void TransmitData()

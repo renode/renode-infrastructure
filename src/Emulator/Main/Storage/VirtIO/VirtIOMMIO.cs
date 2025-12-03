@@ -1,10 +1,11 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -21,10 +22,9 @@ namespace Antmicro.Renode.Peripherals.Storage
             BitHelper.SetBit(ref deviceFeatureBits, (byte)MMIOFeatureBits.AccessPlatform, true);
         }
 
-        protected void VirtqueueHandle()
+        protected void VirtqueueHandle(ulong idx)
         {
-            this.Log(LogLevel.Debug, "Handling virtqueue {0}", QueueSel);
-            var vqueue = Virtqueues[QueueSel];
+            var vqueue = Virtqueues[idx];
             vqueue.Handle();
         }
 
@@ -109,6 +109,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 )
                 .WithReservedBits(1, 31);
 
+            // Note: This does not exist in the spec
             MMIORegisters.QueueReset.Define(this)
                 .WithFlag(0, name: "queue_reset",
                     writeCallback: (_, val) => { if(val) Virtqueues[QueueSel].Reset(); },
@@ -131,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                             return 0;
                         }
                         var vqueue = Virtqueues[QueueSel];
-                        return (ulong)vqueue.maxSize;
+                        return (ulong)vqueue.MaxSize;
                     });
 
             // Virtual queue size
@@ -143,7 +144,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                     writeCallback: (_, val) =>
                     {
                         Virtqueue vqueue = Virtqueues[QueueSel];
-                        if(val > vqueue.maxSize)
+                        if(val > vqueue.MaxSize)
                         {
                             this.Log(LogLevel.Error, "Virtqueue size exceeded max available value!");
                             deviceStatusFailed.Value = true;
@@ -165,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.Storage
 
             MMIORegisters.QueueDescLow.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "queue_desc_low", writeCallback: (_, val) =>
-                    Virtqueues[QueueSel].DescTableAddress = BitHelper.SetBitsFrom((ulong) val, Virtqueues[QueueSel].DescTableAddress, 31, 32));
+                    Virtqueues[QueueSel].DescTableAddress = BitHelper.SetBitsFrom((ulong)val, Virtqueues[QueueSel].DescTableAddress, 31, 32));
 
             MMIORegisters.QueueDescHigh.Define(this)
                 .WithValueField(0, 32, FieldMode.Write, name: "queue_desc_high", writeCallback: (_, val) =>
@@ -207,7 +208,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                         }
                         else
                         {
-                            VirtqueueHandle();
+                            VirtqueueHandle(idx);
                         }
                     });
 
@@ -259,13 +260,13 @@ namespace Antmicro.Renode.Peripherals.Storage
                 });
         }
 
+        protected virtual uint DeviceID { get; }
+
         // Total number of request virtqueues exposed by the device
         protected ulong sharedMemoryId;
         protected ulong sharedMemoryLength;
         protected ulong sharedMemoryBase;
         protected int sharedMemoryFd;
-
-        protected virtual uint DeviceID { get; }
 
         private const uint MagicNumber = 0x74726976;
         private const uint Version = 0x2;

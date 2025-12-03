@@ -6,10 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Xwt;
-using System.Threading;
 using System.Collections.Concurrent;
+using System.Threading;
+
 using Antmicro.Renode.Exceptions;
+
+using Xwt;
 
 namespace Antmicro.Renode.UI
 {
@@ -105,7 +107,6 @@ namespace Antmicro.Renode.UI
             }
         }
 
-        private static BlockingCollection<Action> actionsToRunInUIThread;
+        private static readonly BlockingCollection<Action> actionsToRunInUIThread;
     }
 }
-

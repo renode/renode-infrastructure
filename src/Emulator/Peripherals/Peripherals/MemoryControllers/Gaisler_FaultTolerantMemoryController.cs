@@ -4,9 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -15,6 +15,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.MTD;
+
 using static Antmicro.Renode.Peripherals.Bus.GaislerAPBPlugAndPlayRecord;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
@@ -34,10 +35,18 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             SetPromWriteEnable(false);
         }
 
+        public uint GetVendorID() => VendorID;
+
+        public uint GetDeviceID() => DeviceID;
+
+        public uint GetInterruptNumber() => 0;
+
+        public SpaceType GetSpaceType() => SpaceType.APBIOSpace;
+
         public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(MappedMemory peripheral)
         {
             return prom != null ?
-                new [] { NullRegistrationPoint.Instance } :
+                new[] { NullRegistrationPoint.Instance } :
                 Enumerable.Empty<NullRegistrationPoint>();
         }
 
@@ -61,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(AMDCFIFlash peripheral)
         {
             return flash != null ?
-                new [] { NullRegistrationPoint.Instance } :
+                new[] { NullRegistrationPoint.Instance } :
                 Enumerable.Empty<NullRegistrationPoint>();
         }
 
@@ -86,14 +95,14 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         IEnumerable<IRegistered<MappedMemory, NullRegistrationPoint>> IPeripheralContainer<MappedMemory, NullRegistrationPoint>.Children
         {
             get => prom != null ?
-                new [] { Registered.Create(prom, NullRegistrationPoint.Instance) } :
+                new[] { Registered.Create(prom, NullRegistrationPoint.Instance) } :
                 Enumerable.Empty<IRegistered<MappedMemory, NullRegistrationPoint>>();
         }
 
         IEnumerable<IRegistered<AMDCFIFlash, NullRegistrationPoint>> IPeripheralContainer<AMDCFIFlash, NullRegistrationPoint>.Children
         {
             get => flash != null ?
-                new [] { Registered.Create(flash, NullRegistrationPoint.Instance) } :
+                new[] { Registered.Create(flash, NullRegistrationPoint.Instance) } :
                 Enumerable.Empty<IRegistered<AMDCFIFlash, NullRegistrationPoint>>();
         }
 
@@ -178,14 +187,6 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             }
             isWriteEnabled = enable;
         }
-
-        public uint GetVendorID() => VendorID;
-
-        public uint GetDeviceID() => DeviceID;
-
-        public uint GetInterruptNumber() => 0;
-
-        public SpaceType GetSpaceType() => SpaceType.APBIOSpace;
 
         private ulong? promAddress;
         private bool isWriteEnabled;

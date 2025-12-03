@@ -10,6 +10,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface IIndirectCSRPeripheral : IPeripheral
     {
         uint ReadIndirectCSR(uint iselect, uint ireg);
+
         void WriteIndirectCSR(uint iselect, uint ireg, uint value);
     }
 }

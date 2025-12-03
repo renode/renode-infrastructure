@@ -12,7 +12,7 @@
 
 /* Here is the template for your defined by hand class. Don't forget to add your eventual constructor with extra parameter.
 
-* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -89,39 +89,39 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             base.Reset();
             LFRCO_Reset();
         }
-        
+
         protected enum STATUS_LOCK
         {
             UNLOCKED = 0, // Access to configuration registers not locked
             LOCKED = 1, // Access to configuration registers locked
         }
-        
+
         // Ipversion - Offset : 0x0
         protected DoubleWordRegister  GenerateIpversionRegister() => new DoubleWordRegister(this, 0x2)
             .WithValueField(0, 32, out ipversion_ipversion_field, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Ipversion_Ipversion_ValueProvider(_);
-                        return ipversion_ipversion_field.Value;               
+                        return ipversion_ipversion_field.Value;
                     },
                     readCallback: (_, __) => Ipversion_Ipversion_Read(_, __),
                     name: "Ipversion")
             .WithReadCallback((_, __) => Ipversion_Read(_, __))
             .WithWriteCallback((_, __) => Ipversion_Write(_, __));
-        
+
         // Ctrl - Offset : 0x4
         protected DoubleWordRegister  GenerateCtrlRegister() => new DoubleWordRegister(this, 0x0)
-            .WithFlag(0, out ctrl_forceen_bit, 
+            .WithFlag(0, out ctrl_forceen_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Forceen_ValueProvider(_);
-                        return ctrl_forceen_bit.Value;               
+                        return ctrl_forceen_bit.Value;
                     },
                     writeCallback: (_, __) => Ctrl_Forceen_Write(_, __),
                     readCallback: (_, __) => Ctrl_Forceen_Read(_, __),
                     name: "Forceen")
-            .WithFlag(1, out ctrl_disondemand_bit, 
+            .WithFlag(1, out ctrl_disondemand_bit,
                     valueProviderCallback: (_) => {
                         Ctrl_Disondemand_ValueProvider(_);
-                        return ctrl_disondemand_bit.Value;               
+                        return ctrl_disondemand_bit.Value;
                     },
                     writeCallback: (_, __) => Ctrl_Disondemand_Write(_, __),
                     readCallback: (_, __) => Ctrl_Disondemand_Read(_, __),
@@ -129,13 +129,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(2, 30)
             .WithReadCallback((_, __) => Ctrl_Read(_, __))
             .WithWriteCallback((_, __) => Ctrl_Write(_, __));
-        
+
         // Status - Offset : 0x8
         protected DoubleWordRegister  GenerateStatusRegister() => new DoubleWordRegister(this, 0x0)
             .WithFlag(0, out status_rdy_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Rdy_ValueProvider(_);
-                        return status_rdy_bit.Value;               
+                        return status_rdy_bit.Value;
                     },
                     readCallback: (_, __) => Status_Rdy_Read(_, __),
                     name: "Rdy")
@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithFlag(16, out status_ens_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Ens_ValueProvider(_);
-                        return status_ens_bit.Value;               
+                        return status_ens_bit.Value;
                     },
                     readCallback: (_, __) => Status_Ens_Read(_, __),
                     name: "Ens")
@@ -151,85 +151,85 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithEnumField<DoubleWordRegister, STATUS_LOCK>(31, 1, out status_lock_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Status_Lock_ValueProvider(_);
-                        return status_lock_bit.Value;               
+                        return status_lock_bit.Value;
                     },
                     readCallback: (_, __) => Status_Lock_Read(_, __),
                     name: "Lock")
             .WithReadCallback((_, __) => Status_Read(_, __))
             .WithWriteCallback((_, __) => Status_Write(_, __));
-        
+
         // If - Offset : 0x14
         protected DoubleWordRegister  GenerateIfRegister() => new DoubleWordRegister(this, 0x0)
-            .WithFlag(0, out if_rdy_bit, 
+            .WithFlag(0, out if_rdy_bit,
                     valueProviderCallback: (_) => {
                         If_Rdy_ValueProvider(_);
-                        return if_rdy_bit.Value;               
+                        return if_rdy_bit.Value;
                     },
                     writeCallback: (_, __) => If_Rdy_Write(_, __),
                     readCallback: (_, __) => If_Rdy_Read(_, __),
                     name: "Rdy")
-            .WithFlag(1, out if_posedge_bit, 
+            .WithFlag(1, out if_posedge_bit,
                     valueProviderCallback: (_) => {
                         If_Posedge_ValueProvider(_);
-                        return if_posedge_bit.Value;               
+                        return if_posedge_bit.Value;
                     },
                     writeCallback: (_, __) => If_Posedge_Write(_, __),
                     readCallback: (_, __) => If_Posedge_Read(_, __),
                     name: "Posedge")
-            .WithFlag(2, out if_negedge_bit, 
+            .WithFlag(2, out if_negedge_bit,
                     valueProviderCallback: (_) => {
                         If_Negedge_ValueProvider(_);
-                        return if_negedge_bit.Value;               
+                        return if_negedge_bit.Value;
                     },
                     writeCallback: (_, __) => If_Negedge_Write(_, __),
                     readCallback: (_, __) => If_Negedge_Read(_, __),
                     name: "Negedge")
             .WithReservedBits(3, 5)
-            .WithFlag(8, out if_tcdone_bit, 
+            .WithFlag(8, out if_tcdone_bit,
                     valueProviderCallback: (_) => {
                         If_Tcdone_ValueProvider(_);
-                        return if_tcdone_bit.Value;               
+                        return if_tcdone_bit.Value;
                     },
                     writeCallback: (_, __) => If_Tcdone_Write(_, __),
                     readCallback: (_, __) => If_Tcdone_Read(_, __),
                     name: "Tcdone")
-            .WithFlag(9, out if_caldone_bit, 
+            .WithFlag(9, out if_caldone_bit,
                     valueProviderCallback: (_) => {
                         If_Caldone_ValueProvider(_);
-                        return if_caldone_bit.Value;               
+                        return if_caldone_bit.Value;
                     },
                     writeCallback: (_, __) => If_Caldone_Write(_, __),
                     readCallback: (_, __) => If_Caldone_Read(_, __),
                     name: "Caldone")
-            .WithFlag(10, out if_tempchange_bit, 
+            .WithFlag(10, out if_tempchange_bit,
                     valueProviderCallback: (_) => {
                         If_Tempchange_ValueProvider(_);
-                        return if_tempchange_bit.Value;               
+                        return if_tempchange_bit.Value;
                     },
                     writeCallback: (_, __) => If_Tempchange_Write(_, __),
                     readCallback: (_, __) => If_Tempchange_Read(_, __),
                     name: "Tempchange")
             .WithReservedBits(11, 5)
-            .WithFlag(16, out if_schederr_bit, 
+            .WithFlag(16, out if_schederr_bit,
                     valueProviderCallback: (_) => {
                         If_Schederr_ValueProvider(_);
-                        return if_schederr_bit.Value;               
+                        return if_schederr_bit.Value;
                     },
                     writeCallback: (_, __) => If_Schederr_Write(_, __),
                     readCallback: (_, __) => If_Schederr_Read(_, __),
                     name: "Schederr")
-            .WithFlag(17, out if_tcoor_bit, 
+            .WithFlag(17, out if_tcoor_bit,
                     valueProviderCallback: (_) => {
                         If_Tcoor_ValueProvider(_);
-                        return if_tcoor_bit.Value;               
+                        return if_tcoor_bit.Value;
                     },
                     writeCallback: (_, __) => If_Tcoor_Write(_, __),
                     readCallback: (_, __) => If_Tcoor_Read(_, __),
                     name: "Tcoor")
-            .WithFlag(18, out if_caloor_bit, 
+            .WithFlag(18, out if_caloor_bit,
                     valueProviderCallback: (_) => {
                         If_Caloor_ValueProvider(_);
-                        return if_caloor_bit.Value;               
+                        return if_caloor_bit.Value;
                     },
                     writeCallback: (_, __) => If_Caloor_Write(_, __),
                     readCallback: (_, __) => If_Caloor_Read(_, __),
@@ -237,79 +237,79 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(19, 13)
             .WithReadCallback((_, __) => If_Read(_, __))
             .WithWriteCallback((_, __) => If_Write(_, __));
-        
+
         // Ien - Offset : 0x18
         protected DoubleWordRegister  GenerateIenRegister() => new DoubleWordRegister(this, 0x0)
-            .WithFlag(0, out ien_rdy_bit, 
+            .WithFlag(0, out ien_rdy_bit,
                     valueProviderCallback: (_) => {
                         Ien_Rdy_ValueProvider(_);
-                        return ien_rdy_bit.Value;               
+                        return ien_rdy_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Rdy_Write(_, __),
                     readCallback: (_, __) => Ien_Rdy_Read(_, __),
                     name: "Rdy")
-            .WithFlag(1, out ien_posedge_bit, 
+            .WithFlag(1, out ien_posedge_bit,
                     valueProviderCallback: (_) => {
                         Ien_Posedge_ValueProvider(_);
-                        return ien_posedge_bit.Value;               
+                        return ien_posedge_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Posedge_Write(_, __),
                     readCallback: (_, __) => Ien_Posedge_Read(_, __),
                     name: "Posedge")
-            .WithFlag(2, out ien_negedge_bit, 
+            .WithFlag(2, out ien_negedge_bit,
                     valueProviderCallback: (_) => {
                         Ien_Negedge_ValueProvider(_);
-                        return ien_negedge_bit.Value;               
+                        return ien_negedge_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Negedge_Write(_, __),
                     readCallback: (_, __) => Ien_Negedge_Read(_, __),
                     name: "Negedge")
             .WithReservedBits(3, 5)
-            .WithFlag(8, out ien_tcdone_bit, 
+            .WithFlag(8, out ien_tcdone_bit,
                     valueProviderCallback: (_) => {
                         Ien_Tcdone_ValueProvider(_);
-                        return ien_tcdone_bit.Value;               
+                        return ien_tcdone_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Tcdone_Write(_, __),
                     readCallback: (_, __) => Ien_Tcdone_Read(_, __),
                     name: "Tcdone")
-            .WithFlag(9, out ien_caldone_bit, 
+            .WithFlag(9, out ien_caldone_bit,
                     valueProviderCallback: (_) => {
                         Ien_Caldone_ValueProvider(_);
-                        return ien_caldone_bit.Value;               
+                        return ien_caldone_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Caldone_Write(_, __),
                     readCallback: (_, __) => Ien_Caldone_Read(_, __),
                     name: "Caldone")
-            .WithFlag(10, out ien_tempchange_bit, 
+            .WithFlag(10, out ien_tempchange_bit,
                     valueProviderCallback: (_) => {
                         Ien_Tempchange_ValueProvider(_);
-                        return ien_tempchange_bit.Value;               
+                        return ien_tempchange_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Tempchange_Write(_, __),
                     readCallback: (_, __) => Ien_Tempchange_Read(_, __),
                     name: "Tempchange")
             .WithReservedBits(11, 5)
-            .WithFlag(16, out ien_schederr_bit, 
+            .WithFlag(16, out ien_schederr_bit,
                     valueProviderCallback: (_) => {
                         Ien_Schederr_ValueProvider(_);
-                        return ien_schederr_bit.Value;               
+                        return ien_schederr_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Schederr_Write(_, __),
                     readCallback: (_, __) => Ien_Schederr_Read(_, __),
                     name: "Schederr")
-            .WithFlag(17, out ien_tcoor_bit, 
+            .WithFlag(17, out ien_tcoor_bit,
                     valueProviderCallback: (_) => {
                         Ien_Tcoor_ValueProvider(_);
-                        return ien_tcoor_bit.Value;               
+                        return ien_tcoor_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Tcoor_Write(_, __),
                     readCallback: (_, __) => Ien_Tcoor_Read(_, __),
                     name: "Tcoor")
-            .WithFlag(18, out ien_caloor_bit, 
+            .WithFlag(18, out ien_caloor_bit,
                     valueProviderCallback: (_) => {
                         Ien_Caloor_ValueProvider(_);
-                        return ien_caloor_bit.Value;               
+                        return ien_caloor_bit.Value;
                     },
                     writeCallback: (_, __) => Ien_Caloor_Write(_, __),
                     readCallback: (_, __) => Ien_Caloor_Read(_, __),
@@ -317,7 +317,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(19, 13)
             .WithReadCallback((_, __) => Ien_Read(_, __))
             .WithWriteCallback((_, __) => Ien_Write(_, __));
-        
+
         // Lock - Offset : 0x20
         protected DoubleWordRegister  GenerateLockRegister() => new DoubleWordRegister(this, 0x0)
             .WithValueField(0, 16, out lock_lockkey_field, FieldMode.Write,
@@ -326,13 +326,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(16, 16)
             .WithReadCallback((_, __) => Lock_Read(_, __))
             .WithWriteCallback((_, __) => Lock_Write(_, __));
-        
+
         // Cfg - Offset : 0x24
         protected DoubleWordRegister  GenerateCfgRegister() => new DoubleWordRegister(this, 0x0)
-            .WithFlag(0, out cfg_highprecen_bit, 
+            .WithFlag(0, out cfg_highprecen_bit,
                     valueProviderCallback: (_) => {
                         Cfg_Highprecen_ValueProvider(_);
-                        return cfg_highprecen_bit.Value;               
+                        return cfg_highprecen_bit.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSTATIC();
@@ -343,74 +343,74 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(1, 31)
             .WithReadCallback((_, __) => Cfg_Read(_, __))
             .WithWriteCallback((_, __) => Cfg_Write(_, __));
-        
+
         // Hiprecision - Offset : 0x28
         protected DoubleWordRegister  GenerateHiprecisionRegister() => new DoubleWordRegister(this, 0x10E22645)
-            .WithValueField(0, 4, out hiprecision_calwnd_field, 
+            .WithValueField(0, 4, out hiprecision_calwnd_field,
                     valueProviderCallback: (_) => {
                         Hiprecision_Calwnd_ValueProvider(_);
-                        return hiprecision_calwnd_field.Value;               
+                        return hiprecision_calwnd_field.Value;
                     },
                     writeCallback: (_, __) => Hiprecision_Calwnd_Write(_, __),
                     readCallback: (_, __) => Hiprecision_Calwnd_Read(_, __),
                     name: "Calwnd")
-            .WithValueField(4, 4, out hiprecision_tcwnd_field, 
+            .WithValueField(4, 4, out hiprecision_tcwnd_field,
                     valueProviderCallback: (_) => {
                         Hiprecision_Tcwnd_ValueProvider(_);
-                        return hiprecision_tcwnd_field.Value;               
+                        return hiprecision_tcwnd_field.Value;
                     },
                     writeCallback: (_, __) => Hiprecision_Tcwnd_Write(_, __),
                     readCallback: (_, __) => Hiprecision_Tcwnd_Read(_, __),
                     name: "Tcwnd")
-            .WithValueField(8, 8, out hiprecision_tcthresh_field, 
+            .WithValueField(8, 8, out hiprecision_tcthresh_field,
                     valueProviderCallback: (_) => {
                         Hiprecision_Tcthresh_ValueProvider(_);
-                        return hiprecision_tcthresh_field.Value;               
+                        return hiprecision_tcthresh_field.Value;
                     },
                     writeCallback: (_, __) => Hiprecision_Tcthresh_Write(_, __),
                     readCallback: (_, __) => Hiprecision_Tcthresh_Read(_, __),
                     name: "Tcthresh")
-            .WithValueField(16, 3, out hiprecision_tcintshort_field, 
+            .WithValueField(16, 3, out hiprecision_tcintshort_field,
                     valueProviderCallback: (_) => {
                         Hiprecision_Tcintshort_ValueProvider(_);
-                        return hiprecision_tcintshort_field.Value;               
+                        return hiprecision_tcintshort_field.Value;
                     },
                     writeCallback: (_, __) => Hiprecision_Tcintshort_Write(_, __),
                     readCallback: (_, __) => Hiprecision_Tcintshort_Read(_, __),
                     name: "Tcintshort")
-            .WithValueField(19, 3, out hiprecision_tcintlong_field, 
+            .WithValueField(19, 3, out hiprecision_tcintlong_field,
                     valueProviderCallback: (_) => {
                         Hiprecision_Tcintlong_ValueProvider(_);
-                        return hiprecision_tcintlong_field.Value;               
+                        return hiprecision_tcintlong_field.Value;
                     },
                     writeCallback: (_, __) => Hiprecision_Tcintlong_Write(_, __),
                     readCallback: (_, __) => Hiprecision_Tcintlong_Read(_, __),
                     name: "Tcintlong")
-            .WithValueField(22, 3, out hiprecision_calint_field, 
+            .WithValueField(22, 3, out hiprecision_calint_field,
                     valueProviderCallback: (_) => {
                         Hiprecision_Calint_ValueProvider(_);
-                        return hiprecision_calint_field.Value;               
+                        return hiprecision_calint_field.Value;
                     },
                     writeCallback: (_, __) => Hiprecision_Calint_Write(_, __),
                     readCallback: (_, __) => Hiprecision_Calint_Read(_, __),
                     name: "Calint")
-            .WithValueField(25, 7, out hiprecision_tcintthresh_field, 
+            .WithValueField(25, 7, out hiprecision_tcintthresh_field,
                     valueProviderCallback: (_) => {
                         Hiprecision_Tcintthresh_ValueProvider(_);
-                        return hiprecision_tcintthresh_field.Value;               
+                        return hiprecision_tcintthresh_field.Value;
                     },
                     writeCallback: (_, __) => Hiprecision_Tcintthresh_Write(_, __),
                     readCallback: (_, __) => Hiprecision_Tcintthresh_Read(_, __),
                     name: "Tcintthresh")
             .WithReadCallback((_, __) => Hiprecision_Read(_, __))
             .WithWriteCallback((_, __) => Hiprecision_Write(_, __));
-        
+
         // Nomcal - Offset : 0x2C
         protected DoubleWordRegister  GenerateNomcalRegister() => new DoubleWordRegister(this, 0x5B8D8)
-            .WithValueField(0, 21, out nomcal_nomcalcnt_field, 
+            .WithValueField(0, 21, out nomcal_nomcalcnt_field,
                     valueProviderCallback: (_) => {
                         Nomcal_Nomcalcnt_ValueProvider(_);
-                        return nomcal_nomcalcnt_field.Value;               
+                        return nomcal_nomcalcnt_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSTATIC();
@@ -421,13 +421,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(21, 11)
             .WithReadCallback((_, __) => Nomcal_Read(_, __))
             .WithWriteCallback((_, __) => Nomcal_Write(_, __));
-        
+
         // Nomcalinv - Offset : 0x30
         protected DoubleWordRegister  GenerateNomcalinvRegister() => new DoubleWordRegister(this, 0x597A)
-            .WithValueField(0, 17, out nomcalinv_nomcalcntinv_field, 
+            .WithValueField(0, 17, out nomcalinv_nomcalcntinv_field,
                     valueProviderCallback: (_) => {
                         Nomcalinv_Nomcalcntinv_ValueProvider(_);
-                        return nomcalinv_nomcalcntinv_field.Value;               
+                        return nomcalinv_nomcalcntinv_field.Value;
                     },
                     writeCallback: (_, __) => {
                         WriteWSTATIC();
@@ -438,7 +438,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(17, 15)
             .WithReadCallback((_, __) => Nomcalinv_Read(_, __))
             .WithWriteCallback((_, __) => Nomcalinv_Write(_, __));
-        
+
         // Cmd - Offset : 0x34
         protected DoubleWordRegister  GenerateCmdRegister() => new DoubleWordRegister(this, 0x0)
             .WithFlag(0, out cmd_reducetcint_bit, FieldMode.Write,
@@ -447,131 +447,131 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(1, 31)
             .WithReadCallback((_, __) => Cmd_Read(_, __))
             .WithWriteCallback((_, __) => Cmd_Write(_, __));
-        
+
         // Trim - Offset : 0x38
         protected DoubleWordRegister  GenerateTrimRegister() => new DoubleWordRegister(this, 0x44002020)
-            .WithValueField(0, 6, out trim_trimfine_field, 
+            .WithValueField(0, 6, out trim_trimfine_field,
                     valueProviderCallback: (_) => {
                         Trim_Trimfine_ValueProvider(_);
-                        return trim_trimfine_field.Value;               
+                        return trim_trimfine_field.Value;
                     },
                     writeCallback: (_, __) => Trim_Trimfine_Write(_, __),
                     readCallback: (_, __) => Trim_Trimfine_Read(_, __),
                     name: "Trimfine")
             .WithReservedBits(6, 2)
-            .WithValueField(8, 6, out trim_trim_field, 
+            .WithValueField(8, 6, out trim_trim_field,
                     valueProviderCallback: (_) => {
                         Trim_Trim_ValueProvider(_);
-                        return trim_trim_field.Value;               
+                        return trim_trim_field.Value;
                     },
                     writeCallback: (_, __) => Trim_Trim_Write(_, __),
                     readCallback: (_, __) => Trim_Trim_Read(_, __),
                     name: "Trim")
             .WithReservedBits(14, 2)
-            .WithValueField(16, 3, out trim_trimcoarse_field, 
+            .WithValueField(16, 3, out trim_trimcoarse_field,
                     valueProviderCallback: (_) => {
                         Trim_Trimcoarse_ValueProvider(_);
-                        return trim_trimcoarse_field.Value;               
+                        return trim_trimcoarse_field.Value;
                     },
                     writeCallback: (_, __) => Trim_Trimcoarse_Write(_, __),
                     readCallback: (_, __) => Trim_Trimcoarse_Read(_, __),
                     name: "Trimcoarse")
             .WithReservedBits(19, 1)
-            .WithValueField(20, 3, out trim_bias_field, 
+            .WithValueField(20, 3, out trim_bias_field,
                     valueProviderCallback: (_) => {
                         Trim_Bias_ValueProvider(_);
-                        return trim_bias_field.Value;               
+                        return trim_bias_field.Value;
                     },
                     writeCallback: (_, __) => Trim_Bias_Write(_, __),
                     readCallback: (_, __) => Trim_Bias_Read(_, __),
                     name: "Bias")
             .WithReservedBits(23, 1)
-            .WithFlag(24, out trim_tempcob_bit, 
+            .WithFlag(24, out trim_tempcob_bit,
                     valueProviderCallback: (_) => {
                         Trim_Tempcob_ValueProvider(_);
-                        return trim_tempcob_bit.Value;               
+                        return trim_tempcob_bit.Value;
                     },
                     writeCallback: (_, __) => Trim_Tempcob_Write(_, __),
                     readCallback: (_, __) => Trim_Tempcob_Read(_, __),
                     name: "Tempcob")
             .WithReservedBits(25, 1)
-            .WithFlag(26, out trim_tempcoc_bit, 
+            .WithFlag(26, out trim_tempcoc_bit,
                     valueProviderCallback: (_) => {
                         Trim_Tempcoc_ValueProvider(_);
-                        return trim_tempcoc_bit.Value;               
+                        return trim_tempcoc_bit.Value;
                     },
                     writeCallback: (_, __) => Trim_Tempcoc_Write(_, __),
                     readCallback: (_, __) => Trim_Tempcoc_Read(_, __),
                     name: "Tempcoc")
-            .WithValueField(27, 3, out trim_roten_field, 
+            .WithValueField(27, 3, out trim_roten_field,
                     valueProviderCallback: (_) => {
                         Trim_Roten_ValueProvider(_);
-                        return trim_roten_field.Value;               
+                        return trim_roten_field.Value;
                     },
                     writeCallback: (_, __) => Trim_Roten_Write(_, __),
                     readCallback: (_, __) => Trim_Roten_Read(_, __),
                     name: "Roten")
-            .WithValueField(30, 2, out trim_timeout_field, 
+            .WithValueField(30, 2, out trim_timeout_field,
                     valueProviderCallback: (_) => {
                         Trim_Timeout_ValueProvider(_);
-                        return trim_timeout_field.Value;               
+                        return trim_timeout_field.Value;
                     },
                     writeCallback: (_, __) => Trim_Timeout_Write(_, __),
                     readCallback: (_, __) => Trim_Timeout_Read(_, __),
                     name: "Timeout")
             .WithReadCallback((_, __) => Trim_Read(_, __))
             .WithWriteCallback((_, __) => Trim_Write(_, __));
-        
+
         // Trimhiprec - Offset : 0x3C
         protected DoubleWordRegister  GenerateTrimhiprecRegister() => new DoubleWordRegister(this, 0x3C602820)
-            .WithValueField(0, 6, out trimhiprec_trimtemp_field, 
+            .WithValueField(0, 6, out trimhiprec_trimtemp_field,
                     valueProviderCallback: (_) => {
                         Trimhiprec_Trimtemp_ValueProvider(_);
-                        return trimhiprec_trimtemp_field.Value;               
+                        return trimhiprec_trimtemp_field.Value;
                     },
                     writeCallback: (_, __) => Trimhiprec_Trimtemp_Write(_, __),
                     readCallback: (_, __) => Trimhiprec_Trimtemp_Read(_, __),
                     name: "Trimtemp")
             .WithReservedBits(6, 2)
-            .WithValueField(8, 6, out trimhiprec_trimhiprec_field, 
+            .WithValueField(8, 6, out trimhiprec_trimhiprec_field,
                     valueProviderCallback: (_) => {
                         Trimhiprec_Trimhiprec_ValueProvider(_);
-                        return trimhiprec_trimhiprec_field.Value;               
+                        return trimhiprec_trimhiprec_field.Value;
                     },
                     writeCallback: (_, __) => Trimhiprec_Trimhiprec_Write(_, __),
                     readCallback: (_, __) => Trimhiprec_Trimhiprec_Read(_, __),
                     name: "Trimhiprec")
             .WithReservedBits(14, 6)
-            .WithValueField(20, 3, out trimhiprec_biashiprec_field, 
+            .WithValueField(20, 3, out trimhiprec_biashiprec_field,
                     valueProviderCallback: (_) => {
                         Trimhiprec_Biashiprec_ValueProvider(_);
-                        return trimhiprec_biashiprec_field.Value;               
+                        return trimhiprec_biashiprec_field.Value;
                     },
                     writeCallback: (_, __) => Trimhiprec_Biashiprec_Write(_, __),
                     readCallback: (_, __) => Trimhiprec_Biashiprec_Read(_, __),
                     name: "Biashiprec")
             .WithReservedBits(23, 1)
-            .WithFlag(24, out trimhiprec_tempcobhiprec_bit, 
+            .WithFlag(24, out trimhiprec_tempcobhiprec_bit,
                     valueProviderCallback: (_) => {
                         Trimhiprec_Tempcobhiprec_ValueProvider(_);
-                        return trimhiprec_tempcobhiprec_bit.Value;               
+                        return trimhiprec_tempcobhiprec_bit.Value;
                     },
                     writeCallback: (_, __) => Trimhiprec_Tempcobhiprec_Write(_, __),
                     readCallback: (_, __) => Trimhiprec_Tempcobhiprec_Read(_, __),
                     name: "Tempcobhiprec")
             .WithReservedBits(25, 1)
-            .WithFlag(26, out trimhiprec_tempcochiprec_bit, 
+            .WithFlag(26, out trimhiprec_tempcochiprec_bit,
                     valueProviderCallback: (_) => {
                         Trimhiprec_Tempcochiprec_ValueProvider(_);
-                        return trimhiprec_tempcochiprec_bit.Value;               
+                        return trimhiprec_tempcochiprec_bit.Value;
                     },
                     writeCallback: (_, __) => Trimhiprec_Tempcochiprec_Write(_, __),
                     readCallback: (_, __) => Trimhiprec_Tempcochiprec_Read(_, __),
                     name: "Tempcochiprec")
-            .WithValueField(27, 3, out trimhiprec_rotenhiprec_field, 
+            .WithValueField(27, 3, out trimhiprec_rotenhiprec_field,
                     valueProviderCallback: (_) => {
                         Trimhiprec_Rotenhiprec_ValueProvider(_);
-                        return trimhiprec_rotenhiprec_field.Value;               
+                        return trimhiprec_rotenhiprec_field.Value;
                     },
                     writeCallback: (_, __) => Trimhiprec_Rotenhiprec_Write(_, __),
                     readCallback: (_, __) => Trimhiprec_Rotenhiprec_Read(_, __),
@@ -579,22 +579,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(30, 2)
             .WithReadCallback((_, __) => Trimhiprec_Read(_, __))
             .WithWriteCallback((_, __) => Trimhiprec_Write(_, __));
-        
+
         // Stepsize - Offset : 0x40
         protected DoubleWordRegister  GenerateStepsizeRegister() => new DoubleWordRegister(this, 0x2039C3)
-            .WithValueField(0, 15, out stepsize_stepoffset_field, 
+            .WithValueField(0, 15, out stepsize_stepoffset_field,
                     valueProviderCallback: (_) => {
                         Stepsize_Stepoffset_ValueProvider(_);
-                        return stepsize_stepoffset_field.Value;               
+                        return stepsize_stepoffset_field.Value;
                     },
                     writeCallback: (_, __) => Stepsize_Stepoffset_Write(_, __),
                     readCallback: (_, __) => Stepsize_Stepoffset_Read(_, __),
                     name: "Stepoffset")
             .WithReservedBits(15, 1)
-            .WithValueField(16, 8, out stepsize_stepgain_field, 
+            .WithValueField(16, 8, out stepsize_stepgain_field,
                     valueProviderCallback: (_) => {
                         Stepsize_Stepgain_ValueProvider(_);
-                        return stepsize_stepgain_field.Value;               
+                        return stepsize_stepgain_field.Value;
                     },
                     writeCallback: (_, __) => Stepsize_Stepgain_Write(_, __),
                     readCallback: (_, __) => Stepsize_Stepgain_Read(_, __),
@@ -602,70 +602,70 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(24, 8)
             .WithReadCallback((_, __) => Stepsize_Read(_, __))
             .WithWriteCallback((_, __) => Stepsize_Write(_, __));
-        
+
         // Testctrl - Offset : 0x44
         protected DoubleWordRegister  GenerateTestctrlRegister() => new DoubleWordRegister(this, 0x0)
-            .WithFlag(0, out testctrl_autodis_bit, 
+            .WithFlag(0, out testctrl_autodis_bit,
                     valueProviderCallback: (_) => {
                         Testctrl_Autodis_ValueProvider(_);
-                        return testctrl_autodis_bit.Value;               
+                        return testctrl_autodis_bit.Value;
                     },
                     writeCallback: (_, __) => Testctrl_Autodis_Write(_, __),
                     readCallback: (_, __) => Testctrl_Autodis_Read(_, __),
                     name: "Autodis")
-            .WithFlag(1, out testctrl_tempbasedcaldis_bit, 
+            .WithFlag(1, out testctrl_tempbasedcaldis_bit,
                     valueProviderCallback: (_) => {
                         Testctrl_Tempbasedcaldis_ValueProvider(_);
-                        return testctrl_tempbasedcaldis_bit.Value;               
+                        return testctrl_tempbasedcaldis_bit.Value;
                     },
                     writeCallback: (_, __) => Testctrl_Tempbasedcaldis_Write(_, __),
                     readCallback: (_, __) => Testctrl_Tempbasedcaldis_Read(_, __),
                     name: "Tempbasedcaldis")
-            .WithFlag(2, out testctrl_calovren_bit, 
+            .WithFlag(2, out testctrl_calovren_bit,
                     valueProviderCallback: (_) => {
                         Testctrl_Calovren_ValueProvider(_);
-                        return testctrl_calovren_bit.Value;               
+                        return testctrl_calovren_bit.Value;
                     },
                     writeCallback: (_, __) => Testctrl_Calovren_Write(_, __),
                     readCallback: (_, __) => Testctrl_Calovren_Read(_, __),
                     name: "Calovren")
-            .WithFlag(3, out testctrl_temposcovren_bit, 
+            .WithFlag(3, out testctrl_temposcovren_bit,
                     valueProviderCallback: (_) => {
                         Testctrl_Temposcovren_ValueProvider(_);
-                        return testctrl_temposcovren_bit.Value;               
+                        return testctrl_temposcovren_bit.Value;
                     },
                     writeCallback: (_, __) => Testctrl_Temposcovren_Write(_, __),
                     readCallback: (_, __) => Testctrl_Temposcovren_Read(_, __),
                     name: "Temposcovren")
             .WithReservedBits(4, 4)
-            .WithValueField(8, 8, out testctrl_calsdminovr_field, 
+            .WithValueField(8, 8, out testctrl_calsdminovr_field,
                     valueProviderCallback: (_) => {
                         Testctrl_Calsdminovr_ValueProvider(_);
-                        return testctrl_calsdminovr_field.Value;               
+                        return testctrl_calsdminovr_field.Value;
                     },
                     writeCallback: (_, __) => Testctrl_Calsdminovr_Write(_, __),
                     readCallback: (_, __) => Testctrl_Calsdminovr_Read(_, __),
                     name: "Calsdminovr")
-            .WithValueField(16, 6, out testctrl_calfineovr_field, 
+            .WithValueField(16, 6, out testctrl_calfineovr_field,
                     valueProviderCallback: (_) => {
                         Testctrl_Calfineovr_ValueProvider(_);
-                        return testctrl_calfineovr_field.Value;               
+                        return testctrl_calfineovr_field.Value;
                     },
                     writeCallback: (_, __) => Testctrl_Calfineovr_Write(_, __),
                     readCallback: (_, __) => Testctrl_Calfineovr_Read(_, __),
                     name: "Calfineovr")
-            .WithFlag(22, out testctrl_calsdmoutovr_bit, 
+            .WithFlag(22, out testctrl_calsdmoutovr_bit,
                     valueProviderCallback: (_) => {
                         Testctrl_Calsdmoutovr_ValueProvider(_);
-                        return testctrl_calsdmoutovr_bit.Value;               
+                        return testctrl_calsdmoutovr_bit.Value;
                     },
                     writeCallback: (_, __) => Testctrl_Calsdmoutovr_Write(_, __),
                     readCallback: (_, __) => Testctrl_Calsdmoutovr_Read(_, __),
                     name: "Calsdmoutovr")
-            .WithValueField(23, 2, out testctrl_temposcctrlovr_field, 
+            .WithValueField(23, 2, out testctrl_temposcctrlovr_field,
                     valueProviderCallback: (_) => {
                         Testctrl_Temposcctrlovr_ValueProvider(_);
-                        return testctrl_temposcctrlovr_field.Value;               
+                        return testctrl_temposcctrlovr_field.Value;
                     },
                     writeCallback: (_, __) => Testctrl_Temposcctrlovr_Write(_, __),
                     readCallback: (_, __) => Testctrl_Temposcctrlovr_Read(_, __),
@@ -673,13 +673,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(25, 7)
             .WithReadCallback((_, __) => Testctrl_Read(_, __))
             .WithWriteCallback((_, __) => Testctrl_Write(_, __));
-        
+
         // Testcalstatus - Offset : 0x48
         protected DoubleWordRegister  GenerateTestcalstatusRegister() => new DoubleWordRegister(this, 0x0)
             .WithValueField(0, 21, out testcalstatus_calcnt_field, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Testcalstatus_Calcnt_ValueProvider(_);
-                        return testcalstatus_calcnt_field.Value;               
+                        return testcalstatus_calcnt_field.Value;
                     },
                     readCallback: (_, __) => Testcalstatus_Calcnt_Read(_, __),
                     name: "Calcnt")
@@ -687,73 +687,73 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithFlag(29, out testcalstatus_sleep_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Testcalstatus_Sleep_ValueProvider(_);
-                        return testcalstatus_sleep_bit.Value;               
+                        return testcalstatus_sleep_bit.Value;
                     },
                     readCallback: (_, __) => Testcalstatus_Sleep_Read(_, __),
                     name: "Sleep")
             .WithFlag(30, out testcalstatus_calactive_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Testcalstatus_Calactive_ValueProvider(_);
-                        return testcalstatus_calactive_bit.Value;               
+                        return testcalstatus_calactive_bit.Value;
                     },
                     readCallback: (_, __) => Testcalstatus_Calactive_Read(_, __),
                     name: "Calactive")
             .WithFlag(31, out testcalstatus_tcactive_bit, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Testcalstatus_Tcactive_ValueProvider(_);
-                        return testcalstatus_tcactive_bit.Value;               
+                        return testcalstatus_tcactive_bit.Value;
                     },
                     readCallback: (_, __) => Testcalstatus_Tcactive_Read(_, __),
                     name: "Tcactive")
             .WithReadCallback((_, __) => Testcalstatus_Read(_, __))
             .WithWriteCallback((_, __) => Testcalstatus_Write(_, __));
-        
+
         // Testtcstatus - Offset : 0x4C
         protected DoubleWordRegister  GenerateTesttcstatusRegister() => new DoubleWordRegister(this, 0x0)
             .WithValueField(0, 16, out testtcstatus_tccntcal_field, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Testtcstatus_Tccntcal_ValueProvider(_);
-                        return testtcstatus_tccntcal_field.Value;               
+                        return testtcstatus_tccntcal_field.Value;
                     },
                     readCallback: (_, __) => Testtcstatus_Tccntcal_Read(_, __),
                     name: "Tccntcal")
             .WithReservedBits(16, 16)
             .WithReadCallback((_, __) => Testtcstatus_Read(_, __))
             .WithWriteCallback((_, __) => Testtcstatus_Write(_, __));
-        
+
         // Testtclatest - Offset : 0x50
         protected DoubleWordRegister  GenerateTesttclatestRegister() => new DoubleWordRegister(this, 0x0)
             .WithValueField(0, 16, out testtclatest_tccntlatest_field, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Testtclatest_Tccntlatest_ValueProvider(_);
-                        return testtclatest_tccntlatest_field.Value;               
+                        return testtclatest_tccntlatest_field.Value;
                     },
                     readCallback: (_, __) => Testtclatest_Tccntlatest_Read(_, __),
                     name: "Tccntlatest")
             .WithReservedBits(16, 16)
             .WithReadCallback((_, __) => Testtclatest_Read(_, __))
             .WithWriteCallback((_, __) => Testtclatest_Write(_, __));
-        
+
         // Testcalres - Offset : 0x54
         protected DoubleWordRegister  GenerateTestcalresRegister() => new DoubleWordRegister(this, 0x0)
             .WithValueField(0, 8, out testcalres_calressdm_field, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Testcalres_Calressdm_ValueProvider(_);
-                        return testcalres_calressdm_field.Value;               
+                        return testcalres_calressdm_field.Value;
                     },
                     readCallback: (_, __) => Testcalres_Calressdm_Read(_, __),
                     name: "Calressdm")
             .WithValueField(8, 6, out testcalres_calresfine_field, FieldMode.Read,
                     valueProviderCallback: (_) => {
                         Testcalres_Calresfine_ValueProvider(_);
-                        return testcalres_calresfine_field.Value;               
+                        return testcalres_calresfine_field.Value;
                     },
                     readCallback: (_, __) => Testcalres_Calresfine_Read(_, __),
                     name: "Calresfine")
             .WithReservedBits(14, 18)
             .WithReadCallback((_, __) => Testcalres_Read(_, __))
             .WithWriteCallback((_, __) => Testcalres_Write(_, __));
-        
+
         // Testcmd - Offset : 0x58
         protected DoubleWordRegister  GenerateTestcmdRegister() => new DoubleWordRegister(this, 0x0)
             .WithFlag(0, out testcmd_starttc_bit, FieldMode.Write,
@@ -765,13 +765,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(2, 30)
             .WithReadCallback((_, __) => Testcmd_Read(_, __))
             .WithWriteCallback((_, __) => Testcmd_Write(_, __));
-        
+
         // Defeat - Offset : 0x5C
         protected DoubleWordRegister  GenerateDefeatRegister() => new DoubleWordRegister(this, 0x0)
-            .WithFlag(0, out defeat_highprec_bit, 
+            .WithFlag(0, out defeat_highprec_bit,
                     valueProviderCallback: (_) => {
                         Defeat_Highprec_ValueProvider(_);
-                        return defeat_highprec_bit.Value;               
+                        return defeat_highprec_bit.Value;
                     },
                     writeCallback: (_, __) => Defeat_Highprec_Write(_, __),
                     readCallback: (_, __) => Defeat_Highprec_Read(_, __),
@@ -779,7 +779,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             .WithReservedBits(1, 31)
             .WithReadCallback((_, __) => Defeat_Read(_, __))
             .WithWriteCallback((_, __) => Defeat_Write(_, __));
-        
+
 
         private uint ReadWFIFO()
         {
@@ -799,7 +799,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             return 0x0;
         }
 
-        
+
         private void WriteWSTATIC()
         {
             if(Enabled)
@@ -817,7 +817,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Ipversion_Write(uint a, uint b);
         partial void Ipversion_Read(uint a, uint b);
-        
+
         // Ctrl - Offset : 0x4
         protected IFlagRegisterField ctrl_forceen_bit;
         partial void Ctrl_Forceen_Write(bool a, bool b);
@@ -830,7 +830,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Ctrl_Write(uint a, uint b);
         partial void Ctrl_Read(uint a, uint b);
-        
+
         // Status - Offset : 0x8
         protected IFlagRegisterField status_rdy_bit;
         partial void Status_Rdy_Read(bool a, bool b);
@@ -844,7 +844,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Status_Write(uint a, uint b);
         partial void Status_Read(uint a, uint b);
-        
+
         // If - Offset : 0x14
         protected IFlagRegisterField if_rdy_bit;
         partial void If_Rdy_Write(bool a, bool b);
@@ -885,7 +885,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void If_Write(uint a, uint b);
         partial void If_Read(uint a, uint b);
-        
+
         // Ien - Offset : 0x18
         protected IFlagRegisterField ien_rdy_bit;
         partial void Ien_Rdy_Write(bool a, bool b);
@@ -926,7 +926,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Ien_Write(uint a, uint b);
         partial void Ien_Read(uint a, uint b);
-        
+
         // Lock - Offset : 0x20
         protected IValueRegisterField lock_lockkey_field;
         partial void Lock_Lockkey_Write(ulong a, ulong b);
@@ -934,7 +934,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Lock_Write(uint a, uint b);
         partial void Lock_Read(uint a, uint b);
-        
+
         // Cfg - Offset : 0x24
         protected IFlagRegisterField cfg_highprecen_bit;
         partial void Cfg_Highprecen_Write(bool a, bool b);
@@ -943,7 +943,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Cfg_Write(uint a, uint b);
         partial void Cfg_Read(uint a, uint b);
-        
+
         // Hiprecision - Offset : 0x28
         protected IValueRegisterField hiprecision_calwnd_field;
         partial void Hiprecision_Calwnd_Write(ulong a, ulong b);
@@ -976,7 +976,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Hiprecision_Write(uint a, uint b);
         partial void Hiprecision_Read(uint a, uint b);
-        
+
         // Nomcal - Offset : 0x2C
         protected IValueRegisterField nomcal_nomcalcnt_field;
         partial void Nomcal_Nomcalcnt_Write(ulong a, ulong b);
@@ -985,7 +985,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Nomcal_Write(uint a, uint b);
         partial void Nomcal_Read(uint a, uint b);
-        
+
         // Nomcalinv - Offset : 0x30
         protected IValueRegisterField nomcalinv_nomcalcntinv_field;
         partial void Nomcalinv_Nomcalcntinv_Write(ulong a, ulong b);
@@ -994,7 +994,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Nomcalinv_Write(uint a, uint b);
         partial void Nomcalinv_Read(uint a, uint b);
-        
+
         // Cmd - Offset : 0x34
         protected IFlagRegisterField cmd_reducetcint_bit;
         partial void Cmd_Reducetcint_Write(bool a, bool b);
@@ -1002,7 +1002,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Cmd_Write(uint a, uint b);
         partial void Cmd_Read(uint a, uint b);
-        
+
         // Trim - Offset : 0x38
         protected IValueRegisterField trim_trimfine_field;
         partial void Trim_Trimfine_Write(ulong a, ulong b);
@@ -1039,7 +1039,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Trim_Write(uint a, uint b);
         partial void Trim_Read(uint a, uint b);
-        
+
         // Trimhiprec - Offset : 0x3C
         protected IValueRegisterField trimhiprec_trimtemp_field;
         partial void Trimhiprec_Trimtemp_Write(ulong a, ulong b);
@@ -1068,7 +1068,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Trimhiprec_Write(uint a, uint b);
         partial void Trimhiprec_Read(uint a, uint b);
-        
+
         // Stepsize - Offset : 0x40
         protected IValueRegisterField stepsize_stepoffset_field;
         partial void Stepsize_Stepoffset_Write(ulong a, ulong b);
@@ -1081,7 +1081,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Stepsize_Write(uint a, uint b);
         partial void Stepsize_Read(uint a, uint b);
-        
+
         // Testctrl - Offset : 0x44
         protected IFlagRegisterField testctrl_autodis_bit;
         partial void Testctrl_Autodis_Write(bool a, bool b);
@@ -1118,7 +1118,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Testctrl_Write(uint a, uint b);
         partial void Testctrl_Read(uint a, uint b);
-        
+
         // Testcalstatus - Offset : 0x48
         protected IValueRegisterField testcalstatus_calcnt_field;
         partial void Testcalstatus_Calcnt_Read(ulong a, ulong b);
@@ -1135,7 +1135,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Testcalstatus_Write(uint a, uint b);
         partial void Testcalstatus_Read(uint a, uint b);
-        
+
         // Testtcstatus - Offset : 0x4C
         protected IValueRegisterField testtcstatus_tccntcal_field;
         partial void Testtcstatus_Tccntcal_Read(ulong a, ulong b);
@@ -1143,7 +1143,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Testtcstatus_Write(uint a, uint b);
         partial void Testtcstatus_Read(uint a, uint b);
-        
+
         // Testtclatest - Offset : 0x50
         protected IValueRegisterField testtclatest_tccntlatest_field;
         partial void Testtclatest_Tccntlatest_Read(ulong a, ulong b);
@@ -1151,7 +1151,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Testtclatest_Write(uint a, uint b);
         partial void Testtclatest_Read(uint a, uint b);
-        
+
         // Testcalres - Offset : 0x54
         protected IValueRegisterField testcalres_calressdm_field;
         partial void Testcalres_Calressdm_Read(ulong a, ulong b);
@@ -1162,7 +1162,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Testcalres_Write(uint a, uint b);
         partial void Testcalres_Read(uint a, uint b);
-        
+
         // Testcmd - Offset : 0x58
         protected IFlagRegisterField testcmd_starttc_bit;
         partial void Testcmd_Starttc_Write(bool a, bool b);
@@ -1173,7 +1173,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Testcmd_Write(uint a, uint b);
         partial void Testcmd_Read(uint a, uint b);
-        
+
         // Defeat - Offset : 0x5C
         protected IFlagRegisterField defeat_highprec_bit;
         partial void Defeat_Highprec_Write(bool a, bool b);
@@ -1182,17 +1182,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void Defeat_Write(uint a, uint b);
         partial void Defeat_Read(uint a, uint b);
-        
+
         partial void LFRCO_Reset();
 
         partial void EFR32xG2_LFRCO_2_Constructor();
 
         public bool Enabled
         {
-            get 
+            get
             {
                 // Your boolean which you have to define in your partial class file
-                return isEnabled;
+                return IsEnabled;
             }
         }
 
@@ -1247,7 +1247,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 default:
                     this.Log(LogLevel.Error, "writing doubleWord to non existing offset {0:X}, case : {1:X}", address, address & 0x3000);
                     break;
-            }           
+            }
         }
 
         protected enum Registers
@@ -1273,7 +1273,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Testcalres = 0x54,
             Testcmd = 0x58,
             Defeat = 0x5C,
-            
+
             Ipversion_SET = 0x1000,
             Ctrl_SET = 0x1004,
             Status_SET = 0x1008,
@@ -1295,7 +1295,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Testcalres_SET = 0x1054,
             Testcmd_SET = 0x1058,
             Defeat_SET = 0x105C,
-            
+
             Ipversion_CLR = 0x2000,
             Ctrl_CLR = 0x2004,
             Status_CLR = 0x2008,
@@ -1317,7 +1317,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Testcalres_CLR = 0x2054,
             Testcmd_CLR = 0x2058,
             Defeat_CLR = 0x205C,
-            
+
             Ipversion_TGL = 0x3000,
             Ctrl_TGL = 0x3004,
             Status_TGL = 0x3008,
@@ -1339,8 +1339,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Testcalres_TGL = 0x3054,
             Testcmd_TGL = 0x3058,
             Defeat_TGL = 0x305C,
-        }   
-        
+        }
+
         public long Size => 0x4000;
 
         protected DoubleWordRegisterCollection registers;

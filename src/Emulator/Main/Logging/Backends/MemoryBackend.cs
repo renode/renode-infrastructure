@@ -1,12 +1,13 @@
 ﻿//
 // Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Logging.Backends
@@ -50,9 +51,9 @@ namespace Antmicro.Renode.Logging.Backends
         }
 
         public const string Name = "memory";
+        private readonly object locker;
 
         private readonly Queue<MemoryLogEntry> entries;
-        private object locker;
 
         private const int DefaultLimit = 1000;
     }
@@ -67,7 +68,9 @@ namespace Antmicro.Renode.Logging.Backends
         }
 
         public DateTime DateTime { get; }
+
         public LogLevel Type { get; }
+
         public string Message { get; }
     }
 }

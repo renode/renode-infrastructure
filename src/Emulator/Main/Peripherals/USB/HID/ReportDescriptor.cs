@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.USB.HID
@@ -72,8 +73,11 @@ namespace Antmicro.Renode.Core.USB.HID
             }
 
             public ItemSize Size { get; }
+
             public ItemType Type { get; }
+
             public byte Tag { get; }
+
             public byte[] Data { get; }
         }
 

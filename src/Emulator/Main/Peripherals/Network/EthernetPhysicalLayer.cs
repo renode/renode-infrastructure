@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.UserInterface;
 
@@ -103,36 +104,67 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         public int BasicControl { get; set; }
+
         public int BasicStatus { get; set; }
+
         public int Id1 { get; set; }
+
         public int Id2 { get; set; }
+
         public int AutoNegotiationAdvertisement { get; set; }
+
         public int AutoNegotiationLinkPartnerBasePageAbility { get; set; }
+
         public int AutoNegotiationExpansion { get; set; }
+
         public int AutoNegotiationNextPageTransmit { get; set; }
+
         public int AutoNegotiationLinkPartnerReceivedNextPage { get; set; }
+
         public int MasterSlaveControl { get; set; }
+
         public int MasterSlaveStatus { get; set; }
+
         public int PowerSourcingEquipmentControl { get; set; }
+
         public int PowerSourcingEquipmentStatus { get; set; }
+
         public int MDIOManageableDeviceAccessControl { get; set; }
+
         public int MDIOManageableDeviceAcceddAddressData { get; set; }
+
         public int ExtendedStatus { get; set; }
+
         public int VendorSpecific0 { get; set; }
+
         public int VendorSpecific1 { get; set; }
+
         public int VendorSpecific2 { get; set; }
+
         public int VendorSpecific3 { get; set; }
+
         public int VendorSpecific4 { get; set; }
+
         public int VendorSpecific5 { get; set; }
+
         public int VendorSpecific6 { get; set; }
+
         public int VendorSpecific7 { get; set; }
+
         public int VendorSpecific8 { get; set; }
+
         public int VendorSpecific9 { get; set; }
+
         public int VendorSpecific10 { get; set; }
+
         public int VendorSpecific11 { get; set; }
+
         public int VendorSpecific12 { get; set; }
+
         public int VendorSpecific13 { get; set; }
+
         public int VendorSpecific14 { get; set; }
+
         public int VendorSpecific15 { get; set; }
 
         protected enum Register

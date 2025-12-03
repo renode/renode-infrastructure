@@ -6,34 +6,21 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.Timers;
 using System;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     public class OMAP_GPTimer : LimitTimer, IDoubleWordPeripheral
     {
-        public OMAP_GPTimer(IMachine machine) : base (machine.ClockSource, (38400000), direction: Direction.Ascending, limit: (0xFFFFFFFF), enabled: true)
+        public OMAP_GPTimer(IMachine machine) : base(machine.ClockSource, (38400000), direction: Direction.Ascending, limit: (0xFFFFFFFF), enabled: true)
         { // TODO: hack - 10 times slower, because of Stopwatch limitation
             AutoUpdate = true;
             IRQ = new GPIO();
-        }
-
-        public GPIO IRQ { get; private set; }
-
-        protected override void OnLimitReached()
-        {
-            this.NoisyLog("Alarm!!!");
-            if(it_ena > 0)
-            {
-                this.NoisyLog("generate interrupt");
-                IRQ.Set(true);
-            }
         }
 
         public uint ReadDoubleWord(long offset)
@@ -56,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             } // TCRR
             return 0;
         }
-     
+
         public void WriteDoubleWord(long offset, uint value)
         {
             if(offset == 0x10)
@@ -94,9 +81,20 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
+        public GPIO IRQ { get; private set; }
+
+        protected override void OnLimitReached()
+        {
+            this.NoisyLog("Alarm!!!");
+            if(it_ena > 0)
+            {
+                this.NoisyLog("generate interrupt");
+                IRQ.Set(true);
+            }
+        }
+
         uint config = 0;
         uint load_val = 0;
         uint it_ena = 0;
     }
 }
-

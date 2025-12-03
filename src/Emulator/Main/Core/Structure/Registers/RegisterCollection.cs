@@ -5,12 +5,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Utilities;
-using System;
 
 namespace Antmicro.Renode.Core.Structure.Registers
 {
@@ -45,8 +46,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
     public static class RegisterCollectionHookExtensions
     {
         public static void AddBeforeReadHook<T, R>(this IProvidesRegisterCollection<R> @this, long offset, Func<long, T?> func)
-            where T: struct
-            where R: IRegisterCollection
+            where T : struct
+            where R : IRegisterCollection
         {
             if(!(@this.RegistersCollection is IRegisterCollection<T> registerCollection))
             {
@@ -56,8 +57,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         public static void AddAfterReadHook<T, R>(this IProvidesRegisterCollection<R> @this, long offset, Func<long, T, T?> func)
-            where T: struct
-            where R: IRegisterCollection
+            where T : struct
+            where R : IRegisterCollection
         {
             if(!(@this.RegistersCollection is IRegisterCollection<T> registerCollection))
             {
@@ -67,8 +68,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         public static void AddBeforeWriteHook<T, R>(this IProvidesRegisterCollection<R> @this, long offset, Func<long, T, T?> func)
-            where T: struct
-            where R: IRegisterCollection
+            where T : struct
+            where R : IRegisterCollection
         {
             if(!(@this.RegistersCollection is IRegisterCollection<T> registerCollection))
             {
@@ -78,8 +79,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         public static void AddAfterWriteHook<T, R>(this IProvidesRegisterCollection<R> @this, long offset, Action<long, T> func)
-            where T: struct
-            where R: IRegisterCollection
+            where T : struct
+            where R : IRegisterCollection
         {
             if(!(@this.RegistersCollection is IRegisterCollection<T> registerCollection))
             {
@@ -89,31 +90,31 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         public static void RemoveBeforeReadHook<R>(this IProvidesRegisterCollection<R> @this, long offset)
-            where R: IRegisterCollection
+            where R : IRegisterCollection
         {
             @this.RegistersCollection.RemoveBeforeReadHook(offset);
         }
 
         public static void RemoveAfterReadHook<R>(this IProvidesRegisterCollection<R> @this, long offset)
-            where R: IRegisterCollection
+            where R : IRegisterCollection
         {
             @this.RegistersCollection.RemoveAfterReadHook(offset);
         }
 
         public static void RemoveBeforeWriteHook<R>(this IProvidesRegisterCollection<R> @this, long offset)
-            where R: IRegisterCollection
+            where R : IRegisterCollection
         {
             @this.RegistersCollection.RemoveBeforeWriteHook(offset);
         }
 
         public static void RemoveAfterWriteHook<R>(this IProvidesRegisterCollection<R> @this, long offset)
-            where R: IRegisterCollection
+            where R : IRegisterCollection
         {
             @this.RegistersCollection.RemoveAfterWriteHook(offset);
         }
     }
 
-    public abstract class BaseRegisterCollection<T, R> : IRegisterCollection where R: PeripheralRegister, IPeripheralRegister<T> where T: struct
+    public abstract class BaseRegisterCollection<T, R> : IRegisterCollection where R : PeripheralRegister, IPeripheralRegister<T> where T : struct
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Antmicro.Renode.Core.Structure.Registers.BaseRegisterCollection"/> class.
@@ -461,16 +462,22 @@ namespace Antmicro.Renode.Core.Structure.Registers
         void Reset();
 
         void RemoveBeforeReadHook(long offset);
+
         void RemoveAfterReadHook(long offset);
+
         void RemoveBeforeWriteHook(long offset);
+
         void RemoveAfterWriteHook(long offset);
     }
 
-    public interface IRegisterCollection<T> : IRegisterCollection where T: struct
+    public interface IRegisterCollection<T> : IRegisterCollection where T : struct
     {
         void AddBeforeReadHook(long offset, Func<long, T?> hook);
+
         void AddAfterReadHook(long offset, Func<long, T, T?> hook);
+
         void AddBeforeWriteHook(long offset, Func<long, T, T?> hook);
+
         void AddAfterWriteHook(long offset, Action<long, T> hook);
     }
 

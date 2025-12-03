@@ -9,20 +9,25 @@
  */
 #include "callbacks.h"
 #include "cpu.h"
+#include "debug.h"
+#include "memory_range.h"
+#include "registers.h"
 #include "utils.h"
 #include "unwind.h"
 #ifdef TARGET_X86KVM
 #include "x86_reports.h"
 #endif
 
-#include <linux/kvm.h>
-#include <string.h>
-#include <inttypes.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <linux/kvm.h>
 #include <signal.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/queue.h>
 #include <sys/time.h>
 
 #define USEC_IN_SEC 1000000
@@ -34,6 +39,9 @@
 #define CPUID_FEATURE_INFO 0x1
 #define CPUID_FEATURE_INFO_EXTENDED 0x80000001
 
+#define DEFAULT_DEBUG_FLAGS (KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP)
+#define SINGLE_STEP_DEBUG_FLAGS (KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP)
+
 CpuState *cpu;
 __thread struct unwind_state unwind_state;
 static void kvm_set_cpuid(CpuState *s)
@@ -41,16 +49,31 @@ static void kvm_set_cpuid(CpuState *s)
     struct kvm_cpuid2 *kvm_cpuid;
 
     kvm_cpuid = calloc(sizeof(struct kvm_cpuid2) + CPUID_MAX_NUMBER_OF_ENTRIES, sizeof(kvm_cpuid->entries[0]));
+    if (kvm_cpuid == NULL) {
+        kvm_abort("Calloc failed");
+    }
 
     kvm_cpuid->nent = CPUID_MAX_NUMBER_OF_ENTRIES;
-    if (ioctl(s->kvm_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0) {
+    if (ioctl_with_retry(s->kvm_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0) {
         kvm_abortf("KVM_GET_SUPPORTED_CPUID: %s", strerror(errno));
     }
 
-    if (ioctl(s->vcpu_fd, KVM_SET_CPUID2, kvm_cpuid) < 0) {
+    if (ioctl_with_retry(s->vcpu_fd, KVM_SET_CPUID2, kvm_cpuid) < 0) {
         kvm_abortf("KVM_SET_CPUID2: %s", strerror(errno));
     }
     free(kvm_cpuid);
+}
+
+static void set_debug_flags(uint32_t flags)
+{
+    /* Changing debug flags may alter sregs, make sure they are up to date */
+    kvm_registers_synchronize();
+    struct kvm_guest_debug debug = {
+        .control = flags,
+    };
+    if (ioctl_with_retry(cpu->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug) < 0) {
+        kvm_runtime_abortf("KVM_SET_GUEST_DEBUG: %s", strerror(errno));
+    }
 }
 
 static void cpu_init(CpuState *s)
@@ -63,7 +86,7 @@ static void cpu_init(CpuState *s)
     if (s->kvm_fd < 0) {
         kvm_abort("KVM not available");
     }
-    ret = ioctl(s->kvm_fd, KVM_GET_API_VERSION, 0);
+    ret = ioctl_with_retry(s->kvm_fd, KVM_GET_API_VERSION, 0);
     if (ret < 0) {
         kvm_abortf("KVM_GET_API_VERSION: %s", strerror(errno));
     }
@@ -71,32 +94,32 @@ static void cpu_init(CpuState *s)
         close(s->kvm_fd);
         kvm_abort("Only version 12 of KVM is currently supported");
     }
-    s->vm_fd = ioctl(s->kvm_fd, KVM_CREATE_VM, 0);
+    s->vm_fd = ioctl_with_retry(s->kvm_fd, KVM_CREATE_VM, 0);
     if (s->vm_fd < 0) {
         kvm_abortf("KVM_CREATE_VM: %s", strerror(errno));
     }
 
     /* just before the BIOS */
     base_addr = 0xfffbc000;
-    if (ioctl(s->vm_fd, KVM_SET_IDENTITY_MAP_ADDR, &base_addr) < 0) {
+    if (ioctl_with_retry(s->vm_fd, KVM_SET_IDENTITY_MAP_ADDR, &base_addr) < 0) {
         kvm_abortf("KVM_SET_IDENTITY_MAP_ADDR: %s", strerror(errno));
     }
 
-    if (ioctl(s->vm_fd, KVM_SET_TSS_ADDR, (long)(base_addr + 0x1000)) < 0) {
+    if (ioctl_with_retry(s->vm_fd, KVM_SET_TSS_ADDR, (long)(base_addr + 0x1000)) < 0) {
         kvm_abortf("KVM_SET_TSS_ADDR: %s", strerror(errno));
     }
 
-    if (ioctl(s->vm_fd, KVM_CREATE_IRQCHIP, 0) < 0) {
+    if (ioctl_with_retry(s->vm_fd, KVM_CREATE_IRQCHIP, 0) < 0) {
         kvm_abortf("KVM_CREATE_IRQCHIP: %s", strerror(errno));
     }
 
     memset(&pit_config, 0, sizeof(pit_config));
     pit_config.flags = KVM_PIT_SPEAKER_DUMMY;
-    if (ioctl(s->vm_fd, KVM_CREATE_PIT2, &pit_config)) {
+    if (ioctl_with_retry(s->vm_fd, KVM_CREATE_PIT2, &pit_config)) {
         kvm_abortf("KVM_CREATE_PIT2: %s", strerror(errno));
     }
 
-    s->vcpu_fd = ioctl(s->vm_fd, KVM_CREATE_VCPU, 0);
+    s->vcpu_fd = ioctl_with_retry(s->vm_fd, KVM_CREATE_VCPU, 0);
     if (s->vcpu_fd < 0) {
         kvm_abortf("KVM_CREATE_VCPU: %s", strerror(errno));
     }
@@ -104,23 +127,30 @@ static void cpu_init(CpuState *s)
     kvm_set_cpuid(s);
 
     /* map the kvm_run structure */
-    int kvm_run_size = ioctl(s->kvm_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
-    if (kvm_run_size < 0) {
+    s->kvm_run_size = ioctl_with_retry(s->kvm_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
+    if (s->kvm_run_size < 0) {
         kvm_abortf("KVM_GET_VCPU_MMAP_SIZE: %s", strerror(errno));
     }
 
-    s->kvm_run = mmap(NULL, kvm_run_size, PROT_READ | PROT_WRITE,
+    s->kvm_run = mmap(NULL, s->kvm_run_size, PROT_READ | PROT_WRITE,
                       MAP_SHARED, s->vcpu_fd, 0);
     if (!s->kvm_run) {
         kvm_abortf("mmap kvm_run: %s", strerror(errno));
     }
 
-    cpu->exit_requested = false;
-    cpu->sregs_state = CLEAR;
+    set_debug_flags(DEFAULT_DEBUG_FLAGS);
+
+    cpu->single_step = false;
+    cpu->regs_state = cpu->sregs_state = CLEAR;
+    cpu->is_executing = false;
 }
 
 static void kill_cpu_thread(int sig)
 {
+    if (!cpu->is_executing) {
+        return;
+    }
+
     if (tgkill(cpu->tgid, cpu->tid, sig) < 0) {
         /* ESRCH means there is no such process. Such situation may occur when cpu thread already exited. */
         if (errno != ESRCH) {
@@ -131,9 +161,9 @@ static void kill_cpu_thread(int sig)
 
 static void sigalarm_handler(int sig)
 {
-    if (gettid() == cpu->tid) {
-        cpu->exit_requested = true;
-    } else {
+    cpu->kvm_run->immediate_exit = true;
+
+    if (gettid() != cpu->tid) {
         /* we are not the CPU thread, redirect signal */
         kill_cpu_thread(SIGALRM);
     }
@@ -154,6 +184,9 @@ void kvm_init()
     sigaction(SIGALRM, &act, NULL);
 
     cpu = calloc(1, sizeof(*cpu));
+    if (cpu == NULL) {
+        kvm_abort("Calloc failed");
+    }
 
     cpu_init(cpu);
 }
@@ -166,42 +199,11 @@ void kvm_set_irq(int level, int interrupt_number)
     struct kvm_irq_level irq_level;
     irq_level.irq = interrupt_number;
     irq_level.level = level;
-    if (ioctl(cpu->vm_fd, KVM_IRQ_LINE, &irq_level) < 0) {
+    if (ioctl_with_retry(cpu->vm_fd, KVM_IRQ_LINE, &irq_level) < 0) {
         kvm_runtime_abortf("KVM_IRQ_LINE");
     }
 }
 EXC_VOID_2(kvm_set_irq, int, level, int, interrupt_number)
-
-void kvm_map_range(int32_t slot, uint64_t address, uint64_t size, uint64_t pointer)
-{
-    struct kvm_userspace_memory_region region;
-
-    region.slot = slot;
-    region.flags = 0;
-    region.guest_phys_addr = address;
-    region.memory_size = size;
-    region.userspace_addr = (uintptr_t)pointer;
-
-    if (ioctl(cpu->vm_fd, KVM_SET_USER_MEMORY_REGION, &region) < 0) {
-        kvm_abortf("KVM_SET_USER_MEMORY_REGION: %s", strerror(errno));
-    }
-}
-EXC_VOID_4(kvm_map_range, int32_t, slot, uint64_t, address, uint64_t, size, uint64_t, pointer)
-
-void kvm_unmap_range(int32_t slot)
-{
-    struct kvm_userspace_memory_region region;
-
-    region.slot = slot;
-
-    // according to the KVM docs, memory region is removed by setting memory_size to 0
-    region.memory_size = 0;
-
-    if (ioctl(cpu->vm_fd, KVM_SET_USER_MEMORY_REGION, &region) < 0) {
-        kvm_abortf("KVM_SET_USER_MEMORY_REGION: %s", strerror(errno));
-    }
-}
-EXC_VOID_1(kvm_unmap_range, int32_t, slot)
 
 #ifdef TARGET_X86KVM
 void kvm_set64_bit_behaviour(uint32_t on64BitDetected)
@@ -210,12 +212,6 @@ void kvm_set64_bit_behaviour(uint32_t on64BitDetected)
 }
 EXC_VOID_1(kvm_set64_bit_behaviour, uint32_t, on64BitDetected)
 #endif
-
-void kvm_dispose()
-{
-    free(cpu);
-}
-EXC_VOID_0(kvm_dispose)
 
 static void kvm_exit_io(CpuState *s, struct kvm_run *run)
 {
@@ -342,109 +338,162 @@ static void execution_timer_disarm()
         kvm_runtime_abortf("setitimer: %s", strerror(errno));
 }
 
-/* Get execution time since calling kvm_execute */
-uint64_t kvm_get_execution_time_in_us()
+/* Run KVM. Returns true if run was interrupted by planned timer. */
+static bool kvm_run()
 {
-    return cpu->execution_time_in_us;
-}
-EXC_VALUE_0(uint64_t, kvm_get_execution_time_in_us, 0)
-
-static void set_next_run_as_single_step() {
-    int ret;
-    struct kvm_guest_debug debug = {
-        .control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP,
-    };
-    ret = ioctl(cpu->vcpu_fd, KVM_SET_GUEST_DEBUG, &debug);
-    if (ret < 0) {
-        kvm_runtime_abortf("KVM_SET_GUEST_DEBUG: %s", strerror(errno));
-        exit(1);
-    }
-}
-
-/* Run KVM and handle it's exit reason */
-void kvm_run()
-{
-    if (cpu->sregs_state == DIRTY) {
-        set_sregs(&(cpu->sregs));
-    }
-    cpu->sregs_state = CLEAR;
-
-    struct kvm_run *run = cpu->kvm_run;
-    int ret;
-
-    ret = ioctl(cpu->vcpu_fd, KVM_RUN, 0);
-    if (ret < 0) {
+    if (ioctl(cpu->vcpu_fd, KVM_RUN, 0) < 0) {
         if (errno == EINTR) {
             /* We were interrupted by the signal.
              * If it was SIGALRM, cpu->timer_expired is set and we will finish the execution.
              * Otherwise, signal is ignored. */
-            return;
+            return true;
         }
         kvm_runtime_abortf("KVM_RUN: %s", strerror(errno));
     }
 
-    /* KVM exited - check for possible reasons */
-    switch(run->exit_reason) {
-    case KVM_EXIT_IO:
-        /* handle IN / OUT instructions */
-        kvm_exit_io(cpu, run);
-        break;
-    case KVM_EXIT_MMIO:
-        /* handle sysbus accesses */
-        kvm_exit_mmio(cpu, run);
-        break;
-    case KVM_EXIT_DEBUG:
-        /* this case occurs when single-stepping is enabled */
-        break;
-    case KVM_EXIT_FAIL_ENTRY:
-        kvm_runtime_abortf("KVM_EXIT_FAIL_ENTRY: reason=0x%" PRIx64 "\n",
-                    (uint64_t)run->fail_entry.hardware_entry_failure_reason);
-        break;
-    case KVM_EXIT_INTERNAL_ERROR:
-        kvm_runtime_abortf("KVM_EXIT_INTERNAL_ERROR: suberror=0x%x\n",
-                    (uint32_t)run->internal.suberror);
-        break;
-    case KVM_EXIT_SHUTDOWN:
-        kvm_runtime_abortf("KVM shutdown requested");
-        break;
-    default:
-        kvm_runtime_abortf("KVM: unsupported exit_reason=%d\n", run->exit_reason);
+    return false;
+}
+
+static ExecutionResult kvm_run_loop()
+{
+    kvm_registers_synchronize();
+    kvm_registers_invalidate();
+
+    cpu->tgid = getpid();
+    cpu->tid = gettid();
+    cpu->is_executing = true;
+
+    ExecutionResult execution_result = OK;
+    bool override_exception_capture = false;
+
+    /* timer_expired flag will be set by the SIGALRM handler */
+    while(true) {
+        if (kvm_run()) {
+            execution_result = OK;
+            goto finalize;
+        }
+
+        struct kvm_run *run = cpu->kvm_run;
+
+        /* KVM exited - check for possible reasons */
+        switch(run->exit_reason) {
+        case KVM_EXIT_IO:
+            /* handle IN / OUT instructions */
+            kvm_exit_io(cpu, run);
+            break;
+        case KVM_EXIT_MMIO:
+            /* handle sysbus accesses */
+            kvm_exit_mmio(cpu, run);
+            break;
+        case KVM_EXIT_DEBUG:
+            /* this case occurs when single-stepping is enabled or a software event was triggered */
+            if (is_breakpoint_address(run->debug.arch.pc)) {
+                execution_result = STOPPED_AT_BREAKPOINT;
+                goto finalize;
+            }
+            if (cpu->single_step) {
+                execution_result = OK;
+                goto finalize;
+            }
+            if (override_exception_capture) {
+                set_debug_flags(DEFAULT_DEBUG_FLAGS);
+                override_exception_capture = false;
+                break;
+            }
+
+            /* KVM_GUESTDBG_USE_SW_BP causes us to capture all exceptions, even ones guest software
+             * would expect to handle by itself. If we encounter an exception and do not expect
+             * it then this instruction will be single-stepped with exception capture turned off.
+             * This will allow guest to jump to exception handler from which we can continue to
+             * capture exceptions */
+            kvm_logf(LOG_LEVEL_DEBUG, "KVM_EXIT_DEBUG: exception=0x%lx at pc 0x%lx, turning off interrupt capture for this instruction", run->debug.arch.exception, run->debug.arch.pc);
+            set_debug_flags(SINGLE_STEP_DEBUG_FLAGS);
+            override_exception_capture = true;
+            break;
+        case KVM_EXIT_FAIL_ENTRY:
+            kvm_runtime_abortf("KVM_EXIT_FAIL_ENTRY: reason=0x%" PRIx64 "\n",
+                        (uint64_t)run->fail_entry.hardware_entry_failure_reason);
+            break;
+        case KVM_EXIT_INTERNAL_ERROR:
+            kvm_runtime_abortf("KVM_EXIT_INTERNAL_ERROR: suberror=0x%x\n",
+                        (uint32_t)run->internal.suberror);
+            break;
+        case KVM_EXIT_SHUTDOWN:
+            kvm_runtime_abortf("KVM shutdown requested");
+            break;
+        default:
+            kvm_runtime_abortf("KVM: unsupported exit_reason=%d\n", run->exit_reason);
+        }
     }
+
+finalize:
+    cpu->is_executing = false;
+    return execution_result;
 }
 
 /* Run KVM execution for time_in_us microseconds. */
 uint64_t kvm_execute(uint64_t time_in_us)
 {
-    cpu->tgid = getpid();
-    cpu->tid = gettid();
-
-    cpu->exit_requested = false;
+    cpu->single_step = false;
+    cpu->kvm_run->immediate_exit = false;
 
     execution_timer_set(time_in_us);
 
-    /* timer_expired flag will be set by the SIGALRM handler */
-    while(!cpu->exit_requested) {
-        kvm_run();
+    ExecutionResult result = kvm_run_loop();
+    if (result != OK) {
+        /* Disarm timer if it did not cause the exit */
+        execution_timer_disarm();
     }
-
-    return OK;
+    return result;
 }
 EXC_VALUE_1(uint64_t, kvm_execute, 0, uint64_t, time)
 
 /* Run KVM execution for single instruction. */
 uint64_t kvm_execute_single_step()
 {
-    set_next_run_as_single_step();
+    cpu->single_step = true;
+    cpu->kvm_run->immediate_exit = false;
 
-    kvm_run();
-
-    return OK;
+    set_debug_flags(SINGLE_STEP_DEBUG_FLAGS);
+    ExecutionResult result = kvm_run_loop();
+    set_debug_flags(DEFAULT_DEBUG_FLAGS);
+    return (uint64_t)result;
 }
 EXC_VALUE_0(uint64_t, kvm_execute_single_step, 0)
 
 void kvm_interrupt_execution()
 {
     execution_timer_disarm();
+    cpu->kvm_run->immediate_exit = true;
     kill_cpu_thread(SIGALRM);
 }
 EXC_VOID_0(kvm_interrupt_execution)
+
+void kvm_dispose()
+{
+    /* Make sure we are not executing KVMCPU before disposing */
+    kvm_interrupt_execution();
+
+    munmap(cpu->kvm_run, cpu->kvm_run_size);
+
+    close(cpu->vcpu_fd);
+    close(cpu->vm_fd);
+    close(cpu->kvm_fd);
+
+    Breakpoint *bp = LIST_FIRST(&cpu->breakpoints);
+    while (bp != NULL) {
+        Breakpoint* next = LIST_NEXT(bp, list);
+        free(bp);
+        bp = next;
+    }
+
+    MemoryRegion *mr = LIST_FIRST(&cpu->memory_regions);
+    while (mr != NULL) {
+        MemoryRegion* next = LIST_NEXT(mr, list);
+        free(mr);
+        mr = next;
+    }
+
+    free(cpu);
+}
+EXC_VOID_0(kvm_dispose)

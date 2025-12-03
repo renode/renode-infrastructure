@@ -6,10 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
 using System.Collections.ObjectModel;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.UnitTests.Mocks
 {
@@ -27,16 +28,8 @@ namespace Antmicro.Renode.UnitTests.Mocks
             OtherIrq = new GPIO();
         }
 
-        public void Reset()
-        {
-            throw new NotImplementedException();
-        }
-
-        public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
-
         public void OnGPIO(int number, bool value)
         {
-
         }
 
         public byte ReadByte(long offset)
@@ -49,9 +42,15 @@ namespace Antmicro.Renode.UnitTests.Mocks
             throw new NotImplementedException();
         }
 
+        public void Reset()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; private set; }
+
         public GPIO Irq { get; private set; }
 
         public GPIO OtherIrq { get; private set; }
     }
 }
-

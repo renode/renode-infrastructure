@@ -6,15 +6,19 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using AntShell.Commands;
-using System.Collections.Generic;
+
 using Antmicro.Renode.UserInterface.Tokenizer;
-using System.Linq;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class NumbersModeCommand : AutoLoadCommand
     {
+        public NumbersModeCommand(Monitor monitor) : base(monitor, "numbersMode", "sets the way numbers are displayed.")
+        {
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -30,16 +34,9 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer,
-                        [Values("Both", "Decimal", "Hexadecimal")] LiteralToken format)
+        public void Run(ICommandInteraction _, [Values("Both", "Decimal", "Hexadecimal")] LiteralToken format)
         {
             monitor.CurrentNumberFormat = (Monitor.NumberModes)Enum.Parse(typeof(Monitor.NumberModes), format.Value);
         }
-
-        public NumbersModeCommand(Monitor monitor):base(monitor, "numbersMode", "sets the way numbers are displayed.")
-        {
-
-        }
     }
 }
-

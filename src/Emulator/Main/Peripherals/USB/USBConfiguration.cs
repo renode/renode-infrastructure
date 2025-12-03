@@ -1,12 +1,12 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
@@ -84,9 +84,13 @@ namespace Antmicro.Renode.Core.USB
         }
 
         public byte Identifier { get; }
+
         public string Description { get; }
+
         public short MaximalPower { get; }
+
         public bool SelfPowered { get; }
+
         public bool RemoteWakeup { get; }
 
         public IReadOnlyCollection<USBInterface> Interfaces => interfaces;

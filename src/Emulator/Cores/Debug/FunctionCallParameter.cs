@@ -20,5 +20,4 @@ namespace Antmicro.Renode.Debug
 
         public static FunctionCallParameter IgnoredParameter;
     }
-    
 }

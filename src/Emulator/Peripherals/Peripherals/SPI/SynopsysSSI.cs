@@ -4,18 +4,16 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.MTD;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
     public class SynopsysSSI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        SynopsysSSI(IMachine machine): base(machine)
+        SynopsysSSI(IMachine machine) : base(machine)
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
 
@@ -60,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("Shift Register Loop", 13)
                 .WithTaggedFlag("Slave Select Toggle Enable", 14)
                 .WithReservedBits(15, 1)
-                .WithTag("Control Frame Size", 16, 4) 
+                .WithTag("Control Frame Size", 16, 4)
                 .WithReservedBits(20, 2)
                 .WithTag("SPI Frame Format", 22, 2)
                 .WithTaggedFlag("SPI Hyperbus Frame format enable", 24)
@@ -114,9 +112,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("SSI Busy", 0)
                 .WithTaggedFlag("Transmit FIFO Not Full", 1)
                 .WithTaggedFlag("Transmit FIFO Empty", 2)
-                .WithTaggedFlag("Receive FIFO Not Empty", 3) 
+                .WithTaggedFlag("Receive FIFO Not Empty", 3)
                 .WithTaggedFlag("Receive FIFO Full", 4)
-                .WithTaggedFlag("Transmission Error", 5) 
+                .WithTaggedFlag("Transmission Error", 5)
                 .WithTaggedFlag("Data Collision Error", 6)
                 .WithReservedBits(7, 26)
             ;
@@ -139,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("Receive FIFO Overflow Interrupt Status", 3)
                 .WithTaggedFlag("Receive FIFO Full Interrupt Status", 4)
                 .WithTaggedFlag("Multi-Master Contention Interrupt Status", 5)
-                .WithTaggedFlag("XIP Receive FIFO Overflow Interrupt Status", 6) 
+                .WithTaggedFlag("XIP Receive FIFO Overflow Interrupt Status", 6)
                 .WithReservedBits(7, 26)
             ;
 
@@ -149,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("Receive FIFO Underflow Raw Interrupt Status", 2)
                 .WithTaggedFlag("Receive FIFO Overflow Raw Interrupt Status", 3)
                 .WithTaggedFlag("Receive FIFO Full Raw Interrupt Status", 4)
-                .WithTaggedFlag("Multi-Master Contention Raw Interrupt Status", 5) 
+                .WithTaggedFlag("Multi-Master Contention Raw Interrupt Status", 5)
                 .WithTaggedFlag("XIP Receive FIFO Overflow Raw Interrupt Status", 6)
                 .WithReservedBits(7, 26)
             ;
@@ -202,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             ;
 
             Registers.Data_0.DefineMany(this, 36,
-                (register, registerIndex) => 
+                (register, registerIndex) =>
                     register.WithTag($"Data {registerIndex}", 0, 32)
             );
 

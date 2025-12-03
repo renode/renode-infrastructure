@@ -6,6 +6,7 @@
 //
 
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
 
@@ -71,7 +72,7 @@ namespace Antmicro.Renode.UserInterface
             source.ExecuteInSerial = val;
             foreach(var sink in source.Sinks.OfType<TimeSourceBase>())
             {
-                 SetSerialExecutionRecursively(sink, val);
+                SetSerialExecutionRecursively(sink, val);
             }
         }
 

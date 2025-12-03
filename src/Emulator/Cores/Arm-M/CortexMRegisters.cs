@@ -6,12 +6,15 @@
 * appropriate *.tt file.
 *
 */
+#pragma warning disable IDE0005
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Exceptions;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -66,11 +69,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.Control);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.Control, value);
             }
         }
+
         [Register]
         public RegisterValue BasePri
         {
@@ -78,11 +83,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.BasePri);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.BasePri, value);
             }
         }
+
         [Register]
         public RegisterValue VecBase
         {
@@ -90,11 +97,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.VecBase);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.VecBase, value);
             }
         }
+
         [Register]
         public RegisterValue CurrentSP
         {
@@ -102,11 +111,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.CurrentSP);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.CurrentSP, value);
             }
         }
+
         [Register]
         public RegisterValue OtherSP
         {
@@ -114,11 +125,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.OtherSP);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.OtherSP, value);
             }
         }
+
         [Register]
         public RegisterValue FPCCR
         {
@@ -126,11 +139,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.FPCCR);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.FPCCR, value);
             }
         }
+
         [Register]
         public RegisterValue FPCAR
         {
@@ -138,11 +153,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.FPCAR);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.FPCAR, value);
             }
         }
+
         [Register]
         public RegisterValue FPDSCR
         {
@@ -150,11 +167,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.FPDSCR);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.FPDSCR, value);
             }
         }
+
         [Register]
         public RegisterValue CPACR
         {
@@ -162,11 +181,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.CPACR);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.CPACR, value);
             }
         }
+
         [Register]
         public RegisterValue PRIMASK
         {
@@ -174,11 +195,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.PRIMASK);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.PRIMASK, value);
             }
         }
+
         [Register]
         public RegisterValue FAULTMASK
         {
@@ -186,11 +209,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.FAULTMASK);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.FAULTMASK, value);
             }
         }
+
         [Register]
         public RegisterValue FPSCR
         {
@@ -198,13 +223,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue32((int)CortexMRegisters.FPSCR);
             }
+
             set
             {
                 SetRegisterValue32((int)CortexMRegisters.FPSCR, value);
             }
         }
+
         public RegistersGroup D { get; private set; }
 
+#pragma warning disable SA1508
         protected override void InitializeRegisters()
         {
             base.InitializeRegisters();
@@ -249,16 +277,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                 (i, v) => SetRegister((int)indexValueMapD[i], v));
 
         }
+#pragma warning restore SA1508
 
+#pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
-
         [Import(Name = "tlib_set_register_value_64")]
         protected Action<int, ulong> SetRegisterValue64;
+
         [Import(Name = "tlib_get_register_value_64")]
         protected Func<int, ulong> GetRegisterValue64;
-
-        #pragma warning restore 649
+#pragma warning restore 649
 
         private static readonly Dictionary<CortexMRegisters, CPURegister> mapping = new Dictionary<CortexMRegisters, CPURegister>
         {

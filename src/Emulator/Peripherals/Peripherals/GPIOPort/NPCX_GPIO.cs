@@ -1,8 +1,8 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -91,10 +91,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             ;
         }
 
-        private const int NumberOfPinsPerPort = 8;
-
         private IFlagRegisterField[] pinDirection;
         private IFlagRegisterField[] pinLockControl;
+
+        private const int NumberOfPinsPerPort = 8;
 
         private enum Registers
         {

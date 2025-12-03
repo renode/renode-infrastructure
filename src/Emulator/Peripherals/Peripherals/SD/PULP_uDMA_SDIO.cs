@@ -1,18 +1,17 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System.Linq;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
@@ -160,7 +159,7 @@ namespace Antmicro.Renode.Peripherals.SD
             Registers.Response2.Define(this)
                 .WithValueField(0, 32, out response[2], FieldMode.Read, name: "SDIO_RSP2")
             ;
-            
+
             Registers.Response3.Define(this)
                 .WithValueField(0, 32, out response[3], FieldMode.Read, name: "SDIO_RSP3")
             ;
@@ -202,52 +201,52 @@ namespace Antmicro.Renode.Peripherals.SD
             var commandResult = device.HandleCommand((uint)commandOperation.Value, (uint)commandArgument.Value);
             switch(responseType.Value)
             {
-                case ResponseType.None:
-                    if(commandResult.Length != 0)
-                    {
-                        this.Log(LogLevel.Warning, "Expected no response, but {0} bits received", commandResult.Length);
-                        return;
-                    }
-                    break;
-                case ResponseType.Bits136:
-                    // our response does not contain 8 bits:
-                    // * start bit
-                    // * transmission bit
-                    // * command index / reserved bits (6 bits)
-                    if(commandResult.Length != 128)
-                    {
-                        this.Log(LogLevel.Warning, "Unexpected response of length 128 bits (excluding control bits), but {0} received", commandResult.Length);
-                        return;
-                    }
-                    // the following bits are considered a part of returned register, but are not included in the response buffer:
-                    // * CRC7 (7 bits)
-                    // * end bit
-                    // that's why we are skipping the initial 8-bits
-                    response[0].Value = commandResult.AsUInt32(8);
-                    response[1].Value = commandResult.AsUInt32(40);
-                    response[2].Value = commandResult.AsUInt32(72);
-                    response[3].Value = commandResult.AsUInt32(104, 24);
-                    break;
-                case ResponseType.Bits48WithCRC:
-                case ResponseType.Bits48NoCRC:
-                case ResponseType.Bits48WithBusyCheck:
-                    // our response does not contain 16 bits:
-                    // * start bit
-                    // * transmission bit
-                    // * command index / reserved bits (6 bits)
-                    // * CRC7 (7 bits)
-                    // * end bit
-                    if(commandResult.Length != 32)
-                    {
-                        this.Log(LogLevel.Warning, "Expected a response of length {0} bits (excluding control bits and CRC), but {1} received", 32, commandResult.Length);
-                        return;
-                    }
-                    response[0].Value = commandResult.AsUInt32();
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unexpected response type selected: {0}. Ignoring the command response.", responseType.Value);
+            case ResponseType.None:
+                if(commandResult.Length != 0)
+                {
+                    this.Log(LogLevel.Warning, "Expected no response, but {0} bits received", commandResult.Length);
                     return;
-            }                    
+                }
+                break;
+            case ResponseType.Bits136:
+                // our response does not contain 8 bits:
+                // * start bit
+                // * transmission bit
+                // * command index / reserved bits (6 bits)
+                if(commandResult.Length != 128)
+                {
+                    this.Log(LogLevel.Warning, "Unexpected response of length 128 bits (excluding control bits), but {0} received", commandResult.Length);
+                    return;
+                }
+                // the following bits are considered a part of returned register, but are not included in the response buffer:
+                // * CRC7 (7 bits)
+                // * end bit
+                // that's why we are skipping the initial 8-bits
+                response[0].Value = commandResult.AsUInt32(8);
+                response[1].Value = commandResult.AsUInt32(40);
+                response[2].Value = commandResult.AsUInt32(72);
+                response[3].Value = commandResult.AsUInt32(104, 24);
+                break;
+            case ResponseType.Bits48WithCRC:
+            case ResponseType.Bits48NoCRC:
+            case ResponseType.Bits48WithBusyCheck:
+                // our response does not contain 16 bits:
+                // * start bit
+                // * transmission bit
+                // * command index / reserved bits (6 bits)
+                // * CRC7 (7 bits)
+                // * end bit
+                if(commandResult.Length != 32)
+                {
+                    this.Log(LogLevel.Warning, "Expected a response of length {0} bits (excluding control bits and CRC), but {1} received", 32, commandResult.Length);
+                    return;
+                }
+                response[0].Value = commandResult.AsUInt32();
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unexpected response type selected: {0}. Ignoring the command response.", responseType.Value);
+                return;
+            }
         }
 
         private void ReadFromDevice(SDCard device)
@@ -263,7 +262,7 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 data = data.Take((int)rxBufferSize.Value).ToArray();
             }
-            
+
             sysbus.WriteBytes(data, (ulong)rxBufferAddress.Value);
             this.Log(LogLevel.Noisy, "Copied {0} bytes from the device to 0x{1:X}", data.Length, rxBufferAddress.Value);
         }
@@ -343,4 +342,3 @@ namespace Antmicro.Renode.Peripherals.SD
         }
     }
 }
-

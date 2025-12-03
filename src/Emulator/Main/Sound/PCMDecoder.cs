@@ -1,15 +1,16 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
+
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sound
 {
@@ -19,12 +20,12 @@ namespace Antmicro.Renode.Peripherals.Sound
         {
             if(concatenatedChannels)
             {
-               throw new ConstructionException("Concatenated channels are currently not supported");
+                throw new ConstructionException("Concatenated channels are currently not supported");
             }
 
             if(sampleWidthBits != 8u && sampleWidthBits != 16u && sampleWidthBits != 24u && sampleWidthBits != 32u)
             {
-               throw new ConstructionException($"Not supported sample width: {0}. Only 8/16/24/32 bits are currently supported.");
+                throw new ConstructionException($"Not supported sample width: {0}. Only 8/16/24/32 bits are currently supported.");
             }
 
             samples = new Queue<uint>();
@@ -44,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             }
         }
 
-        public void LoadFile(ReadFilePath path)
+        public void LoadFile(ReadFilePath path, bool littleEndianFileFormat = false)
         {
             var sampleSize = (int)(sampleWidthBits / 8);
 
@@ -60,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                             break;
                         }
 
-                        var sample = BitHelper.ToUInt32(bytes, 0, bytes.Length, false);
+                        var sample = BitHelper.ToUInt32(bytes, 0, bytes.Length, littleEndianFileFormat);
                         samples.Enqueue(sample);
                     }
                 }
@@ -102,6 +103,12 @@ namespace Antmicro.Renode.Peripherals.Sound
                 return GetSamplesByCount(samplesPerChannel);
             }
         }
+
+        public uint SamplingRateHz => samplingRateHz;
+
+        public uint NumberOfChannels => numberOfChannels;
+
+        public uint SampleWidthBits => sampleWidthBits;
 
         private readonly uint samplingRateHz;
         private readonly uint numberOfChannels;

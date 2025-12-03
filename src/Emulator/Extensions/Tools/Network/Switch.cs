@@ -6,15 +6,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Peripherals.Network;
-using System.Linq;
-using Antmicro.Renode.Network;
-using Antmicro.Renode.Logging;
-using System.Collections.Generic;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.Network;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Tools.Network
@@ -131,6 +132,7 @@ namespace Antmicro.Renode.Tools.Network
         public bool IsPaused => !started;
 
         public event Action<IExternal, IMACInterface, IMACInterface, byte[]> FrameTransmitted;
+
         public event Action<IExternal, IMACInterface, byte[]> FrameProcessed;
 
         private void ForwardToReceiver(EthernetFrame frame, IMACInterface sender)
@@ -187,11 +189,6 @@ namespace Antmicro.Renode.Tools.Network
 
         private class InterfaceDescriptor
         {
-            public IMachine Machine;
-            public IMACInterface Interface;
-            public bool PromiscuousMode;
-            public Action<EthernetFrame> Delegate;
-
             public override int GetHashCode()
             {
                 return Interface.GetHashCode();
@@ -202,7 +199,11 @@ namespace Antmicro.Renode.Tools.Network
                 var objAsInterfaceDescriptor = obj as InterfaceDescriptor;
                 return objAsInterfaceDescriptor != null && Interface.Equals(objAsInterfaceDescriptor.Interface);
             }
+
+            public IMachine Machine;
+            public IMACInterface Interface;
+            public bool PromiscuousMode;
+            public Action<EthernetFrame> Delegate;
         }
     }
 }
-

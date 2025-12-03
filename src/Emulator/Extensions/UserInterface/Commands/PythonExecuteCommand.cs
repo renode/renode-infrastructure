@@ -6,14 +6,22 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
+
 using Antmicro.Renode.UserInterface.Tokenizer;
+
 using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class PythonExecuteCommand : Command
     {
+        public PythonExecuteCommand(Monitor monitor, Func<VariableToken, Token> getVariable, Action<String, ICommandInteraction> execute)
+            : base(monitor, "python", "executes the provided python command.", "py")
+        {
+            GetVariable = getVariable;
+            Execute = execute;
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -44,13 +52,5 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private readonly Func<VariableToken, Token> GetVariable;
         private readonly Action<string, ICommandInteraction> Execute;
-
-        public PythonExecuteCommand(Monitor monitor, Func<VariableToken, Token> getVariable, Action<String, ICommandInteraction> execute) 
-            :base(monitor, "python", "executes the provided python command.", "py") 
-        {
-            GetVariable = getVariable;
-            Execute = execute;
-        }
     }
 }
-

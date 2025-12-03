@@ -8,11 +8,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Utilities;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -51,6 +52,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public GPIO FatalFaultAlert { get; }
+
         public GPIO UpdateErrorAlert { get; }
 
         public long Size => 0x1000;
@@ -230,19 +232,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(keyLength.Value)
             {
-                case KeyLength.Bits128:
-                    aes.KeySize = 128;
-                    break;
-                case KeyLength.Bits192:
-                    aes.KeySize = 192;
-                    break;
-                case KeyLength.Bits256:
-                    aes.KeySize = 256;
-                    break;
-                default:
-                    // This kind of misconfiguration is possible, behaviour is undefined
-                    this.Log(LogLevel.Error, "Invalid KEY_LEN size: '0x{0:x}'. Undefined behavior ahead!", keyLength.Value);
-                    return false;
+            case KeyLength.Bits128:
+                aes.KeySize = 128;
+                break;
+            case KeyLength.Bits192:
+                aes.KeySize = 192;
+                break;
+            case KeyLength.Bits256:
+                aes.KeySize = 256;
+                break;
+            default:
+                // This kind of misconfiguration is possible, behaviour is undefined
+                this.Log(LogLevel.Error, "Invalid KEY_LEN size: '0x{0:x}'. Undefined behavior ahead!", keyLength.Value);
+                return false;
             }
             aes.Key = useSideloadedKey.Value ? sideloadKey : key;
 #if DEBUG
@@ -250,12 +252,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 #endif
             switch(operationMode.Value)
             {
-                case OperationMode.ElectronicCodebook:
-                    aes.Mode = CipherMode.ECB;
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Encryption Mode {0} is not supported yet", operationMode.Value);
-                    return false;
+            case OperationMode.ElectronicCodebook:
+                aes.Mode = CipherMode.ECB;
+                break;
+            default:
+                this.Log(LogLevel.Error, "Encryption Mode {0} is not supported yet", operationMode.Value);
+                return false;
             }
             return true;
         }
@@ -298,14 +300,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private readonly byte[] key;
         private byte[] sideloadKey;
         private bool readyForInputWrite;
-        private readonly ByteArrayWithAccessTracking initialKeyShare_0;
-        private readonly ByteArrayWithAccessTracking initialKeyShare_1;
-        private readonly ByteArrayWithAccessTracking initializationVector;
-        private readonly ByteArrayWithAccessTracking inputData;
-        private readonly ByteArrayWithAccessTracking outputData;
 
         private IFlagRegisterField manualOperation;
         private IFlagRegisterField statusIdle;
@@ -315,8 +311,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IEnumRegisterField<OperationMode> operationMode;
         private IEnumRegisterField<KeyLength> keyLength;
 
-// > warning SYSLIB0021: 'AesManaged' is obsolete: 'Derived cryptographic types are obsolete. Use the Create method on the base type instead.'
-// Replacing with `Aes.Create` isn't straightforward as it breaks serialization on Windows. Let's just hush it.
+        private readonly byte[] key;
+        private readonly ByteArrayWithAccessTracking initialKeyShare_0;
+        private readonly ByteArrayWithAccessTracking initialKeyShare_1;
+        private readonly ByteArrayWithAccessTracking initializationVector;
+        private readonly ByteArrayWithAccessTracking inputData;
+        private readonly ByteArrayWithAccessTracking outputData;
+
+        // > warning SYSLIB0021: 'AesManaged' is obsolete: 'Derived cryptographic types are obsolete. Use the Create method on the base type instead.'
+        // Replacing with `Aes.Create` isn't straightforward as it breaks serialization on Windows. Let's just hush it.
 #pragma warning disable SYSLIB0021
         private readonly AesManaged aes = new AesManaged();
 #pragma warning restore SYSLIB0021
@@ -326,28 +329,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const int InitialKeyShareLengthInBytes = 32;
         private const int InitializationVectorLengthInBytes = 16;
         private const int DataLengthInBytes = 16;
-
-        private enum OperationMode
-        {
-            ElectronicCodebook = 0b000001,  // ECB mode
-            CipherBlockChaining = 0b000010, // CBC mode
-            CipherFeedback = 0b000100,      // CFB mode
-            OutputFeedback = 0b001000,      // OFB mode
-            Counter = 0b010000,             // CTR mode
-        }
-
-        private enum DecryptionMode
-        {
-            Encryption = 0x1,
-            Decryption = 0x2,
-        }
-
-        private enum KeyLength
-        {
-            Bits128 = 0b001,
-            Bits192 = 0b010,
-            Bits256 = 0b100,
-        }
 
         public enum Registers
         {
@@ -385,6 +366,28 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             AuxiliaryControlWriteEnable = 0x7C,
             Trigger = 0x80,
             Status = 0x84,
+        }
+
+        private enum OperationMode
+        {
+            ElectronicCodebook = 0b000001,  // ECB mode
+            CipherBlockChaining = 0b000010, // CBC mode
+            CipherFeedback = 0b000100,      // CFB mode
+            OutputFeedback = 0b001000,      // OFB mode
+            Counter = 0b010000,             // CTR mode
+        }
+
+        private enum DecryptionMode
+        {
+            Encryption = 0x1,
+            Decryption = 0x2,
+        }
+
+        private enum KeyLength
+        {
+            Bits128 = 0b001,
+            Bits192 = 0b010,
+            Bits256 = 0b100,
         }
     }
 }

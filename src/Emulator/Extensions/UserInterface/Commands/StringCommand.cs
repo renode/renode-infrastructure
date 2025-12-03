@@ -5,14 +5,19 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using AntShell.Commands;
-using Antmicro.Renode.UserInterface.Tokenizer;
 using System.Linq;
+
+using Antmicro.Renode.UserInterface.Tokenizer;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class StringCommand : AutoLoadCommand
     {
+        public StringCommand(Monitor monitor) : base(monitor, "string", "treat given arguments as a single string.", "str")
+        {
+        }
         /*[Runnable]
         public void Run(ICommandInteraction writer, params Token[] tokens)
         {
@@ -22,12 +27,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Run(ICommandInteraction writer, Token[] tokens)
         {
-            writer.WriteLine("\"" + string.Join(" ", tokens.Select(x=>x.GetObjectValue().ToString())) + "\"");
-        }
-
-        public StringCommand(Monitor monitor) : base(monitor, "string", "treat given arguments as a single string.", "str") 
-        {
+            writer.WriteLine("\"" + string.Join(" ", tokens.Select(x => x.GetObjectValue().ToString())) + "\"");
         }
     }
 }
-

@@ -7,13 +7,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -47,6 +48,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     return;
                 }
+
+                if(Mode == WorkMode.OneShot)
+                {
+                    enableRequested = false;
+                }
+
                 Limit = autoReloadValue;
 
                 for(var i = 0; i < NumberOfCCChannels; ++i)
@@ -59,15 +66,15 @@ namespace Antmicro.Renode.Peripherals.Timers
 
                     switch(outputCompareModes[i].Value)
                     {
-                        case OutputCompareMode.PwmMode1:
-                            Connections[i].Set();
-                            break;
-                        case OutputCompareMode.PwmMode2:
-                            Connections[i].Unset();
-                            break;
+                    case OutputCompareMode.PwmMode1:
+                        Connections[i].Set();
+                        break;
+                    case OutputCompareMode.PwmMode2:
+                        Connections[i].Unset();
+                        break;
                     }
                 }
-                
+
                 if(updateInterruptEnable.Value && repetitionsLeft == 0)
                 {
                     // 2 of central-aligned modes should raise IRQ only on overflow/underflow, hence it happens 2 times less often
@@ -92,22 +99,22 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     switch(outputCompareModes[j].Value)
                     {
-                        case OutputCompareMode.SetActiveOnMatch:
-                            Connections[j].Blink(); // high pulse
-                            break;
-                        case OutputCompareMode.SetInactiveOnMatch:
-                            Connections[j].Unset();
-                            Connections[j].Set(); // low pulse
-                            break;
-                        case OutputCompareMode.ToggleOnMatch:
-                            Connections[j].Toggle();
-                            break;
-                        case OutputCompareMode.PwmMode1:
-                            Connections[j].Unset();
-                            break;
-                        case OutputCompareMode.PwmMode2:
-                            Connections[j].Set();
-                            break;
+                    case OutputCompareMode.SetActiveOnMatch:
+                        Connections[j].Blink(); // high pulse
+                        break;
+                    case OutputCompareMode.SetInactiveOnMatch:
+                        Connections[j].Unset();
+                        Connections[j].Set(); // low pulse
+                        break;
+                    case OutputCompareMode.ToggleOnMatch:
+                        Connections[j].Toggle();
+                        break;
+                    case OutputCompareMode.PwmMode1:
+                        Connections[j].Unset();
+                        break;
+                    case OutputCompareMode.PwmMode2:
+                        Connections[j].Set();
+                        break;
                     }
 
                     if(ccInterruptEnable[j])
@@ -137,7 +144,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(10, 22)
                     .WithWriteCallback((_, __) => { UpdateCaptureCompareTimers(); UpdateInterrupts(); })
                 },
-                
                 {(long)Registers.Control2, new DoubleWordRegister(this)
                     .WithTaggedFlag("CCPC", 0)
                     .WithReservedBits(1, 1)
@@ -154,7 +160,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTaggedFlag("OIS4", 14)
                     .WithReservedBits(15, 17)
                 },
-                
                 {(long)Registers.SlaveModeControl, new DoubleWordRegister(this)
                     .WithTag("SMS", 0, 3)
                     .WithTaggedFlag("OCCS", 3)
@@ -166,7 +171,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTaggedFlag("ETP", 15)
                     .WithReservedBits(16, 16)
                 },
-                
                 {(long)Registers.DmaOrInterruptEnable, new DoubleWordRegister(this)
                     .WithFlag(0, out updateInterruptEnable, name: "Update interrupt enable (UIE)")
                     .WithFlag(1, valueProviderCallback: _ => ccInterruptEnable[0], writeCallback: (_, val) => WriteCaptureCompareInterruptEnable(0, val), name: "Capture/Compare 1 interrupt enable (CC1IE)")
@@ -186,7 +190,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(15, 17)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
-
                 {(long)Registers.Status, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read | FieldMode.WriteZeroToClear,
                         writeCallback: (_, val) =>
@@ -219,7 +222,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithValueField(13, 19, name: "Reserved4")
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
-
                 {(long)Registers.EventGeneration, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.WriteOneToClear, writeCallback: (_, val) =>
                     {
@@ -237,7 +239,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         }
 
                         repetitionsLeft = (uint)repetitionCounter.Value;
-                        
+
                         if(!updateRequestSource.Value && updateInterruptEnable.Value)
                         {
                             this.Log(LogLevel.Noisy, "IRQ pending");
@@ -260,7 +262,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(7, 25)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
-                
                 {(long)Registers.CaptureOrCompareMode1, new DoubleWordRegister(this)
                     // Fields of this register vary between 'Output compare'/'Input capture' mode
                     // Only fields for output compare mode are defined
@@ -282,7 +283,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                         // "IC2F", 12, 4
                     .WithReservedBits(16, 16)
                 },
-                
                 {(long)Registers.CaptureOrCompareMode2, new DoubleWordRegister(this)
                     // Fields of this register vary between 'Output compare'/'Input capture' mode
                     // Only fields for output compare mode are defined
@@ -304,25 +304,23 @@ namespace Antmicro.Renode.Peripherals.Timers
                         // "IC4F", 12, 4
                     .WithReservedBits(16, 16)
                 },
-                
                 {(long)Registers.CaptureOrCompareEnable, new DoubleWordRegister(this)
                     .WithFlag(0, valueProviderCallback: _ => ccOutputEnable[0], writeCallback: (_, val) => WriteCaptureCompareOutputEnable(0, val), name: "Capture/Compare 1 enable (CC1E)")
-                    .WithTaggedFlag("CC1P", 1) 
-                    .WithTaggedFlag("CC1NE", 2) 
-                    .WithTaggedFlag("CC1NP", 3) 
+                    .WithTaggedFlag("CC1P", 1)
+                    .WithTaggedFlag("CC1NE", 2)
+                    .WithTaggedFlag("CC1NP", 3)
                     .WithFlag(4, valueProviderCallback: _ => ccOutputEnable[1], writeCallback: (_, val) => WriteCaptureCompareOutputEnable(1, val), name: "Capture/Compare 2 enable (CC2E)")
-                    .WithTaggedFlag("CC2P", 5) 
-                    .WithTaggedFlag("CC2NE", 6) 
-                    .WithTaggedFlag("CC2NP", 7) 
+                    .WithTaggedFlag("CC2P", 5)
+                    .WithTaggedFlag("CC2NE", 6)
+                    .WithTaggedFlag("CC2NP", 7)
                     .WithFlag(8, valueProviderCallback: _ => ccOutputEnable[2], writeCallback: (_, val) => WriteCaptureCompareOutputEnable(2, val), name: "Capture/Compare 3 enable (CC3E)")
-                    .WithTaggedFlag("CC3P", 9) 
-                    .WithTaggedFlag("CC3NE", 10) 
-                    .WithTaggedFlag("CC3NP", 11) 
+                    .WithTaggedFlag("CC3P", 9)
+                    .WithTaggedFlag("CC3NE", 10)
+                    .WithTaggedFlag("CC3NP", 11)
                     .WithFlag(12, valueProviderCallback: _ => ccOutputEnable[3], writeCallback: (_, val) => WriteCaptureCompareOutputEnable(3, val), name: "Capture/Compare 4 enable (CC4E)")
-                    .WithTaggedFlag("CC4P", 13) 
+                    .WithTaggedFlag("CC4P", 13)
                     .WithReservedBits(14, 18)
                 },
-                
                 {(long)Registers.Counter, new DoubleWordRegister(this)
                     .WithValueField(0, timerCounterLengthInBits,
                         writeCallback: (_, val) => Value = val,
@@ -347,7 +345,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                         UpdateInterrupts();
                     })
                 },
-
                 {(long)Registers.Prescaler, new DoubleWordRegister(this)
                     .WithValueField(0, 16, writeCallback: (_, val) => Divider = (int)val + 1, valueProviderCallback: _ => (uint)Divider - 1, name: "Prescaler value (PSC)")
                     .WithReservedBits(16, 16)
@@ -360,7 +357,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                         UpdateInterrupts();
                     })
                 },
-
                 {(long)Registers.AutoReload, new DoubleWordRegister(this)
                     .WithValueField(0, timerCounterLengthInBits, writeCallback: (_, val) =>
                     {
@@ -414,6 +410,21 @@ namespace Antmicro.Renode.Peripherals.Timers
             EventEnabled = true;
         }
 
+        public void Register(IGPIOReceiver peripheral, NumberRegistrationPoint<int> registrationPoint)
+        {
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public void Register(IGPIOReceiver peripheral, NullRegistrationPoint registrationPoint)
+        {
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public void Unregister(IGPIOReceiver peripheral)
+        {
+            machine.UnregisterAsAChildOf(this, peripheral);
+        }
+
         public uint ReadDoubleWord(long offset)
         {
             return registers.Read(offset);
@@ -445,24 +456,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO IRQ { get; private set; }
+
         public IReadOnlyDictionary<int, IGPIO> Connections => connections;
 
         public long Size => 0x400;
-
-        public void Register(IGPIOReceiver peripheral, NumberRegistrationPoint<int> registrationPoint)
-        {
-            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
-        }
-
-        public void Register(IGPIOReceiver peripheral, NullRegistrationPoint registrationPoint)
-        {
-            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
-        }
-
-        public void Unregister(IGPIOReceiver peripheral)
-        {
-            machine.UnregisterAsAChildOf(this, peripheral);
-        }
 
         private void UpdateCaptureCompareTimer(int i)
         {
@@ -518,14 +515,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             this.Log(LogLevel.Noisy, "cctimer{0}: output compare mode set to {1}", i + 1, value);
             switch(value)
             {
-                case OutputCompareMode.ForceInactive:
-                case OutputCompareMode.SetActiveOnMatch:
-                    Connections[i].Unset();
-                    break;
-                case OutputCompareMode.SetInactiveOnMatch:
-                case OutputCompareMode.ForceActive:
-                    Connections[i].Set();
-                    break;
+            case OutputCompareMode.ForceInactive:
+            case OutputCompareMode.SetActiveOnMatch:
+                Connections[i].Unset();
+                break;
+            case OutputCompareMode.SetInactiveOnMatch:
+            case OutputCompareMode.ForceActive:
+                Connections[i].Set();
+                break;
             }
         }
 
@@ -542,7 +539,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             var value = false;
             value |= updateInterruptFlag & updateInterruptEnable.Value;
-            for(var i  = 0; i < NumberOfCCChannels; ++i)
+            for(var i = 0; i < NumberOfCCChannels; ++i)
             {
                 value |= ccInterruptFlag[i] & ccInterruptEnable[i];
             }
@@ -550,15 +547,16 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(value);
         }
 
-        private readonly uint initialLimit;
-        private readonly int timerCounterLengthInBits;
         private uint autoReloadValue;
         private uint repetitionsLeft;
         private bool updateInterruptFlag;
         private bool enableRequested;
-        private bool[] ccInterruptFlag = new bool[NumberOfCCChannels];
-        private bool[] ccInterruptEnable = new bool[NumberOfCCChannels];
-        private bool[] ccOutputEnable = new bool[NumberOfCCChannels];
+        private readonly bool[] ccInterruptFlag = new bool[NumberOfCCChannels];
+        private readonly bool[] ccInterruptEnable = new bool[NumberOfCCChannels];
+        private readonly bool[] ccOutputEnable = new bool[NumberOfCCChannels];
+
+        private readonly uint initialLimit;
+        private readonly int timerCounterLengthInBits;
         private readonly IFlagRegisterField updateDisable;
         private readonly IFlagRegisterField updateRequestSource;
         private readonly IFlagRegisterField updateInterruptEnable;
@@ -633,4 +631,3 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
     }
 }
-

@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -109,127 +110,127 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             switch(command)
             {
-                case Commands.GetFlashDescriptor:
-                    resultQueue.EnqueueRange(new uint[]
-                    {
+            case Commands.GetFlashDescriptor:
+                resultQueue.EnqueueRange(new uint[]
+                {
                         /* Flash interface description */ flashIdentifier,
                         /*         Flash size in bytes */ (uint)underlyingMemory.Size,
                         /*          Page size in bytes */ (uint)pageSize,
                         /*            Number of planes */ 1,
                         /* Number of bytes in plane #0 */ (uint)underlyingMemory.Size,
                         /*         Number of lock bits */ (uint)NumberOfLockRegions
-                    });
-                    // Number of bytes in (each) lock region
-                    resultQueue.EnqueueRange(Enumerable.Repeat((uint)lockRegionSize, NumberOfLockRegions));
-                    break;
+                });
+                // Number of bytes in (each) lock region
+                resultQueue.EnqueueRange(Enumerable.Repeat((uint)lockRegionSize, NumberOfLockRegions));
+                break;
 
-                case Commands.WritePage:
-                    // NOTE: This command does nothing, as changes are committed immediately to underlying memory
-                    break;
+            case Commands.WritePage:
+                // NOTE: This command does nothing, as changes are committed immediately to underlying memory
+                break;
 
-                case Commands.WritePageAndLock:
-                    // NOTE: This command effectively locks single page; see comment above
-                    goto case Commands.SetLockBit;
+            case Commands.WritePageAndLock:
+                // NOTE: This command effectively locks single page; see comment above
+                goto case Commands.SetLockBit;
 
-                case Commands.ErasePageAndWritePage:
-                    if(argument >= NumberOfPages)
-                    {
-                        commandError.Value = true;
-                        return;
-                    }
-                    ErasePage(argument);
-                    break;
+            case Commands.ErasePageAndWritePage:
+                if(argument >= NumberOfPages)
+                {
+                    commandError.Value = true;
+                    return;
+                }
+                ErasePage(argument);
+                break;
 
-                case Commands.ErasePageAndWritePageThenLock:
-                    if(argument >= NumberOfPages)
-                    {
-                        commandError.Value = true;
-                        return;
-                    }
-                    ErasePage(argument);
-                    goto case Commands.SetLockBit;
+            case Commands.ErasePageAndWritePageThenLock:
+                if(argument >= NumberOfPages)
+                {
+                    commandError.Value = true;
+                    return;
+                }
+                ErasePage(argument);
+                goto case Commands.SetLockBit;
 
-                case Commands.EraseAll:
-                    EraseAll();
-                    break;
+            case Commands.EraseAll:
+                EraseAll();
+                break;
 
-                case Commands.ErasePages:
-                    var arg0 = argument & 0x3;
-                    var arg1 = argument >> (2 + arg0);
-                    var numberOfPages = 4 << arg0;
-                    var pageStart = numberOfPages * arg1;
+            case Commands.ErasePages:
+                var arg0 = argument & 0x3;
+                var arg1 = argument >> (2 + arg0);
+                var numberOfPages = 4 << arg0;
+                var pageStart = numberOfPages * arg1;
 
-                    this.Log(LogLevel.Debug, "Erasing {0} pages starting from {1}", numberOfPages, pageStart);
-                    for(var i = 0; i < numberOfPages && i + pageStart < NumberOfPages; ++i)
-                    {
-                        ErasePage(pageStart + i);
-                    }
-                    break;
+                this.Log(LogLevel.Debug, "Erasing {0} pages starting from {1}", numberOfPages, pageStart);
+                for(var i = 0; i < numberOfPages && i + pageStart < NumberOfPages; ++i)
+                {
+                    ErasePage(pageStart + i);
+                }
+                break;
 
-                case Commands.SetLockBit:
-                    if(argument >= NumberOfPages)
-                    {
-                        commandError.Value = true;
-                        return;
-                    }
-                    lockBits[PageToLockRegionIndex(argument)] = true;
-                    this.Log(LogLevel.Debug, "Locked region #{0}", PageToLockRegionIndex(argument));
-                    break;
+            case Commands.SetLockBit:
+                if(argument >= NumberOfPages)
+                {
+                    commandError.Value = true;
+                    return;
+                }
+                lockBits[PageToLockRegionIndex(argument)] = true;
+                this.Log(LogLevel.Debug, "Locked region #{0}", PageToLockRegionIndex(argument));
+                break;
 
-                case Commands.ClearLockBit:
-                    if(argument >= NumberOfPages)
-                    {
-                        commandError.Value = true;
-                        return;
-                    }
-                    lockBits[PageToLockRegionIndex(argument)] = false;
-                    this.Log(LogLevel.Debug, "Unlocked region #{0}", PageToLockRegionIndex(argument));
-                    break;
+            case Commands.ClearLockBit:
+                if(argument >= NumberOfPages)
+                {
+                    commandError.Value = true;
+                    return;
+                }
+                lockBits[PageToLockRegionIndex(argument)] = false;
+                this.Log(LogLevel.Debug, "Unlocked region #{0}", PageToLockRegionIndex(argument));
+                break;
 
-                case Commands.GetLockBit:
-                    if(argument >= NumberOfPages)
-                    {
-                        commandError.Value = true;
-                        return;
-                    }
-                    resultQueue.Enqueue(lockBits[PageToLockRegionIndex(argument)] ? 1U : 0U);
-                    break;
+            case Commands.GetLockBit:
+                if(argument >= NumberOfPages)
+                {
+                    commandError.Value = true;
+                    return;
+                }
+                resultQueue.Enqueue(lockBits[PageToLockRegionIndex(argument)] ? 1U : 0U);
+                break;
 
-                case Commands.EraseSector:
-                    if(argument >= NumberOfLockRegions)
-                    {
-                        commandError.Value = true;
-                        return;
-                    }
+            case Commands.EraseSector:
+                if(argument >= NumberOfLockRegions)
+                {
+                    commandError.Value = true;
+                    return;
+                }
 
-                    if(lockBits[argument])
-                    {
-                        triedWriteLocked.Value = true;
-                        this.Log(LogLevel.Debug, "Tried to erase sector #{0} which is currently locked", argument);
-                    }
+                if(lockBits[argument])
+                {
+                    triedWriteLocked.Value = true;
+                    this.Log(LogLevel.Debug, "Tried to erase sector #{0} which is currently locked", argument);
+                }
 
-                    var firstPage = argument * PagesInSector;
-                    for(var i = 0; i < PagesInSector; ++i)
-                    {
-                        ErasePage(firstPage + i);
-                    }
-                    break;
+                var firstPage = argument * PagesInSector;
+                for(var i = 0; i < PagesInSector; ++i)
+                {
+                    ErasePage(firstPage + i);
+                }
+                break;
 
-                case Commands.SetGPNVM:
-                case Commands.ClearGPNVM:
-                case Commands.GetGPNVM:
-                case Commands.StartReadUniqueIdentifier:
-                case Commands.StopReadUniqueIdentifier:
-                case Commands.GetCALIB:
-                case Commands.WriteUserSignature:
-                case Commands.EraseUserSignature:
-                case Commands.StartReadUserSignature:
-                case Commands.StopReadUserSignature:
-                    this.Log(LogLevel.Warning, "{0} command is not supported", command);
-                    break;
+            case Commands.SetGPNVM:
+            case Commands.ClearGPNVM:
+            case Commands.GetGPNVM:
+            case Commands.StartReadUniqueIdentifier:
+            case Commands.StopReadUniqueIdentifier:
+            case Commands.GetCALIB:
+            case Commands.WriteUserSignature:
+            case Commands.EraseUserSignature:
+            case Commands.StartReadUserSignature:
+            case Commands.StopReadUserSignature:
+                this.Log(LogLevel.Warning, "{0} command is not supported", command);
+                break;
 
-                default:
-                    throw new Exception("unreachable");
+            default:
+                throw new Exception("unreachable");
             }
         }
 

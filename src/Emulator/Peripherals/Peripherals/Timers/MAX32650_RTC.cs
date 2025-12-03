@@ -1,8 +1,8 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System;
@@ -10,8 +10,8 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -58,7 +58,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             subSecondsCounterCache = 0;
             secondsCounterReadFlag = false;
             subSecondsCounterReadFlag = false;
-
 
             SetDateTimeFromMachine(hushLog: true);
         }
@@ -303,6 +302,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private IValueRegisterField subSecondAlarm;
         private IValueRegisterField timeOfDayAlarm;
+        // Some revisions of this peripheral have HW bug that makes
+        // RTC to increase seconds counter when subseconds are 1 instead on 0.
+        // This flag allows to enable this behavior.
+        private readonly bool secondsTickOnOneSubSecond;
 
         private readonly LimitTimer internalTimer;
         private readonly LimitTimer subSecondAlarmTimer;
@@ -312,10 +315,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const long SubSecondAlarmMaxValue = 0xFFFFFFFF;
         private const uint SubSecondCounterResolution = 4096;
         private const ulong TimeOfDayAlarmMask = 0xFFFFF;
-        // Some revisions of this peripheral have HW bug that makes
-        // RTC to increase seconds counter when subseconds are 1 instead on 0.
-        // This flag allows to enable this behavior.
-        private bool secondsTickOnOneSubSecond;
 
         private enum Registers
         {

@@ -62,67 +62,69 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public long Size => 0x80;
 
+        public const int NumberOfPins = 32;
+
         private void DefineRegisters()
         {
             Registers.Direction.DefineMany(this, 4, (register, index) =>
             {
-                register.WithFlags(0, 8, name: $"DIR[{(index+1)*8-1}:{index*8}]",
+                register.WithFlags(0, 8, name: $"DIR[{(index + 1) * 8 - 1}:{index * 8}]",
                     valueProviderCallback: (j, _) => pinIsOutput[index * 8 + j],
                     writeCallback: (j, _, value) => pinIsOutput[index * 8 + j] = value);
             });
 
             Registers.DirectionClear.DefineMany(this, 4, (register, index) =>
             {
-                register.WithFlags(0, 8, name: $"DIRCLR[{(index+1)*8-1}:{index*8}]",
+                register.WithFlags(0, 8, name: $"DIRCLR[{(index + 1) * 8 - 1}:{index * 8}]",
                     valueProviderCallback: (j, _) => pinIsOutput[index * 8 + j],
                     writeCallback: (j, _, value) => { if(value) pinIsOutput[index * 8 + j] = false; });
             });
 
             Registers.DirectionSet.DefineMany(this, 4, (register, index) =>
             {
-                register.WithFlags(0, 8, name: $"DIRSET[{(index+1)*8-1}:{index*8}]",
+                register.WithFlags(0, 8, name: $"DIRSET[{(index + 1) * 8 - 1}:{index * 8}]",
                     valueProviderCallback: (j, _) => pinIsOutput[index * 8 + j],
                     writeCallback: (j, _, value) => { if(value) pinIsOutput[index * 8 + j] = true; });
             });
 
             Registers.DirectionToggle.DefineMany(this, 4, (register, index) =>
             {
-                register.WithFlags(0, 8, name: $"DIRTGL[{(index+1)*8-1}:{index*8}]",
+                register.WithFlags(0, 8, name: $"DIRTGL[{(index + 1) * 8 - 1}:{index * 8}]",
                     valueProviderCallback: (j, _) => pinIsOutput[index * 8 + j],
                     writeCallback: (j, _, value) => { if(value) pinIsOutput[index * 8 + j] ^= true; });
             });
 
             Registers.Output.DefineMany(this, 4, (register, index) =>
             {
-                register.WithFlags(0, 8, name: $"OUT[{(index+1)*8-1}:{index*8}]",
+                register.WithFlags(0, 8, name: $"OUT[{(index + 1) * 8 - 1}:{index * 8}]",
                     valueProviderCallback: (j, _) => Connections[index * 8 + j].IsSet,
                     writeCallback: (j, _, value) => Connections[index * 8 + j].Set(value));
             });
 
             Registers.OutputClear.DefineMany(this, 4, (register, index) =>
             {
-                register.WithFlags(0, 8, name: $"OUTCLR[{(index+1)*8-1}:{index*8}]",
+                register.WithFlags(0, 8, name: $"OUTCLR[{(index + 1) * 8 - 1}:{index * 8}]",
                     valueProviderCallback: (j, _) => Connections[index * 8 + j].IsSet,
                     writeCallback: (j, _, value) => { if(value) Connections[index * 8 + j].Unset(); });
             });
 
             Registers.OutputSet.DefineMany(this, 4, (register, index) =>
             {
-                register.WithFlags(0, 8, name: $"OUTSET[{(index+1)*8-1}:{index*8}]",
+                register.WithFlags(0, 8, name: $"OUTSET[{(index + 1) * 8 - 1}:{index * 8}]",
                     valueProviderCallback: (j, _) => Connections[index * 8 + j].IsSet,
                     writeCallback: (j, _, value) => { if(value) Connections[index * 8 + j].Set(); });
             });
 
             Registers.OutputToggle.DefineMany(this, 4, (register, index) =>
             {
-                register.WithFlags(0, 8, name: $"OUTTGL[{(index+1)*8-1}:{index*8}]",
+                register.WithFlags(0, 8, name: $"OUTTGL[{(index + 1) * 8 - 1}:{index * 8}]",
                     valueProviderCallback: (j, _) => Connections[index * 8 + j].IsSet,
                     writeCallback: (j, _, value) => { if(value) Connections[index * 8 + j].Toggle(); });
             });
 
             Registers.Input.DefineMany(this, 4, (register, index) =>
             {
-                register.WithFlags(0, 8, FieldMode.Read, name: $"IN[{(index+1)*8-1}:{index*8}]",
+                register.WithFlags(0, 8, FieldMode.Read, name: $"IN[{(index + 1) * 8 - 1}:{index * 8}]",
                     valueProviderCallback: (j, _) => pinInputEnabled[index * 8 + j] && State[index * 8 + j]);
             });
 
@@ -168,10 +170,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             });
         }
 
-        public const int NumberOfPins = 32;
-
-        private bool[] pinIsOutput;
-        private bool[] pinInputEnabled;
+        private readonly bool[] pinIsOutput;
+        private readonly bool[] pinInputEnabled;
         private readonly DoubleWordRegister configurationRegister;
 
         private enum Registers

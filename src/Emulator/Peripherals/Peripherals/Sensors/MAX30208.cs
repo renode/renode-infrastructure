@@ -4,14 +4,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Linq;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Logging;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
@@ -63,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             if(!registerAddress.HasValue)
             {
                 this.Log(LogLevel.Error, "Trying to read without setting address");
-                return new byte[] {};
+                return new byte[] { };
             }
 
             var result = new byte[count];
@@ -118,6 +118,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public GPIO GPIO0 { get; }
+
         public GPIO GPIO1 { get; }
 
         private void UpdateInterrupts()
@@ -324,7 +325,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         if(value)
                         {
-			    if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
                             {
                                 cpu.SyncTime();
                             }
@@ -428,9 +429,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
 
             public short Value { get; }
+
             public byte Byte1 => (byte)(Value >> 8);
+
             public byte Byte2 => (byte)Value;
+
             public byte[] Bytes => new byte[] { Byte1, Byte2 };
+
             public IEnumerator<byte> Enumerator => Bytes.OfType<byte>().GetEnumerator();
         }
 

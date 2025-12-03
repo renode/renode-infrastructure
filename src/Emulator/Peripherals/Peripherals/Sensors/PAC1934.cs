@@ -1,12 +1,13 @@
 ﻿//
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2020 Hugh Breslin <Hugh.Breslin@microchip.com>
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -102,16 +103,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(register)
             {
-                case Registers.Refresh:
-                case Registers.RefreshG:
-                    RefreshChannels(RefreshType.WithAccumulators);
-                    break;
-                case Registers.RefreshV:
-                    RefreshChannels(RefreshType.NoAccumulators);
-                    break;
-                default:
-                    registers.Write((long)register, data);
-                    break;
+            case Registers.Refresh:
+            case Registers.RefreshG:
+                RefreshChannels(RefreshType.WithAccumulators);
+                break;
+            case Registers.RefreshV:
+                RefreshChannels(RefreshType.NoAccumulators);
+                break;
+            default:
+                registers.Write((long)register, data);
+                break;
             }
             state = State.NoRegisterContext;
         }
@@ -186,21 +187,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 switch(offset)
                 {
-                    case (long)Registers.ProportionalPowerAccumulator1:
-                        return BitConverter.GetBytes(proportionalPowerAccumulator);
-                    case (long)Registers.BusVoltage1:
-                        return BitConverter.GetBytes(busVoltage);
-                    case (long)Registers.SenseResistorVoltage1:
-                        return BitConverter.GetBytes(senseResistorVoltage);
-                    case (long)Registers.AverageBusVoltage1:
-                        return BitConverter.GetBytes(averageBusVoltage);
-                    case (long)Registers.SenseResistorAverageVoltage1:
-                        return BitConverter.GetBytes(senseResistorAverageVoltage);
-                    case (long)Registers.ProportionalPower1:
-                        return BitConverter.GetBytes(proportionalPower);
-                    default:
-                        parent.Log(LogLevel.Warning, "Trying to read bytes from unhandled channel {0} at offset 0x{1:X}", channelNumber, offset);
-                        return new byte[] { 0 };
+                case (long)Registers.ProportionalPowerAccumulator1:
+                    return BitConverter.GetBytes(proportionalPowerAccumulator);
+                case (long)Registers.BusVoltage1:
+                    return BitConverter.GetBytes(busVoltage);
+                case (long)Registers.SenseResistorVoltage1:
+                    return BitConverter.GetBytes(senseResistorVoltage);
+                case (long)Registers.AverageBusVoltage1:
+                    return BitConverter.GetBytes(averageBusVoltage);
+                case (long)Registers.SenseResistorAverageVoltage1:
+                    return BitConverter.GetBytes(senseResistorAverageVoltage);
+                case (long)Registers.ProportionalPower1:
+                    return BitConverter.GetBytes(proportionalPower);
+                default:
+                    parent.Log(LogLevel.Warning, "Trying to read bytes from unhandled channel {0} at offset 0x{1:X}", channelNumber, offset);
+                    return new byte[] { 0 };
                 }
             }
 
@@ -260,16 +261,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return (ushort)(result / queue.Count);
             }
 
-            private readonly Queue<ushort> vSenseQueue;
-            private readonly Queue<ushort> vBusQueue;
-            private readonly int channelNumber;
-            private readonly PAC1934 parent;
             private ulong proportionalPowerAccumulator;
             private ushort busVoltage;
             private ushort senseResistorVoltage;
             private ushort averageBusVoltage;
             private ushort senseResistorAverageVoltage;
             private uint proportionalPower;
+
+            private readonly Queue<ushort> vSenseQueue;
+            private readonly Queue<ushort> vBusQueue;
+            private readonly int channelNumber;
+            private readonly PAC1934 parent;
 
             private const ushort SampleBusVoltage = 3500;
             private const ushort SampleSenseResistorVoltage = 3500;

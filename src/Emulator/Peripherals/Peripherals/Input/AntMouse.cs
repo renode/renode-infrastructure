@@ -5,12 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.Input
 {
@@ -20,24 +17,6 @@ namespace Antmicro.Renode.Peripherals.Input
         {
             IRQ = new GPIO();
         }
-
-        public uint ReadDoubleWord(long offset)
-        {
-            switch((Registers)offset)
-            {
-            case Registers.X:
-                return (uint)x;
-            case Registers.Y:
-                return (uint)y;
-            case Registers.LeftButton:
-                return leftButton ? 1u : 0u;
-            default:
-                this.LogUnhandledRead(offset);
-                return 0;
-            }
-        }
-
-        public GPIO IRQ { get; private set; }
 
         public void WriteDoubleWord(long offset, uint value)
         {
@@ -80,10 +59,32 @@ namespace Antmicro.Renode.Peripherals.Input
             Refresh();
         }
 
+        public uint ReadDoubleWord(long offset)
+        {
+            switch((Registers)offset)
+            {
+            case Registers.X:
+                return (uint)x;
+            case Registers.Y:
+                return (uint)y;
+            case Registers.LeftButton:
+                return leftButton ? 1u : 0u;
+            default:
+                this.LogUnhandledRead(offset);
+                return 0;
+            }
+        }
+
+        public GPIO IRQ { get; private set; }
+
         private void Refresh()
         {
             IRQ.Set();
         }
+
+        private int x;
+        private int y;
+        private bool leftButton;
 
         private enum Registers
         {
@@ -92,10 +93,5 @@ namespace Antmicro.Renode.Peripherals.Input
             LeftButton = 8,
             InterruptHandled = 12
         }
-
-        private int x;
-        private int y;
-        private bool leftButton;
     }
 }
-

@@ -16,4 +16,3 @@ namespace Antmicro.Renode.Core.Structure
         Object SerializeJson();
     }
 }
-

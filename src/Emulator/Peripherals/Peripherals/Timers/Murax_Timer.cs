@@ -1,15 +1,15 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private IValueRegisterField prescaler;
-        private IEnumRegisterField<EnableMode>[] enableMode = new IEnumRegisterField<EnableMode>[NumberOfTimers];
+        private readonly IEnumRegisterField<EnableMode>[] enableMode = new IEnumRegisterField<EnableMode>[NumberOfTimers];
 
         private readonly IFlagRegisterField[] interruptEnable = new IFlagRegisterField[NumberOfTimers];
         private readonly IFlagRegisterField[] interruptPending = new IFlagRegisterField[NumberOfTimers];

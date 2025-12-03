@@ -5,11 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.SPI;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4;
 using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.SPI;
+using Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
@@ -107,11 +108,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
         }
 
+        public GPIO IRQ { get; private set; }
+
         public int Channel { get; set; }
 
         public event Action<IRadio, byte[]> FrameSent;
-
-        public GPIO IRQ { get; private set; }
 
         private void HandleCommandByte(byte data)
         {

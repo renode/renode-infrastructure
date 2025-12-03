@@ -9,16 +9,19 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface ISignalsUnit
     {
         ulong GetAddress(string name);
+
         ulong GetSignal(string name);
 
         bool IsSignalEnabled(string name);
+
         bool IsSignalEnabledForCPU(string name, ICPU cpu);
 
         void SetSignal(string name, ulong value);
+
         void SetSignalFromAddress(string name, ulong address);
 
         void SetSignalState(string name, bool state, uint index);
+
         void SetSignalStateForCPU(string name, bool state, ICPU cpu);
     }
 }
-

@@ -1,11 +1,11 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -38,7 +38,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTag("RESERVED", 8, 23)
                     .WithFlag(31, valueProviderCallback: _ => false, name: "FULL")
                 },
-
                 {(long)Registers.ReceiveData, new DoubleWordRegister(this)
                     // the "EMPTY" flag MUST be declared before "DATA" value field because 'Count' value
                     // might change as a result of dequeuing a character; otherwise if the queue was of
@@ -54,7 +53,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     }, name: "DATA")
                     .WithTag("RESERVED", 8, 23)
                  },
-
                 {(long)Registers.TransmitControl, new DoubleWordRegister(this)
                     .WithFlag(0, out transmitEnable, name: "TXEN")
                     .WithFlag(1, out numberOfStopBits, name: "NSTOP")
@@ -62,7 +60,6 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithValueField(16, 3, out transmitWatermarkLevel, changeCallback: (_, __) => UpdateInterrupts(), name: "TXCNT")
                     .WithTag("RESERVED", 19, 13)
                 },
-
                 {(long)Registers.ReceiveControl, new DoubleWordRegister(this)
                     .WithFlag(0, out receiveEnable, changeCallback: (_, val) =>
                     {
@@ -75,19 +72,16 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithValueField(16, 3, out receiveWatermarkLevel, changeCallback: (_, __) => UpdateInterrupts(), name: "RXCNT")
                     .WithTag("RESERVED", 19, 13)
                 },
-
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
                     .WithFlag(0, out transmitWatermarkInterruptEnable, changeCallback: (_, __) => UpdateInterrupts(), name: "TXWM")
                     .WithFlag(1, out receiveWatermarkInterruptEnable, changeCallback: (_, __) => UpdateInterrupts(), name: "RXWM")
                     .WithTag("RESERVED", 2, 30)
                 },
-
                 {(long)Registers.InterruptPending, new DoubleWordRegister(this)
                     .WithFlag(0, out transmitWatermarkInterruptPending, FieldMode.Read, name: "TXWM")
                     .WithFlag(1, out receiveWatermarkInterruptPending, FieldMode.Read, name: "RXWM")
                     .WithTag("RESERVED", 2, 30)
                 },
-
                 {(long)Registers.BaudrateDivisor, new DoubleWordRegister(this, 0xFFFF)
                     .WithValueField(0, 16, out baudRateDivisor, name: "DIV")
                     .WithTag("RESERVED", 16, 16)
@@ -124,9 +118,13 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public long Size => 0x100;
+
         public GPIO IRQ { get; private set; }
+
         public override Bits StopBits => numberOfStopBits.Value ? Bits.Two : Bits.One;
+
         public override Parity ParityBit => Parity.None;
+
         public override uint BaudRate => (uint)(inputClockFrequency / (uint)(1 + baudRateDivisor.Value));
 
         protected override void CharWritten()
@@ -157,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 receiveWatermarkInterruptPending.Value = (Count > (int)receiveWatermarkLevel.Value);
 
                 IRQ.Set(transmitWatermarkInterruptEnable.Value && transmitWatermarkInterruptPending.Value
-			|| receiveWatermarkInterruptEnable.Value && receiveWatermarkInterruptPending.Value);
+            || receiveWatermarkInterruptEnable.Value && receiveWatermarkInterruptPending.Value);
             }
         }
 

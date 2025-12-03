@@ -4,32 +4,32 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class ExternalWindowMMU: ExternalMmuBase, IDoubleWordPeripheral, IKnownSize
+    public class ExternalWindowMMU : ExternalMmuBase, IDoubleWordPeripheral, IKnownSize
     {
-        public ExternalWindowMMU(ICPUWithExternalMmu cpu, ulong startAddress, ulong windowSize, uint numberOfWindows) : base(cpu, numberOfWindows)
+        public ExternalWindowMMU(ICPUWithExternalMmu cpu, uint numberOfWindows) : base(cpu, numberOfWindows)
         {
             this.numberOfWindows = numberOfWindows;
             IRQ = new GPIO();
             registers = DefineRegisters();
 
-            cpu.AddHookOnMmuFault((faultAddress, accessType, faultyWindowAddress) =>
+            cpu.AddHookOnMmuFault((faultAddress, accessType, faultyWindowId, firstTry) =>
             {
-                if(faultyWindowAddress != -1 && this.ContainsWindowWithIndex((uint)faultyWindowAddress))
+                if(!firstTry && faultyWindowId is ulong id && this.ContainsWindowWithId(id))
                 {
                     this.TriggerInterrupt();
                     throw new CpuAbortException("Mmu fault occured. This must be handled properly");
                 }
+                return false;
             });
         }
 
@@ -93,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 registersMap.Add((long)Register.PrivilegesBase + index * 4, new DoubleWordRegister(this)
                     .WithValueField(0, 32, name: $"PRIVILEGES[{index}]", writeCallback: (_, value) =>
                     {
-                        SetWindowPrivileges(index, (uint)value);
+                        SetWindowPrivileges(index, (Privilege)value);
                     }, valueProviderCallback: _ =>
                     {
                         return GetWindowPrivileges(index);

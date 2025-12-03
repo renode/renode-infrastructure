@@ -17,6 +17,11 @@ else()
     add_definitions(-fomit-frame-pointer)
 endif()
 
+# Detect whether the host is 32- or 64-bit
+math (EXPR WORD_SIZE_FOUND "${CMAKE_SIZEOF_VOID_P} * 8")
+set (HOST_WORD_SIZE "${WORD_SIZE_FOUND}" CACHE STRING "Host word size")
+message(VERBOSE "Using HOST_WORD_SIZE: ${HOST_WORD_SIZE}")
+
 add_definitions (
     -fPIC
     -Wall
@@ -24,6 +29,8 @@ add_definitions (
     -Wno-unused-parameter
     -Wno-sign-compare
     -Werror
+
+    -DHOST_LONG_BITS=${HOST_WORD_SIZE}
 )
 
 include_directories (
@@ -49,7 +56,7 @@ target_compile_definitions(virt-x86 PRIVATE
 
 set_target_properties(virt-x86 PROPERTIES
     PREFIX ""
-    OUTPUT_NAME "kvm-i386"
+    OUTPUT_NAME "kvm-x86"
     SUFFIX ".so"
 )
 
@@ -67,6 +74,6 @@ target_compile_definitions(virt-x86_64 PRIVATE
 
 set_target_properties(virt-x86_64 PROPERTIES
     PREFIX ""
-    OUTPUT_NAME "kvm-i386_64"
+    OUTPUT_NAME "kvm-x86_64"
     SUFFIX ".so"
 )

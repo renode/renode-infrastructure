@@ -1,13 +1,14 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Video;
-using Antmicro.Renode.Backends.Display;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Backends.Video
@@ -20,7 +21,28 @@ namespace Antmicro.Renode.Backends.Video
             Video.FrameRendered += HandleFrameRendered;
             Video.ConfigurationChanged += HandleConfigurationChanged;
         }
-       
+
+        public void Detach()
+        {
+            Video.FrameRendered -= HandleFrameRendered;
+            Video.ConfigurationChanged -= HandleConfigurationChanged;
+            Video = null;
+        }
+
+        public int Width { get; private set; }
+
+        public int Height { get; private set; }
+
+        public PixelFormat Format { get; private set; }
+
+        public Endianess Endianess { get; private set; }
+
+        public byte[] Frame { get; private set; }
+
+        public IVideo Video { get; private set; }
+
+        public IAnalyzable AnalyzableElement { get { return Video; } }
+
         private void HandleFrameRendered(byte[] frame)
         {
             if(frame != null)
@@ -36,16 +58,5 @@ namespace Antmicro.Renode.Backends.Video
             Format = format;
             Endianess = endianess;
         }
-
-        public int Width { get; private set; }
-        public int Height { get; private set; }
-        public PixelFormat Format { get; private set; }
-        public Endianess Endianess { get; private set; }
-
-        public byte[] Frame { get; private set; }
-
-        public IVideo Video { get; private set; }
-        public IAnalyzable AnalyzableElement { get { return Video; } }
     }
 }
-

@@ -1,15 +1,15 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -96,18 +96,18 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         switch(val)
                         {
-                            case PrescalerMode.NoPrescaler:
-                                innerTimers[idx].Divider = 1;
-                                break;
-                            case PrescalerMode.Prescaler16:
-                                innerTimers[idx].Divider = 16;
-                                break;
-                            case PrescalerMode.Prescaler256:
-                                innerTimers[idx].Divider = 256;
-                                break;
-                            case PrescalerMode.Undefined:
-                                this.Log(LogLevel.Error, "Timer{0} prescaler set to an undefined value!", idx);
-                                break;
+                        case PrescalerMode.NoPrescaler:
+                            innerTimers[idx].Divider = 1;
+                            break;
+                        case PrescalerMode.Prescaler16:
+                            innerTimers[idx].Divider = 16;
+                            break;
+                        case PrescalerMode.Prescaler256:
+                            innerTimers[idx].Divider = 256;
+                            break;
+                        case PrescalerMode.Undefined:
+                            this.Log(LogLevel.Error, "Timer{0} prescaler set to an undefined value!", idx);
+                            break;
                         }
                     });
                 reg.WithReservedBits(4, 1);

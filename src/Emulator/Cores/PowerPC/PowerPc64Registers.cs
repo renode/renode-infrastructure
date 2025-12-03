@@ -6,12 +6,15 @@
 * appropriate *.tt file.
 *
 */
+#pragma warning disable IDE0005
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU.Registers;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Exceptions;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -48,11 +51,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)PowerPc64Registers.NIP);
             }
+
             set
             {
                 SetRegisterValue64((int)PowerPc64Registers.NIP, value);
             }
         }
+
         [Register]
         public RegisterValue MSR
         {
@@ -60,11 +65,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)PowerPc64Registers.MSR);
             }
+
             set
             {
                 SetRegisterValue64((int)PowerPc64Registers.MSR, value);
             }
         }
+
         [Register]
         public RegisterValue LR
         {
@@ -72,11 +79,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)PowerPc64Registers.LR);
             }
+
             set
             {
                 SetRegisterValue64((int)PowerPc64Registers.LR, value);
             }
         }
+
         [Register]
         public RegisterValue CTR
         {
@@ -84,11 +93,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)PowerPc64Registers.CTR);
             }
+
             set
             {
                 SetRegisterValue64((int)PowerPc64Registers.CTR, value);
             }
         }
+
         [Register]
         public RegisterValue XER
         {
@@ -96,11 +107,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)PowerPc64Registers.XER);
             }
+
             set
             {
                 SetRegisterValue64((int)PowerPc64Registers.XER, value);
             }
         }
+
         [Register]
         public override RegisterValue PC
         {
@@ -108,13 +121,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return GetRegisterValue64((int)PowerPc64Registers.PC);
             }
+
             set
             {
                 SetRegisterValue64((int)PowerPc64Registers.PC, value);
             }
         }
+
         public RegistersGroup R { get; private set; }
 
+#pragma warning disable SA1508
         protected override void InitializeRegisters()
         {
             var indexValueMapR = new Dictionary<int, PowerPc64Registers>
@@ -158,16 +174,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                 (i, v) => SetRegister((int)indexValueMapR[i], v));
 
         }
+#pragma warning restore SA1508
 
+#pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
-        #pragma warning disable 649
-
         [Import(Name = "tlib_set_register_value_64")]
         protected Action<int, ulong> SetRegisterValue64;
+
         [Import(Name = "tlib_get_register_value_64")]
         protected Func<int, ulong> GetRegisterValue64;
-
-        #pragma warning restore 649
+#pragma warning restore 649
 
         private static readonly Dictionary<PowerPc64Registers, CPURegister> mapping = new Dictionary<PowerPc64Registers, CPURegister>
         {

@@ -4,15 +4,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -58,12 +56,6 @@ namespace Antmicro.Renode.Peripherals.PCI
 
         public long Size => 0x10;
 
-        protected struct TargetBar
-        {
-            public IPCIePeripheral TargetPeripheral;
-            public uint BarNumber;
-        }
-
         private DoubleWordRegisterCollection CreateRegisters()
         {
             var registersDictionary = new Dictionary<long, DoubleWordRegister>
@@ -96,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.PCI
 
             if(selectedDevice != null)
             {
-                selectedDevice.ConfigurationWriteDoubleWord((long)registerNumber.Value*4, data);
+                selectedDevice.ConfigurationWriteDoubleWord((long)registerNumber.Value * 4, data);
             }
             else
             {
@@ -124,7 +116,6 @@ namespace Antmicro.Renode.Peripherals.PCI
             return 0;
         }
 
-        private readonly DoubleWordRegisterCollection registers;
         private IFlagRegisterField configEnabled;
         private IValueRegisterField registerNumber;
         private IValueRegisterField functionNumber;
@@ -134,6 +125,14 @@ namespace Antmicro.Renode.Peripherals.PCI
 
         private ulong currentAccessAbsoluteAddress;
         private uint address;
+
+        private readonly DoubleWordRegisterCollection registers;
+
+        protected struct TargetBar
+        {
+            public IPCIePeripheral TargetPeripheral;
+            public uint BarNumber;
+        }
 
         private enum Registers
         {

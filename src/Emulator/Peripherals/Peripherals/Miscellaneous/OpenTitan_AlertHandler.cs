@@ -7,13 +7,14 @@
 
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class OpenTitan_AlertHandler: BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver
+    public class OpenTitan_AlertHandler : BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver
     {
         public OpenTitan_AlertHandler(IMachine machine) : base(machine)
         {
@@ -53,8 +54,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public GPIO ClassAInterrupt { get; }
+
         public GPIO ClassBInterrupt { get; }
+
         public GPIO ClassCInterrupt { get; }
+
         public GPIO ClassDInterrupt { get; }
 
         public long Size => 0x1000;
@@ -253,20 +257,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch(alertClass)
             {
-                case AlertClass.A:
-                    classAInterruptTriggered.Value = true;
-                    break;
-                case AlertClass.B:
-                    classBInterruptTriggered.Value = true;
-                    break;
-                case AlertClass.C:
-                    classCInterruptTriggered.Value = true;
-                    break;
-                case AlertClass.D:
-                    classDInterruptTriggered.Value = true;
-                    break;
-                default:
-                    throw new ArgumentException("Unknown alert class");
+            case AlertClass.A:
+                classAInterruptTriggered.Value = true;
+                break;
+            case AlertClass.B:
+                classBInterruptTriggered.Value = true;
+                break;
+            case AlertClass.C:
+                classCInterruptTriggered.Value = true;
+                break;
+            case AlertClass.D:
+                classDInterruptTriggered.Value = true;
+                break;
+            default:
+                throw new ArgumentException("Unknown alert class");
             }
             UpdateInterrupts();
         }
@@ -302,26 +306,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private const uint LocalAlertsCount = 7;
         private const uint PingPauseCycles = 2;
 
-        #pragma warning disable format
-        private enum AlertClass
-        {
-            A = 0,
-            B = 1,
-            C = 2,
-            D = 3,
-        }
-
-        private enum LocalCauses
-        {
-            AlertPingFail = 0,
-            EscalationPingFail = 1,
-            AlertIntegrityFail = 2,
-            EscalationIntegrityFail = 3,
-            BusIntegrityFail = 4,
-            ShadowRegisterUpdateError = 5,
-            ShadowRegisterStorageError = 6,
-        }
-
+#pragma warning disable format
         public enum Registers
         {
             InterruptState                 = 0x0,
@@ -675,6 +660,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ClassDEscalationCount          = 0x530+0x40,
             ClassDState                    = 0x534+0x40,
         }
-       #pragma warning restore format
+
+        private enum AlertClass
+        {
+            A = 0,
+            B = 1,
+            C = 2,
+            D = 3,
+        }
+
+        private enum LocalCauses
+        {
+            AlertPingFail = 0,
+            EscalationPingFail = 1,
+            AlertIntegrityFail = 2,
+            EscalationIntegrityFail = 3,
+            BusIntegrityFail = 4,
+            ShadowRegisterUpdateError = 5,
+            ShadowRegisterStorageError = 6,
+        }
+#pragma warning restore format
     }
 }

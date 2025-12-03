@@ -5,31 +5,23 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     public class TegraUsecTimer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public TegraUsecTimer (IMachine machine) : base(machine.ClockSource, 1000000, direction: Direction.Ascending, limit: uint.MaxValue, enabled: true)
+        public TegraUsecTimer(IMachine machine) : base(machine.ClockSource, 1000000, direction: Direction.Ascending, limit: uint.MaxValue, enabled: true)
         {
-            Reset ();
+            Reset();
         }
 
-        // THIS IS A WORKAROUND FOR A BUG IN MONO
-        // https://bugzilla.xamarin.com/show_bug.cgi?id=39444
-        protected override void OnLimitReached()
+        public uint ReadDoubleWord(long offset)
         {
-            base.OnLimitReached();
-        }
-
-        public uint ReadDoubleWord (long offset)
-        {
-            switch ((Registers)offset) 
+            switch((Registers)offset)
             {
             case Registers.Value:
                 return (uint)Value;
@@ -43,9 +35,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public void WriteDoubleWord (long offset, uint value)
+        public void WriteDoubleWord(long offset, uint value)
         {
-            switch ((Registers)offset) 
+            switch((Registers)offset)
             {
             case Registers.Value:
                 this.Log(LogLevel.Warning, "Unexpected write to readonly register 0x{0:X}, value 0x{1:X}.", offset, value);
@@ -63,18 +55,30 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public long Size {
-            get 
-            {
-                return 64;
-            }
-        }
-
         public override void Reset()
         {
             usecDivisor = 0xc;
             usecDividend = 0x0;
         }
+
+        public long Size
+        {
+            get
+            {
+                return 64;
+            }
+        }
+
+        // THIS IS A WORKAROUND FOR A BUG IN MONO
+        // https://bugzilla.xamarin.com/show_bug.cgi?id=39444
+        protected override void OnLimitReached()
+        {
+            base.OnLimitReached();
+        }
+
+        private byte usecDivisor;
+        private byte usecDividend;
+        private byte freeze;
 
         private enum Registers
         {
@@ -82,11 +86,5 @@ namespace Antmicro.Renode.Peripherals.Timers
             Config = 0x04,
             Freeze = 0x3c,
         }
-
-        private byte usecDivisor;
-        private byte usecDividend;
-        private byte freeze;
-
     }
 }
-

@@ -6,10 +6,11 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -91,7 +92,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithFlag(1, out lockPrescalers, FieldMode.Set, name: "LTWCP (Lock Prescalers)")
                     .WithFlag(0, out lockWatchdogConfig, FieldMode.Set, name: "LTWCFG (Lock Watchdog Configuration)")
                 },
-
                 {(long)Registers.TimerAndWatchdogClockPrescaler, new WordRegister(this)
                     .WithReservedBits(4, 12)
                     .WithValueField(0, 4,
@@ -121,7 +121,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                         },
                         name: "MDIV")
                 },
-
                 {(long)Registers.Timer0, new WordRegister(this)
                     .WithValueField(0, 16,
                         writeCallback: (__, val) =>
@@ -144,7 +143,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                         },
                         name: "T0_PRESET (T0 Counter Preset)")
                 },
-
                 {(long)Registers.Timer0ControlAndStatus, new WordRegister(this)
                     .WithReservedBits(8, 8)
                     .WithTaggedFlag("TESDIS (Too Early Service Disable)", 7)
@@ -153,8 +151,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithFlag(4, out watchdogResetStatus, FieldMode.WriteOneToClear | FieldMode.Read, name: "WDRST_STS (Watchdog Reset Status)")
                     .WithTaggedFlag("WDLTD (Watchdog Last Touch Delay)", 3)
                     .WithReservedBits(2, 1)
-                    .WithFlag(1, FieldMode.Read, 
-                        valueProviderCallback: _ => 
+                    .WithFlag(1, FieldMode.Read,
+                        valueProviderCallback: _ =>
                         {
                             if(terminalCountReached)
                             {
@@ -176,7 +174,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                         },
                         name: "RST (Reset)")
                 },
-
                 {(long)Registers.WatchdogCount, new WordRegister(this)
                     .WithReservedBits(8, 8)
                     .WithValueField(0, 8,
@@ -205,7 +202,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                         },
                         name: "WD_PRESET (Watchdog Counter Preset)")
                 },
-
                 {(long)Registers.WatchdogServiceDataMatch, new WordRegister(this)
                     .WithReservedBits(8, 8)
                     .WithValueField(0, 8, FieldMode.Write,
@@ -240,16 +236,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                         },
                         name: "RSDATA (Watchdog Restart Data)")
                 },
-
                 {(long)Registers.Timer0Counter, new WordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => periodicInterruptTimer.Value, name: "T0_COUNT (T0 Counter Value)")
                 },
-
                 {(long)Registers.WatchdogCounter, new WordRegister(this)
                     .WithReservedBits(8, 8)
                     .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => (ulong)watchdog.Value, name: "WD_COUNT (Watchdog Counter Value)")
                 },
-                
                 {(long)Registers.WatchdogClockPrescaler, new WordRegister(this)
                     .WithReservedBits(4, 12)
                     .WithValueField(0, 4,
@@ -314,7 +307,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 byteInSequence = StopUnlockSequence.FirstByte;
             }
-            else if ((byteInSequence == StopUnlockSequence.FirstByte) && (data == 0x61))
+            else if((byteInSequence == StopUnlockSequence.FirstByte) && (data == 0x61))
             {
                 byteInSequence = StopUnlockSequence.SecondByte;
             }
@@ -329,11 +322,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             return byteInSequence;
         }
 
-        private readonly IMachine machine;
-        private readonly LimitTimer periodicInterruptTimer;
-        private readonly LimitTimer watchdogCounter;
-        private readonly Watchdog watchdog;
-
         private IFlagRegisterField lockTimer;
         private IFlagRegisterField watchdogTouchSelect;
         private IFlagRegisterField lockWatchdog;
@@ -346,6 +334,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         private int watchdogPrescaler;
         private bool terminalCountReached;
         private byte watchdogCounterPresetValue;
+
+        private readonly IMachine machine;
+        private readonly LimitTimer periodicInterruptTimer;
+        private readonly LimitTimer watchdogCounter;
+        private readonly Watchdog watchdog;
 
         private const int DefaultFrequency = 32768;
         private const int DefaultDivider = 1;
@@ -413,11 +406,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                 internalDivider = Divider;
             }
 
+            private int internalDivider;
+
+            private readonly NPCX_TWD parent;
+
             private readonly Action alarmHandler;
             private readonly ulong initialValue;
-
-            private NPCX_TWD parent;
-            private int internalDivider;
         }
 
         private enum StopUnlockSequence

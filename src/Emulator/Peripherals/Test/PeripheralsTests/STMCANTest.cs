@@ -5,13 +5,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using NUnit.Framework;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.CAN;
-using System.Threading;
-using System.Diagnostics;
-using System.Collections.Generic;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.PeripheralsTests
 {
@@ -141,7 +137,6 @@ namespace Antmicro.Renode.PeripheralsTests
                 filterIndex++;
             }
             while(filterIndex < 28);
-
         }
 
         [Test, Ignore("Ignored")]
@@ -256,4 +251,3 @@ namespace Antmicro.Renode.PeripheralsTests
         }
     }
 }
-

@@ -6,9 +6,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
@@ -30,6 +29,17 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         {
         }
 
+        #region IUSBDevice implementation
+        public byte[] ProcessVendorGet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ProcessVendorSet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
         public USBDeviceSpeed GetSpeed()
         {
             return USBDeviceSpeed.Low;
@@ -37,7 +47,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         public void WriteDataBulk(USBPacket packet)
         {
-
         }
 
         public void WriteDataControl(USBPacket packet)
@@ -47,11 +56,13 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         public void Reset()
         {
         }
+
         public uint GetAddress()
         {
             return 0;
         }
-        public     byte GetTransferStatus()
+
+        public byte GetTransferStatus()
         {
             return 0;
         }
@@ -116,8 +127,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             throw new NotImplementedException();
         }
 
-
-         #region IUSBDevice
+        #region IUSBDevice
         public byte[] GetInterface(USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new NotImplementedException();
@@ -126,7 +136,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         public byte[] GetStatus(USBPacket packet, USBSetupPacket setupPacket)
         {
             var arr = new byte[2];
-            MessageRecipient recipient = (MessageRecipient)(setupPacket.requestType & 0x3);
+            MessageRecipient recipient = (MessageRecipient)(setupPacket.RequestType & 0x3);
             switch(recipient)
             {
             case MessageRecipient.Device:
@@ -144,7 +154,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         public void SetAddress(uint address)
         {
-
         }
 
         public void SetConfiguration(USBPacket packet, USBSetupPacket setupPacket)
@@ -172,41 +181,23 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             throw new NotImplementedException();
         }
 
-        public void WriteData(byte[] data)
+        public void WriteData(byte[] _)
         {
-            //throw new NotImplementedException ();
             this.Log(LogLevel.Info, "Bulk Data write");
         }
         #endregion
 
         #region descriptors
-        private ConfigurationUSBDescriptor configurationDescriptor = new ConfigurationUSBDescriptor()
+        private readonly ConfigurationUSBDescriptor configurationDescriptor = new ConfigurationUSBDescriptor()
         {
             ConfigurationIndex = 3,
             SelfPowered = true
         };
 
- #endregion
-
-
+        #endregion
 
         private const ushort EnglishLangId = 0x09;
 
-
-        #region IUSBDevice implementation
-        public byte[] ProcessVendorGet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void ProcessVendorSet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-
-
-    #endregion
+        #endregion
     }
 }
-

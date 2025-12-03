@@ -45,18 +45,18 @@ namespace Antmicro.Renode.Peripherals.Memory
             int incrementSign;
             switch(incrementMode)
             {
-                case IncrementMode.Ignored0:
-                case IncrementMode.Ignored1:
-                    incrementSign = 0;
-                    break;
-                case IncrementMode.Increment:
-                    incrementSign = 1;
-                    break;
-                case IncrementMode.Decrement:
-                    incrementSign = -1;
-                    break;
-                default:
-                    throw new Exception("unreachable");
+            case IncrementMode.Ignored0:
+            case IncrementMode.Ignored1:
+                incrementSign = 0;
+                break;
+            case IncrementMode.Increment:
+                incrementSign = 1;
+                break;
+            case IncrementMode.Decrement:
+                incrementSign = -1;
+                break;
+            default:
+                throw new Exception("unreachable");
             }
 
             return incrementSign * (byteTransfer ? 1 : 2);
@@ -134,7 +134,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             ChannelRegisters.ChannelControl0.DefineMany(ChannelRegisterCollections, ChannelsCount, (register, index) =>
                 register
                     .WithFlag(0, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMAREQ",
-                        writeCallback: (_, value) => { if(value) PerformTransfer(index); } )
+                        writeCallback: (_, value) => { if(value) PerformTransfer(index); })
                     .WithTaggedFlag("DMAABORT", 1)
                     .WithFlag(2, out interruptEnabled[index], name: "DMAIE")
                     .WithFlag(3, out interruptPending[index], name: "DMAIFG")
@@ -170,22 +170,22 @@ namespace Antmicro.Renode.Peripherals.Memory
                 stepInBytes: ChannelStructureSize);
         }
 
-        private long[] sourceAddress = new long[ChannelsCount];
-        private long[] destinationAddress = new long[ChannelsCount];
-        private ulong[] transferSizeCached = new ulong[ChannelsCount];
-
         private IEnumRegisterField<TriggerSelect>[] triggerSelect = new IEnumRegisterField<TriggerSelect>[ChannelsCount];
-        private IEnumRegisterField<TransferMode>[] transferMode = new IEnumRegisterField<TransferMode>[ChannelsCount];
-        private IEnumRegisterField<IncrementMode>[] sourceIncrementMode = new IEnumRegisterField<IncrementMode>[ChannelsCount];
-        private IEnumRegisterField<IncrementMode>[] destinationIncrementMode = new IEnumRegisterField<IncrementMode>[ChannelsCount];
 
-        private IValueRegisterField[] transferSize = new IValueRegisterField[ChannelsCount];
+        private readonly long[] sourceAddress = new long[ChannelsCount];
+        private readonly long[] destinationAddress = new long[ChannelsCount];
+        private readonly ulong[] transferSizeCached = new ulong[ChannelsCount];
+        private readonly IEnumRegisterField<TransferMode>[] transferMode = new IEnumRegisterField<TransferMode>[ChannelsCount];
+        private readonly IEnumRegisterField<IncrementMode>[] sourceIncrementMode = new IEnumRegisterField<IncrementMode>[ChannelsCount];
+        private readonly IEnumRegisterField<IncrementMode>[] destinationIncrementMode = new IEnumRegisterField<IncrementMode>[ChannelsCount];
 
-        private IFlagRegisterField[] interruptEnabled = new IFlagRegisterField[ChannelsCount];
-        private IFlagRegisterField[] interruptPending = new IFlagRegisterField[ChannelsCount];
-        private IFlagRegisterField[] channelEnabled = new IFlagRegisterField[ChannelsCount];
-        private IFlagRegisterField[] sourceByteTransfer = new IFlagRegisterField[ChannelsCount];
-        private IFlagRegisterField[] destinationByteTransfer = new IFlagRegisterField[ChannelsCount];
+        private readonly IValueRegisterField[] transferSize = new IValueRegisterField[ChannelsCount];
+
+        private readonly IFlagRegisterField[] interruptEnabled = new IFlagRegisterField[ChannelsCount];
+        private readonly IFlagRegisterField[] interruptPending = new IFlagRegisterField[ChannelsCount];
+        private readonly IFlagRegisterField[] channelEnabled = new IFlagRegisterField[ChannelsCount];
+        private readonly IFlagRegisterField[] sourceByteTransfer = new IFlagRegisterField[ChannelsCount];
+        private readonly IFlagRegisterField[] destinationByteTransfer = new IFlagRegisterField[ChannelsCount];
 
         private const int ChannelsCount = 3;
         private const int ChannelStructureSize = 0xC;

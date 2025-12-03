@@ -6,8 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals
 {
@@ -16,4 +17,3 @@ namespace Antmicro.Renode.Peripherals
         IEnumerable<IMappedSegment> MappedSegments { get; }
     }
 }
-

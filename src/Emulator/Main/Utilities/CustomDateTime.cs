@@ -13,8 +13,6 @@ namespace Antmicro.Renode.Utilities
     // This is because getting DateTime.Now on mono is veeeeeeeeery slow and this is much faster 
     public static class CustomDateTime
     {
-        public static DateTime Now { get { return DateTime.UtcNow.Add(timeDifference); } }
-
         static CustomDateTime()
         {
             var ournow = DateTime.Now;
@@ -23,7 +21,8 @@ namespace Antmicro.Renode.Utilities
             timeDifference = ournow - utcnow;
         }
 
+        public static DateTime Now { get { return DateTime.UtcNow.Add(timeDifference); } }
+
         private static readonly TimeSpan timeDifference;
     }
 }
-

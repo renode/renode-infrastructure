@@ -5,10 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -25,9 +25,9 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(8, 24)
                 );
             registersMap.Add((long)Registers.UARTModeStatus, new DoubleWordRegister(this)
-                .WithReservedBits(0,1)
+                .WithReservedBits(0, 1)
                 .WithFlag(1, FieldMode.Read, name: "DTFTFF", valueProviderCallback: _ => true)
-                .WithReservedBits(2,30));
+                .WithReservedBits(2, 30));
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
         }
@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public uint ReadDoubleWord(long offset)
         {
-            return registers.Read(offset);;
+            return registers.Read(offset); ;
         }
 
         public void WriteDoubleWord(long offset, uint value)
@@ -51,7 +51,9 @@ namespace Antmicro.Renode.Peripherals.UART
         public GPIO IRQ { get; }
 
         public override uint BaudRate => 115200;
+
         public override Parity ParityBit => Parity.None;
+
         public override Bits StopBits => Bits.One;
 
         public long Size => 0x1000;

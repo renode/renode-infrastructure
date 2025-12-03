@@ -6,26 +6,26 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Microsoft.Scripting.Hosting;
-using Antmicro.Migrant.Hooks;
+
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.CPU;
+
+using Microsoft.Scripting.Hosting;
 
 namespace Antmicro.Renode.Hooks
 {
     public class SyncPointHookPythonEngine : PythonEngine
     {
         public SyncPointHookPythonEngine(string script, Emulation emulation)
-        {      
+        {
             this.script = script;
             this.emulation = emulation;
             InnerInit();
 
             Hook = new Action<long>(syncCount =>
-            {   
+            {
                 Scope.SetVariable("syncCount", syncCount);
                 Execute(code, error =>
                 {
@@ -33,6 +33,8 @@ namespace Antmicro.Renode.Hooks
                 });
             });
         }
+
+        public Action<long> Hook { get; private set; }
 
         [PostDeserialization]
         private void InnerInit()
@@ -42,13 +44,10 @@ namespace Antmicro.Renode.Hooks
             code = Compile(source);
         }
 
-        public Action<long> Hook { get; private set; }
+        [Transient]
+        private CompiledCode code;
 
         private readonly string script;
         private readonly Emulation emulation;
-
-        [Transient]
-        private CompiledCode code;
     }
 }
-

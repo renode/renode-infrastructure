@@ -6,18 +6,19 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Debugging;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities.Binding;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.UART;
+using System.Linq;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+using Antmicro.Renode.Peripherals.UART;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Binding;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -39,6 +40,88 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.signalsUnit = signalsUnit;
                 signalsUnit.RegisterCPU(this);
             }
+        }
+
+        public void SetSystemRegisterValue(string name, ulong value)
+        {
+            ValidateSystemRegisterAccess(name, isWrite: true);
+
+            TlibSetSystemRegister(name, value, 1u /* log_unhandled_access: true */);
+        }
+
+        public ulong GetSystemRegisterValue(string name)
+        {
+            ValidateSystemRegisterAccess(name, isWrite: false);
+
+            return TlibGetSystemRegister(name, 1u /* log_unhandled_access: true */);
+        }
+
+        public void RegisterTCMRegion(IMemory memory, uint interfaceIndex, uint regionIndex)
+        {
+            Action<IMachine, MachineStateChangedEventArgs> hook = null;
+            hook = (_, args) =>
+            {
+                if(args.CurrentState != MachineStateChangedEventArgs.State.Started)
+                {
+                    return;
+                }
+                if(!TryRegisterTCMRegion(memory, interfaceIndex, regionIndex))
+                {
+                    this.Log(LogLevel.Error, "Attempted to register a TCM #{0} region #{1}, but {2} is not registered for this cpu.", interfaceIndex, regionIndex, machine.GetLocalName(memory));
+                }
+                machine.StateChanged -= hook;
+            };
+            machine.StateChanged += hook;
+        }
+
+        public void SetSevOnPending(bool value)
+        {
+            TlibSetSevOnPending(value ? 1 : 0);
+        }
+
+        public void SetEventFlag(bool value)
+        {
+            TlibSetEventFlag(value ? 1 : 0);
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            foreach(var config in defaultTCMConfiguration)
+            {
+                RegisterTCMRegion(config);
+            }
+        }
+
+        public bool EvaluateConditionCode(uint condition)
+        {
+            return TlibEvaluateConditionCode(condition) > 0;
+        }
+
+        public bool WillNextItInstructionExecute(uint itState)
+        {
+            /* Returns true if the oldest bit of 'abcd' field is set to 0 and the condition is met.
+             * If there is no trailing one in the lower part, we are not in an IT block*/
+            var maskBit = (itState & 0x10) == 0 && ((itState & 0xF) > 0);
+            var condition = (itState >> 4) & 0x0E;
+            if(EvaluateConditionCode(condition))
+            {
+                return maskBit;
+            }
+            else
+            {
+                return !maskBit;
+            }
+        }
+
+        public uint GetItState()
+        {
+            uint itState = TlibGetItState();
+            if((itState & 0x1F) == 0)
+            {
+                this.Log(LogLevel.Warning, "Checking IT_STATE, while not in IT block");
+            }
+            return itState;
         }
 
         public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)
@@ -79,17 +162,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             return TlibGetArmFeature((int)feature) > 0;
         }
-
-        public override string Architecture { get { return "arm"; } }
-
-        //gdb does not contain arm-m and armv7 as independent architecteures so we need to pass "arm" in every case.
-        public override string GDBArchitecture { get { return "arm"; } }
-
-        public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
-
-        public bool ImplementsPMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Physical_PMSA;
-        public bool ImplementsVMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Virtual_VMSA;
-        public abstract MemorySystemArchitectureType MemorySystemArchitecture { get; }
 
         public virtual uint ExceptionVectorAddress
         {
@@ -136,6 +208,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return TlibGetCpuModelId();
             }
+
             set
             {
                 TlibSetCpuModelId(value);
@@ -168,125 +241,43 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return TlibGetNumberOfMpuRegions();
             }
+
             set
             {
                 TlibSetNumberOfMpuRegions(value);
             }
         }
 
-        protected bool wfiAsNop;
-        protected bool wfeAndSevAsNop;
+        public override string Architecture { get { return "arm"; } }
 
-        [Export]
-        protected uint Read32CP15(uint instruction)
-        {
-            return Read32CP15Inner(new Coprocessor32BitMoveInstruction(instruction));
-        }
+        //gdb does not contain arm-m and armv7 as independent architecteures so we need to pass "arm" in every case.
+        public override string GDBArchitecture { get { return "arm"; } }
 
-        [Export]
-        protected void Write32CP15(uint instruction, uint value)
-        {
-            Write32CP15Inner(new Coprocessor32BitMoveInstruction(instruction), value);
-        }
+        public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
 
-        [Export]
-        protected ulong Read64CP15(uint instruction)
-        {
-            return Read64CP15Inner(new Coprocessor64BitMoveInstruction(instruction));
-        }
+        public bool ImplementsPMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Physical_PMSA;
 
-        [Export]
-        protected void Write64CP15(uint instruction, ulong value)
-        {
-            Write64CP15Inner(new Coprocessor64BitMoveInstruction(instruction), value);
-        }
+        public bool ImplementsVMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Virtual_VMSA;
 
-        protected override Interrupt DecodeInterrupt(int number)
-        {
-            switch(number)
-            {
-                case 0:
-                    return Interrupt.Hard;
-                case 1:
-                    return Interrupt.TargetExternal1;
-                default:
-                    throw InvalidInterruptNumberException;
-            }
-        }
+        public abstract MemorySystemArchitectureType MemorySystemArchitecture { get; }
 
-        protected virtual uint Read32CP15Inner(Coprocessor32BitMoveInstruction instruction)
-        {
-            if(instruction.Opc1 == 4 && instruction.Opc2 == 0 && instruction.CRm == 0 && instruction.CRn == 15) // CBAR
-            {
-                // SCU's offset from CBAR is 0x0 so let's just return its address.
-                var scusRegistered = machine.SystemBus.Children.Where(registered => registered.Peripheral is ArmSnoopControlUnit);
-                switch(scusRegistered.Count())
-                {
-                    case 0:
-                        this.Log(LogLevel.Warning, "Tried to establish CBAR from SCU address but found no SCU registered for this CPU, returning 0x0.");
-                        return 0;
-                    case 1:
-                        return checked((uint)scusRegistered.Single().RegistrationPoint.StartingPoint);
-                    default:
-                        this.Log(LogLevel.Error, "Tried to establish CBAR from SCU address but found more than one SCU. Aborting.");
-                        throw new CpuAbortException();
-                }
-            }
-            this.Log(LogLevel.Warning, "Unknown CP15 32-bit read - {0}, returning 0x0", instruction);
-            return 0;
-        }
+#pragma warning disable 649
+        [Import]
+        public Func<uint> TlibGetExceptionVectorAddress;
 
-        protected virtual void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)
-        {
-            this.Log(LogLevel.Warning, "Unknown CP15 32-bit write - {0}", instruction);
-        }
+        [Import]
+        public Action<uint> TlibSetExceptionVectorAddress;
 
-        protected virtual ulong Read64CP15Inner(Coprocessor64BitMoveInstruction instruction)
-        {
-            this.Log(LogLevel.Warning, "Unknown CP15 64-bit read - {0}, returning 0x0", instruction);
-            return 0;
-        }
+        [Import]
+        public Action<int, uint> TlibUpdatePmuCounters;
+
+        [Import]
+        public Action<uint> TlibPmuSetDebug;
+#pragma warning restore 649
 
         protected virtual void Write64CP15Inner(Coprocessor64BitMoveInstruction instruction, ulong value)
         {
             this.Log(LogLevel.Warning, "Unknown CP15 64-bit write - {0}", instruction);
-        }
-
-        protected virtual UInt32 BeforePCWrite(UInt32 value)
-        {
-            TlibSetThumb((int)(value & 0x1));
-            return value & ~(uint)0x1;
-        }
-
-        public uint GetItState()
-        {
-            uint itState = TlibGetItState();
-            if((itState & 0x1F) == 0)
-            {
-                this.Log(LogLevel.Warning, "Checking IT_STATE, while not in IT block");
-            }
-            return itState;
-        }
-
-        public bool WillNextItInstructionExecute(uint itState)
-        {
-            /* Returns true if the oldest bit of 'abcd' field is set to 0 and the condition is met.
-             * If there is no trailing one in the lower part, we are not in an IT block*/
-            var MaskBit = (itState & 0x10) == 0 && ((itState & 0xF) > 0);
-            var condition = (itState >> 4) & 0x0E;
-            if(EvaluateConditionCode(condition))
-            {
-                return MaskBit;
-            }
-            else
-            {
-                return !MaskBit;
-            }
-        }
-
-        public bool EvaluateConditionCode(uint condition)
-        {
-            return TlibEvaluateConditionCode(condition) > 0;
         }
 
         protected override string GetExceptionDescription(ulong exceptionIndex)
@@ -299,41 +290,154 @@ namespace Antmicro.Renode.Peripherals.CPU
             return ExceptionDescriptions[exceptionIndex];
         }
 
-        public override void Reset()
+        protected virtual ulong Read64CP15Inner(Coprocessor64BitMoveInstruction instruction)
         {
-            base.Reset();
-            foreach(var config in defaultTCMConfiguration)
+            this.Log(LogLevel.Warning, "Unknown CP15 64-bit read - {0}, returning 0x0", instruction);
+            return 0;
+        }
+
+        protected virtual void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)
+        {
+            this.Log(LogLevel.Warning, "Unknown CP15 32-bit write - {0}", instruction);
+        }
+
+        protected virtual uint Read32CP15Inner(Coprocessor32BitMoveInstruction instruction)
+        {
+            if(instruction.Opc1 == 4 && instruction.Opc2 == 0 && instruction.CRm == 0 && instruction.CRn == 15) // CBAR
             {
-                RegisterTCMRegion(config);
+                // SCU's offset from CBAR is 0x0 so let's just return its address.
+                var scusRegistered = machine.SystemBus.Children.Where(registered => registered.Peripheral is ArmSnoopControlUnit);
+                switch(scusRegistered.Count())
+                {
+                case 0:
+                    this.Log(LogLevel.Warning, "Tried to establish CBAR from SCU address but found no SCU registered for this CPU, returning 0x0.");
+                    return 0;
+                case 1:
+                    return checked((uint)scusRegistered.Single().RegistrationPoint.StartingPoint);
+                default:
+                    this.Log(LogLevel.Error, "Tried to establish CBAR from SCU address but found more than one SCU. Aborting.");
+                    throw new CpuAbortException();
+                }
+            }
+            this.Log(LogLevel.Warning, "Unknown CP15 32-bit read - {0}, returning 0x0", instruction);
+            return 0;
+        }
+
+        protected override Interrupt DecodeInterrupt(int number)
+        {
+            switch(number)
+            {
+            case 0:
+                return Interrupt.Hard;
+            case 1:
+                return Interrupt.TargetExternal1;
+            default:
+                throw InvalidInterruptNumberException;
             }
         }
 
-        public void SetEventFlag(bool value)
+        [Export]
+        protected void Write64CP15(uint instruction, ulong value)
         {
-            TlibSetEventFlag(value ? 1 : 0);
+            Write64CP15Inner(new Coprocessor64BitMoveInstruction(instruction), value);
         }
 
-        public void SetSevOnPending(bool value)
+        [Export]
+        protected ulong Read64CP15(uint instruction)
         {
-            TlibSetSevOnPending(value ? 1 : 0);
+            return Read64CP15Inner(new Coprocessor64BitMoveInstruction(instruction));
         }
 
-        public void RegisterTCMRegion(IMemory memory, uint interfaceIndex, uint regionIndex)
+        [Export]
+        protected void Write32CP15(uint instruction, uint value)
         {
-            Action<IMachine, MachineStateChangedEventArgs> hook = null;
-            hook = (_, args) =>
+            Write32CP15Inner(new Coprocessor32BitMoveInstruction(instruction), value);
+        }
+
+        [Export]
+        protected uint Read32CP15(uint instruction)
+        {
+            return Read32CP15Inner(new Coprocessor32BitMoveInstruction(instruction));
+        }
+
+        protected virtual UInt32 BeforePCWrite(UInt32 value)
+        {
+            TlibSetThumb((int)(value & 0x1));
+            return value & ~(uint)0x1;
+        }
+
+        protected bool wfiAsNop;
+        protected bool wfeAndSevAsNop;
+
+        [Export]
+        private void FillConfigurationSignalsState(IntPtr allocatedStatePointer)
+        {
+            // It's OK not to set the fields if there's no ArmConfigurationSignals.
+            // Default values of structure's fields are neutral to the simulation.
+            signalsUnit?.FillConfigurationStateStruct(allocatedStatePointer, this);
+        }
+
+        [Export]
+        private uint DoSemihosting()
+        {
+            var uart = semihostingUart;
+            //this.Log(LogLevel.Error, "Semihosing, r0={0:X}, r1={1:X} ({2:X})", this.GetRegister(0), this.GetRegister(1), this.TranslateAddress(this.GetRegister(1)));
+
+            uint operation = R[0];
+            uint r1 = R[1];
+            uint result = 0;
+            switch(operation)
             {
-                if(args.CurrentState != MachineStateChangedEventArgs.State.Started)
+            case 7: // SYS_READC
+                if(uart == null) break;
+                result = uart.SemihostingGetByte();
+                break;
+            case 3: // SYS_WRITEC
+            case 4: // SYS_WRITE0
+                if(uart == null) break;
+                string s = "";
+                if(!this.TryTranslateAddress(r1, MpuAccess.InstructionFetch, out var addr))
                 {
-                    return;
+                    this.Log(LogLevel.Debug, "Address translation failed when executing semihosting write operation for address: 0x{0:X}", r1);
+                    break;
                 }
-                if(!TryRegisterTCMRegion(memory, interfaceIndex, regionIndex))
+                do
                 {
-                    this.Log(LogLevel.Error, "Attempted to register a TCM #{0} region #{1}, but {2} is not registered for this cpu.", interfaceIndex, regionIndex, machine.GetLocalName(memory));
-                }
-                machine.StateChanged -= hook;
-            };
-            machine.StateChanged += hook;
+                    var c = this.Bus.ReadByte(addr++);
+                    if(c == 0) break;
+                    s = s + Convert.ToChar(c);
+                    if((operation) == 3) break; // SYS_WRITEC
+                } while(true);
+                uart.SemihostingWriteString(s);
+                break;
+            default:
+                this.Log(LogLevel.Debug, "Unknown semihosting operation: 0x{0:X}", operation);
+                break;
+            }
+            return result;
+        }
+
+        [Export]
+        private uint IsWfiAsNop()
+        {
+            return WfiAsNop ? 1u : 0u;
+        }
+
+        [Export]
+        private uint IsWfeAndSevAsNop()
+        {
+            return WfeAndSevAsNop ? 1u : 0u;
+        }
+
+        [Export]
+        private void SetSystemEvent(int value)
+        {
+            var flag = value != 0;
+
+            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<Arm>())
+            {
+                cpu.SetEventFlag(flag);
+            }
         }
 
         private void RegisterTCMRegion(TCMConfiguration config)
@@ -346,20 +450,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 throw new RecoverableException(e);
             }
-        }
-
-        public ulong GetSystemRegisterValue(string name)
-        {
-            ValidateSystemRegisterAccess(name, isWrite: false);
-
-            return TlibGetSystemRegister(name, 1u /* log_unhandled_access: true */);
-        }
-
-        public void SetSystemRegisterValue(string name, ulong value)
-        {
-            ValidateSystemRegisterAccess(name, isWrite: true);
-
-            TlibSetSystemRegister(name, value, 1u /* log_unhandled_access: true */);
         }
 
         private bool IsSystemRegisterAccessible(string name, bool isWrite)
@@ -386,16 +476,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool TryRegisterTCMRegion(IMemory memory, uint interfaceIndex, uint regionIndex)
         {
-            ulong address;
-            if(!TCMConfiguration.TryFindRegistrationAddress((SystemBus)machine.SystemBus, this, memory, out address))
+            if(!TCMConfiguration.TryCreate(this, memory, regionIndex, out var config, interfaceIndex))
             {
                 return false;
             }
 
-            var config = new TCMConfiguration(checked((uint)address), checked((ulong)memory.Size), regionIndex, interfaceIndex);
             RegisterTCMRegion(config);
             defaultTCMConfiguration.Add(config);
-
             return true;
         }
 
@@ -407,155 +494,53 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private ArmPerformanceMonitoringUnit performanceMonitoringUnit;
 
-        [Export]
-        private uint DoSemihosting()
-        {
-            var uart = semihostingUart;
-            //this.Log(LogLevel.Error, "Semihosing, r0={0:X}, r1={1:X} ({2:X})", this.GetRegister(0), this.GetRegister(1), this.TranslateAddress(this.GetRegister(1)));
-
-            uint operation = R[0];
-            uint r1 = R[1];
-            uint result = 0;
-            switch(operation)
-            {
-                case 7: // SYS_READC
-                    if(uart == null) break;
-                    result = uart.SemihostingGetByte();
-                    break;
-                case 3: // SYS_WRITEC
-                case 4: // SYS_WRITE0
-                    if(uart == null) break;
-                    string s = "";
-                    if(!this.TryTranslateAddress(r1, MpuAccess.InstructionFetch, out var addr))
-                    {
-                        this.Log(LogLevel.Debug, "Address translation failed when executing semihosting write operation for address: 0x{0:X}", r1);
-                        break;
-                    }
-                    do
-                    {
-                        var c = this.Bus.ReadByte(addr++);
-                        if(c == 0) break;
-                        s = s + Convert.ToChar(c);
-                        if((operation) == 3) break; // SYS_WRITEC
-                    } while(true);
-                    uart.SemihostingWriteString(s);
-                    break;
-                default:
-                    this.Log(LogLevel.Debug, "Unknown semihosting operation: 0x{0:X}", operation);
-                    break;
-            }
-            return result;
-        }
-
-        [Export]
-        private void FillConfigurationSignalsState(IntPtr allocatedStatePointer)
-        {
-            // It's OK not to set the fields if there's no ArmConfigurationSignals.
-            // Default values of structure's fields are neutral to the simulation.
-            signalsUnit?.FillConfigurationStateStruct(allocatedStatePointer, this);
-        }
-
-        [Export]
-        private uint IsWfiAsNop()
-        {
-            return WfiAsNop ? 1u : 0u;
-        }
-
-        [Export]
-        private uint IsWfeAndSevAsNop()
-        {
-            return WfeAndSevAsNop ? 1u : 0u;
-        }
-
         private SemihostingUart semihostingUart = null;
-
-        [Export]
-        private void SetSystemEvent(int value)
-        {
-            var flag = value != 0;
-
-            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<Arm>())
-            {
-                cpu.SetEventFlag(flag);
-            }
-        }
-
-        public enum MemorySystemArchitectureType
-        {
-            None,
-            Physical_PMSA,
-            Virtual_VMSA,
-        }
-
-        private enum SystemRegisterCheckReturnValue
-        {
-            RegisterNotFound = 1,
-            AccessorNotFound = 2,
-            AccessValid = 3,
-        }
-
-        private readonly List<TCMConfiguration> defaultTCMConfiguration = new List<TCMConfiguration>();
-        private readonly ArmSignalsUnit signalsUnit;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
-
         [Import]
-        private Action<uint> TlibSetCpuModelId;
-
-        [Import]
-        private Func<uint> TlibGetItState;
-
-        [Import]
-        private Func<uint, uint> TlibEvaluateConditionCode;
-
-        [Import]
-        private Func<uint> TlibGetCpuModelId;
-
-        [Import]
-        private Action<int> TlibSetThumb;
-
-        [Import]
-        private Action<int> TlibSetEventFlag;
-
-        [Import]
-        private Action<int> TlibSetSevOnPending;
-
-        [Import]
-        private Action<uint> TlibSetNumberOfMpuRegions;
-
-        [Import]
-        private Func<uint> TlibGetNumberOfMpuRegions;
-
-        [Import]
-        private Action<uint, ulong, ulong> TlibRegisterTcmRegion;
-
-        [Import]
-        private Func<string, uint, uint> TlibCheckSystemRegisterAccess;
+        // The arguments are: char *name, uint64_t value, bool log_unhandled_access.
+        private readonly Action<string, ulong, uint> TlibSetSystemRegister;
 
         [Import]
         // The arguments are: char *name, bool log_unhandled_access.
-        private Func<string, uint, ulong> TlibGetSystemRegister;
+        private readonly Func<string, uint, ulong> TlibGetSystemRegister;
 
         [Import]
-        // The arguments are: char *name, uint64_t value, bool log_unhandled_access.
-        private Action<string, ulong, uint> TlibSetSystemRegister;
+        private readonly Func<string, uint, uint> TlibCheckSystemRegisterAccess;
 
         [Import]
-        public Action<int, uint> TlibUpdatePmuCounters;
+        private readonly Func<uint> TlibGetNumberOfMpuRegions;
 
         [Import]
-        public Action<uint> TlibPmuSetDebug;
+        private readonly Func<int, uint> TlibGetArmFeature;
 
         [Import]
-        public Func<uint> TlibGetExceptionVectorAddress;
+        private readonly Action<uint> TlibSetNumberOfMpuRegions;
 
         [Import]
-        public Action<uint> TlibSetExceptionVectorAddress;
+        private readonly Action<int> TlibSetEventFlag;
 
         [Import]
-        private Func<int, uint> TlibGetArmFeature;
+        private readonly Action<int> TlibSetThumb;
 
+        [Import]
+        private readonly Func<uint> TlibGetCpuModelId;
+
+        [Import]
+        private readonly Func<uint, uint> TlibEvaluateConditionCode;
+
+        [Import]
+        private readonly Func<uint> TlibGetItState;
+
+        [Import]
+        private readonly Action<uint> TlibSetCpuModelId;
+
+        [Import]
+        private readonly Action<int> TlibSetSevOnPending;
+
+        [Import]
+        private readonly Action<uint, ulong, ulong> TlibRegisterTcmRegion;
 #pragma warning restore 649
 
         private readonly string[] ExceptionDescriptions =
@@ -571,6 +556,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             "STREX instruction"
         };
 
+        private readonly List<TCMConfiguration> defaultTCMConfiguration = new List<TCMConfiguration>();
+        private readonly ArmSignalsUnit signalsUnit;
+
         // NOTE: Needs to be updated on every tlib/arch/arm/cpu.h change
         public enum ArmFeatures
         {
@@ -579,6 +567,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             ARM_FEATURE_VFP_FP16 = 11,
             ARM_FEATURE_NEON = 12,
             ARM_FEATURE_VFP4 = 22,
+        }
+
+        public enum MemorySystemArchitectureType
+        {
+            None,
+            Physical_PMSA,
+            Virtual_VMSA,
         }
 
         protected struct Coprocessor32BitMoveInstruction
@@ -627,9 +622,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             public uint Opc1 { get; }
+
             public uint CRn { get; }
+
             public uint Opc2 { get; }
+
             public uint CRm { get; }
+
             public uint FieldsOnly { get; }
 
             public static readonly uint FieldsMask = BitHelper.CalculateMask(Opc1Size, Opc1Offset) | BitHelper.CalculateMask(CRnSize, CRnOffset)
@@ -661,7 +660,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             public uint Opc1 { get; }
+
             public uint CRm { get; }
+
             public uint FieldsOnly { get; }
 
             public static readonly uint FieldsMask = BitHelper.CalculateMask(Opc1Size, Opc1Offset) | BitHelper.CalculateMask(CRmSize, CRmOffset);
@@ -671,6 +672,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             private const int Opc1Offset = 4;
             private const int CRmOffset = 0;
+        }
+
+        private enum SystemRegisterCheckReturnValue
+        {
+            RegisterNotFound = 1,
+            AccessorNotFound = 2,
+            AccessValid = 3,
         }
     }
 }

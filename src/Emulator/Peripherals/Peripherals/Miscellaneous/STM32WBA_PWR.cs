@@ -30,6 +30,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         public long Size => 0x400;
+
         public GPIO IRQ { get; }
 
         public double? ThresholdVoltage { get => PvdLevelToVoltage(pvdLevel.Value); }
@@ -40,6 +41,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 return voltage;
             }
+
             set
             {
                 voltage = value;
@@ -53,6 +55,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 return pvdLevel.Value;
             }
+
             set
             {
                 pvdLevel.Value = value;

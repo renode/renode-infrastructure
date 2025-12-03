@@ -5,10 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
-using System.Threading;
+
 using Antmicro.Renode.Time;
 using Antmicro.Renode.UnitTests.Utilities;
+
 using NUnit.Framework;
 
 namespace UnitTests
@@ -45,7 +45,7 @@ namespace UnitTests
         public void ShouldHandleProgressIncludingResiduum()
         {
             GrantOnSource();
-            
+
             RequestOnSink().ShouldFinish();
             ContinueOnSink(TimeInterval.FromTicks(100));
 
@@ -93,7 +93,7 @@ namespace UnitTests
         }
 
         [Test]
-        public void  WaitShouldBlockWaitingForReport2()
+        public void WaitShouldBlockWaitingForReport2()
         {
             GrantOnSource();
             RequestOnSink().ShouldFinish();
@@ -111,7 +111,7 @@ namespace UnitTests
         }
 
 #if DEBUG
-// those tests assume DebugHelper.Assert to throw an exception; asserts are supported in debug mode only, so it would fail in non-debug mode
+        // those tests assume DebugHelper.Assert to throw an exception; asserts are supported in debug mode only, so it would fail in non-debug mode
 
         [Test]
         public void ShouldNotAllowToGrantTimeAfterDispose()
@@ -617,13 +617,13 @@ namespace UnitTests
         private ThreadSyncTester.ExecutionResult RequestOnSink()
         {
             // it may block or not
-            requestResult = tester.Execute(sinkThread, () => { var r = handle.RequestTimeInterval(out var i); return Tuple.Create(r, i);}, "Request");
+            requestResult = tester.Execute(sinkThread, () => { var r = handle.RequestTimeInterval(out var i); return Tuple.Create(r, i); }, "Request");
             return requestResult;
         }
-        
+
         private ThreadSyncTester.ExecutionResult ReportProgressOnSink(TimeInterval p)
         {
-            return tester.Execute(sinkThread, () => { handle.ReportProgress(p); return null;}, "ReportProgress").ShouldFinish();
+            return tester.Execute(sinkThread, () => { handle.ReportProgress(p); return null; }, "ReportProgress").ShouldFinish();
         }
 
         private ThreadSyncTester.ExecutionResult DisposeOnExternal()
@@ -695,14 +695,6 @@ namespace UnitTests
 
         private class MockTimeSource : ITimeSource, ITimeDomain
         {
-            public TimeInterval Quantum { get; set; }
-
-            public ITimeDomain Domain => this;
-
-            public TimeInterval NearestSyncPoint => ElapsedVirtualTime + Quantum;
-
-            public TimeInterval ElapsedVirtualTime { get; set; }
-
             public void RegisterSink(ITimeSink sink)
             {
                 throw new NotImplementedException();
@@ -715,6 +707,14 @@ namespace UnitTests
             public void ReportTimeProgress()
             {
             }
+
+            public TimeInterval Quantum { get; set; }
+
+            public ITimeDomain Domain => this;
+
+            public TimeInterval NearestSyncPoint => ElapsedVirtualTime + Quantum;
+
+            public TimeInterval ElapsedVirtualTime { get; set; }
         }
 
         private class MockTimeSink : ITimeSink

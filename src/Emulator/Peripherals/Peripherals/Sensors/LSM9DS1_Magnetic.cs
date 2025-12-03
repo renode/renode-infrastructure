@@ -6,8 +6,8 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
@@ -15,7 +15,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public class LSM9DS1_Magnetic: II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ISensor
+    public class LSM9DS1_Magnetic : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ISensor
     {
         public LSM9DS1_Magnetic()
         {
@@ -55,21 +55,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(state)
             {
-                case State.Idle:
-                    address = BitHelper.GetValue(b, offset: 0, size: 7);
-                    addressAutoIncrement = BitHelper.IsBitSet(b, 7);
-                    this.Log(LogLevel.Noisy, "Setting register address to {0} (0x{0:X})", (Registers)address);
-                    state = State.Processing;
-                    break;
+            case State.Idle:
+                address = BitHelper.GetValue(b, offset: 0, size: 7);
+                addressAutoIncrement = BitHelper.IsBitSet(b, 7);
+                this.Log(LogLevel.Noisy, "Setting register address to {0} (0x{0:X})", (Registers)address);
+                state = State.Processing;
+                break;
 
-                case State.Processing:
-                    this.Log(LogLevel.Noisy, "Writing value 0x{0:X} to register {1} (0x{1:X})", b, (Registers)address);
-                    RegistersCollection.Write(address, b);
-                    TryIncrementAddress();
-                    break;
+            case State.Processing:
+                this.Log(LogLevel.Noisy, "Writing value 0x{0:X} to register {1} (0x{1:X})", b, (Registers)address);
+                RegistersCollection.Write(address, b);
+                TryIncrementAddress();
+                break;
 
-                default:
-                    throw new ArgumentException($"Unexpected state: {state}");
+            default:
+                throw new ArgumentException($"Unexpected state: {state}");
             }
         }
 
@@ -77,19 +77,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(address)
             {
-                case (byte)Registers.OutputXLow:
-                {
-                    // magnetic data is not queued
-                    fifo.TryDequeueNewSample();
-                }
-                break;
+            case (byte)Registers.OutputXLow:
+            {
+                // magnetic data is not queued
+                fifo.TryDequeueNewSample();
+            }
+            break;
             }
 
             var result = RegistersCollection.Read(address);
             this.NoisyLog("Reading register {1} (0x{1:X}) from device: 0x{0:X}", result, (Registers)address);
             TryIncrementAddress();
 
-            return new byte [] { result };
+            return new byte[] { result };
         }
 
         public void FeedMagneticSample(decimal x, decimal y, decimal z, uint repeat = 1)
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 fifo.FeedSample(sample);
             }
         }
-        
+
         public void FeedMagneticSample(string path)
         {
             fifo.FeedSamplesFromFile(path);
@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             ;
 
             Registers.OutputXHigh.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, name: "OUT_X_H_M",  valueProviderCallback: _ => GetScaledValue(MagneticX, (short)magneticSensitivity, upperByte: true))
+                .WithValueField(0, 8, FieldMode.Read, name: "OUT_X_H_M", valueProviderCallback: _ => GetScaledValue(MagneticX, (short)magneticSensitivity, upperByte: true))
             ;
 
             Registers.OutputYLow.Define(this)
@@ -192,34 +192,34 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         switch(magneticSensitivity)
                         {
-                            case Sensitivity.Gauss4:
-                                return 0;
-                            case Sensitivity.Gauss8:
-                                return 1;
-                            case Sensitivity.Gauss12:
-                                return 2;
-                            case Sensitivity.Gauss16:
-                                return 3;
-                            default:
-                                throw new ArgumentException("This should never happen");
+                        case Sensitivity.Gauss4:
+                            return 0;
+                        case Sensitivity.Gauss8:
+                            return 1;
+                        case Sensitivity.Gauss12:
+                            return 2;
+                        case Sensitivity.Gauss16:
+                            return 3;
+                        default:
+                            throw new ArgumentException("This should never happen");
                         }
                     },
                     writeCallback: (_, val) =>
                     {
                         switch(val)
                         {
-                            case 0:
-                                magneticSensitivity = Sensitivity.Gauss4;
-                                break;
-                            case 1:
-                                magneticSensitivity = Sensitivity.Gauss8;
-                                break;
-                            case 2:
-                                magneticSensitivity = Sensitivity.Gauss12;
-                                break;
-                            case 3:
-                                magneticSensitivity = Sensitivity.Gauss16;
-                                break;
+                        case 0:
+                            magneticSensitivity = Sensitivity.Gauss4;
+                            break;
+                        case 1:
+                            magneticSensitivity = Sensitivity.Gauss8;
+                            break;
+                        case 2:
+                            magneticSensitivity = Sensitivity.Gauss12;
+                            break;
+                        case 3:
+                            magneticSensitivity = Sensitivity.Gauss16;
+                            break;
                         }
                     })
                 .WithReservedBits(7, 1)
@@ -240,7 +240,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private Sensitivity magneticSensitivity = Sensitivity.Gauss4;
 
         private readonly SensorSamplesFifo<Vector3DSample> fifo;
-        
+
         private enum Sensitivity : ushort
         {
             Gauss4 = 8192,

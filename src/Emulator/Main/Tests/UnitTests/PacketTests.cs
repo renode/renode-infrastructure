@@ -1,13 +1,15 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
+
 using NUnit.Framework;
-using System;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -35,6 +37,10 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(8, Packet.CalculateLength<TestStructALSB>());
             Assert.AreEqual(8, Packet.CalculateLength<TestStructWithOneUsableBit>());
             Assert.AreEqual(20, Packet.CalculateLength<TestNestedStruct>());
+            Assert.AreEqual(0, Packet.CalculateLength<TestStructNoPacket>());
+            Assert.AreEqual(0, Packet.CalculateLength<TestStructExplicitZeroWidth>());
+            Assert.AreEqual(3, Packet.CalculateLength<TestStructExplicitZeroWidthWithOffset>());
+            Assert.AreEqual(1, Packet.CalculateLength<TestStructLessThanByte>());
         }
 
         [Test]
@@ -43,33 +49,49 @@ namespace Antmicro.Renode.UnitTests
             var data = BitHelper.GetBytesFromValue(0xdeadbeef, 4, true);
 
             var structureA = Packet.Decode<TestStructA>(data);
-            Assert.AreEqual(0xdbee, structureA.a);
+            Assert.AreEqual(0xdbee, structureA.A);
 
             var structureB = Packet.Decode<TestStructB>(data);
-            Assert.AreEqual(true, structureB.b0);
-            Assert.AreEqual(true, structureB.b1);
-            Assert.AreEqual(true, structureB.b2);
-            Assert.AreEqual(true, structureB.b3);
-            Assert.AreEqual(false, structureB.b4);
-            Assert.AreEqual(true, structureB.b5);
-            Assert.AreEqual(true, structureB.b6);
-            Assert.AreEqual(true, structureB.b7);
-            Assert.AreEqual(false, structureB.b8);
-            Assert.AreEqual(true, structureB.b9);
-            Assert.AreEqual(true, structureB.b10);
-            Assert.AreEqual(true, structureB.b11);
-            Assert.AreEqual(1, structureB.b12);
-            Assert.AreEqual(1, structureB.b13);
-            Assert.AreEqual(0, structureB.b14);
-            Assert.AreEqual(1, structureB.b15);
+            Assert.AreEqual(true, structureB.B0);
+            Assert.AreEqual(true, structureB.B1);
+            Assert.AreEqual(true, structureB.B2);
+            Assert.AreEqual(true, structureB.B3);
+            Assert.AreEqual(false, structureB.B4);
+            Assert.AreEqual(true, structureB.B5);
+            Assert.AreEqual(true, structureB.B6);
+            Assert.AreEqual(true, structureB.B7);
+            Assert.AreEqual(false, structureB.B8);
+            Assert.AreEqual(true, structureB.B9);
+            Assert.AreEqual(true, structureB.B10);
+            Assert.AreEqual(true, structureB.B11);
+            Assert.AreEqual(1, structureB.B12);
+            Assert.AreEqual(1, structureB.B13);
+            Assert.AreEqual(0, structureB.B14);
+            Assert.AreEqual(1, structureB.B15);
 
             var structureC = Packet.Decode<TestStructC>(data);
-            Assert.AreEqual(0xef, structureC.c0);
-            Assert.AreEqual(0xbe, structureC.c1);
-            Assert.AreEqual(0xad, structureC.c2);
-            Assert.AreEqual(0xde, structureC.c3);
+            Assert.AreEqual(0xef, structureC.C0);
+            Assert.AreEqual(0xbe, structureC.C1);
+            Assert.AreEqual(0xad, structureC.C2);
+            Assert.AreEqual(0xde, structureC.C3);
 
             Assert.Throws<ArgumentException>(() => Packet.Decode<TestStructInvalidWidth>(data));
+
+            var structureNoPacket = Packet.Decode<TestStructNoPacket>(data);
+            Assert.AreEqual(0x00, structureNoPacket.Field0);
+            Assert.AreEqual(0x00, structureNoPacket.Field1);
+
+            var structureExplicitZeroWidth = Packet.Decode<TestStructExplicitZeroWidth>(data);
+            Assert.AreEqual(0x00, structureExplicitZeroWidth.Field);
+
+            var structureExplicitZeroWidthWithOffset = Packet.Decode<TestStructExplicitZeroWidthWithOffset>(data);
+            Assert.AreEqual(0x00, structureExplicitZeroWidthWithOffset.Field);
+
+            var structureLessThanByte = Packet.Decode<TestStructLessThanByte>(data);
+            Assert.AreEqual(true, structureLessThanByte.Field0);
+            Assert.AreEqual(true, structureLessThanByte.Field1);
+            Assert.AreEqual(true, structureLessThanByte.Field2);
+            Assert.AreEqual(true, structureLessThanByte.Field3);
         }
 
         [Test]
@@ -83,9 +105,9 @@ namespace Antmicro.Renode.UnitTests
             };
 
             var nestedStruct = Packet.Decode<TestNestedStruct>(data);
-            Assert.AreEqual(0x1122334455667788, nestedStruct.field);
-            Assert.AreEqual(0xc0fe, nestedStruct.nestedStructA1.nestedStructB.fieldB);
-            Assert.AreEqual(0xdeadc0de, nestedStruct.nestedStructA1.fieldA);
+            Assert.AreEqual(0x1122334455667788, nestedStruct.Field);
+            Assert.AreEqual(0xc0fe, nestedStruct.NestedStructA1.NestedStructB.FieldB);
+            Assert.AreEqual(0xdeadc0de, nestedStruct.NestedStructA1.FieldA);
         }
 
         [Test]
@@ -93,22 +115,22 @@ namespace Antmicro.Renode.UnitTests
         {
             var data = BitHelper.GetBytesFromValue(0xdeadbeefdeadbeef, 8, true);
             var alsb = Packet.Decode<TestStructALSB>(data);
-            Assert.AreEqual(0xdeadbeefdeadbeef, alsb.field0);
-            Assert.AreEqual(0xdeadbeef, alsb.field1);
-            Assert.AreEqual(0xbeef, alsb.field2);
-            Assert.AreEqual(0xef, alsb.field3);
-            Assert.AreEqual(0xdeadbeefdeadbeef, (ulong)alsb.field4);
-            Assert.AreEqual(0xdeadbeef, (uint)alsb.field5);
-            Assert.AreEqual(0xbeef, (ushort)alsb.field6);
+            Assert.AreEqual(0xdeadbeefdeadbeef, alsb.Field0);
+            Assert.AreEqual(0xdeadbeef, alsb.Field1);
+            Assert.AreEqual(0xbeef, alsb.Field2);
+            Assert.AreEqual(0xef, alsb.Field3);
+            Assert.AreEqual(0xdeadbeefdeadbeef, (ulong)alsb.Field4);
+            Assert.AreEqual(0xdeadbeef, (uint)alsb.Field5);
+            Assert.AreEqual(0xbeef, (ushort)alsb.Field6);
 
             var amsb = Packet.Decode<TestStructAMSB>(data);
-            Assert.AreEqual(0xefbeaddeefbeadde, amsb.field0);
-            Assert.AreEqual(0xefbeadde, amsb.field1);
-            Assert.AreEqual(0xefbe, amsb.field2);
-            Assert.AreEqual(0xef, amsb.field3);
-            Assert.AreEqual(0xefbeaddeefbeadde, (ulong)amsb.field4);
-            Assert.AreEqual(0xefbeadde, (uint)amsb.field5);
-            Assert.AreEqual(0xefbe, (ushort)amsb.field6);
+            Assert.AreEqual(0xefbeaddeefbeadde, amsb.Field0);
+            Assert.AreEqual(0xefbeadde, amsb.Field1);
+            Assert.AreEqual(0xefbe, amsb.Field2);
+            Assert.AreEqual(0xef, amsb.Field3);
+            Assert.AreEqual(0xefbeaddeefbeadde, (ulong)amsb.Field4);
+            Assert.AreEqual(0xefbeadde, (uint)amsb.Field5);
+            Assert.AreEqual(0xefbe, (ushort)amsb.Field6);
         }
 
         [Test]
@@ -126,10 +148,10 @@ namespace Antmicro.Renode.UnitTests
             var insufficientData = new byte[0];
 
             var structureDefaultOffsets = Packet.Decode<TestStructDefaultOffsets>(data2);
-            Assert.AreEqual(0x00, structureDefaultOffsets.field0);
-            Assert.AreEqual(0x0201, structureDefaultOffsets.field1);
-            Assert.AreEqual(0x06050403, structureDefaultOffsets.field2);
-            Assert.AreEqual(0x0e0d0c0b0a090807, structureDefaultOffsets.field3);
+            Assert.AreEqual(0x00, structureDefaultOffsets.Field0);
+            Assert.AreEqual(0x0201, structureDefaultOffsets.Field1);
+            Assert.AreEqual(0x06050403, structureDefaultOffsets.Field2);
+            Assert.AreEqual(0x0e0d0c0b0a090807, structureDefaultOffsets.Field3);
 
             // We only support arrays that are byte aligned
             Assert.Throws<ArgumentException>(() => Packet.Decode<TestStructArrayWithOffset>(data2));
@@ -142,75 +164,87 @@ namespace Antmicro.Renode.UnitTests
 
             var structureC = Packet.Decode<TestStructC>(data1, 1);
             Assert.NotNull(structureC);
-            Assert.AreEqual(0x00, structureC.c0);
-            Assert.AreEqual(0x33, structureC.c3);
+            Assert.AreEqual(0x00, structureC.C0);
+            Assert.AreEqual(0x33, structureC.C3);
 
             structureC = Packet.Decode<TestStructC>(data1, data1.Length - Packet.CalculateLength<TestStructC>());
             Assert.NotNull(structureC);
-            Assert.AreEqual(0xdd, structureC.c0);
-            Assert.AreEqual(0xaa, structureC.c3);
+            Assert.AreEqual(0xdd, structureC.C0);
+            Assert.AreEqual(0xaa, structureC.C3);
         }
 
         [Test]
         public void TestEncode()
         {
             var structureA = new TestStructA();
-            structureA.a = 0x012345;
+            structureA.A = 0x012345;
 
             Assert.AreEqual(BitHelper.GetBytesFromValue(0x023450, 3, true), Packet.Encode(structureA));
 
             var structureB = new TestStructB();
-            structureB.b0 = true;
-            structureB.b1 = true;
-            structureB.b2 = true;
-            structureB.b3 = true;
-            structureB.b4 = false;
-            structureB.b5 = true;
-            structureB.b6 = true;
-            structureB.b7 = true;
-            structureB.b8 = false;
-            structureB.b9 = true;
-            structureB.b10 = true;
-            structureB.b11 = true;
-            structureB.b12 = 1;
-            structureB.b13 = 1;
-            structureB.b14 = 0;
-            structureB.b15 = 1;
+            structureB.B0 = true;
+            structureB.B1 = true;
+            structureB.B2 = true;
+            structureB.B3 = true;
+            structureB.B4 = false;
+            structureB.B5 = true;
+            structureB.B6 = true;
+            structureB.B7 = true;
+            structureB.B8 = false;
+            structureB.B9 = true;
+            structureB.B10 = true;
+            structureB.B11 = true;
+            structureB.B12 = 1;
+            structureB.B13 = 1;
+            structureB.B14 = 0;
+            structureB.B15 = 1;
 
             Assert.AreEqual(BitHelper.GetBytesFromValue(0xbeef, 2, true), Packet.Encode(structureB));
 
             var structureArray = new TestStructArray();
-            structureArray.array = new byte[5] { 100, 201, 102, 203, 104 };
+            structureArray.Array = new byte[5] { 100, 201, 102, 203, 104 };
             Assert.Throws<ArgumentException>(() => Packet.Encode(structureArray));
 
-            structureArray.array = new byte[3] { 100, 201, 102 };
+            structureArray.Array = new byte[3] { 100, 201, 102 };
             Assert.Throws<ArgumentException>(() => Packet.Encode(structureArray));
 
-            structureArray.array = new byte[4] { 100, 201, 102, 203 };
+            structureArray.Array = new byte[4] { 100, 201, 102, 203 };
             Assert.AreEqual(new byte[4] { 100, 201, 102, 203 }, Packet.Encode(structureArray));
 
             // We only support arrays that are byte aligned
             var structureArrayWithOffset = new TestStructArrayWithOffset();
-            structureArrayWithOffset.array = new byte[] { 0, 1, 2, 3 };
+            structureArrayWithOffset.Array = new byte[] { 0, 1, 2, 3 };
             Assert.Throws<ArgumentException>(() => Packet.Encode(structureArrayWithOffset));
 
-            structureArray.array = new byte[] { 5, 11, 44, 255 };
+            structureArray.Array = new byte[] { 5, 11, 44, 255 };
             Assert.AreEqual(new byte[] { 5, 11, 44, 255 }, Packet.Encode(structureArray));
 
             Assert.AreEqual(new byte[0], Packet.Encode(new TestStructZeroWidth()));
             Assert.IsEmpty(Packet.Encode(new TestStructWithEmptyNestedPacket()));
 
             var structureEnum = new TestStructWithEnums();
-            structureEnum.enum0 = TestEnumByteType.One;
-            structureEnum.enum1 = TestEnumByteType.Two;
-            structureEnum.enum2 = TestEnumDefaultType.Three;
-            structureEnum.enum3 = TestEnumDefaultType.One;
+            structureEnum.Enum0 = TestEnumByteType.One;
+            structureEnum.Enum1 = TestEnumByteType.Two;
+            structureEnum.Enum2 = TestEnumDefaultType.Three;
+            structureEnum.Enum3 = TestEnumDefaultType.One;
 
             Assert.AreEqual(new byte[] { 1, 2, 3, 0, 0, 0, 1 }, Packet.Encode(structureEnum));
 
             // test if uninitialized byte[] field will be filled with zeros
             var testStructWithBytes = new TestStructWithBytes {};
             Assert.AreEqual(new byte[] { 0, 0 }, Packet.Encode(testStructWithBytes));
+
+            var structureNoPacket = new TestStructNoPacket() { Field0 = 0xee, Field1 = 0xff };
+            Assert.IsEmpty(Packet.Encode(structureNoPacket));
+
+            var structureExplicitZeroWidth = new TestStructExplicitZeroWidth() { Field = 0xee };
+            Assert.IsEmpty(Packet.Encode(structureExplicitZeroWidth));
+
+            var structureExplicitZeroWidthWithOffset = new TestStructExplicitZeroWidthWithOffset() { Field = 0xee };
+            Assert.Throws<IndexOutOfRangeException>(() => Packet.Encode(structureExplicitZeroWidthWithOffset));
+
+            var structureLessThanByte = new TestStructLessThanByte() { Field0 = true, Field1 = false, Field2 = true, Field3 = false };
+            Assert.AreEqual(new byte[] { 0x05 }, Packet.Encode(structureLessThanByte));
         }
 
         [Test]
@@ -218,22 +252,22 @@ namespace Antmicro.Renode.UnitTests
         {
             var nestedStruct = new TestNestedStruct
             {
-                field = 0x1122334455667788,
-                nestedStructA1 = new NestedStructA
+                Field = 0x1122334455667788,
+                NestedStructA1 = new NestedStructA
                 {
-                    nestedStructB = new NestedStructB
+                    NestedStructB = new NestedStructB
                     {
-                        fieldB = 0xc0fe
+                        FieldB = 0xc0fe
                     },
-                    fieldA = 0xdeadc0de
+                    FieldA = 0xdeadc0de
                 },
-                nestedStructA2 = new NestedStructA
+                NestedStructA2 = new NestedStructA
                 {
-                    nestedStructB = new NestedStructB
+                    NestedStructB = new NestedStructB
                     {
-                        fieldB = 0xabcd
+                        FieldB = 0xabcd
                     },
-                    fieldA = 0xba5eba11
+                    FieldA = 0xba5eba11
                 }
             };
             var bytes = new byte[]
@@ -251,7 +285,7 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField, Offset(bits: 4), Width(16)]
-            public ulong a;
+            public ulong A;
 #pragma warning restore 649
         }
 
@@ -259,19 +293,19 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField, Offset(bits: 0), Width(64)]
-            public ulong field0;
+            public ulong Field0;
             [PacketField, Offset(bits: 0), Width(32)]
-            public uint field1;
+            public uint Field1;
             [PacketField, Offset(bits: 0), Width(16)]
-            public ushort field2;
+            public ushort Field2;
             [PacketField, Offset(bits: 0), Width(8)]
-            public byte field3;
+            public byte Field3;
             [PacketField, Offset(bits: 0), Width(64)]
-            public long field4;
+            public long Field4;
             [PacketField, Offset(bits: 0), Width(32)]
-            public int field5;
+            public int Field5;
             [PacketField, Offset(bits: 0), Width(16)]
-            public short field6;
+            public short Field6;
 #pragma warning restore 649
         }
 
@@ -280,19 +314,19 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField, Offset(bits: 0), Width(64)]
-            public ulong field0;
+            public ulong Field0;
             [PacketField, Offset(bits: 0), Width(32)]
-            public uint field1;
+            public uint Field1;
             [PacketField, Offset(bits: 0), Width(16)]
-            public ushort field2;
+            public ushort Field2;
             [PacketField, Offset(bits: 0), Width(8)]
-            public byte field3;
+            public byte Field3;
             [PacketField, Offset(bits: 0), Width(64)]
-            public long field4;
+            public long Field4;
             [PacketField, Offset(bits: 0), Width(32)]
-            public int field5;
+            public int Field5;
             [PacketField, Offset(bits: 0), Width(16)]
-            public short field6;
+            public short Field6;
 #pragma warning restore 649
         }
 
@@ -302,11 +336,29 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [LeastSignificantByteFirst]
+        private struct TestStructExplicitZeroWidth
+        {
+#pragma warning disable 649
+            [PacketField, Width(0)]
+            public byte Field;
+#pragma warning restore 649
+        }
+
+        [LeastSignificantByteFirst]
+        private struct TestStructExplicitZeroWidthWithOffset
+        {
+#pragma warning disable 649
+            [PacketField, Width(0), Offset(bytes: 3)]
+            public byte Field;
+#pragma warning restore 649
+        }
+
+        [LeastSignificantByteFirst]
         private struct TestStructInvalidWidth
         {
 #pragma warning disable 649
             [PacketField, Width(64)]
-            public byte field;
+            public byte Field;
 #pragma warning restore 649
         }
 
@@ -315,37 +367,37 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField, Offset(bits: 0)]
-            public bool b0;
+            public bool B0;
             [PacketField, Offset(bits: 1)]
-            public bool b1;
+            public bool B1;
             [PacketField, Offset(bits: 2)]
-            public bool b2;
+            public bool B2;
             [PacketField, Offset(bits: 3)]
-            public bool b3;
+            public bool B3;
             [PacketField, Offset(bits: 4)]
-            public bool b4;
+            public bool B4;
             [PacketField, Offset(bits: 5)]
-            public bool b5;
+            public bool B5;
             [PacketField, Offset(bits: 6)]
-            public bool b6;
+            public bool B6;
             [PacketField, Offset(bits: 7)]
-            public bool b7;
+            public bool B7;
             [PacketField, Offset(bits: 8)]
-            public bool b8;
+            public bool B8;
             [PacketField, Offset(bits: 9)]
-            public bool b9;
+            public bool B9;
             [PacketField, Offset(bits: 10)]
-            public bool b10;
+            public bool B10;
             [PacketField, Offset(bits: 11)]
-            public bool b11;
+            public bool B11;
             [PacketField, Offset(bits: 12), Width(1)]
-            public byte b12;
+            public byte B12;
             [PacketField, Offset(bits: 13), Width(1)]
-            public ushort b13;
+            public ushort B13;
             [PacketField, Offset(bits: 14), Width(1)]
-            public uint b14;
+            public uint B14;
             [PacketField, Offset(bits: 15), Width(1)]
-            public ulong b15;
+            public ulong B15;
 #pragma warning restore 649
         }
 
@@ -354,13 +406,13 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField, Offset(bytes: 0)]
-            public byte c0;
+            public byte C0;
             [PacketField, Offset(bytes: 1)]
-            public byte c1;
+            public byte C1;
             [PacketField, Offset(bytes: 2)]
-            public byte c2;
+            public byte C2;
             [PacketField, Offset(bytes: 3)]
-            public byte c3;
+            public byte C3;
 #pragma warning restore 649
         }
 
@@ -369,13 +421,28 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField]
-            public byte field0;
+            public byte Field0;
             [PacketField]
-            public short field1;
+            public short Field1;
             [PacketField]
-            public int field2;
+            public int Field2;
             [PacketField]
-            public long field3;
+            public long Field3;
+#pragma warning restore 649
+        }
+
+        [LeastSignificantByteFirst]
+        private struct TestStructLessThanByte
+        {
+#pragma warning disable 649
+            [PacketField, Width(bits: 1), Offset(bits: 0)]
+            public bool Field0;
+            [PacketField, Width(bits: 1), Offset(bits: 1)]
+            public bool Field1;
+            [PacketField, Width(bits: 1), Offset(bits: 2)]
+            public bool Field2;
+            [PacketField, Width(bits: 1), Offset(bits: 3)]
+            public bool Field3;
 #pragma warning restore 649
         }
 
@@ -383,8 +450,8 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructArray
         {
 #pragma warning disable 649
-            [PacketField, Width(4)]
-            public byte[] array;
+            [PacketField, Width(bytes: 4)]
+            public byte[] Array;
 #pragma warning restore 649
         }
 
@@ -393,7 +460,7 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField, Offset(bits: 63)]
-            public bool bit;
+            public bool Bit;
 #pragma warning restore 649
         }
 
@@ -401,8 +468,8 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructArrayWithOffset
         {
 #pragma warning disable 649
-            [PacketField, Offset(bits: 1), Width(4)]
-            public byte[] array;
+            [PacketField, Offset(bits: 1), Width(bytes: 4)]
+            public byte[] Array;
 #pragma warning restore 649
         }
 
@@ -410,7 +477,7 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField]
-            public object unsupported;
+            public object Unsupported;
 #pragma warning restore 649
         }
 
@@ -419,21 +486,21 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField]
-            public TestEnumByteType enum0;
+            public TestEnumByteType Enum0;
             [PacketField, Width(8)]
-            public TestEnumByteType enum1;
+            public TestEnumByteType Enum1;
             [PacketField]
-            public TestEnumDefaultType enum2;
+            public TestEnumDefaultType Enum2;
             [PacketField, Width(8)]
-            public TestEnumDefaultType enum3;
+            public TestEnumDefaultType Enum3;
 #pragma warning restore 649
         }
 
         private struct TestStructWithBytes
         {
 #pragma warning disable 649
-            [PacketField, Width(2)]
-            public byte[] field;
+            [PacketField, Width(bytes: 2)]
+            public byte[] Field;
 #pragma warning restore 649
         }
 
@@ -441,7 +508,7 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField]
-            public ushort fieldB;
+            public ushort FieldB;
 #pragma warning restore 649
         }
 
@@ -449,9 +516,9 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField]
-            public NestedStructB nestedStructB;
+            public NestedStructB NestedStructB;
             [PacketField]
-            public uint fieldA;
+            public uint FieldA;
 #pragma warning restore 649
         }
 
@@ -459,11 +526,19 @@ namespace Antmicro.Renode.UnitTests
         {
 #pragma warning disable 649
             [PacketField]
-            public ulong field;
+            public ulong Field;
             [PacketField]
-            public NestedStructA nestedStructA1;
+            public NestedStructA NestedStructA1;
             [PacketField]
-            public NestedStructA nestedStructA2;
+            public NestedStructA NestedStructA2;
+#pragma warning restore 649
+        }
+
+        private struct TestStructNoPacket
+        {
+#pragma warning disable 649
+            public byte Field0;
+            public byte Field1;
 #pragma warning restore 649
         }
 

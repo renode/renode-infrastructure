@@ -5,13 +5,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.MTD;
+using System.Collections.Specialized;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using System.Collections.Specialized;
-using System;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.MTD;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -37,34 +37,34 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return registers.Config.Get();
             case Offset.InterruptStatus:
                 return registers.InterruptStatus;
-                /*case Offset.InterruptEnable:
-                return registers.InterruptEnable;
-            case Offset.InterruptDisable:
-                return registers.InterruptDisable;
-            case Offset.Enable:
-                return registers.Enable;
-            case Offset.Delay:
-                return registers.Delay;*/
+            /*case Offset.InterruptEnable:
+            return registers.InterruptEnable;
+        case Offset.InterruptDisable:
+            return registers.InterruptDisable;
+        case Offset.Enable:
+            return registers.Enable;
+        case Offset.Delay:
+            return registers.Delay;*/
             case Offset.ReceiveData:
                 receiveFIFODataCount = 0;
                 registers.InterruptStatus &= ~(1u << 4); //clear rx FIFO not empty
                 return registers.ReceiveData;
-                /*case Offset.SlaveIdleCount:
-                return registers.SlaveIdleCount;
-            case Offset.TransmitFifoThreshold:
-                return registers.TransmitFifoThreshold;
-            case Offset.ReceiveFifoThreshold:
-                return registers.ReceiveFifoThreshold;
-            case Offset.GPIO:
-                return registers.GPIO;
-            case Offset.LoopbackMasterClockDelayAdjustment:
-                return registers.LoopbackMasterClockDelayAdjustment;
-            case Offset.LinearQSPIConfig:
-                return registers.LinearQSPIConfig;
-            case Offset.LinearQSPIStatus:
-                return registers.LinearQSPIStatus;
-            case Offset.ModuleID:
-                return registers.ModuleID;*/
+            /*case Offset.SlaveIdleCount:
+            return registers.SlaveIdleCount;
+        case Offset.TransmitFifoThreshold:
+            return registers.TransmitFifoThreshold;
+        case Offset.ReceiveFifoThreshold:
+            return registers.ReceiveFifoThreshold;
+        case Offset.GPIO:
+            return registers.GPIO;
+        case Offset.LoopbackMasterClockDelayAdjustment:
+            return registers.LoopbackMasterClockDelayAdjustment;
+        case Offset.LinearQSPIConfig:
+            return registers.LinearQSPIConfig;
+        case Offset.LinearQSPIStatus:
+            return registers.LinearQSPIStatus;
+        case Offset.ModuleID:
+            return registers.ModuleID;*/
             default:
                 this.LogUnhandledRead(offset);
                 break;
@@ -83,8 +83,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {
                     /*manual start*/
                     registers.Config.ManualStart = false;
-                    sendCommand(registers.TransmitData, commandLength);
-                    commandLength = 0;
+                    SendCommand(registers.TransmitData);
                 }
                 break;
             case Offset.InterruptStatus:
@@ -103,51 +102,51 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return registers.Delay;*/
             case Offset.TransmitData0:
                 registers.TransmitData = value;
-                commandLength = 4;
                 transferFIFODataCount += 4;
                 break;
-                /*case Offset.ReceiveData:
-                return registers.ReceiveData;
-            case Offset.SlaveIdleCount:
-                return registers.SlaveIdleCount;
-            case Offset.TransmitFifoThreshold:
-                return registers.TransmitFifoThreshold;*/
+            /*case Offset.ReceiveData:
+            return registers.ReceiveData;
+        case Offset.SlaveIdleCount:
+            return registers.SlaveIdleCount;
+        case Offset.TransmitFifoThreshold:
+            return registers.TransmitFifoThreshold;*/
             case Offset.ReceiveFifoThreshold:
                 registers.ReceiveFifoThreshold = value;
                 break;
-                /*case Offset.GPIO:
-                return registers.GPIO;
-            case Offset.LoopbackMasterClockDelayAdjustment:
-                return registers.LoopbackMasterClockDelayAdjustment;*/
+            /*case Offset.GPIO:
+            return registers.GPIO;
+        case Offset.LoopbackMasterClockDelayAdjustment:
+            return registers.LoopbackMasterClockDelayAdjustment;*/
             case Offset.TransmitData1:
                 registers.TransmitData = value;
-                commandLength = 1;
                 transferFIFODataCount += 1;
                 break;
             case Offset.TransmitData2:
                 registers.TransmitData = value;
-                commandLength = 2;
                 transferFIFODataCount += 2;
                 break;
             case Offset.TransmitData3:
                 registers.TransmitData = value;
-                commandLength = 3;
                 transferFIFODataCount += 3;
                 break;
-                /*case Offset.LinearQSPIConfig:
-                return registers.LinearQSPIConfig;
-            case Offset.LinearQSPIStatus:
-                return registers.LinearQSPIStatus;
-            case Offset.ModuleID:
-                return registers.ModuleID;*/
+            /*case Offset.LinearQSPIConfig:
+            return registers.LinearQSPIConfig;
+        case Offset.LinearQSPIStatus:
+            return registers.LinearQSPIStatus;
+        case Offset.ModuleID:
+            return registers.ModuleID;*/
             default:
                 this.LogUnhandledWrite(offset, value);
                 break;
             }
-            checkInterrupt();
+            CheckInterrupt();
         }
 
-        private void checkInterrupt()
+        /* variables */
+        // Analysis disable RedundantDefaultFieldInitializer
+        public GPIO IRQ { get; private set; }
+
+        private void CheckInterrupt()
         {
             var interrupt = false;
             if(transferFIFODataCount >= registers.TransmitFifoThreshold)
@@ -161,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             if(receiveFIFODataCount >= registers.ReceiveFifoThreshold)
             {
                 registers.InterruptStatus |= 1u << 4;
-                if((registers.InterruptEnable & (1u<<4))!=0) //RX FIFO not empty
+                if((registers.InterruptEnable & (1u << 4)) != 0) //RX FIFO not empty
                 {
                     interrupt = true;
                 }
@@ -185,22 +184,22 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void sendCommand(uint command, uint length)
+        private void SendCommand(uint command)
         {
-            //TODO: Endianess 
+            //TODO: Endianess
             writeOccured = true;
             transferFIFODataCount = 0;
             this.Log(LogLevel.Warning, "Flash command {0:X}", command);
             switch((SPIFlashCommand)(command & 0xff))
             {
             case SPIFlashCommand.ReadID:
-                //TODO: polarization 
-                var ID = 0xffffffffu; //return 0xffffffff if there is no flash attached
+                //TODO: polarization
+                var id = 0xffffffffu; //return 0xffffffff if there is no flash attached
                 if(RegisteredPeripheral != null)
                 {
-                    ID = RegisteredPeripheral.ReadID();
+                    id = RegisteredPeripheral.ReadID();
                 }
-                registers.ReceiveData = ID;
+                registers.ReceiveData = id;
                 receiveFIFODataCount += 1;
                 break;
             default:
@@ -212,18 +211,14 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void InnerReset()
         {
-            registers = new regsValues();
+            registers = new RegsValues();
             writeOccured = false;
-            commandLength = 0;
             receiveFIFODataCount = 0;
             transferFIFODataCount = 0;
         }
 
-        /* variables */
-        // Analysis disable RedundantDefaultFieldInitializer
-        public GPIO IRQ { get; private set; }
+        private RegsValues registers;
         private bool writeOccured = false;
-        private uint commandLength = 0;
         private uint receiveFIFODataCount = 0;
         private uint transferFIFODataCount = 0;
         // Analysis restore RedundantDefaultFieldInitializer
@@ -267,29 +262,29 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return registerValue;
             }
 
-            private BitVector32.Section mode;
-            private BitVector32.Section fifoWidth;
-            private BitVector32.Section manualStartEnable;
-            private BitVector32.Section manualStart;
-            private BitVector32.Section endian;
-            private uint registerValue = 0x80020000;
-
             // Analysis disable RedundantDefaultFieldInitializer
             public bool Mode = false;
             public byte FifoWidth = 0;
             public bool ManualStartEnable = false;
             public bool ManualStart = false;
             public bool Endian = false;
+            private uint registerValue = 0x80020000;
+
+            private readonly BitVector32.Section mode;
+            private readonly BitVector32.Section fifoWidth;
+            private readonly BitVector32.Section manualStartEnable;
+            private readonly BitVector32.Section manualStart;
+            private readonly BitVector32.Section endian;
             // Analysis restore RedundantDefaultFieldInitializer
         }
 
-        private regsValues registers;
-        private class regsValues
+        private class RegsValues
         {
-            public regsValues()
+            public RegsValues()
             {
                 Config = new ConfigRegister();
             }
+
             public ConfigRegister Config;
             // Analysis disable RedundantDefaultFieldInitializer
             public uint InterruptStatus = 0x00000000;
@@ -335,4 +330,3 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
     }
 }
-

@@ -5,9 +5,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
@@ -65,15 +64,14 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
+        private uint interruptRegisterValue;
+        private uint miiManagementValue;
+
         private enum Register
         {
             InterruptEvent = 0x4,
             ControlRegister = 0x24,
             MiiManagementFrame = 0x40
         }
-
-        private uint interruptRegisterValue;
-        private uint miiManagementValue;
     }
 }
-

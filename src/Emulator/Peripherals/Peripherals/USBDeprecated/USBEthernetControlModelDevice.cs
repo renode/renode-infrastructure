@@ -6,10 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.Network;
 using System.Collections.Generic;
-using Antmicro.Renode.Network;
+
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Network;
+using Antmicro.Renode.Peripherals.Network;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
@@ -20,6 +21,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             add {}
             remove {}
         }
+
         public event Action <uint> SendPacket
         {
             add {}
@@ -30,9 +32,23 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         {
         }
 
+        public void ReceiveFrame(EthernetFrame frame)//when data is send to us
+        {
+            throw new NotImplementedException();
+        }
+
+        public byte[] ProcessVendorGet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ProcessVendorSet(USBPacket packet, USBSetupPacket setupPacket)
+        {
+            throw new NotImplementedException();
+        }
+
         public void Reset()
         {
-
         }
 
         public USBDeviceSpeed GetSpeed()
@@ -44,39 +60,45 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         {
             return 0;
         }
-    #region IUSBDevice implementation
+
         public byte[] ProcessClassGet(USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new System.NotImplementedException();
         }
-            public byte[] WriteInterrupt(USBPacket packet)
-        {
-            return null;
-        }
-                public byte[] GetDataBulk(USBPacket packet)
-        {
-            return null;
-        }
-                public void WriteDataBulk(USBPacket packet)
-        {
 
+        public byte[] WriteInterrupt(USBPacket packet)
+        {
+            return null;
+        }
+
+        public byte[] GetDataBulk(USBPacket packet)
+        {
+            return null;
+        }
+
+        public void WriteDataBulk(USBPacket packet)
+        {
         }
 
         public void WriteDataControl(USBPacket packet)
         {
         }
-                       public     byte GetTransferStatus()
+
+        public byte GetTransferStatus()
         {
-        return 0;
+            return 0;
         }
-                public byte[] GetDescriptor(USBPacket packet, USBSetupPacket setupPacket)
+
+        public byte[] GetDescriptor(USBPacket packet, USBSetupPacket setupPacket)
         {
             return null;
         }
+
         public byte[] GetDataControl(USBPacket packet)
         {
             return null;
         }
+
         public void ProcessClassSet(USBPacket packet, USBSetupPacket setupPacket)
         {
             throw new System.NotImplementedException();
@@ -109,16 +131,13 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         public void ClearFeature(USBPacket packet, USBSetupPacket setupPacket)
         {
-
             throw new System.NotImplementedException();
         }
 
         public byte[] GetConfiguration()
         {
-
             throw new System.NotImplementedException();
         }
-
 
         public byte[] GetInterface(USBPacket packet, USBSetupPacket setupPacket)
         {
@@ -155,44 +174,31 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             throw new System.NotImplementedException();
         }
 
-        public void WriteData(byte[] data)//data from system
+        public void WriteData(byte[] _) //data from system
         {
-
         }
 
         public byte[] GetData()
         {
             throw new System.NotImplementedException();
         }
-    #endregion
 
-    #region INetworkInterface implementation
+        public MACAddress MAC { get; set; }
+
 #pragma warning disable 0067
         public event Action<EthernetFrame> FrameReady;
 #pragma warning restore 0067
-        public MACAddress MAC { get; set; }
 
-        public void ReceiveFrame(EthernetFrame frame)//when data is send to us
+        protected Dictionary <byte,byte[]> MulticastMacAdresses;
+
+        private void SetEndpointsDescriptors()
         {
-            throw new NotImplementedException();
-        }
-    #endregion
-
-
-    #region standard USB descriptors
-
-        private EndpointUSBDescriptor[] endpointDescriptor;
-        private InterfaceUSBDescriptor[] interfaceDescriptor;
-
-
-        private void setEndpointsDescriptors()
-        {
-            endpointDescriptor = new EndpointUSBDescriptor[endpointsAmount];
-            for(byte i=0; i<endpointsAmount; i++)
+            endpointDescriptor = new EndpointUSBDescriptor[EndpointsAmount];
+            for(byte i = 0; i < EndpointsAmount; i++)
             {
                 endpointDescriptor[i] = new EndpointUSBDescriptor();
             }
-            for(byte i=0; i<endpointsAmount; i++)
+            for(byte i = 0; i < EndpointsAmount; i++)
             {
                 endpointDescriptor[i].EndpointNumber = i;
                 endpointDescriptor[i].MaxPacketSize = 512;
@@ -208,65 +214,29 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             endpointDescriptor[0].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Bulk;
             endpointDescriptor[1].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Bulk;
             endpointDescriptor[2].TransferType = EndpointUSBDescriptor.TransferTypeEnum.Interrupt;
-
         }
 
-        private void setInterfaceDescriptors()
+        private void SetInterfaceDescriptors()
         {
-            interfaceDescriptor = new InterfaceUSBDescriptor[interfacesAmount];
-            for(int i=0; i<interfacesAmount; i++)
+            interfaceDescriptor = new InterfaceUSBDescriptor[InterfacesAmount];
+            for(int i = 0; i < InterfacesAmount; i++)
             {
                 interfaceDescriptor[i] = new InterfaceUSBDescriptor();
             }
-
-
         }
-    #endregion
-    #region class && subclass USB descriptors
-        /*  private HeaderFunctionalDescriptor headerDescriptor = new HeaderFunctionalDescriptor ()
+
+        private void InitializeMulticastList()
         {
-            Subtype = DeviceSubclassCode,
-
-
-        };
-        private UnionFunctionalDescriptor unionDescriptor = new UnionFunctionalDescriptor (subordinateInterfaceAmount)
-        {
-        };
-        private CountrySelectionFunctionalDescriptor countryDescriptor = new CountrySelectionFunctionalDescriptor (countryCodesAmount)
-        {
-        };
-        private EthernetNetworkingFuncionalDescriptor ethernetNetworkingDescriptor = new EthernetNetworkingFuncionalDescriptor ()
-        {
-        };*/
-
-    #endregion
-
-    #region device constans
-        private const byte interfacesAmount = 0x01;
-        private const byte endpointsAmount = 0x03;
-        private const byte interval = 0x00;
-        private const byte subordinateInterfaceAmount = 0x01;
-        private const byte countryCodesAmount = 0x01;
-        private const byte defaultNumberOfMulticastAdreses = 0x01;
-    #endregion
-
-    #region Ethernet subclass nethods
-
-        protected Dictionary <byte,byte[]> MulticastMacAdresses;
-
-        private void initializeMulticastList()
-        {
-            for(byte i = 0; i<defaultNumberOfMulticastAdreses; i++)
+            for(byte i = 0; i < DefaultNumberOfMulticastAdreses; i++)
             {
                 var mac = new byte[]{0,0,0,0,0,0};
                 MulticastMacAdresses.Add(i, mac);
             }
         }
 
-        private void setEthernetMulticastFilters(uint numberOfFilters, Dictionary<byte,byte[]> multicastAdresses)
+        private void SetEthernetMulticastFilters(uint numberOfFilters, Dictionary<byte, byte[]> multicastAdresses)
         {
-
-            for(byte i=0; i<numberOfFilters; i++)
+            for(byte i = 0; i < numberOfFilters; i++)
             {
                 if(MulticastMacAdresses.ContainsKey(i))
                 {//if position
@@ -279,19 +249,14 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             }
         }
 
-    #endregion
+        private EndpointUSBDescriptor[] endpointDescriptor;
+        private InterfaceUSBDescriptor[] interfaceDescriptor;
 
-        #region IUSBDevice implementation
-        public byte[] ProcessVendorGet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void ProcessVendorSet(USBPacket packet, USBSetupPacket setupPacket)
-        {
-            throw new NotImplementedException();
-        }
-        #endregion
+        private const byte InterfacesAmount = 0x01;
+        private const byte EndpointsAmount = 0x03;
+        private const byte Interval = 0x00;
+        private const byte SubordinateInterfaceAmount = 0x01;
+        private const byte CountryCodesAmount = 0x01;
+        private const byte DefaultNumberOfMulticastAdreses = 0x01;
     }
 }
-

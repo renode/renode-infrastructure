@@ -1,17 +1,17 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using System.Collections.Generic;
-using ELFSharp.ELF;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Utilities;
+
+using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         base.OnGPIO((int)IrqType.MachineTimerInterrupt, value);
                     }
-                    else if (number == MachineSoftwareInterruptCustomNumber)
+                    else if(number == MachineSoftwareInterruptCustomNumber)
                     {
                         base.OnGPIO((int)IrqType.MachineSoftwareInterrupt, value);
                     }
@@ -60,8 +60,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                     else // machine external
                     {
-                         BitHelper.SetBit(ref machineInterrupts.Pending, (byte)number, value);
-                         Update();
+                        BitHelper.SetBit(ref machineInterrupts.Pending, (byte)number, value);
+                        Update();
                     }
                 }
             }
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             // do not validate rw bit as VexRiscv custom CSRs do not follow the standard
             CSRValidation = CSRValidationLevel.PrivilegeLevel;
 
-            RegisterCSR((ulong)CSRs.MachineIrqMask, () => (ulong)machineInterrupts.Mask, value =>
+            RegisterCSR((ushort)CSRs.MachineIrqMask, () => (ulong)machineInterrupts.Mask, value =>
             {
                 lock(locker)
                 {
@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     Update();
                 }
             });
-            RegisterCSR((ulong)CSRs.MachineIrqPending, () => (ulong)machineInterrupts.Pending, value =>
+            RegisterCSR((ushort)CSRs.MachineIrqPending, () => (ulong)machineInterrupts.Pending, value =>
             {
                 lock(locker)
                 {
@@ -134,7 +134,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     Update();
                 }
             });
-            RegisterCSR((ulong)CSRs.SupervisorIrqMask, () => (ulong)supervisorInterrupts.Mask, value =>
+            RegisterCSR((ushort)CSRs.SupervisorIrqMask, () => (ulong)supervisorInterrupts.Mask, value =>
             {
                 lock(locker)
                 {
@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     Update();
                 }
             });
-            RegisterCSR((ulong)CSRs.SupervisorIrqPending, () => (ulong)supervisorInterrupts.Pending, value =>
+            RegisterCSR((ushort)CSRs.SupervisorIrqPending, () => (ulong)supervisorInterrupts.Pending, value =>
             {
                 lock(locker)
                 {
@@ -152,7 +152,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     Update();
                 }
             });
-            RegisterCSR((ulong)CSRs.DCacheInfo, () => (ulong)dCacheInfo, value => dCacheInfo = (uint)value);
+            RegisterCSR((ushort)CSRs.DCacheInfo, () => (ulong)dCacheInfo, value => dCacheInfo = (uint)value);
         }
 
         private Interrupts machineInterrupts;
@@ -182,7 +182,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             public bool Any => (Mask & Pending) != 0;
         }
 
-        private enum CSRs
+        private enum CSRs : ushort
         {
             MachineIrqMask = 0xBC0,
             MachineIrqPending = 0xFC0,

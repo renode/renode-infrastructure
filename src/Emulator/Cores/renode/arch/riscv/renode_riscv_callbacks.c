@@ -14,8 +14,24 @@ EXTERNAL_AS(uint64_t, ReadCSR, tlib_read_csr, uint64_t)
 EXTERNAL_AS(void, WriteCSR, tlib_write_csr, uint64_t, uint64_t)
 EXTERNAL(void, tlib_mip_changed, uint64_t)
 
-EXTERNAL_AS(int32_t, HandleCustomInstruction, tlib_handle_custom_instruction, uint64_t, uint64_t)
-EXTERNAL_AS(void, HandlePostOpcodeExecutionHook, tlib_handle_post_opcode_execution_hook, uint32_t, uint64_t)
-EXTERNAL_AS(void, HandlePostGprAccessHook, tlib_handle_post_gpr_access_hook, uint32_t, uint32_t)
+EXTERNAL_AS(int32_t, HandleCustomInstruction, tlib_handle_custom_instruction,
+            uint64_t, uint64_t)
+EXTERNAL_AS(void, HandlePostOpcodeExecutionHook,
+            tlib_handle_post_opcode_execution_hook, uint32_t, uint64_t,
+            uint64_t)
+EXTERNAL_AS(void, HandlePreOpcodeExecutionHook,
+            tlib_handle_pre_opcode_execution_hook, uint32_t, uint64_t, uint64_t)
+EXTERNAL_AS(void, HandlePostGprAccessHook, tlib_handle_post_gpr_access_hook,
+            uint32_t, uint32_t)
+EXTERNAL_AS(void, HandlePreStackAccessHook, tlib_handle_pre_stack_access_hook,
+            uint64_t, uint32_t, uint32_t)
 EXTERNAL_AS(void, ClicClearEdgeInterrupt, tlib_clic_clear_edge_interrupt)
 EXTERNAL_AS(void, ClicAcknowledgeInterrupt, tlib_clic_acknowledge_interrupt)
+
+EXTERNAL_AS(void, ExternalPMPConfigCSRWrite, tlib_extpmp_cfg_csr_write, uint32_t, uint64_t)
+EXTERNAL_AS(uint64_t, ExternalPMPConfigCSRRead, tlib_extpmp_cfg_csr_read, uint32_t)
+EXTERNAL_AS(void, ExternalPMPAddressCSRWrite, tlib_extpmp_address_csr_write, uint32_t, uint64_t)
+EXTERNAL_AS(uint64_t, ExternalPMPAddressCSRRead, tlib_extpmp_address_csr_read, uint32_t)
+EXTERNAL_AS(int32_t, ExternalPMPGetAccess, tlib_extpmp_get_access, uint64_t, uint64_t, int32_t)
+EXTERNAL_AS(int32_t, ExternalPMPGetOverlappingRegion, tlib_extpmp_find_overlapping, uint64_t, uint64_t, int32_t)
+EXTERNAL_AS(int32_t, ExternalPMPIsAnyRegionLocked, tlib_extpmp_is_any_region_locked)

@@ -5,7 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Threading;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -15,8 +14,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public Synchronizer()
         {
             Guard = new object();
-        }   
-        
+        }
+
         public void StepFinished()
         {
             lock(Guard)
@@ -30,8 +29,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     Monitor.Pulse(Guard);
                 }
             }
-        }   
-        
+        }
+
         public void CommandStep(int steps = 1)
         {
             lock(Guard)
@@ -39,20 +38,29 @@ namespace Antmicro.Renode.Peripherals.CPU
                 counter = steps;
                 Monitor.Pulse(Guard);
             }
-        }   
-        
-        public bool WaitForStepCommand()
+        }
+
+        public bool WaitForStepCommand(out StepResult result)
         {
             lock(Guard)
             {
-                while(enabled && counter == 0)
+                while(enabled && !stepDelayed && counter == 0)
                 {
                     Monitor.Wait(Guard);
-                }   
+                }
+
+                if(stepDelayed)
+                {
+                    stepDelayed = false;
+                    result = StepResult.Delayed;
+                    return enabled;
+                }
+
+                result = enabled ? StepResult.Granted : StepResult.Disabled;
                 return enabled;
             }
         }
-        
+
         public void WaitForStepFinished()
         {
             lock(Guard)
@@ -62,8 +70,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     Monitor.Wait(Guard);
                 }
             }
-        }   
-        
+        }
+
         public void StepInterrupted()
         {
             lock(Guard)
@@ -72,15 +80,25 @@ namespace Antmicro.Renode.Peripherals.CPU
                 Monitor.Pulse(Guard);
             }
         }
-        
+
+        public void DelayStepCommand()
+        {
+            lock(Guard)
+            {
+                stepDelayed = true;
+                Monitor.Pulse(Guard);
+            }
+        }
+
         public object Guard { get; }
-        
+
         public bool Enabled
         {
             get
             {
                 return enabled;
-            }   
+            }
+
             set
             {
                 lock(Guard)
@@ -88,14 +106,22 @@ namespace Antmicro.Renode.Peripherals.CPU
                     enabled = value;
                     if(!enabled)
                     {
+                        stepDelayed = false;
                         Monitor.PulseAll(Guard);
                     }
                 }
             }
-        }   
-        
+        }
+
         private bool enabled;
+        private bool stepDelayed;
         private int counter;
+
+        public enum StepResult
+        {
+            Granted,
+            Delayed,
+            Disabled,
+        }
     }
 }
-

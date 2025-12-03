@@ -1,30 +1,60 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord)]
     public class STM32_GPIOPort : BaseGPIOPort, IDoubleWordPeripheral, ILocalGPIOReceiver
     {
+        // invertedAFPins: List of pin configurations where each inner list contains the pin as the first element,
+        // followed by AF numbers that should be inverted for that pin.
+        // Example: [[2, 5, 7], [4, 3]] means pin 2 has AFs 5 and 7 inverted, pin 4 has AF 3 inverted.
         public STM32_GPIOPort(IMachine machine, uint modeResetValue = 0, uint outputSpeedResetValue = 0, uint pullUpPullDownResetValue = 0,
-            uint numberOfAFs = 16) : base(machine, NumberOfPins)
+            uint numberOfAFs = 16, List<List<int>> invertedAFPins = null) : base(machine, NumberOfPins)
         {
             if(numberOfAFs < 1 || numberOfAFs > 16)
             {
                 throw new ConstructionException("Number of alternate functions can't be lower than 1 or higher than 16");
+            }
+
+            if(invertedAFPins == null)
+            {
+                invertedAFPins = new List<List<int>>();
+            }
+
+            foreach(var list in invertedAFPins)
+            {
+                var pin = list[0];
+                var afs = list.Skip(1).ToList();
+
+                if(pin < 0 || pin >= NumberOfPins)
+                {
+                    throw new ConstructionException($"Pin {pin} out of range [0, {NumberOfPins - 1}]");
+                }
+
+                foreach(var af in afs)
+                {
+                    if(af < 0 || af >= numberOfAFs)
+                    {
+                        throw new ConstructionException($"Alternate function {af} out of range [0, {numberOfAFs - 1}]");
+                    }
+
+                    this.invertedAFPins.Add(new InvertedAFPin(pin, af));
+                }
             }
 
             mode = new Mode[NumberOfPins];
@@ -140,7 +170,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 },
                 {(long)Registers.OutputSpeed, new DoubleWordRegister(this)
                     .WithEnumFields<DoubleWordRegister, OutputSpeed>(0, 2, NumberOfPins, name: "OSPEEDR",
-                        valueProviderCallback: (idx, _) => outputSpeed[idx],  
+                        valueProviderCallback: (idx, _) => outputSpeed[idx],
                         writeCallback: (idx, _, val) => { outputSpeed[idx] = val; })
                 },
                 {(long)Registers.PullUpPullDown, new DoubleWordRegister(this)
@@ -157,7 +187,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.BitSet, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Write, 
+                    .WithValueField(0, 16, FieldMode.Write,
                         writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) | val)); },
                         name: "GPIOx_BS")
                     .WithValueField(16, 16, FieldMode.Write,
@@ -197,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         )
                 },
                 {(long)Registers.BitReset, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Write, 
+                    .WithValueField(0, 16, FieldMode.Write,
                         writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) & ~val)); },
                         name: "GPIOx_BRR")
                     .WithReservedBits(16, 16)
@@ -209,6 +239,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly Mode[] mode;
         private readonly OutputSpeed[] outputSpeed;
         private readonly PullUpPullDown[] pullUpPullDown;
+        private readonly HashSet<InvertedAFPin> invertedAFPins = new HashSet<InvertedAFPin>();
 
         private readonly uint modeResetValue;
         private readonly uint outputSpeedResetValue;
@@ -252,10 +283,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     return;
                 }
 
-                port.WritePin(pin, value);
+                var invert = port.invertedAFPins.Contains(new InvertedAFPin(pin, number));
+                port.WritePin(pin, value ^ invert);
             }
 
             public bool IsConnected { get; set; }
+
             public ulong ActiveFunction
             {
                 get => (ulong)activeFunction;
@@ -280,9 +313,23 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 return true;
             }
 
+            private int activeFunction;
+
             private readonly STM32_GPIOPort port;
             private readonly int pin;
-            private int activeFunction;
+        }
+
+        private struct InvertedAFPin
+        {
+            public InvertedAFPin(int pin, int af)
+            {
+                Pin = pin;
+                AF = af;
+            }
+
+            public int Pin { get; }
+
+            public int AF { get; }
         }
 
         private enum Mode

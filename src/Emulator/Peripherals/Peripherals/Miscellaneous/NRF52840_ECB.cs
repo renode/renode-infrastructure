@@ -1,15 +1,15 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities.Crypto;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -76,11 +76,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void RunEncryption()
         {
             this.Log(LogLevel.Debug, "Running the encryption process; key at 0x{0:X}, cleartext at 0x{1:X}", dataPointer.Value, dataPointer.Value + KeySize);
-            
+
             var key = sysbus.ReadBytes(dataPointer.Value, KeySize);
             var clearText = sysbus.ReadBytes(dataPointer.Value + KeySize, ClearTextSize);
             var clearTextBlock = Block.UsingBytes(clearText);
-            
+
             using(var aes = AesProvider.GetEcbProvider(key))
             {
                 aes.EncryptBlockInSitu(clearTextBlock);

@@ -1,12 +1,13 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -19,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 {
     public class EFR32xg13FlashController : IDoubleWordPeripheral, IKnownSize
     {
-        public EFR32xg13FlashController(IMachine machine, MappedMemory flash)
+        public EFR32xg13FlashController(MappedMemory flash)
         {
             this.flash = flash;
             if(flash.Size < PageNumber * PageSize)
@@ -144,6 +145,7 @@ namespace Antmicro.Renode.Peripherals.MTD
 
         [IrqProvider]
         public GPIO IRQ => new GPIO();
+
         public long Size => 0x800;
 
         private void WriteWordToFlash()
@@ -247,6 +249,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly byte[] ErasePattern = (byte[])Enumerable.Repeat((byte)0xFF, PageSize).ToArray();
         private readonly Registers[] lockableRegisters = new Registers[] { Registers.Control, Registers.ReadControl,
                                 Registers.WriteCommand, Registers.StartupControl, Registers.SoftwareUnlockAPPCommand };
+
         private readonly InterruptManager<Interrupt> interruptsManager;
 
         private const uint UnlockPattern = 0x1B71;

@@ -6,8 +6,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Backends.Display
 {
     public interface IPixelBlender
@@ -17,7 +15,9 @@ namespace Antmicro.Renode.Backends.Display
         void Blend(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplayer = 0xFF, PixelBlendingMode backgroundBlendingMode = default(PixelBlendingMode), byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
 
         PixelFormat BackBuffer { get; }
+
         PixelFormat FrontBuffer { get; }
+
         PixelFormat Output { get; }
     }
 
@@ -28,4 +28,3 @@ namespace Antmicro.Renode.Backends.Display
         Multiply
     }
 }
-

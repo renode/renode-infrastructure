@@ -1,20 +1,19 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
@@ -114,7 +113,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(PULP_EventController peripheral)
         {
             return eventController != null ?
-                new [] { NullRegistrationPoint.Instance } :
+                new[] { NullRegistrationPoint.Instance } :
                 Enumerable.Empty<NullRegistrationPoint>();
         }
 
@@ -123,12 +122,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             get
             {
                 return eventController != null ?
-                    new [] { Registered.Create(eventController, NullRegistrationPoint.Instance) } :
+                    new[] { Registered.Create(eventController, NullRegistrationPoint.Instance) } :
                     Enumerable.Empty<IRegistered<PULP_EventController, NullRegistrationPoint>>();
             }
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
         public long Size => 0x800;
 
         private void Update()

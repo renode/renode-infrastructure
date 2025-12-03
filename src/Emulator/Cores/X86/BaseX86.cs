@@ -5,44 +5,54 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Endianess = ELFSharp.ELF.Endianess;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.IRQControllers;
 using System;
 using System.Collections.Generic;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Utilities.Binding;
+
+using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     [GPIO(NumberOfInputs = 1)]
     public abstract class BaseX86 : TranslationCPU
     {
-        public BaseX86(string cpuType, IMachine machine, LAPIC lapic, CpuBitness bitness): base(cpuType, machine, Endianess.LittleEndian, bitness)
+        public BaseX86(string cpuType, IMachine machine, LAPIC lapic, CpuBitness bitness) : base(cpuType, machine, Endianess.LittleEndian, bitness)
         {
             Lapic = lapic;
+
+            if(lapic != null)
+            {
+                lapic.Cpu = this;
+            }
         }
 
         public void SetDescriptor(SegmentDescriptor descriptor, uint selector, uint baseAddress, uint limit, uint flags)
         {
             switch(descriptor)
             {
-                case SegmentDescriptor.CS:
-                    TlibSetCsDescriptor(selector, baseAddress, limit, flags);
-                    break;
-                default:
-                    throw new RecoverableException($"Setting the {descriptor} descriptor is not implemented");
+            case SegmentDescriptor.CS:
+                TlibSetCsDescriptor(selector, baseAddress, limit, flags);
+                break;
+            default:
+                throw new RecoverableException($"Setting the {descriptor} descriptor is not implemented");
             }
         }
 
         public bool HltAsNop
-        { 
-            get => neverWaitForInterrupt; 
+        {
+            get => neverWaitForInterrupt;
             set
             {
                 neverWaitForInterrupt = value;
             }
         }
+
+        public ulong ApicBase => TlibGetApicBase();
 
         public LAPIC Lapic { get; }
 
@@ -53,6 +63,19 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return Interrupt.Hard;
             }
             throw InvalidInterruptNumberException;
+        }
+
+        [Export]
+        protected void SetTscDeadlineValue(ulong value)
+        {
+            this.Log(LogLevel.Debug, "Set deadline to {0}, current cycles count {1}, mips {2}", value, this.ElapsedCycles, this.PerformanceInMips);
+            Lapic.SetTscDeadlineValue(value, this.ElapsedCycles, this.PerformanceInMips);
+        }
+
+        [Export]
+        protected void SetApicBaseValue(ulong value)
+        {
+            Lapic.SetApicBase(value);
         }
 
         protected override string GetExceptionDescription(ulong exceptionIndex)
@@ -84,7 +107,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void WriteByteToPort(uint address, uint value)
         {
             WriteByteToBus(IoPortBaseAddress + address, value);
-
         }
 
         [Export]
@@ -111,12 +133,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             return this.ExecutedInstructions;
         }
 
-        // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
+        // 649:  Field '...' is never assigned to, and will always have its default value null
+        [Import]
+        private readonly Action<uint, uint, uint, uint> TlibSetCsDescriptor;
 
         [Import]
-        private Action<uint, uint, uint, uint> TlibSetCsDescriptor;
-
+        private readonly Func<ulong> TlibGetApicBase;
 #pragma warning restore 649
 
         private readonly Dictionary<ulong, string> ExceptionDescriptionsMap = new Dictionary<ulong, string>

@@ -5,14 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.PCI.BAR;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.PCI
 {
@@ -55,6 +50,6 @@ namespace Antmicro.Renode.Peripherals.PCI
             return memory[offset];
         }
 
-        private uint[] memory;
+        private readonly uint[] memory;
     }
 }
