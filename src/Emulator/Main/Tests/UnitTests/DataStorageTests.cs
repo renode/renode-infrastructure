@@ -4,10 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using NUnit.Framework;
-
-using Antmicro.Renode.Storage;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Storage;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -19,6 +19,7 @@ namespace Antmicro.Renode.UnitTests
         {
             Assert.Throws<ConstructionException>(() => DataStorage.CreateFromFile("/doesntexist"));
         }
+
         [Test]
         public void ShouldThrowConstructionExceptionOnEmptyPath()
         {
