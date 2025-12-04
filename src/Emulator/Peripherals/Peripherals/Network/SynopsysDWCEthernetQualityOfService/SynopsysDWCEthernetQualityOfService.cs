@@ -52,7 +52,11 @@ namespace Antmicro.Renode.Peripherals.Network
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             MAC1 = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             Bus = machine.GetSystemBus(this);
-            this.BusContext = cpuContext;
+            if(cpuContext != null)
+            {
+                this.WarningLog("Providing {0} to instances of {1} is deprecated and has no effect", nameof(cpuContext), nameof(SynopsysDWCEthernetQualityOfService));
+            }
+
             this.ptpClockFrequency = ptpClockFrequency ?? systemClockFrequency;
             timestampSubsecondTimer = new LimitTimer(machine.ClockSource, this.ptpClockFrequency, this, "Timestamp timer", BinarySubsecondRollover, Direction.Ascending, eventEnabled: true);
             timestampSubsecondTimer.LimitReached += () => timestampSecondTimer += 1;
@@ -449,7 +453,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private IBusController Bus { get; }
 
-        private IPeripheral BusContext { get; }
+        private IPeripheral BusContext => this;
 
         private AddressWidth address64Value;
         private PhyInterface activePhyValue;
