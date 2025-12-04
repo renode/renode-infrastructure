@@ -139,6 +139,20 @@ namespace Antmicro.Renode.Utilities.Packets
             return (dynamic)result;
         }
 
+        public static byte[] Encode(object packet)
+        {
+            var type = packet.GetType();
+            var size = CalculateLengthInner(type, packet);
+            var result = new byte[size];
+            if(size == 0)
+            {
+                return result;
+            }
+
+            EncodeInner(type, packet, result, 0);
+            return result;
+        }
+
         public static byte[] Encode<T>(T packet)
         {
             var size = CalculateLength<T>(packet);
