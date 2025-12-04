@@ -15,7 +15,6 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
@@ -26,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public partial class SynopsysDWCEthernetQualityOfService : NetworkWithPHY, IMACInterface, IKnownSize
     {
-        public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency, ICPU cpuContext = null, BusWidth? dmaBusWidth = null, long? ptpClockFrequency = null,
+        public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency, IPeripheral cpuContext = null, BusWidth? dmaBusWidth = null, long? ptpClockFrequency = null,
             int rxQueueSize = 8192, int txQueueSize = 8192, int dmaChannelCount = 1) : base(machine)
         {
             if(dmaBusWidth.HasValue)
@@ -53,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.Network
             MAC = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             MAC1 = EmulationManager.Instance.CurrentEmulation.MACRepository.GenerateUniqueMAC();
             Bus = machine.GetSystemBus(this);
-            this.CpuContext = cpuContext;
+            this.BusContext = cpuContext;
             this.ptpClockFrequency = ptpClockFrequency ?? systemClockFrequency;
             timestampSubsecondTimer = new LimitTimer(machine.ClockSource, this.ptpClockFrequency, this, "Timestamp timer", BinarySubsecondRollover, Direction.Ascending, eventEnabled: true);
             timestampSubsecondTimer.LimitReached += () => timestampSecondTimer += 1;
@@ -450,7 +449,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private IBusController Bus { get; }
 
-        private ICPU CpuContext { get; }
+        private IPeripheral BusContext { get; }
 
         private AddressWidth address64Value;
         private PhyInterface activePhyValue;

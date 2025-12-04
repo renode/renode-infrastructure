@@ -8,7 +8,6 @@ using System;
 
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -17,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         private class RxDescriptor : Descriptor
         {
-            public RxDescriptor(IBusController bus, ulong address, ICPU cpuContext = null) : base(bus, address, cpuContext)
+            public RxDescriptor(IBusController bus, ulong address, IPeripheral context = null) : base(bus, address, context)
             {
             }
 
@@ -252,7 +251,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private class TxDescriptor : Descriptor
         {
-            public TxDescriptor(IBusController bus, ulong address, ICPU cpuContext = null) : base(bus, address, cpuContext)
+            public TxDescriptor(IBusController bus, ulong address, IPeripheral context = null) : base(bus, address, context)
             {
             }
 
@@ -280,17 +279,17 @@ namespace Antmicro.Renode.Peripherals.Network
                     return PrettyString;
                 }
 
-                public byte[] FetchBuffer1OrHeader(IBusController bus, ICPU cpuContext = null)
+                public byte[] FetchBuffer1OrHeader(IBusController bus, IPeripheral context = null)
                 {
                     var data = new byte[HeaderOrBuffer1Length];
-                    bus.ReadBytes((ulong)Buffer1OrHeaderAddress, (int)HeaderOrBuffer1Length, data, 0, true, cpuContext);
+                    bus.ReadBytes((ulong)Buffer1OrHeaderAddress, (int)HeaderOrBuffer1Length, data, 0, true, context);
                     return data;
                 }
 
-                public byte[] FetchBuffer2OrBuffer1(IBusController bus, ICPU cpuContext = null)
+                public byte[] FetchBuffer2OrBuffer1(IBusController bus, IPeripheral context = null)
                 {
                     var data = new byte[Buffer2Length];
-                    bus.ReadBytes((ulong)Buffer2orBuffer1Address, (int)Buffer2Length, data, 0, true, cpuContext);
+                    bus.ReadBytes((ulong)Buffer2orBuffer1Address, (int)Buffer2Length, data, 0, true, context);
                     return data;
                 }
 
@@ -510,24 +509,24 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             public static uint Size => 0x10;
 
-            public Descriptor(IBusController bus, ulong address, ICPU cpuContext = null)
+            public Descriptor(IBusController bus, ulong address, IPeripheral context = null)
             {
                 this.bus = bus;
-                this.cpuContext = cpuContext;
+                this.context = context;
                 Address = address;
                 this.data = new byte[Size];
             }
 
             public virtual void Fetch()
             {
-                bus.ReadBytes(Address, (int)Size, data, 0, true, cpuContext);
+                bus.ReadBytes(Address, (int)Size, data, 0, true, context);
                 var structure = Packet.Decode<MinimalCommonDescriptor>(data);
                 UpdateProperties(structure);
             }
 
             public void Write()
             {
-                bus.WriteBytes(data, Address, context: cpuContext);
+                bus.WriteBytes(data, Address, context: context);
             }
 
             public void SetDescriptor<T>(T structure) where T : IDescriptorStruct
@@ -554,7 +553,7 @@ namespace Antmicro.Renode.Peripherals.Network
             protected byte[] data;
 
             private readonly IBusController bus;
-            private readonly ICPU cpuContext;
+            private readonly IPeripheral context;
 
             public interface IDescriptorStruct
             {
