@@ -431,7 +431,6 @@ namespace Antmicro.Renode.Peripherals.Video
                         Size = result.PictureSize,
                     };
                     owner.WriteStruct(addr + result.StreamPartOffset, part);
-                    owner.WarningLog("write stream at 0x{0:x} struct at 0x{1:x}", addr, addr + result.StreamPartOffset);
                 }
                 else
                 {
