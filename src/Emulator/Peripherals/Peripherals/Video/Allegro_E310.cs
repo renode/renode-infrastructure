@@ -64,6 +64,10 @@ namespace Antmicro.Renode.Peripherals.Video
 
         public string FrameDumpDirectory { get; set; }
 
+        public string H264Encoder { get; set; } = GStreamerWrapper.H264Encoder;
+
+        public string H265Encoder { get; set; } = GStreamerWrapper.H265Encoder;
+
         public IEnumerable<IVideo> Channels => channels.Values;
 
         public IVideo this[uint uid] => channels.TryGetValue(uid, out var channel) ? channel : throw new RecoverableException($"No channel with UID {uid}");
@@ -342,7 +346,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private const uint EncoderVersion = 0x2a0000;
         private const uint McuCacheOffset = 0x80000000;
 
-        private class Channel : IVideo
+        private class Channel : IVideo, IDisposable
         {
             public Channel(Allegro_E310 owner, uint uid, CreateChannelMsg msg)
             {
@@ -353,6 +357,9 @@ namespace Antmicro.Renode.Peripherals.Video
                 EncodedWidth = param.EncodedWidth;
                 EncodedHeight = param.EncodedHeight;
                 SourceBitDepth = param.SourceBitDepth;
+                Profile = param.Profile;
+
+                InitializePipeline();
             }
 
             public override string ToString() => $"[ch{Uid}: {EncodedWidth}x{EncodedHeight} {SourceBitDepth}bpc]";
@@ -369,13 +376,17 @@ namespace Antmicro.Renode.Peripherals.Video
 
             public EncodeOneFrameFeedback EncodeFrame(EncodeOneFrameMsg msg)
             {
-                var pitch = (int)msg.BufferAddresses.Pitch;
-                var luma = owner.sysbus.ReadBytes(owner.TranslateDMAAddress(msg.BufferAddresses.YPointer), pitch * EncodedHeight);
+                var pitch = msg.BufferAddresses.Pitch;
+                var luma = owner.sysbus.ReadBytes(owner.TranslateDMAAddress(msg.BufferAddresses.YPointer), (int)pitch * EncodedHeight);
                 // TODO: Use selected format (PictureFormat), assumes 4:2:0 NV12
                 // TODO: Source cropping
                 // TODO: Bit depth other than 8
                 // TODO: SourceMode other than Raster
-                var chroma = msg.BufferAddresses.C1Pointer != 0 ? owner.sysbus.ReadBytes(owner.TranslateDMAAddress(msg.BufferAddresses.C1Pointer), pitch * EncodedHeight / 2) : null;
+                var chroma = msg.BufferAddresses.C1Pointer != 0 ? owner.sysbus.ReadBytes(owner.TranslateDMAAddress(msg.BufferAddresses.C1Pointer), (int)pitch * EncodedHeight / 2) : null;
+                var rawData = chroma?.Prepend(luma).ToArray() ?? luma;
+                var encodeResult = EncodeFrame(rawData, pitch);
+                var encodedData = encodeResult.Buffer;
+
                 var dumpDirectory = owner.FrameDumpDirectory;
                 if(!string.IsNullOrEmpty(dumpDirectory))
                 {
@@ -390,14 +401,18 @@ namespace Antmicro.Renode.Peripherals.Video
                                 fp.Write(chroma, 0, chroma.Length);
                             }
                         }
+                        using(var fp = File.OpenWrite(Path.Combine(dumpDirectory, $"ch{Uid:d4}_frame{FrameIndex:d4}.out")))
+                        {
+                            fp.Write(encodedData, 0, encodedData.Length);
+                        }
                     }
                     catch(Exception e)
                     {
                         owner.ErrorLog("Failed to dump frame for channel {0}: {1}", Uid, e);
                     }
                 }
-                var isIntra = FrameIndex == 0;
-                var result = new EncodeOneFrameFeedback
+
+                var feedback = new EncodeOneFrameFeedback
                 {
                     ChanUid = Uid,
                     StreamBufferIndex = FrameIndex,
@@ -407,42 +422,66 @@ namespace Antmicro.Renode.Peripherals.Video
                     NumColumns = 1,
                     NumRows = 1,
                     Qp = 34,
-                    StreamPartOffset = 0xc07d00,
                     NumParts = 1,
-                    SliceType = isIntra ? SliceType.I : SliceType.P,
+                    SliceType = encodeResult.IsIntra ? SliceType.I : SliceType.P, // TODO: B-frames
+                    IsIDR = encodeResult.IsIntra,
                     IsFirstSlice = true,
                     IsLastSlice = true,
-                    PpsQp = 0x1a,
+                    PpsQp = 26,
                     Poc = (int)FrameIndex * 2,
                     EncodedWidth = EncodedWidth,
                     EncodedHeight = EncodedHeight,
                     BetaOffset = -1,
                     TcOffset = -1,
-                    TemporalMVP = true,
-                    PictureSize = isIntra ? 0x4000 : 0x100,
+                    TemporalMVP = !encodeResult.IsIntra,
+                    PictureSize = encodedData.Length,
                 };
+
                 if(FrameIndex < streamBuffers.Count)
                 {
-                    var addr = owner.TranslateDMAAddress(streamBuffers[(int)FrameIndex].BusAddress);
-                    WriteFakeBitstream(addr, result.PictureSize, isIntra);
+                    var streamBuf = streamBuffers[(int)FrameIndex];
+                    var addr = owner.TranslateDMAAddress(streamBuf.BusAddress);
+                    var usableSize = streamBuf.Size - streamBuf.Offset - Packet.CalculateLength<StreamPartition>();
+
+                    if(encodedData.Length > usableSize)
+                    {
+                        owner.ErrorLog("[ch{0}] Encoded frame size ({1}) exceeds usable buffer size ({2})", Uid, encodedData.Length, usableSize);
+                        Array.Resize(ref encodedData, (int)usableSize);
+                        feedback.PictureSize = encodedData.Length;
+                    }
+
+                    feedback.StreamPartOffset = streamBuf.Offset + (uint)encodedData.Length.AlignUpToMultipleOf(0x100);
                     var part = new StreamPartition
                     {
-                        Offset = 0,
-                        Size = result.PictureSize,
+                        Offset = streamBuf.Offset,
+                        Size = encodedData.Length,
                     };
-                    owner.WriteStruct(addr + result.StreamPartOffset, part);
+                    owner.sysbus.WriteBytes(encodedData, addr + streamBuf.Offset); // skip space reserved for header and SEI
+                    owner.WriteStruct(addr + feedback.StreamPartOffset, part);
                 }
                 else
                 {
                     owner.WarningLog("[ch{0}] No stream buffer for frame index {1}, have [0; {2})", Uid, FrameIndex, streamBuffers.Count);
                 }
                 FrameIndex++;
-                FrameRendered?.Invoke(chroma?.Prepend(luma).ToArray() ?? luma);
-                return result;
+                FrameRendered?.Invoke(rawData);
+                return feedback;
             }
 
             public void Reset()
             {
+                FrameIndex = 0;
+                streamBuffers.Clear();
+            }
+
+            public void Dispose()
+            {
+#if PLATFORM_LINUX && NET
+                appSrc?.Dispose();
+                appSink?.Dispose();
+                pipeline?.SetState(Gst.State.Null);
+                pipeline?.Dispose();
+#endif
             }
 
             public uint FrameIndex { get; private set; }
@@ -466,28 +505,127 @@ namespace Antmicro.Renode.Peripherals.Video
             public readonly ushort EncodedWidth;
             public readonly ushort EncodedHeight;
             public readonly int SourceBitDepth;
+            public readonly Profile Profile;
 
-            // TODO: Use real encoded bitstream
-            private void WriteFakeBitstream(ulong address, int size, bool isIntra)
+#if PLATFORM_LINUX && NET
+            private void InitializePipeline()
             {
-                var data = new byte[size];
-                data[0] = 0x00;
-                data[1] = 0x00;
-                data[2] = 0x00;
-                data[3] = 0x01;
-                // I-Frame: nal_ref_idc(3)|nal_unit_type(5=Coded slice of an IDR picture) = 0110 0101
-                // P-Frame: nal_ref_idc(2)|nal_unit_type(1=Coded slice of a non-IDR picture) = 0100 0001
-                data[4] = isIntra ? (byte)0x65 : (byte)0x41;
-                data[5] = 0x80;
-                for(var i = 6; i < size; i++)
+                try
                 {
-                    data[i] = 0xFF;
+                    var inCaps = $"video/x-raw,format=NV12,width={EncodedWidth},height={EncodedHeight},framerate=30/1";
+                    var encoder = owner.H264Encoder;
+                    var parser = "h264parse";
+                    var outCaps = "video/x-h264,stream-format=byte-stream,alignment=au";
+
+                    var isHevc = (Profile & Profile.Hevc) != 0;
+                    if(isHevc)
+                    {
+                        encoder = owner.H265Encoder;
+                        parser = "h265parse";
+                        outCaps = "video/x-h265,stream-format=byte-stream,alignment=au";
+                    }
+
+                    var pipelineStr = $"appsrc name=mysrc format=TIME ! {inCaps} ! videoconvert ! {encoder} ! {parser} config-interval=-1 ! {outCaps} ! appsink name=mysink emit-signals=false sync=false drop=false max-buffers=1";
+                    pipeline = GStreamerWrapper.CreatePipeline(pipelineStr);
+
+                    if(pipeline == null)
+                    {
+                        owner.ErrorLog("[ch{0}] Failed to create GStreamer pipeline, will pretend to encode with fake data", Uid);
+                        return;
+                    }
+
+                    appSrc = pipeline.GetByName("mysrc") as GstApp.AppSrc;
+                    appSink = pipeline.GetByName("mysink") as GstApp.AppSink;
+
+                    if(appSrc == null || appSink == null)
+                    {
+                        owner.ErrorLog("[ch{0}] Failed to get AppSrc or AppSink elements", Uid);
+                        return;
+                    }
+
+                    pipeline.SetState(Gst.State.Playing);
                 }
-                owner.sysbus.WriteBytes(data, address);
+                catch(Exception e)
+                {
+                    owner.ErrorLog("[ch{0}] Failed to initialize GStreamer pipeline: {1}", Uid, e);
+                }
             }
+
+            private EncodeResult EncodeFrame(byte[] rawData, uint bufferPitch)
+            {
+                if(pipeline == null)
+                {
+                    return FakeEncodeResult;
+                }
+
+                try
+                {
+                    using(var buffer = Gst.Buffer.NewMemdup(rawData))
+                    {
+                        GStreamerWrapper.SetBufferDimensions(buffer, EncodedWidth, EncodedHeight, bufferPitch);
+                        var pushRet = appSrc.PushBuffer(buffer);
+                        if(pushRet != Gst.FlowReturn.Ok)
+                        {
+                            owner.ErrorLog("[ch{0}] GStreamer AppSrc push failed: {1}", Uid, pushRet);
+                            return FakeEncodeResult;
+                        }
+                    }
+
+                    using(var sample = appSink.PullSample())
+                    {
+                        if(sample == null)
+                        {
+                            owner.ErrorLog("[ch{0}] GStreamer encoder did not produce a frame", Uid);
+                            return FakeEncodeResult;
+                        }
+                        using(var outBuffer = sample.GetBuffer())
+                        {
+                            if(outBuffer == null)
+                            {
+                                owner.ErrorLog("[ch{0}] GStreamer encoder did not produce a frame", Uid);
+                                return FakeEncodeResult;
+                            }
+                            var size = (int)outBuffer.GetSize();
+                            var encodedData = new byte[size];
+                            outBuffer.Extract(0, encodedData);
+                            return new EncodeResult
+                            {
+                                Buffer = encodedData,
+                                IsIntra = !outBuffer.GetFlags().HasFlag(Gst.BufferFlags.DeltaUnit),
+                            };
+                        }
+                    }
+                }
+                catch(Exception ex)
+                {
+                    owner.ErrorLog("[ch{0}] GStreamer exception during encoding: {1}", Uid, ex);
+                }
+
+                return FakeEncodeResult;
+            }
+
+            private Gst.Pipeline pipeline;
+            private GstApp.AppSrc appSrc;
+            private GstApp.AppSink appSink;
+#else
+            private void InitializePipeline()
+            {
+                owner.ErrorLog("[ch{0}] Skipping GStreamer initialization due to unsupported platform or runtime", Uid);
+            }
+
+            private EncodeResult EncodeFrame(byte[] rawData, uint bufferPitch)
+            {
+                return FakeEncodeResult;
+            }
+#endif
 
             private readonly Allegro_E310 owner;
             private readonly List<PutStreamBufferMsg> streamBuffers = new List<PutStreamBufferMsg>();
+            private static readonly EncodeResult FakeEncodeResult = new EncodeResult
+            {
+                Buffer = new byte[] { 0x00, 0x00, 0x00, 0x01, 0x65, 0x80, 0xff, 0xff },
+                IsIntra = true,
+            };
         }
 
         private class Mailbox
@@ -633,6 +771,12 @@ namespace Antmicro.Renode.Peripherals.Video
 
             public readonly MessageHeader Header;
             public readonly byte[] Body;
+        }
+
+        private class EncodeResult
+        {
+            public byte[] Buffer;
+            public bool IsIntra;
         }
 
         // Fields in the following Packet structs will be assigned reflexively.
