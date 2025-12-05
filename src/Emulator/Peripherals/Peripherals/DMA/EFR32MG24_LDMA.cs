@@ -949,43 +949,43 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 // Some of this fields are read only via sysbus, but can be loaded from memory
 #pragma warning disable 649
-                [PacketField, Offset(bytes: 0 << 2, bits: 0), Width(2)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 0), Width(bits: 2)]
                 public StructureType StructureType;
-                [PacketField, Offset(bytes: 0 << 2, bits: 3), Width(1)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 3), Width(bits: 1)]
                 public bool StructureTransferRequest;
-                [PacketField, Offset(bytes: 0 << 2, bits: 4), Width(11)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 4), Width(bits: 11)]
                 public uint TransferCount;
-                [PacketField, Offset(bytes: 0 << 2, bits: 15), Width(1)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 15), Width(bits: 1)]
                 public bool ByteSwap;
-                [PacketField, Offset(bytes: 0 << 2, bits: 16), Width(4)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 16), Width(bits: 4)]
                 public BlockSizeMode BlockSize;
-                [PacketField, Offset(bytes: 0 << 2, bits: 20), Width(1)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 20), Width(bits: 1)]
                 public bool OperationDoneInterruptFlagSetEnable;
-                [PacketField, Offset(bytes: 0 << 2, bits: 21), Width(1)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 21), Width(bits: 1)]
                 public RequestTransferMode RequestTransferModeSelect;
-                [PacketField, Offset(bytes: 0 << 2, bits: 22), Width(1)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 22), Width(bits: 1)]
                 public bool DecrementLoopCount;
-                [PacketField, Offset(bytes: 0 << 2, bits: 23), Width(1)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 23), Width(bits: 1)]
                 public bool IgnoreSingleRequests;
-                [PacketField, Offset(bytes: 0 << 2, bits: 24), Width(2)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 24), Width(bits: 2)]
                 public IncrementMode SourceIncrement;
-                [PacketField, Offset(bytes: 0 << 2, bits: 26), Width(2)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 26), Width(bits: 2)]
                 public SizeMode Size;
-                [PacketField, Offset(bytes: 0 << 2, bits: 28), Width(2)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 28), Width(bits: 2)]
                 public IncrementMode DestinationIncrement;
-                [PacketField, Offset(bytes: 0 << 2, bits: 30), Width(1)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 30), Width(bits: 1)]
                 public AddressingMode SourceAddressingMode;
-                [PacketField, Offset(bytes: 0 << 2, bits: 31), Width(1)]
+                [PacketField, Offset(bytes: 0 << 2, bits: 31), Width(bits: 1)]
                 public AddressingMode DestinationAddressingMode;
-                [PacketField, Offset(bytes: 1 << 2, bits: 0), Width(32)]
+                [PacketField, Offset(bytes: 1 << 2, bits: 0), Width(bits: 32)]
                 public uint SourceAddress;
-                [PacketField, Offset(bytes: 2 << 2, bits: 0), Width(32)]
+                [PacketField, Offset(bytes: 2 << 2, bits: 0), Width(bits: 32)]
                 public uint DestinationAddress;
-                [PacketField, Offset(bytes: 3 << 2, bits: 0), Width(1)]
+                [PacketField, Offset(bytes: 3 << 2, bits: 0), Width(bits: 1)]
                 public AddressingMode LinkMode;
-                [PacketField, Offset(bytes: 3 << 2, bits: 1), Width(1)]
+                [PacketField, Offset(bytes: 3 << 2, bits: 1), Width(bits: 1)]
                 public bool Link;
-                [PacketField, Offset(bytes: 3 << 2, bits: 2), Width(30)]
+                [PacketField, Offset(bytes: 3 << 2, bits: 2), Width(bits: 30)]
                 public uint LinkAddress;
 #pragma warning restore 649
             }

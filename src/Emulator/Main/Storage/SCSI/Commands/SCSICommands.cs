@@ -61,15 +61,15 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(3)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 3)]
         public byte DefectListFormat;
-        [PacketField, Offset(bytes: 1, bits: 3), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 3), Width(bits: 1)]
         public bool CompleteList;
-        [PacketField, Offset(bytes: 1, bits: 4), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 4), Width(bits: 1)]
         public bool FormatData;
-        [PacketField, Offset(bytes: 1, bits: 5), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 5), Width(bits: 1)]
         public byte LongList;
-        [PacketField, Offset(bytes: 1, bits: 6), Width(2)]
+        [PacketField, Offset(bytes: 1, bits: 6), Width(bits: 2)]
         public byte FormatProtectionInformation;
         [PacketField, Offset(bytes: 2)]
         public byte VendorSpecific;
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 1)]
         public bool EnableVitalProductData;
         [PacketField, Offset(bytes: 2)]
         public VitalProductDataPageCode PageCode;
@@ -95,9 +95,9 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 1)]
         public bool SavePages;
-        [PacketField, Offset(bytes: 1, bits: 4), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 4), Width(bits: 1)]
         public bool PageFormat;
         [PacketField, Offset(bytes: 7)]
         public ushort ParameterListLength;
@@ -109,13 +109,13 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 3), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 3), Width(bits: 1)]
         public bool DisableBlockDescriptors;
-        [PacketField, Offset(bytes: 1, bits: 4), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 4), Width(bits: 1)]
         public bool LongLBAAccepted;
-        [PacketField, Offset(bytes: 2, bits: 0), Width(6)]
+        [PacketField, Offset(bytes: 2, bits: 0), Width(bits: 6)]
         public bool PageCode;
-        [PacketField, Offset(bytes: 2, bits: 6), Width(2)]
+        [PacketField, Offset(bytes: 2, bits: 6), Width(bits: 2)]
         public byte PageControl;
         [PacketField, Offset(bytes: 3)]
         public byte SubpageCode;
@@ -129,11 +129,11 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 1), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 1), Width(bits: 1)]
         public bool Immediate;
         [PacketField, Offset(bytes: 2)]
         public uint LogicalBlockAddress;
-        [PacketField, Offset(bytes: 6, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 6, bits: 0), Width(bits: 5)]
         public byte GroupNumber;
         [PacketField, Offset(bytes: 7)]
         public ushort PrefetchLength;
@@ -145,13 +145,13 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 1), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 1), Width(bits: 1)]
         public bool Immediate;
         [PacketField, Offset(bytes: 2)]
         public ulong LogicalBlockAddress;
         [PacketField, Offset(bytes: 10)]
         public uint PrefetchLength;
-        [PacketField, Offset(bytes: 14, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 14, bits: 0), Width(bits: 5)]
         public byte GroupNumber;
         [PacketField, Offset(bytes: 15)]
         public byte Control;
@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 5)]
         public byte LogicalBlockAddressHigh;
         [PacketField, Offset(bytes: 2)]
         public ushort LogicalBlockAddressLow;
@@ -181,11 +181,11 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public bool ForceUnitAccess;
         [PacketField, Offset(bytes: 1, bits: 4)]
         public bool DisablePageOut;
-        [PacketField, Offset(bytes: 1, bits: 5), Width(3)]
+        [PacketField, Offset(bytes: 1, bits: 5), Width(bits: 3)]
         public bool ReadProtect;
         [PacketField, Offset(bytes: 2)]
         public uint LogicalBlockAddress;
-        [PacketField, Offset(bytes: 6, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 6, bits: 0), Width(bits: 5)]
         public byte GroupNumber;
         [PacketField, Offset(bytes: 7)]
         public ushort TransferLength;
@@ -203,13 +203,13 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public bool ForceUnitAccess;
         [PacketField, Offset(bytes: 1, bits: 4)]
         public bool DisablePageOut;
-        [PacketField, Offset(bytes: 1, bits: 5), Width(3)]
+        [PacketField, Offset(bytes: 1, bits: 5), Width(bits: 3)]
         public bool ReadProtect;
         [PacketField, Offset(bytes: 2)]
         public ulong LogicalBlockAddress;
         [PacketField, Offset(bytes: 10)]
         public ushort TransferLength;
-        [PacketField, Offset(bytes: 14, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 14, bits: 0), Width(bits: 5)]
         public byte GroupNumber;
         [PacketField, Offset(bytes: 15)]
         public byte Control;
@@ -219,13 +219,13 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 5)]
         public byte Mode;
         [PacketField, Offset(bytes: 2)]
         public byte BufferId;
-        [PacketField, Offset(bytes: 3), Width(3)]
+        [PacketField, Offset(bytes: 3), Width(bits: 3)]
         public uint BufferOffset;
-        [PacketField, Offset(bytes: 6), Width(3)]
+        [PacketField, Offset(bytes: 6), Width(bits: 3)]
         public uint AllocationLength;
         [PacketField, Offset(bytes: 9)]
         public byte Control;
@@ -237,7 +237,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public byte OperationCode;
         [PacketField, Offset(bytes: 2)]
         public uint LogicalBlockAddress;
-        [PacketField, Offset(bytes: 8, bits: 0), Width(1)]
+        [PacketField, Offset(bytes: 8, bits: 0), Width(bits: 1)]
         public bool PartialMediumIndicator;
         [PacketField, Offset(bytes: 9)]
         public byte Control;
@@ -247,13 +247,13 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 5)]
         public bool ServiceAction;
         [PacketField, Offset(bytes: 2)]
         public ulong LogicalBlockAddress;
         [PacketField, Offset(bytes: 10)]
         public uint AllocationLength;
-        [PacketField, Offset(bytes: 14, bits: 0), Width(1)]
+        [PacketField, Offset(bytes: 14, bits: 0), Width(bits: 1)]
         public bool PartialMediumIndicator;
         [PacketField, Offset(bytes: 15)]
         public byte Control;
@@ -275,7 +275,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 1)]
         public bool DescriptorFormat;
         [PacketField, Offset(bytes: 4)]
         public byte AllocationLength;
@@ -291,7 +291,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public byte SecurityProtocol;
         [PacketField, Offset(bytes: 2)]
         public ushort SecurityProtocolSpecific;
-        [PacketField, Offset(bytes: 4, bits: 7), Width(1)]
+        [PacketField, Offset(bytes: 4, bits: 7), Width(bits: 1)]
         public bool Increment512;
         [PacketField, Offset(bytes: 6)]
         public uint AllocationLength;
@@ -307,7 +307,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public byte SecurityProtocol;
         [PacketField, Offset(bytes: 2)]
         public ushort SecurityProtocolSpecific;
-        [PacketField, Offset(bytes: 4, bits: 7), Width(1)]
+        [PacketField, Offset(bytes: 4, bits: 7), Width(bits: 1)]
         public bool Increment512;
         [PacketField, Offset(bytes: 6)]
         public uint TransferLength;
@@ -319,15 +319,15 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 1)]
         public bool UnitOffline;
-        [PacketField, Offset(bytes: 1, bits: 1), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 1), Width(bits: 1)]
         public bool SCSITargetDeviceOffline;
-        [PacketField, Offset(bytes: 1, bits: 2), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 2), Width(bits: 1)]
         public bool SelfTest;
-        [PacketField, Offset(bytes: 1, bits: 4), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 4), Width(bits: 1)]
         public bool PageFormat;
-        [PacketField, Offset(bytes: 1, bits: 5), Width(3)]
+        [PacketField, Offset(bytes: 1, bits: 5), Width(bits: 3)]
         public byte SelfTestCode;
         [PacketField, Offset(bytes: 3)]
         public ushort ParameterListLength;
@@ -339,17 +339,17 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 1)]
         public bool Immediate;
-        [PacketField, Offset(bytes: 3, bits: 0), Width(4)]
+        [PacketField, Offset(bytes: 3, bits: 0), Width(bits: 4)]
         public byte PowerConditionModifier;
-        [PacketField, Offset(bytes: 4, bits: 0), Width(1)]
+        [PacketField, Offset(bytes: 4, bits: 0), Width(bits: 1)]
         public bool Start;
-        [PacketField, Offset(bytes: 4, bits: 1), Width(1)]
+        [PacketField, Offset(bytes: 4, bits: 1), Width(bits: 1)]
         public bool LoadEject;
-        [PacketField, Offset(bytes: 4, bits: 2), Width(1)]
+        [PacketField, Offset(bytes: 4, bits: 2), Width(bits: 1)]
         public bool NoFlush;
-        [PacketField, Offset(bytes: 4, bits: 4), Width(4)]
+        [PacketField, Offset(bytes: 4, bits: 4), Width(bits: 4)]
         public bool PowerConditions;
         [PacketField, Offset(bytes: 5)]
         public byte Control;
@@ -365,7 +365,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public bool SyncNonVolatile;
         [PacketField, Offset(bytes: 2)]
         public uint LogicalBlockAddress;
-        [PacketField, Offset(bytes: 6, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 6, bits: 0), Width(bits: 5)]
         public byte GroupNumber;
         [PacketField, Offset(bytes: 7)]
         public ushort NumberOfLogicalBlocks;
@@ -385,7 +385,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public ulong LogicalBlockAddress;
         [PacketField, Offset(bytes: 10)]
         public uint NumberOfLogicalBlocks;
-        [PacketField, Offset(bytes: 14, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 14, bits: 0), Width(bits: 5)]
         public byte GroupNumber;
         [PacketField, Offset(bytes: 15)]
         public byte Control;
@@ -403,7 +403,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 6, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 6, bits: 0), Width(bits: 5)]
         public byte GroupNumber;
         [PacketField, Offset(bytes: 7)]
         public ushort ParameterListLength;
@@ -415,15 +415,15 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 1), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 1), Width(bits: 1)]
         public bool ByteCheck;
-        [PacketField, Offset(bytes: 1, bits: 4), Width(1)]
+        [PacketField, Offset(bytes: 1, bits: 4), Width(bits: 1)]
         public bool DisablePageOut;
-        [PacketField, Offset(bytes: 1, bits: 5), Width(3)]
+        [PacketField, Offset(bytes: 1, bits: 5), Width(bits: 3)]
         public bool VerifyProtect;
         [PacketField, Offset(bytes: 2)]
         public uint LogicalBlockAddress;
-        [PacketField, Offset(bytes: 6, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 6, bits: 0), Width(bits: 5)]
         public byte GroupNumber;
         [PacketField, Offset(bytes: 7)]
         public ushort VerificationLength;
@@ -435,7 +435,7 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 5)]
         public byte LogicalBlockAddressHigh;
         [PacketField, Offset(bytes: 2)]
         public ushort LogicalBlockAddressLow;
@@ -455,11 +455,11 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public bool ForceUnitAccess;
         [PacketField, Offset(bytes: 1, bits: 4)]
         public bool DisablePageOut;
-        [PacketField, Offset(bytes: 1, bits: 5), Width(3)]
+        [PacketField, Offset(bytes: 1, bits: 5), Width(bits: 3)]
         public bool WriteProtect;
         [PacketField, Offset(bytes: 2)]
         public uint LogicalBlockAddress;
-        [PacketField, Offset(bytes: 6, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 6, bits: 0), Width(bits: 5)]
         public byte GroupNumber;
         [PacketField, Offset(bytes: 7)]
         public ushort TransferLength;
@@ -477,13 +477,13 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
         public bool ForceUnitAccess;
         [PacketField, Offset(bytes: 1, bits: 4)]
         public bool DisablePageOut;
-        [PacketField, Offset(bytes: 1, bits: 5), Width(3)]
+        [PacketField, Offset(bytes: 1, bits: 5), Width(bits: 3)]
         public bool WriteProtect;
         [PacketField, Offset(bytes: 2)]
         public ulong LogicalBlockAddress;
         [PacketField, Offset(bytes: 10)]
         public ushort TransferLength;
-        [PacketField, Offset(bytes: 14, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 14, bits: 0), Width(bits: 5)]
         public byte GroupNumber;
         [PacketField, Offset(bytes: 15)]
         public byte Control;
@@ -493,13 +493,13 @@ namespace Antmicro.Renode.Storage.SCSI.Commands
     {
         [PacketField, Offset(bytes: 0)]
         public byte OperationCode;
-        [PacketField, Offset(bytes: 1, bits: 0), Width(5)]
+        [PacketField, Offset(bytes: 1, bits: 0), Width(bits: 5)]
         public byte Mode;
         [PacketField, Offset(bytes: 2)]
         public byte BufferId;
-        [PacketField, Offset(bytes: 3), Width(3)]
+        [PacketField, Offset(bytes: 3), Width(bits: 3)]
         public uint BufferOffset;
-        [PacketField, Offset(bytes: 6), Width(3)]
+        [PacketField, Offset(bytes: 6), Width(bits: 3)]
         public uint ParameterListLength;
         [PacketField, Offset(bytes: 9)]
         public byte Control;

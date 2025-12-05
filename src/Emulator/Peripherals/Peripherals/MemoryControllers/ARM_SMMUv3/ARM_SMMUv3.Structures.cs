@@ -49,10 +49,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 parent.ErrorLog("Unhandled command {0}: {1}", Opcode, this);
             }
 
-            [PacketField, Offset(bits: 0), Width(8)]
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
             public Opcode Opcode;
 
-            [PacketField, Offset(bits: 10), Width(1)]
+            [PacketField, Offset(bits: 10), Width(bits: 1)]
             public bool SSec; // not quite common (for example sync doesn't have it)
         }
 
@@ -67,13 +67,13 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             // RES0 8-9
 
-            [PacketField, Offset(bits: 11), Width(1)]
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
             public bool SSV;
 
-            [PacketField, Offset(bits: 12), Width(20)]
+            [PacketField, Offset(bits: 12), Width(bits: 20)]
             public int SubstreamID;
 
-            [PacketField, Offset(bits: 32), Width(32)]
+            [PacketField, Offset(bits: 32), Width(bits: 32)]
             public uint StreamID;
         }
 
@@ -88,18 +88,18 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             public ulong Address => address << 12;
 
-            [PacketField, Offset(bits: 64), Width(5)]
+            [PacketField, Offset(bits: 64), Width(bits: 5)]
             public int Size;
 
-            [PacketField, Offset(bits: 69), Width(5)]
+            [PacketField, Offset(bits: 69), Width(bits: 5)]
             public int Stride;
 
             // RES0 74
 
-            [PacketField, Offset(bits: 75), Width(1)]
+            [PacketField, Offset(bits: 75), Width(bits: 1)]
             public bool NS;
 
-            [PacketField, Offset(bits: 76), Width(52)]
+            [PacketField, Offset(bits: 76), Width(bits: 52)]
             private readonly ulong address;
         }
 
@@ -111,10 +111,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 parent.InvalidateSte(StreamID);
             }
 
-            [PacketField, Offset(bits: 32), Width(32)]
+            [PacketField, Offset(bits: 32), Width(bits: 32)]
             public uint StreamID;
 
-            [PacketField, Offset(bits: 64), Width(1)]
+            [PacketField, Offset(bits: 64), Width(bits: 1)]
             public bool Leaf;
         }
 
@@ -131,10 +131,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 }
             }
 
-            [PacketField, Offset(bits: 32), Width(32)]
+            [PacketField, Offset(bits: 32), Width(bits: 32)]
             public uint StreamID;
 
-            [PacketField, Offset(bits: 64), Width(5)]
+            [PacketField, Offset(bits: 64), Width(bits: 5)]
             public int Range;
         }
 
@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 parent.InvalidateTlb(); // TODO: More granular invalidation
             }
 
-            [PacketField, Offset(bits: 32), Width(16)]
+            [PacketField, Offset(bits: 32), Width(bits: 16)]
             public ushort VMID;
         }
 
@@ -158,7 +158,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 parent.InvalidateTlb(); // TODO: More granular invalidation
             }
 
-            [PacketField, Offset(bits: 48), Width(16)]
+            [PacketField, Offset(bits: 48), Width(bits: 16)]
             public ushort ASID;
         }
 
@@ -172,31 +172,31 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             public ulong Address => address << 12;
 
-            [PacketField, Offset(bits: 12), Width(5)]
+            [PacketField, Offset(bits: 12), Width(bits: 5)]
             public byte NUM;
 
             // RES0 17-19
 
-            [PacketField, Offset(bits: 20), Width(6)]
+            [PacketField, Offset(bits: 20), Width(bits: 6)]
             public byte SCALE;
 
             // RES0 26-31
 
-            [PacketField, Offset(bits: 64), Width(1)]
+            [PacketField, Offset(bits: 64), Width(bits: 1)]
             public bool Leaf;
 
             // RES0 65-70
 
-            [PacketField, Offset(bits: 71), Width(1)]
+            [PacketField, Offset(bits: 71), Width(bits: 1)]
             public bool TTL128;
 
-            [PacketField, Offset(bits: 72), Width(2)]
+            [PacketField, Offset(bits: 72), Width(bits: 2)]
             public byte TTL;
 
-            [PacketField, Offset(bits: 74), Width(2)]
+            [PacketField, Offset(bits: 74), Width(bits: 2)]
             public TlbInvalidationGranule TG;
 
-            [PacketField, Offset(bits: 76), Width(52)]
+            [PacketField, Offset(bits: 76), Width(bits: 52)]
             private readonly ulong address;
         }
 
@@ -208,7 +208,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 base.Run(parent); // TODO: Use ASID
             }
 
-            [PacketField, Offset(bits: 48), Width(16)]
+            [PacketField, Offset(bits: 48), Width(bits: 16)]
             public ushort ASID;
         }
 
@@ -223,22 +223,22 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             public ulong MSIAddress => msiAddress << 2;
 
-            [PacketField, Offset(bits: 12), Width(2)]
+            [PacketField, Offset(bits: 12), Width(bits: 2)]
             public CompletionSignal CS;
 
-            [PacketField, Offset(bits: 22), Width(2)]
+            [PacketField, Offset(bits: 22), Width(bits: 2)]
             public Shareability MSH;
 
-            [PacketField, Offset(bits: 24), Width(4)]
+            [PacketField, Offset(bits: 24), Width(bits: 4)]
             public int MSIAttr;
 
-            [PacketField, Offset(bits: 32), Width(32)]
+            [PacketField, Offset(bits: 32), Width(bits: 32)]
             public uint MSIData;
 
-            [PacketField, Offset(bits: 66), Width(54)]
+            [PacketField, Offset(bits: 66), Width(bits: 54)]
             private readonly ulong msiAddress;
 
-            [PacketField, Offset(bits: 127), Width(1)]
+            [PacketField, Offset(bits: 127), Width(bits: 1)]
             public bool MSI_NS;
         }
 
@@ -248,10 +248,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         {
             public override string ToString() => this.ToDebugString();
 
-            [PacketField, Offset(bits: 0), Width(1)]
+            [PacketField, Offset(bits: 0), Width(bits: 1)]
             public bool Valid;
 
-            [PacketField, Offset(bits: 1), Width(1)]
+            [PacketField, Offset(bits: 1), Width(bits: 1)]
             public bool Table;
         }
 
@@ -259,28 +259,28 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         {
             // gap 2-11 IGNORED
 
-            [PacketField, Offset(bits: 12), Width(36)]
+            [PacketField, Offset(bits: 12), Width(bits: 36)]
             public ulong NextTableAddress;
 
             // RES0 48-50
 
             // gap 51 IGNORED
 
-            [PacketField, Offset(bits: 52), Width(1)]
+            [PacketField, Offset(bits: 52), Width(bits: 1)]
             public bool Protected;
 
             // gap 53-58 IGNORED
 
-            [PacketField, Offset(bits: 59), Width(1)]
+            [PacketField, Offset(bits: 59), Width(bits: 1)]
             public bool PXNTable;
 
-            [PacketField, Offset(bits: 60), Width(1)]
+            [PacketField, Offset(bits: 60), Width(bits: 1)]
             public bool UXNTable;
 
-            [PacketField, Offset(bits: 61), Width(2)]
+            [PacketField, Offset(bits: 61), Width(bits: 2)]
             public TableAccessPermission APTable;
 
-            [PacketField, Offset(bits: 63), Width(1)]
+            [PacketField, Offset(bits: 63), Width(bits: 1)]
             public bool NSTable;
         }
 
@@ -322,51 +322,51 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 return OutputAddress;
             }
 
-            [PacketField, Offset(bits: 2), Width(3)]
+            [PacketField, Offset(bits: 2), Width(bits: 3)]
             public int AttrIndx;
 
-            [PacketField, Offset(bits: 5), Width(1)]
+            [PacketField, Offset(bits: 5), Width(bits: 1)]
             public bool NS;
 
-            [PacketField, Offset(bits: 6), Width(2)]
+            [PacketField, Offset(bits: 6), Width(bits: 2)]
             public AccessPermission AP;
 
-            [PacketField, Offset(bits: 8), Width(2)]
+            [PacketField, Offset(bits: 8), Width(bits: 2)]
             public Shareability SH;
 
-            [PacketField, Offset(bits: 10), Width(1)]
+            [PacketField, Offset(bits: 10), Width(bits: 1)]
             public bool AccessFlag;
 
-            [PacketField, Offset(bits: 11), Width(1)]
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
             public bool nG;
 
-            [PacketField, Offset(bits: 12), Width(36)]
+            [PacketField, Offset(bits: 12), Width(bits: 36)]
             public ulong OutputAddress; // On VMSAv8-32 LPAE the length is 28 bits
 
             // RES0 48-49
 
-            [PacketField, Offset(bits: 50), Width(1)]
+            [PacketField, Offset(bits: 50), Width(bits: 1)]
             public bool GP; // Reserved on VMSAv8-32 LPAE
 
-            [PacketField, Offset(bits: 51), Width(1)]
+            [PacketField, Offset(bits: 51), Width(bits: 1)]
             public bool DBM; // Reserved on VMSAv8-32 LPAE
 
-            [PacketField, Offset(bits: 52), Width(1)]
+            [PacketField, Offset(bits: 52), Width(bits: 1)]
             public bool Contiguous;
 
-            [PacketField, Offset(bits: 53), Width(1)]
+            [PacketField, Offset(bits: 53), Width(bits: 1)]
             public bool PXN;
 
-            [PacketField, Offset(bits: 54), Width(1)]
+            [PacketField, Offset(bits: 54), Width(bits: 1)]
             public bool UXN; // XN on VMSAv8-32 LPAE
 
-            [PacketField, Offset(bits: 55), Width(4)]
+            [PacketField, Offset(bits: 55), Width(bits: 4)]
             public int SoftwareReserved;
 
-            [PacketField, Offset(bits: 59), Width(4)]
+            [PacketField, Offset(bits: 59), Width(bits: 4)]
             public int PBHA; // or AttrIndx[3], POIndex[2:0]
 
-            [PacketField, Offset(bits: 63), Width(1)]
+            [PacketField, Offset(bits: 63), Width(bits: 1)]
             public bool AMEC;
         }
 
@@ -377,253 +377,253 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             public ulong S1ContextPtr => s1ContextPtr << 6;
 
-            [PacketField, Offset(bits: 0), Width(1)]
+            [PacketField, Offset(bits: 0), Width(bits: 1)]
             public bool V;
 
-            [PacketField, Offset(bits: 1), Width(3)]
+            [PacketField, Offset(bits: 1), Width(bits: 3)]
             public StreamConfiguration Config;
 
-            [PacketField, Offset(bits: 4), Width(2)]
+            [PacketField, Offset(bits: 4), Width(bits: 2)]
             public Stage1Format S1FMT;
 
-            [PacketField, Offset(bits: 6), Width(50)]
+            [PacketField, Offset(bits: 6), Width(bits: 50)]
             private readonly ulong s1ContextPtr;
 
             // RES0 56-58
 
-            [PacketField, Offset(bits: 59), Width(5)]
+            [PacketField, Offset(bits: 59), Width(bits: 5)]
             public int S1CDMax;
 
-            [PacketField, Offset(bits: 64), Width(2)]
+            [PacketField, Offset(bits: 64), Width(bits: 2)]
             public DefaultSubstreamBehavior S1DSS;
 
-            [PacketField, Offset(bits: 66), Width(2)]
+            [PacketField, Offset(bits: 66), Width(bits: 2)]
             public MemoryRegionAttribute S1CIR;
 
-            [PacketField, Offset(bits: 68), Width(2)]
+            [PacketField, Offset(bits: 68), Width(bits: 2)]
             public MemoryRegionAttribute S1COR;
 
-            [PacketField, Offset(bits: 70), Width(2)]
+            [PacketField, Offset(bits: 70), Width(bits: 2)]
             public Shareability S1CSH;
 
-            [PacketField, Offset(bits: 72), Width(1)]
+            [PacketField, Offset(bits: 72), Width(bits: 1)]
             public bool S2HWU59;
 
-            [PacketField, Offset(bits: 73), Width(1)]
+            [PacketField, Offset(bits: 73), Width(bits: 1)]
             public bool S2HWU60;
 
-            [PacketField, Offset(bits: 74), Width(1)]
+            [PacketField, Offset(bits: 74), Width(bits: 1)]
             public bool S2HWU61;
 
-            [PacketField, Offset(bits: 75), Width(1)]
+            [PacketField, Offset(bits: 75), Width(bits: 1)]
             public bool S2HWU62;
 
-            [PacketField, Offset(bits: 76), Width(1)]
+            [PacketField, Offset(bits: 76), Width(bits: 1)]
             public bool DRE;
 
-            [PacketField, Offset(bits: 77), Width(4)]
+            [PacketField, Offset(bits: 77), Width(bits: 4)]
             public int CONT;
 
-            [PacketField, Offset(bits: 81), Width(1)]
+            [PacketField, Offset(bits: 81), Width(bits: 1)]
             public bool DCP;
 
-            [PacketField, Offset(bits: 82), Width(1)]
+            [PacketField, Offset(bits: 82), Width(bits: 1)]
             public bool PPAR;
 
-            [PacketField, Offset(bits: 83), Width(1)]
+            [PacketField, Offset(bits: 83), Width(bits: 1)]
             public bool MEV;
 
-            [PacketField, Offset(bits: 84), Width(4)]
+            [PacketField, Offset(bits: 84), Width(bits: 4)]
             public int SW_RESERVED;
 
-            [PacketField, Offset(bits: 88), Width(1)]
+            [PacketField, Offset(bits: 88), Width(bits: 1)]
             public bool S1PIE;
 
-            [PacketField, Offset(bits: 89), Width(1)]
+            [PacketField, Offset(bits: 89), Width(bits: 1)]
             public bool S2FWB;
 
-            [PacketField, Offset(bits: 90), Width(1)]
+            [PacketField, Offset(bits: 90), Width(bits: 1)]
             public bool S1MPAM;
 
-            [PacketField, Offset(bits: 91), Width(1)]
+            [PacketField, Offset(bits: 91), Width(bits: 1)]
             public bool S1STALLD;
 
-            [PacketField, Offset(bits: 92), Width(2)]
+            [PacketField, Offset(bits: 92), Width(bits: 2)]
             public PCIeATS EATS;
 
-            [PacketField, Offset(bits: 94), Width(2)]
+            [PacketField, Offset(bits: 94), Width(bits: 2)]
             public StreamWorld STRW;
 
-            [PacketField, Offset(bits: 96), Width(4)]
+            [PacketField, Offset(bits: 96), Width(bits: 4)]
             public int MemAttr;
 
-            [PacketField, Offset(bits: 100), Width(1)]
+            [PacketField, Offset(bits: 100), Width(bits: 1)]
             public bool MTCFG;
 
-            [PacketField, Offset(bits: 101), Width(4)]
+            [PacketField, Offset(bits: 101), Width(bits: 4)]
             public int ALLOCCFG;
 
             // RES0 105-107
 
-            [PacketField, Offset(bits: 108), Width(2)]
+            [PacketField, Offset(bits: 108), Width(bits: 2)]
             public Shareability SHCFG;
 
-            [PacketField, Offset(bits: 110), Width(2)]
+            [PacketField, Offset(bits: 110), Width(bits: 2)]
             public NonSecureAttribute NSCFG;
 
-            [PacketField, Offset(bits: 112), Width(2)]
+            [PacketField, Offset(bits: 112), Width(bits: 2)]
             public Privilege PRIVCFG;
 
-            [PacketField, Offset(bits: 114), Width(2)]
+            [PacketField, Offset(bits: 114), Width(bits: 2)]
             public InstructionData INSTCFG;
 
             // gap imeplementation defined 116-127
 
-            [PacketField, Offset(bits: 128), Width(16)]
+            [PacketField, Offset(bits: 128), Width(bits: 16)]
             public ushort S2VMID;
 
             // gap imeplementation defined 144-159
 
-            [PacketField, Offset(bits: 160), Width(6)]
+            [PacketField, Offset(bits: 160), Width(bits: 6)]
             public int S2TOSZ;
 
-            [PacketField, Offset(bits: 166), Width(2)]
+            [PacketField, Offset(bits: 166), Width(bits: 2)]
             public int S2SLO;
 
-            [PacketField, Offset(bits: 168), Width(2)]
+            [PacketField, Offset(bits: 168), Width(bits: 2)]
             public Cacheability S2IR0;
 
-            [PacketField, Offset(bits: 170), Width(2)]
+            [PacketField, Offset(bits: 170), Width(bits: 2)]
             public Cacheability S2OR0;
 
-            [PacketField, Offset(bits: 172), Width(2)]
+            [PacketField, Offset(bits: 172), Width(bits: 2)]
             public Shareability S2SH0;
 
-            [PacketField, Offset(bits: 174), Width(2)]
+            [PacketField, Offset(bits: 174), Width(bits: 2)]
             public Stage2TranslationGranule S2TG;
 
-            [PacketField, Offset(bits: 176), Width(3)]
+            [PacketField, Offset(bits: 176), Width(bits: 3)]
             public AddressSize S2PS;
 
-            [PacketField, Offset(bits: 179), Width(1)]
+            [PacketField, Offset(bits: 179), Width(bits: 1)]
             public bool S2AA64;
 
-            [PacketField, Offset(bits: 180), Width(1)]
+            [PacketField, Offset(bits: 180), Width(bits: 1)]
             public bool S2ENDI;
 
-            [PacketField, Offset(bits: 181), Width(1)]
+            [PacketField, Offset(bits: 181), Width(bits: 1)]
             public bool S2AFFD;
 
-            [PacketField, Offset(bits: 182), Width(1)]
+            [PacketField, Offset(bits: 182), Width(bits: 1)]
             public bool S2PTW;
 
-            [PacketField, Offset(bits: 183), Width(1)]
+            [PacketField, Offset(bits: 183), Width(bits: 1)]
             public bool S2HD;
 
-            [PacketField, Offset(bits: 184), Width(1)]
+            [PacketField, Offset(bits: 184), Width(bits: 1)]
             public bool S2HA;
 
-            [PacketField, Offset(bits: 185), Width(1)]
+            [PacketField, Offset(bits: 185), Width(bits: 1)]
             public bool S2S;
 
-            [PacketField, Offset(bits: 186), Width(1)]
+            [PacketField, Offset(bits: 186), Width(bits: 1)]
             public bool S2R;
 
-            [PacketField, Offset(bits: 187), Width(1)]
+            [PacketField, Offset(bits: 187), Width(bits: 1)]
             public bool S2HAFT;
 
-            [PacketField, Offset(bits: 188), Width(1)]
+            [PacketField, Offset(bits: 188), Width(bits: 1)]
             public bool S2PIE;
 
-            [PacketField, Offset(bits: 189), Width(1)]
+            [PacketField, Offset(bits: 189), Width(bits: 1)]
             public bool S2POE;
 
-            [PacketField, Offset(bits: 190), Width(2)]
+            [PacketField, Offset(bits: 190), Width(bits: 2)]
             public DptVmidMatch DPT_VMATCH;
 
-            [PacketField, Offset(bits: 192), Width(1)]
+            [PacketField, Offset(bits: 192), Width(bits: 1)]
             public bool S2NSW;
 
-            [PacketField, Offset(bits: 193), Width(1)]
+            [PacketField, Offset(bits: 193), Width(bits: 1)]
             public bool S2NSA;
 
-            [PacketField, Offset(bits: 194), Width(1)]
+            [PacketField, Offset(bits: 194), Width(bits: 1)]
             public bool S2SL0_2;
 
-            [PacketField, Offset(bits: 195), Width(1)]
+            [PacketField, Offset(bits: 195), Width(bits: 1)]
             public bool S2DS;
 
-            [PacketField, Offset(bits: 196), Width(52)]
+            [PacketField, Offset(bits: 196), Width(bits: 52)]
             public ulong S2TTB;
 
             // RES0 248-252
 
-            [PacketField, Offset(bits: 253), Width(2)]
+            [PacketField, Offset(bits: 253), Width(bits: 2)]
             public SkipLevel S2SKL;
 
             // RES0 255
 
             // gap imeplementation defined 256-271
 
-            [PacketField, Offset(bits: 272), Width(16)]
+            [PacketField, Offset(bits: 272), Width(bits: 16)]
             public ushort PARTID;
 
-            [PacketField, Offset(bits: 288), Width(6)]
+            [PacketField, Offset(bits: 288), Width(bits: 6)]
             public int S_S2TOSZ;
 
-            [PacketField, Offset(bits: 294), Width(2)]
+            [PacketField, Offset(bits: 294), Width(bits: 2)]
             public int S_S2SLO;
 
             // RES0 296-301
 
-            [PacketField, Offset(bits: 302), Width(2)]
+            [PacketField, Offset(bits: 302), Width(bits: 2)]
             public Stage2TranslationGranule S_S2TG;
 
-            [PacketField, Offset(bits: 304), Width(16)]
+            [PacketField, Offset(bits: 304), Width(bits: 16)]
             public ushort MECID;
 
-            [PacketField, Offset(bits: 320), Width(8)]
+            [PacketField, Offset(bits: 320), Width(bits: 8)]
             public byte PMG;
 
-            [PacketField, Offset(bits: 328), Width(1)]
+            [PacketField, Offset(bits: 328), Width(bits: 1)]
             public bool MPAM_NS;
 
-            [PacketField, Offset(bits: 329), Width(1)]
+            [PacketField, Offset(bits: 329), Width(bits: 1)]
             public bool AssuredOnly;
 
-            [PacketField, Offset(bits: 330), Width(1)]
+            [PacketField, Offset(bits: 330), Width(bits: 1)]
             public bool TL0;
 
-            [PacketField, Offset(bits: 331), Width(1)]
+            [PacketField, Offset(bits: 331), Width(bits: 1)]
             public bool TL1;
 
-            [PacketField, Offset(bits: 332), Width(44)]
+            [PacketField, Offset(bits: 332), Width(bits: 44)]
             public ulong VMSPtr;
 
             // RES0 376-383
 
-            [PacketField, Offset(bits: 384), Width(1)]
+            [PacketField, Offset(bits: 384), Width(bits: 1)]
             public bool S2SW;
 
-            [PacketField, Offset(bits: 385), Width(1)]
+            [PacketField, Offset(bits: 385), Width(bits: 1)]
             public bool S2SA;
 
-            [PacketField, Offset(bits: 386), Width(1)]
+            [PacketField, Offset(bits: 386), Width(bits: 1)]
             public bool S_S2SL0_2;
 
             // RES0 387
 
-            [PacketField, Offset(bits: 388), Width(52)]
+            [PacketField, Offset(bits: 388), Width(bits: 52)]
             public ulong S_S2TTB;
 
             // RES0 440-444
 
-            [PacketField, Offset(bits: 445), Width(2)]
+            [PacketField, Offset(bits: 445), Width(bits: 2)]
             public SkipLevel S_S2SKL;
 
             // RES0 447;
 
-            [PacketField, Offset(bits: 448), Width(4 * 16)]
+            [PacketField, Offset(bits: 448), Width(bits: 4 * 16)]
             public byte[] S2POI; // TODO: this should really be an array of 16, 4-bit PermissionOverlay entries, but it currently ends up as 8 bytes
         }
 
@@ -680,185 +680,185 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 return null;
             }
 
-            [PacketField, Offset(bits: 0), Width(6)]
+            [PacketField, Offset(bits: 0), Width(bits: 6)]
             public int T0SZ;
 
-            [PacketField, Offset(bits: 6), Width(2)]
+            [PacketField, Offset(bits: 6), Width(bits: 2)]
             public Stage2TranslationGranule TG0;
 
-            [PacketField, Offset(bits: 8), Width(2)]
+            [PacketField, Offset(bits: 8), Width(bits: 2)]
             public Cacheability IR0;
 
-            [PacketField, Offset(bits: 10), Width(2)]
+            [PacketField, Offset(bits: 10), Width(bits: 2)]
             public Cacheability OR0;
 
-            [PacketField, Offset(bits: 12), Width(2)]
+            [PacketField, Offset(bits: 12), Width(bits: 2)]
             public Shareability SH0;
 
-            [PacketField, Offset(bits: 14), Width(1)]
+            [PacketField, Offset(bits: 14), Width(bits: 1)]
             public bool EPD0;
 
-            [PacketField, Offset(bits: 15), Width(1)]
+            [PacketField, Offset(bits: 15), Width(bits: 1)]
             public bool ENDI;
 
-            [PacketField, Offset(bits: 16), Width(6)]
+            [PacketField, Offset(bits: 16), Width(bits: 6)]
             public int T1SZ;
 
-            [PacketField, Offset(bits: 22), Width(2)]
+            [PacketField, Offset(bits: 22), Width(bits: 2)]
             public Stage1TranslationGranule TG1;
 
-            [PacketField, Offset(bits: 24), Width(2)]
+            [PacketField, Offset(bits: 24), Width(bits: 2)]
             public Cacheability IR1;
 
-            [PacketField, Offset(bits: 26), Width(2)]
+            [PacketField, Offset(bits: 26), Width(bits: 2)]
             public Cacheability OR1;
 
-            [PacketField, Offset(bits: 28), Width(2)]
+            [PacketField, Offset(bits: 28), Width(bits: 2)]
             public Shareability SH1;
 
-            [PacketField, Offset(bits: 30), Width(1)]
+            [PacketField, Offset(bits: 30), Width(bits: 1)]
             public bool EPD1;
 
-            [PacketField, Offset(bits: 31), Width(1)]
+            [PacketField, Offset(bits: 31), Width(bits: 1)]
             public bool V;
 
-            [PacketField, Offset(bits: 32), Width(3)]
+            [PacketField, Offset(bits: 32), Width(bits: 3)]
             public AddressSize IPS;
 
-            [PacketField, Offset(bits: 35), Width(1)]
+            [PacketField, Offset(bits: 35), Width(bits: 1)]
             public bool AFFD;
 
-            [PacketField, Offset(bits: 36), Width(1)]
+            [PacketField, Offset(bits: 36), Width(bits: 1)]
             public bool WXN;
 
-            [PacketField, Offset(bits: 37), Width(1)]
+            [PacketField, Offset(bits: 37), Width(bits: 1)]
             public bool UWXN;
 
-            [PacketField, Offset(bits: 38), Width(1)]
+            [PacketField, Offset(bits: 38), Width(bits: 1)]
             public bool TBI0;
 
-            [PacketField, Offset(bits: 39), Width(1)]
+            [PacketField, Offset(bits: 39), Width(bits: 1)]
             public bool TBI1;
 
-            [PacketField, Offset(bits: 40), Width(1)]
+            [PacketField, Offset(bits: 40), Width(bits: 1)]
             public bool PAN;
 
-            [PacketField, Offset(bits: 41), Width(1)]
+            [PacketField, Offset(bits: 41), Width(bits: 1)]
             public bool AA64;
 
-            [PacketField, Offset(bits: 42), Width(1)]
+            [PacketField, Offset(bits: 42), Width(bits: 1)]
             public bool HD;
 
-            [PacketField, Offset(bits: 43), Width(1)]
+            [PacketField, Offset(bits: 43), Width(bits: 1)]
             public bool HA;
 
-            [PacketField, Offset(bits: 44), Width(1)]
+            [PacketField, Offset(bits: 44), Width(bits: 1)]
             public bool S; // Stall on fault
 
-            [PacketField, Offset(bits: 45), Width(1)]
+            [PacketField, Offset(bits: 45), Width(bits: 1)]
             public bool R; // Record event on fault
 
-            [PacketField, Offset(bits: 46), Width(1)]
+            [PacketField, Offset(bits: 46), Width(bits: 1)]
             public bool A; // Abort on transaction termination (0 = RAZ/WI)
 
-            [PacketField, Offset(bits: 47), Width(1)]
+            [PacketField, Offset(bits: 47), Width(bits: 1)]
             public bool ASET;
 
-            [PacketField, Offset(bits: 48), Width(16)]
+            [PacketField, Offset(bits: 48), Width(bits: 16)]
             public ushort ASID;
 
-            [PacketField, Offset(bits: 64), Width(1)]
+            [PacketField, Offset(bits: 64), Width(bits: 1)]
             public bool NSCFG0;
 
-            [PacketField, Offset(bits: 65), Width(1)]
+            [PacketField, Offset(bits: 65), Width(bits: 1)]
             public bool HAD0;
 
-            [PacketField, Offset(bits: 66), Width(1)]
+            [PacketField, Offset(bits: 66), Width(bits: 1)]
             public bool E0PD0;
 
-            [PacketField, Offset(bits: 67), Width(1)]
+            [PacketField, Offset(bits: 67), Width(bits: 1)]
             public bool HAFT;
 
-            [PacketField, Offset(bits: 68), Width(52)]
+            [PacketField, Offset(bits: 68), Width(bits: 52)]
             private readonly ulong ttb0;
 
             // RES0 120-121
 
-            [PacketField, Offset(bits: 122), Width(1)]
+            [PacketField, Offset(bits: 122), Width(bits: 1)]
             public bool PnCH;
 
-            [PacketField, Offset(bits: 123), Width(1)]
+            [PacketField, Offset(bits: 123), Width(bits: 1)]
             public bool EPAN;
 
-            [PacketField, Offset(bits: 124), Width(1)]
+            [PacketField, Offset(bits: 124), Width(bits: 1)]
             public bool HWU059;
 
-            [PacketField, Offset(bits: 125), Width(1)]
+            [PacketField, Offset(bits: 125), Width(bits: 1)]
             public bool HWU060;
 
-            [PacketField, Offset(bits: 126), Width(2)]
+            [PacketField, Offset(bits: 126), Width(bits: 2)]
             public SkipLevel SKL0;
 
-            [PacketField, Offset(bits: 128), Width(1)]
+            [PacketField, Offset(bits: 128), Width(bits: 1)]
             public bool NSCFG1;
 
-            [PacketField, Offset(bits: 129), Width(1)]
+            [PacketField, Offset(bits: 129), Width(bits: 1)]
             public bool HAD1;
 
-            [PacketField, Offset(bits: 130), Width(1)]
+            [PacketField, Offset(bits: 130), Width(bits: 1)]
             public bool E0PD1;
 
-            [PacketField, Offset(bits: 131), Width(1)]
+            [PacketField, Offset(bits: 131), Width(bits: 1)]
             public bool AIE;
 
-            [PacketField, Offset(bits: 132), Width(52)]
+            [PacketField, Offset(bits: 132), Width(bits: 52)]
             private readonly ulong ttb1;
 
             // RES0 184-185
 
-            [PacketField, Offset(bits: 186), Width(1)]
+            [PacketField, Offset(bits: 186), Width(bits: 1)]
             public bool DS;
 
-            [PacketField, Offset(bits: 187), Width(1)]
+            [PacketField, Offset(bits: 187), Width(bits: 1)]
             public bool PIE;
 
-            [PacketField, Offset(bits: 188), Width(1)]
+            [PacketField, Offset(bits: 188), Width(bits: 1)]
             public bool HWU159;
 
-            [PacketField, Offset(bits: 189), Width(1)]
+            [PacketField, Offset(bits: 189), Width(bits: 1)]
             public bool HWU160;
 
-            [PacketField, Offset(bits: 190), Width(2)]
+            [PacketField, Offset(bits: 190), Width(bits: 2)]
             public SkipLevel SKL1;
 
-            [PacketField, Offset(bits: 192), Width(32)]
+            [PacketField, Offset(bits: 192), Width(bits: 32)]
             public uint MAIR0;
 
-            [PacketField, Offset(bits: 224), Width(32)]
+            [PacketField, Offset(bits: 224), Width(bits: 32)]
             public uint MAIR1;
 
-            [PacketField, Offset(bits: 256), Width(32)]
+            [PacketField, Offset(bits: 256), Width(bits: 32)]
             public uint AMAIR0;
 
-            [PacketField, Offset(bits: 288), Width(32)]
+            [PacketField, Offset(bits: 288), Width(bits: 32)]
             public uint AMAIR1;
 
             // gap imeplementation defined 320-351
 
-            [PacketField, Offset(bits: 352), Width(16)]
+            [PacketField, Offset(bits: 352), Width(bits: 16)]
             public ushort PARTID;
 
-            [PacketField, Offset(bits: 368), Width(8)]
+            [PacketField, Offset(bits: 368), Width(bits: 8)]
             public byte PMG;
 
             // RES0 376-383
 
-            [PacketField, Offset(bits: 384), Width(3 * 16)]
+            [PacketField, Offset(bits: 384), Width(bits: 3 * 16)]
             public byte[] PIIU; // TODO: this should really be an array of 16, 3-bit PermissionInterpretation entries, but it currently ends up as 6 bytes
 
             // RES0 376-383
 
-            [PacketField, Offset(bits: 448), Width(3 * 16)]
+            [PacketField, Offset(bits: 448), Width(bits: 3 * 16)]
             public byte[] PIIP; // TODO: this should really be an array of 16, 3-bit PermissionInterpretation entries, but it currently ends up as 6 bytes
 
             // RES0 496-511

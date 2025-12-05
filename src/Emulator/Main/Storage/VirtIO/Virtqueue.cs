@@ -251,13 +251,13 @@ namespace Antmicro.Renode.Storage.VirtIO
         [LeastSignificantByteFirst]
         public struct DescriptorMetadata
         {
-            [PacketField, Width(64)]
+            [PacketField, Width(bits: 64)]
             public ulong BufferAddress;
-            [PacketField, Offset(doubleWords: 2), Width(32)]
+            [PacketField, Offset(doubleWords: 2), Width(bits: 32)]
             public int Length;
-            [PacketField, Offset(doubleWords: 3), Width(16)]
+            [PacketField, Offset(doubleWords: 3), Width(bits: 16)]
             public ushort Flags;
-            [PacketField, Offset(doubleWords: 3, bits: 16), Width(16)]
+            [PacketField, Offset(doubleWords: 3, bits: 16), Width(bits: 16)]
             public ushort Next;
         }
 

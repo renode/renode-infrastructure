@@ -706,69 +706,69 @@ namespace Antmicro.Renode.Peripherals.DMA
                 ;
             }
 
-            [PacketField, Offset(doubleWords: 0, bits: 0), Width(32)]
+            [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 32)]
             public uint SourceAddress;
-            [PacketField, Offset(doubleWords: 1, bits: 0), Width(16)]
+            [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 16)]
             public short SourceAddressSignedOffset;
-            [PacketField, Offset(doubleWords: 1, bits: 16), Width(3)]
+            [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 3)]
             public byte DestinationDataTransferSize;
-            [PacketField, Offset(doubleWords: 1, bits: 19), Width(5)]
+            [PacketField, Offset(doubleWords: 1, bits: 19), Width(bits: 5)]
             public byte DestinationAddressModulo;
-            [PacketField, Offset(doubleWords: 1, bits: 24), Width(3)]
+            [PacketField, Offset(doubleWords: 1, bits: 24), Width(bits: 3)]
             public byte SourceDataTransferSize;
-            [PacketField, Offset(doubleWords: 1, bits: 27), Width(5)]
+            [PacketField, Offset(doubleWords: 1, bits: 27), Width(bits: 5)]
             public byte SourceAddressModulo;
-            [PacketField, Offset(doubleWords: 2, bits: 0), Width(10)]
+            [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 10)]
             public uint NBytesWithMinorLoopOffsets;
-            [PacketField, Offset(doubleWords: 2, bits: 10), Width(MinorLoopOffsetFieldWidth)]
+            [PacketField, Offset(doubleWords: 2, bits: 10), Width(bits: MinorLoopOffsetFieldWidth)]
             public uint MinorLoopOffset;
-            [PacketField, Offset(doubleWords: 2, bits: 30), Width(1)]
+            [PacketField, Offset(doubleWords: 2, bits: 30), Width(bits: 1)]
             public bool DestinationMinorLoopOffsetEnable;
-            [PacketField, Offset(doubleWords: 2, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords: 2, bits: 31), Width(bits: 1)]
             public bool SourceMinorLoopOffsetEnable;
-            [PacketField, Offset(doubleWords: 3, bits: 0), Width(32)]
+            [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
             public uint LastSourceAddressAdjustmentOrStoreDADDRAddress;
-            [PacketField, Offset(doubleWords: 4, bits: 0), Width(32)]
+            [PacketField, Offset(doubleWords: 4, bits: 0), Width(bits: 32)]
             public uint DestinationAddress;
-            [PacketField, Offset(doubleWords: 5, bits: 0), Width(16)]
+            [PacketField, Offset(doubleWords: 5, bits: 0), Width(bits: 16)]
             public short DestinationAddressSignedOffset;
-            [PacketField, Offset(doubleWords: 5, bits: 16), Width(9)]
+            [PacketField, Offset(doubleWords: 5, bits: 16), Width(bits: 9)]
             public ushort CurrentMajorIterationCountELinkYes;
-            [PacketField, Offset(doubleWords: 5, bits: 25), Width(4)]
+            [PacketField, Offset(doubleWords: 5, bits: 25), Width(bits: 4)]
             public ushort MinorLoopLinkChannelNumberELinkYesCITER;
-            [PacketField, Offset(doubleWords: 5, bits: 29), Width(2)]
+            [PacketField, Offset(doubleWords: 5, bits: 29), Width(bits: 2)]
             public byte ReservedELinkYesCITER;
-            [PacketField, Offset(doubleWords: 5, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords: 5, bits: 31), Width(bits: 1)]
             public bool EnableLinkCITER;
-            [PacketField, Offset(doubleWords: 6, bits: 0), Width(32)]
+            [PacketField, Offset(doubleWords: 6, bits: 0), Width(bits: 32)]
             public uint LastDestinationAddressAdjustmentOrScatterGatherAddress;
-            [PacketField, Offset(doubleWords: 7, bits: 0), Width(1)]
+            [PacketField, Offset(doubleWords: 7, bits: 0), Width(bits: 1)]
             public bool ChannelStart;
-            [PacketField, Offset(doubleWords: 7, bits: 1), Width(1)]
+            [PacketField, Offset(doubleWords: 7, bits: 1), Width(bits: 1)]
             public bool EnableInterruptIfMajorCounterComplete;
-            [PacketField, Offset(doubleWords: 7, bits: 2), Width(1)]
+            [PacketField, Offset(doubleWords: 7, bits: 2), Width(bits: 1)]
             public bool EnableInterruptIfMajorCounterHalfComplete;
-            [PacketField, Offset(doubleWords: 7, bits: 3), Width(1)]
+            [PacketField, Offset(doubleWords: 7, bits: 3), Width(bits: 1)]
             public bool DisableRequest;
-            [PacketField, Offset(doubleWords: 7, bits: 4), Width(1)]
+            [PacketField, Offset(doubleWords: 7, bits: 4), Width(bits: 1)]
             public bool EnableScatterGatherProcessing;
-            [PacketField, Offset(doubleWords: 7, bits: 5), Width(1)]
+            [PacketField, Offset(doubleWords: 7, bits: 5), Width(bits: 1)]
             public bool EnableLinkWhenMajorLoopComplete;
-            [PacketField, Offset(doubleWords: 7, bits: 6), Width(1)]
+            [PacketField, Offset(doubleWords: 7, bits: 6), Width(bits: 1)]
             public bool EnableEndOfPacketProcessing;
-            [PacketField, Offset(doubleWords: 7, bits: 7), Width(1)]
+            [PacketField, Offset(doubleWords: 7, bits: 7), Width(bits: 1)]
             public bool EnableStoreDestinationAddress;
-            [PacketField, Offset(doubleWords: 7, bits: 8), Width(4)]
+            [PacketField, Offset(doubleWords: 7, bits: 8), Width(bits: 4)]
             public byte MajorLoopLinkChannelNumber;
-            [PacketField, Offset(doubleWords: 7, bits: 14), Width(2)]
+            [PacketField, Offset(doubleWords: 7, bits: 14), Width(bits: 2)]
             public byte BandwidthControl;
-            [PacketField, Offset(doubleWords: 7, bits: 16), Width(9)]
+            [PacketField, Offset(doubleWords: 7, bits: 16), Width(bits: 9)]
             public ushort StartingMajorIterationCountELinkYes;
-            [PacketField, Offset(doubleWords: 7, bits: 25), Width(4)]
+            [PacketField, Offset(doubleWords: 7, bits: 25), Width(bits: 4)]
             public ushort MinorLoopLinkChannelNumberELinkYesBITER;
-            [PacketField, Offset(doubleWords: 7, bits: 29), Width(2)]
+            [PacketField, Offset(doubleWords: 7, bits: 29), Width(bits: 2)]
             public byte ReservedELinkYesBITER;
-            [PacketField, Offset(doubleWords: 7, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords: 7, bits: 31), Width(bits: 1)]
             public bool EnableLinkBITER;
 
             private ushort CurrentMajorIterationCountELinkNo

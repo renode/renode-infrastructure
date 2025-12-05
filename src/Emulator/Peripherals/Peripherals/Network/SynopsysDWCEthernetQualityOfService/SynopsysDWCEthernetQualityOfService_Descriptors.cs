@@ -64,20 +64,20 @@ namespace Antmicro.Renode.Peripherals.Network
                 public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
-                [PacketField, Offset(doubleWords: 0, bits: 0), Width(32)] // BUF1AP
+                [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 32)] // BUF1AP
                 public uint Buffer1Address;
                 // 2nd double word is reserved
-                [PacketField, Offset(doubleWords: 2, bits: 0), Width(32)] // BUF2AP
+                [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 32)] // BUF2AP
                 public uint Buffer2Address;
                 // bits 0:23 of 4th double word are reserved
-                [PacketField, Offset(doubleWords: 3, bits: 24), Width(1)] // BUF1V
+                [PacketField, Offset(doubleWords: 3, bits: 24), Width(bits: 1)] // BUF1V
                 public bool Buffer1AddressValid;
-                [PacketField, Offset(doubleWords: 3, bits: 25), Width(1)] // BUF2V
+                [PacketField, Offset(doubleWords: 3, bits: 25), Width(bits: 1)] // BUF2V
                 public bool Buffer2AddressValid;
                 // bits 26:29 of 4th double word are reserved
-                [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // IOC
+                [PacketField, Offset(doubleWords: 3, bits: 30), Width(bits: 1)] // IOC
                 public bool InterruptOnCompletion;
-                [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
+                [PacketField, Offset(doubleWords: 3, bits: 31), Width(bits: 1)] // OWN
                 public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
@@ -137,85 +137,85 @@ namespace Antmicro.Renode.Peripherals.Network
                 public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
-                [PacketField, Offset(doubleWords: 0, bits: 0), Width(16)] // OVT
+                [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 16)] // OVT
                 public uint OuterVlanTag;
-                [PacketField, Offset(doubleWords: 0, bits: 16), Width(16)] // IVT
+                [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 16)] // IVT
                 public uint InnerVlanTag;
-                [PacketField, Offset(doubleWords: 1, bits: 0), Width(3)] // PT
+                [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 3)] // PT
                 public PayloadType PayloadType;
-                [PacketField, Offset(doubleWords: 1, bits: 3), Width(1)] // IPHE
+                [PacketField, Offset(doubleWords: 1, bits: 3), Width(bits: 1)] // IPHE
                 public bool IpHeaderError;
-                [PacketField, Offset(doubleWords: 1, bits: 4), Width(1)] // IPV4
+                [PacketField, Offset(doubleWords: 1, bits: 4), Width(bits: 1)] // IPV4
                 public bool Ipv4HeaderPresent;
-                [PacketField, Offset(doubleWords: 1, bits: 5), Width(1)] // IPV6
+                [PacketField, Offset(doubleWords: 1, bits: 5), Width(bits: 1)] // IPV6
                 public bool Ipv6HeaderPresent;
-                [PacketField, Offset(doubleWords: 1, bits: 6), Width(1)] // IPCB
+                [PacketField, Offset(doubleWords: 1, bits: 6), Width(bits: 1)] // IPCB
                 public bool IpChecksumBypassed;
-                [PacketField, Offset(doubleWords: 1, bits: 7), Width(1)] // IPCE
+                [PacketField, Offset(doubleWords: 1, bits: 7), Width(bits: 1)] // IPCE
                 public bool IpPayloadError;
-                [PacketField, Offset(doubleWords: 1, bits: 8), Width(4)] // PMT
+                [PacketField, Offset(doubleWords: 1, bits: 8), Width(bits: 4)] // PMT
                 public PTPMessageType PtpMessageType;
-                [PacketField, Offset(doubleWords: 1, bits: 12), Width(1)] // PFT
+                [PacketField, Offset(doubleWords: 1, bits: 12), Width(bits: 1)] // PFT
                 public bool PtpPacketType;
-                [PacketField, Offset(doubleWords: 1, bits: 13), Width(1)] // PV
+                [PacketField, Offset(doubleWords: 1, bits: 13), Width(bits: 1)] // PV
                 public PTPVersion PtpVersion;
-                [PacketField, Offset(doubleWords: 1, bits: 14), Width(1)] // TSA
+                [PacketField, Offset(doubleWords: 1, bits: 14), Width(bits: 1)] // TSA
                 public bool TimestampAvailable;
-                [PacketField, Offset(doubleWords: 1, bits: 15), Width(1)] // TD
+                [PacketField, Offset(doubleWords: 1, bits: 15), Width(bits: 1)] // TD
                 public bool TimestampDropped;
-                [PacketField, Offset(doubleWords: 1, bits: 16), Width(16)] // OPC
+                [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 16)] // OPC
                 public uint OamSubtypeCodeOrMACControlPacketOpcode;
                 // bits 0:9 of 3rd double word are reserved
-                [PacketField, Offset(doubleWords: 2, bits: 10), Width(1)] // ARPNR
+                [PacketField, Offset(doubleWords: 2, bits: 10), Width(bits: 1)] // ARPNR
                 public bool ArpReplyNotGenerated;
                 // bits 11:14 of 3rd double word are reserved
-                [PacketField, Offset(doubleWords: 2, bits: 15), Width(1)] // VF
+                [PacketField, Offset(doubleWords: 2, bits: 15), Width(bits: 1)] // VF
                 public bool VlanFiletrStatus;
-                [PacketField, Offset(doubleWords: 2, bits: 16), Width(1)] // SAF
+                [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 1)] // SAF
                 public bool SourceAddressFilterFail;
-                [PacketField, Offset(doubleWords: 2, bits: 17), Width(1)] // DAF
+                [PacketField, Offset(doubleWords: 2, bits: 17), Width(bits: 1)] // DAF
                 public bool DestinaltionAddressFilterFail;
-                [PacketField, Offset(doubleWords: 2, bits: 18), Width(1)] // HF
+                [PacketField, Offset(doubleWords: 2, bits: 18), Width(bits: 1)] // HF
                 public bool HashFilterStatus;
-                [PacketField, Offset(doubleWords: 2, bits: 19), Width(8)] // MADRM
+                [PacketField, Offset(doubleWords: 2, bits: 19), Width(bits: 8)] // MADRM
                 public bool MacAddressMatchOrHashValue;
-                [PacketField, Offset(doubleWords: 2, bits: 27), Width(1)] // L3FM
+                [PacketField, Offset(doubleWords: 2, bits: 27), Width(bits: 1)] // L3FM
                 public bool Layer3FilterMatch;
-                [PacketField, Offset(doubleWords: 2, bits: 28), Width(1)] // L4FM
+                [PacketField, Offset(doubleWords: 2, bits: 28), Width(bits: 1)] // L4FM
                 public bool Layer4FilterMatch;
-                [PacketField, Offset(doubleWords: 2, bits: 29), Width(3)] // L3L4FM
+                [PacketField, Offset(doubleWords: 2, bits: 29), Width(bits: 3)] // L3L4FM
                 public uint MatchedFilterNumber;
-                [PacketField, Offset(doubleWords: 3, bits: 0), Width(15)] // PL
+                [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 15)] // PL
                 public uint PacketLength;
-                [PacketField, Offset(doubleWords: 3, bits: 15), Width(1)] // ES
+                [PacketField, Offset(doubleWords: 3, bits: 15), Width(bits: 1)] // ES
                 public bool ErrorSummary;
-                [PacketField, Offset(doubleWords: 3, bits: 16), Width(3)] // LT
+                [PacketField, Offset(doubleWords: 3, bits: 16), Width(bits: 3)] // LT
                 public PacketKind LengthTypeField;
-                [PacketField, Offset(doubleWords: 3, bits: 19), Width(1)] // DE
+                [PacketField, Offset(doubleWords: 3, bits: 19), Width(bits: 1)] // DE
                 public bool DribbleBitError;
-                [PacketField, Offset(doubleWords: 3, bits: 20), Width(1)] // RE
+                [PacketField, Offset(doubleWords: 3, bits: 20), Width(bits: 1)] // RE
                 public bool ReceiveError;
-                [PacketField, Offset(doubleWords: 3, bits: 21), Width(1)] // OE
+                [PacketField, Offset(doubleWords: 3, bits: 21), Width(bits: 1)] // OE
                 public bool OverflowError;
-                [PacketField, Offset(doubleWords: 3, bits: 22), Width(1)] // RWT
+                [PacketField, Offset(doubleWords: 3, bits: 22), Width(bits: 1)] // RWT
                 public bool ReceiveWatchdogTimeout;
-                [PacketField, Offset(doubleWords: 3, bits: 23), Width(1)] // GP
+                [PacketField, Offset(doubleWords: 3, bits: 23), Width(bits: 1)] // GP
                 public bool GiantPacket;
-                [PacketField, Offset(doubleWords: 3, bits: 24), Width(1)] // CE
+                [PacketField, Offset(doubleWords: 3, bits: 24), Width(bits: 1)] // CE
                 public bool CrcError;
-                [PacketField, Offset(doubleWords: 3, bits: 25), Width(1)] // RS0V
+                [PacketField, Offset(doubleWords: 3, bits: 25), Width(bits: 1)] // RS0V
                 public bool ReceiveStatusSegment0Valid;
-                [PacketField, Offset(doubleWords: 3, bits: 26), Width(1)] // RS1V
+                [PacketField, Offset(doubleWords: 3, bits: 26), Width(bits: 1)] // RS1V
                 public bool ReceiveStatusSegment1Valid;
-                [PacketField, Offset(doubleWords: 3, bits: 27), Width(1)] // RS2V
+                [PacketField, Offset(doubleWords: 3, bits: 27), Width(bits: 1)] // RS2V
                 public bool ReceiveStatusSegment2Valid;
-                [PacketField, Offset(doubleWords: 3, bits: 28), Width(1)] // LD
+                [PacketField, Offset(doubleWords: 3, bits: 28), Width(bits: 1)] // LD
                 public bool LastDescriptor;
-                [PacketField, Offset(doubleWords: 3, bits: 29), Width(1)] // FD
+                [PacketField, Offset(doubleWords: 3, bits: 29), Width(bits: 1)] // FD
                 public bool FirstDescriptor;
-                [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
+                [PacketField, Offset(doubleWords: 3, bits: 30), Width(bits: 1)] // CTXT
                 public bool ContextTypeField;
-                [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
+                [PacketField, Offset(doubleWords: 3, bits: 31), Width(bits: 1)] // OWN
                 public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
@@ -239,12 +239,12 @@ namespace Antmicro.Renode.Peripherals.Network
                 public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
-                [PacketField, Offset(quadWords: 0), Width(64)] // RTS
+                [PacketField, Offset(quadWords: 0), Width(bits: 64)] // RTS
                 public ulong ReceivePacketTimestamp;
                 // 3nd double word and bits 0:29 of 4th double word are reserved
-                [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
+                [PacketField, Offset(doubleWords: 3, bits: 30), Width(bits: 1)] // CTXT
                 public bool ContextTypeField;
-                [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
+                [PacketField, Offset(doubleWords: 3, bits: 31), Width(bits: 1)] // OWN
                 public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
@@ -328,41 +328,41 @@ namespace Antmicro.Renode.Peripherals.Network
                 public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
-                [PacketField, Offset(doubleWords: 0, bits: 0), Width(32)] // BUF1AP
+                [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 32)] // BUF1AP
                 public uint Buffer1OrHeaderAddress;
-                [PacketField, Offset(doubleWords: 1, bits: 0), Width(32)] // BUF2AP
+                [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 32)] // BUF2AP
                 public uint Buffer2orBuffer1Address;
-                [PacketField, Offset(doubleWords: 2, bits: 0), Width(14)] // HR/B1L
+                [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 14)] // HR/B1L
                 public uint HeaderOrBuffer1Length;
-                [PacketField, Offset(doubleWords: 2, bits: 14), Width(2)] // VTIR
+                [PacketField, Offset(doubleWords: 2, bits: 14), Width(bits: 2)] // VTIR
                 public VLANTagOperation VlanTagControl;
-                [PacketField, Offset(doubleWords: 2, bits: 16), Width(14)] // B2L
+                [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 14)] // B2L
                 public uint Buffer2Length;
-                [PacketField, Offset(doubleWords: 2, bits: 30), Width(1)] // TTSE
+                [PacketField, Offset(doubleWords: 2, bits: 30), Width(bits: 1)] // TTSE
                 public bool TransmitTimestampEnable;
-                [PacketField, Offset(doubleWords: 2, bits: 31), Width(1)] // IOC
+                [PacketField, Offset(doubleWords: 2, bits: 31), Width(bits: 1)] // IOC
                 public bool InterruptOnCompletion;
-                [PacketField, Offset(doubleWords: 3, bits: 0), Width(15)] // FL/TPL
+                [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 15)] // FL/TPL
                 public uint PayloadLengthLower15bits;
-                [PacketField, Offset(doubleWords: 3, bits: 15), Width(1)] // TPL
+                [PacketField, Offset(doubleWords: 3, bits: 15), Width(bits: 1)] // TPL
                 public uint PayloadLength15bit;
-                [PacketField, Offset(doubleWords: 3, bits: 16), Width(2)] // CIC/TPL
+                [PacketField, Offset(doubleWords: 3, bits: 16), Width(bits: 2)] // CIC/TPL
                 public ChecksumOperation ChecksumControl;
-                [PacketField, Offset(doubleWords: 3, bits: 18), Width(1)] // TSE
+                [PacketField, Offset(doubleWords: 3, bits: 18), Width(bits: 1)] // TSE
                 public bool TcpSegmentationEnable;
-                [PacketField, Offset(doubleWords: 3, bits: 19), Width(4)] // THL
+                [PacketField, Offset(doubleWords: 3, bits: 19), Width(bits: 4)] // THL
                 public uint HeaderLength;
-                [PacketField, Offset(doubleWords: 3, bits: 23), Width(3)] // SAIC
+                [PacketField, Offset(doubleWords: 3, bits: 23), Width(bits: 3)] // SAIC
                 public DescriptorSourceAddressOperation SourceAddressControl;
-                [PacketField, Offset(doubleWords: 3, bits: 26), Width(2)] // CPC
+                [PacketField, Offset(doubleWords: 3, bits: 26), Width(bits: 2)] // CPC
                 public CRCPadOperation CrcPadControl;
-                [PacketField, Offset(doubleWords: 3, bits: 28), Width(1)] // LD
+                [PacketField, Offset(doubleWords: 3, bits: 28), Width(bits: 1)] // LD
                 public bool LastDescriptor;
-                [PacketField, Offset(doubleWords: 3, bits: 29), Width(1)] // FD
+                [PacketField, Offset(doubleWords: 3, bits: 29), Width(bits: 1)] // FD
                 public bool FirstDescriptor;
-                [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
+                [PacketField, Offset(doubleWords: 3, bits: 30), Width(bits: 1)] // CTXT
                 public bool ContextTypeField;
-                [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
+                [PacketField, Offset(doubleWords: 3, bits: 31), Width(bits: 1)] // OWN
                 public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
@@ -402,46 +402,46 @@ namespace Antmicro.Renode.Peripherals.Network
                 public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
-                [PacketField, Offset(quadWords: 0), Width(64)] // TTS
+                [PacketField, Offset(quadWords: 0), Width(bits: 64)] // TTS
                 public ulong TxPacketTimestamp;
                 // 3nd double word is reserved
-                [PacketField, Offset(doubleWords: 3, bits: 0), Width(1)] // IHE
+                [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 1)] // IHE
                 public bool IpHeaderError;
-                [PacketField, Offset(doubleWords: 3, bits: 1), Width(1)] // DB
+                [PacketField, Offset(doubleWords: 3, bits: 1), Width(bits: 1)] // DB
                 public bool DeferredBit;
-                [PacketField, Offset(doubleWords: 3, bits: 2), Width(1)] // UF
+                [PacketField, Offset(doubleWords: 3, bits: 2), Width(bits: 1)] // UF
                 public bool UnderflowError;
-                [PacketField, Offset(doubleWords: 3, bits: 3), Width(1)] // ED
+                [PacketField, Offset(doubleWords: 3, bits: 3), Width(bits: 1)] // ED
                 public bool ExcessiveDeferral;
-                [PacketField, Offset(doubleWords: 3, bits: 4), Width(4)] // CC
+                [PacketField, Offset(doubleWords: 3, bits: 4), Width(bits: 4)] // CC
                 public bool CollisionCount;
-                [PacketField, Offset(doubleWords: 3, bits: 8), Width(1)] // EC
+                [PacketField, Offset(doubleWords: 3, bits: 8), Width(bits: 1)] // EC
                 public bool ExcessiveCollision;
-                [PacketField, Offset(doubleWords: 3, bits: 9), Width(1)] // LC
+                [PacketField, Offset(doubleWords: 3, bits: 9), Width(bits: 1)] // LC
                 public bool LateCollision;
-                [PacketField, Offset(doubleWords: 3, bits: 10), Width(1)] // NC
+                [PacketField, Offset(doubleWords: 3, bits: 10), Width(bits: 1)] // NC
                 public bool NoCarrier;
-                [PacketField, Offset(doubleWords: 3, bits: 11), Width(1)] // LoC
+                [PacketField, Offset(doubleWords: 3, bits: 11), Width(bits: 1)] // LoC
                 public bool LossOfCarrier;
-                [PacketField, Offset(doubleWords: 3, bits: 12), Width(1)] // PCE
+                [PacketField, Offset(doubleWords: 3, bits: 12), Width(bits: 1)] // PCE
                 public bool PayloadChecksumError;
-                [PacketField, Offset(doubleWords: 3, bits: 13), Width(1)] // FF
+                [PacketField, Offset(doubleWords: 3, bits: 13), Width(bits: 1)] // FF
                 public bool PacketFlushed;
-                [PacketField, Offset(doubleWords: 3, bits: 14), Width(1)] // JT
+                [PacketField, Offset(doubleWords: 3, bits: 14), Width(bits: 1)] // JT
                 public bool JabberTimeout;
-                [PacketField, Offset(doubleWords: 3, bits: 15), Width(1)] // ES
+                [PacketField, Offset(doubleWords: 3, bits: 15), Width(bits: 1)] // ES
                 public bool ErrorSummary;
                 // bit 16 of 4th double word is reserved
-                [PacketField, Offset(doubleWords: 3, bits: 17), Width(1)] // TTSS
+                [PacketField, Offset(doubleWords: 3, bits: 17), Width(bits: 1)] // TTSS
                 public bool TxTimestampCaptured;
                 // bits 18:27 of 4th double word are reserved
-                [PacketField, Offset(doubleWords: 3, bits: 28), Width(1)] // LD
+                [PacketField, Offset(doubleWords: 3, bits: 28), Width(bits: 1)] // LD
                 public bool LastDescriptor;
-                [PacketField, Offset(doubleWords: 3, bits: 29), Width(1)] // FD
+                [PacketField, Offset(doubleWords: 3, bits: 29), Width(bits: 1)] // FD
                 public bool FirstDescriptor;
-                [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
+                [PacketField, Offset(doubleWords: 3, bits: 30), Width(bits: 1)] // CTXT
                 public bool ContextTypeField;
-                [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
+                [PacketField, Offset(doubleWords: 3, bits: 31), Width(bits: 1)] // OWN
                 public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
@@ -474,33 +474,33 @@ namespace Antmicro.Renode.Peripherals.Network
                 public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
-                [PacketField, Offset(quadWords: 0), Width(64)] // TTS
+                [PacketField, Offset(quadWords: 0), Width(bits: 64)] // TTS
                 public ulong TxPacketTimestamp;
-                [PacketField, Offset(doubleWords: 2, bits: 0), Width(14)] // MSS
+                [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 14)] // MSS
                 public uint MaximumSegmentSize;
                 // bits 14:15 of 3rd double word are reserved
-                [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)] // IVT
+                [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)] // IVT
                 public uint InnerVlanTag;
-                [PacketField, Offset(doubleWords: 3, bits: 0), Width(16)] // VT
+                [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 16)] // VT
                 public uint VlanTag;
-                [PacketField, Offset(doubleWords: 3, bits: 16), Width(1)] // VLTV
+                [PacketField, Offset(doubleWords: 3, bits: 16), Width(bits: 1)] // VLTV
                 public bool VlanTagValid;
-                [PacketField, Offset(doubleWords: 3, bits: 17), Width(1)] // IVLTV
+                [PacketField, Offset(doubleWords: 3, bits: 17), Width(bits: 1)] // IVLTV
                 public bool InnerVlanTagValid;
-                [PacketField, Offset(doubleWords: 3, bits: 18), Width(2)] // IVTIR
+                [PacketField, Offset(doubleWords: 3, bits: 18), Width(bits: 2)] // IVTIR
                 public VLANTagOperation InnerVlanTagControl;
                 // bits 20:22 of 4th double word are reserved
-                [PacketField, Offset(doubleWords: 3, bits: 23), Width(1)] // CDE
+                [PacketField, Offset(doubleWords: 3, bits: 23), Width(bits: 1)] // CDE
                 public bool ContextDescriptorError;
                 // bits 24:25 of 4th double word are reserved
-                [PacketField, Offset(doubleWords: 3, bits: 26), Width(1)] // TCMSSV
+                [PacketField, Offset(doubleWords: 3, bits: 26), Width(bits: 1)] // TCMSSV
                 public bool OneStepTimestampCorrectionInputOrMaximumSegmentSizeValid;
-                [PacketField, Offset(doubleWords: 3, bits: 27), Width(1)] // OSTC
+                [PacketField, Offset(doubleWords: 3, bits: 27), Width(bits: 1)] // OSTC
                 public bool OneStepTimestampCorrectionEnable;
                 // bits 28:29 of 4th double word are reserved
-                [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
+                [PacketField, Offset(doubleWords: 3, bits: 30), Width(bits: 1)] // CTXT
                 public bool ContextTypeField;
-                [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
+                [PacketField, Offset(doubleWords: 3, bits: 31), Width(bits: 1)] // OWN
                 public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }
@@ -571,9 +571,9 @@ namespace Antmicro.Renode.Peripherals.Network
                 public DescriptorOwner Owner => OwnerField;
 
 #pragma warning disable 649
-                [PacketField, Offset(doubleWords: 3, bits: 30), Width(1)] // CTXT
+                [PacketField, Offset(doubleWords: 3, bits: 30), Width(bits: 1)] // CTXT
                 public bool ContextTypeField;
-                [PacketField, Offset(doubleWords: 3, bits: 31), Width(1)] // OWN
+                [PacketField, Offset(doubleWords: 3, bits: 31), Width(bits: 1)] // OWN
                 public DescriptorOwner OwnerField;
 #pragma warning restore 649
             }

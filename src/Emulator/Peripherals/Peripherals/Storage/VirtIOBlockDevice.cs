@@ -163,9 +163,9 @@ namespace Antmicro.Renode.Peripherals.Storage
         private struct Header
         {
 #pragma warning disable 0649
-            [PacketField, Width(32)]
+            [PacketField, Width(bits: 32)]
             public BlockOperations Type;
-            [PacketField, Offset(doubleWords: 2), Width(64)]
+            [PacketField, Offset(doubleWords: 2), Width(bits: 64)]
             public long Sector;
 #pragma warning restore 0649
             // we don't use other fields from the documentation

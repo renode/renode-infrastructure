@@ -645,9 +645,9 @@ namespace Antmicro.Renode.Peripherals.Video
         {
             public override string ToString() => this.ToDebugString();
 
-            [PacketField, Offset(bits: 0), Width(16)]
+            [PacketField, Offset(bits: 0), Width(bits: 16)]
             public ushort BodySize;
-            [PacketField, Offset(bits: 16), Width(16)]
+            [PacketField, Offset(bits: 16), Width(bits: 16)]
             public MessageId MessageId;
         }
 

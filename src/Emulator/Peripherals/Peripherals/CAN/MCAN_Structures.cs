@@ -386,188 +386,188 @@ namespace Antmicro.Renode.Peripherals.CAN
         [LeastSignificantByteFirst]
         private struct RxBufferElementHeader
         {
-            [PacketField, Offset(doubleWords:0, bits: 0), Width(29)]
+            [PacketField, Offset(doubleWords:0, bits: 0), Width(bits: 29)]
             public uint Identifier;                                 // ID
-            [PacketField, Offset(doubleWords:0, bits: 29), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 29), Width(bits: 1)]
             public bool RemoteTransmissionRequest;                  // RTR
-            [PacketField, Offset(doubleWords:0, bits: 30), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 30), Width(bits: 1)]
             public bool ExtendedIdentifier;                         // XTD
-            [PacketField, Offset(doubleWords:0, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 31), Width(bits: 1)]
             public bool ErrorStateIndicator;                        // ESI
-            [PacketField, Offset(doubleWords:1, bits: 0), Width(16)]
+            [PacketField, Offset(doubleWords:1, bits: 0), Width(bits: 16)]
             public ushort RxTimestamp;                              // RXTS
-            [PacketField, Offset(doubleWords:1, bits: 16), Width(4)]
+            [PacketField, Offset(doubleWords:1, bits: 16), Width(bits: 4)]
             public byte DataLengthCode;                             // DLC
-            [PacketField, Offset(doubleWords:1, bits: 20), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 20), Width(bits: 1)]
             public bool BitRateSwitch;                              // BRS
-            [PacketField, Offset(doubleWords:1, bits: 21), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 21), Width(bits: 1)]
             public bool FDFormat;                                   // FDF
-            [PacketField, Offset(doubleWords:1, bits: 22), Width(2)]
+            [PacketField, Offset(doubleWords:1, bits: 22), Width(bits: 2)]
             private readonly byte Reserved;
-            [PacketField, Offset(doubleWords:1, bits: 24), Width(7)]
+            [PacketField, Offset(doubleWords:1, bits: 24), Width(bits: 7)]
             public byte FilterIndex;                                // FIDX
-            [PacketField, Offset(doubleWords:1, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 31), Width(bits: 1)]
             public bool AcceptedNonMatchingFrame;                   // ANMF
         }
 
         [LeastSignificantByteFirst]
         private struct RxBufferElementHeaderTSU
         {
-            [PacketField, Offset(doubleWords:0, bits: 0), Width(29)]
+            [PacketField, Offset(doubleWords:0, bits: 0), Width(bits: 29)]
             public uint Identifier;                                 // ID
-            [PacketField, Offset(doubleWords:0, bits: 29), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 29), Width(bits: 1)]
             public bool RemoteTransmissionRequest;                  // RTR
-            [PacketField, Offset(doubleWords:0, bits: 30), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 30), Width(bits: 1)]
             public bool ExtendedIdentifier;                         // XTD
-            [PacketField, Offset(doubleWords:0, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 31), Width(bits: 1)]
             public bool ErrorStateIndicator;                        // ESI
-            [PacketField, Offset(doubleWords:1, bits: 0), Width(4)]
+            [PacketField, Offset(doubleWords:1, bits: 0), Width(bits: 4)]
             public byte RxTimestampPointer;                         // RXTSP
-            [PacketField, Offset(doubleWords:1, bits: 4), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 4), Width(bits: 1)]
             public bool TimestampCaptured;                          // TSC
-            [PacketField, Offset(doubleWords:1, bits: 5), Width(11)]
+            [PacketField, Offset(doubleWords:1, bits: 5), Width(bits: 11)]
             private readonly ushort Reserved0;
-            [PacketField, Offset(doubleWords:1, bits: 16), Width(4)]
+            [PacketField, Offset(doubleWords:1, bits: 16), Width(bits: 4)]
             public byte DataLengthCode;                             // DLC
-            [PacketField, Offset(doubleWords:1, bits: 20), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 20), Width(bits: 1)]
             public bool BitRateSwitch;                              // BRS
-            [PacketField, Offset(doubleWords:1, bits: 21), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 21), Width(bits: 1)]
             public bool FDFormat;                                   // FDF
-            [PacketField, Offset(doubleWords:1, bits: 22), Width(2)]
+            [PacketField, Offset(doubleWords:1, bits: 22), Width(bits: 2)]
             private readonly byte Reserved1;
-            [PacketField, Offset(doubleWords:1, bits: 24), Width(7)]
+            [PacketField, Offset(doubleWords:1, bits: 24), Width(bits: 7)]
             public byte FilterIndex;                                // FIDX
-            [PacketField, Offset(doubleWords:1, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 31), Width(bits: 1)]
             public bool AcceptedNonMatchingFrame;                   // ANMF
         }
 
         [LeastSignificantByteFirst]
         private struct TxScanBufferAndEventFIFOCommonHeader
         {
-            [PacketField, Offset(doubleWords:0, bits: 0), Width(29)]
+            [PacketField, Offset(doubleWords:0, bits: 0), Width(bits: 29)]
             public uint Identifier;                                 // ID
-            [PacketField, Offset(doubleWords:0, bits: 29), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 29), Width(bits: 1)]
             public bool RemoteTransmissionRequest;                  // RTR
-            [PacketField, Offset(doubleWords:0, bits: 30), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 30), Width(bits: 1)]
             public bool ExtendedIdentifier;                         // XTD
-            [PacketField, Offset(doubleWords:0, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 31), Width(bits: 1)]
             public bool ErrorStateIndicator;                        // ESI
         }
 
         [LeastSignificantByteFirst]
         private struct TxBufferElementHeader
         {
-            [PacketField, Offset(doubleWords:0, bits: 0), Width(29)]
+            [PacketField, Offset(doubleWords:0, bits: 0), Width(bits: 29)]
             public uint Identifier;                                 // ID
-            [PacketField, Offset(doubleWords:0, bits: 29), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 29), Width(bits: 1)]
             public bool RemoteTransmissionRequest;                  // RTR
-            [PacketField, Offset(doubleWords:0, bits: 30), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 30), Width(bits: 1)]
             public bool ExtendedIdentifier;                         // XTD
-            [PacketField, Offset(doubleWords:0, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 31), Width(bits: 1)]
             public bool ErrorStateIndicator;                        // ESI
-            [PacketField, Offset(doubleWords:1, bits: 0), Width(8)]
+            [PacketField, Offset(doubleWords:1, bits: 0), Width(bits: 8)]
             private readonly byte Reserved;
-            [PacketField, Offset(doubleWords:1, bits: 8), Width(8)]
+            [PacketField, Offset(doubleWords:1, bits: 8), Width(bits: 8)]
             public byte MessageMarkerHigh;                          // MM
-            [PacketField, Offset(doubleWords:1, bits: 16), Width(4)]
+            [PacketField, Offset(doubleWords:1, bits: 16), Width(bits: 4)]
             public byte DataLengthCode;                             // DLC
-            [PacketField, Offset(doubleWords:1, bits: 20), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 20), Width(bits: 1)]
             public bool BitRateSwitch;                              // BRS
-            [PacketField, Offset(doubleWords:1, bits: 21), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 21), Width(bits: 1)]
             public bool FDFormat;                                   // FDF
-            [PacketField, Offset(doubleWords:1, bits: 22), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 22), Width(bits: 1)]
             public bool TimeStampCaptureEnable;                     // TSCE
-            [PacketField, Offset(doubleWords:1, bits: 23), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 23), Width(bits: 1)]
             public bool EventFIFOControl;                           // EFC
-            [PacketField, Offset(doubleWords:1, bits: 24), Width(8)]
+            [PacketField, Offset(doubleWords:1, bits: 24), Width(bits: 8)]
             public byte MessageMarkerLow;                           // MM
         }
 
         [LeastSignificantByteFirst]
         private struct TxEventFIFOElement
         {
-            [PacketField, Offset(doubleWords:0, bits: 0), Width(29)]
+            [PacketField, Offset(doubleWords:0, bits: 0), Width(bits: 29)]
             public uint Identifier;                                 // ID
-            [PacketField, Offset(doubleWords:0, bits: 29), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 29), Width(bits: 1)]
             public bool RemoteTransmissionRequest;                  // RTR
-            [PacketField, Offset(doubleWords:0, bits: 30), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 30), Width(bits: 1)]
             public bool ExtendedIdentifier;                         // XTD
-            [PacketField, Offset(doubleWords:0, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 31), Width(bits: 1)]
             public bool ErrorStateIndicator;                        // ESI
-            [PacketField, Offset(doubleWords:1, bits: 0), Width(16)]
+            [PacketField, Offset(doubleWords:1, bits: 0), Width(bits: 16)]
             public ushort TxTimestamp;                              // TXTS
-            [PacketField, Offset(doubleWords:1, bits: 16), Width(4)]
+            [PacketField, Offset(doubleWords:1, bits: 16), Width(bits: 4)]
             public byte DataLengthCode;                             // DLC
-            [PacketField, Offset(doubleWords:1, bits: 20), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 20), Width(bits: 1)]
             public bool BitRateSwitch;                              // BRS
-            [PacketField, Offset(doubleWords:1, bits: 21), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 21), Width(bits: 1)]
             public bool FDFormat;                                   // FDF
-            [PacketField, Offset(doubleWords:1, bits: 22), Width(2)]
+            [PacketField, Offset(doubleWords:1, bits: 22), Width(bits: 2)]
             public byte EventType;                                  // ET
-            [PacketField, Offset(doubleWords:1, bits: 24), Width(8)]
+            [PacketField, Offset(doubleWords:1, bits: 24), Width(bits: 8)]
             public byte MessageMarker;                              // MM
         }
 
         [LeastSignificantByteFirst]
         private struct TxEventFIFOElementTSU
         {
-            [PacketField, Offset(doubleWords:0, bits: 0), Width(29)]
+            [PacketField, Offset(doubleWords:0, bits: 0), Width(bits: 29)]
             public uint Identifier;                                 // ID
-            [PacketField, Offset(doubleWords:0, bits: 29), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 29), Width(bits: 1)]
             public bool RemoteTransmissionRequest;                  // RTR
-            [PacketField, Offset(doubleWords:0, bits: 30), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 30), Width(bits: 1)]
             public bool ExtendedIdentifier;                         // XTD
-            [PacketField, Offset(doubleWords:0, bits: 31), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 31), Width(bits: 1)]
             public bool ErrorStateIndicator;                        // ESI
-            [PacketField, Offset(doubleWords:1, bits: 0), Width(4)]
+            [PacketField, Offset(doubleWords:1, bits: 0), Width(bits: 4)]
             public byte TxTimestampPointer;                          // TXTSP
-            [PacketField, Offset(doubleWords:1, bits: 4), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 4), Width(bits: 1)]
             public bool TimestampCaptured;                           // TSC
-            [PacketField, Offset(doubleWords:1, bits: 5), Width(3)]
+            [PacketField, Offset(doubleWords:1, bits: 5), Width(bits: 3)]
             private readonly bool Reserved;
-            [PacketField, Offset(doubleWords:1, bits: 8), Width(8)]
+            [PacketField, Offset(doubleWords:1, bits: 8), Width(bits: 8)]
             public byte MessageMarkerHigh;                           // MM
-            [PacketField, Offset(doubleWords:1, bits: 16), Width(4)]
+            [PacketField, Offset(doubleWords:1, bits: 16), Width(bits: 4)]
             public byte DataLengthCode;                              // DLC
-            [PacketField, Offset(doubleWords:1, bits: 20), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 20), Width(bits: 1)]
             public bool BitRateSwitch;                               // BRS
-            [PacketField, Offset(doubleWords:1, bits: 21), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 21), Width(bits: 1)]
             public bool FDFormat;                                    // FDF
-            [PacketField, Offset(doubleWords:1, bits: 22), Width(2)]
+            [PacketField, Offset(doubleWords:1, bits: 22), Width(bits: 2)]
             public byte EventType;                                   // ET
-            [PacketField, Offset(doubleWords:1, bits: 24), Width(8)]
+            [PacketField, Offset(doubleWords:1, bits: 24), Width(bits: 8)]
             public byte MessageMarkerLow;                            // MM
         }
 
         [LeastSignificantByteFirst]
         private struct StandardMessageIDFilterElement
         {
-            [PacketField, Offset(doubleWords:0, bits: 0), Width(11)]
+            [PacketField, Offset(doubleWords:0, bits: 0), Width(bits: 11)]
             public ushort StandardFilterID2;                         // SFID2
-            [PacketField, Offset(doubleWords:0, bits: 11), Width(4)]
+            [PacketField, Offset(doubleWords:0, bits: 11), Width(bits: 4)]
             private readonly byte Reserved;
-            [PacketField, Offset(doubleWords:0, bits: 15), Width(1)]
+            [PacketField, Offset(doubleWords:0, bits: 15), Width(bits: 1)]
             public bool StandardSyncMessage;                         // SSYNC
-            [PacketField, Offset(doubleWords:0, bits: 16), Width(11)]
+            [PacketField, Offset(doubleWords:0, bits: 16), Width(bits: 11)]
             public ushort StandardFilterID1;                         // SFID1
-            [PacketField, Offset(doubleWords:0, bits: 27), Width(3)]
+            [PacketField, Offset(doubleWords:0, bits: 27), Width(bits: 3)]
             public FilterElementConfiguration StandardFilterElementConfiguration; // SFEC
-            [PacketField, Offset(doubleWords:0, bits: 30), Width(2)]
+            [PacketField, Offset(doubleWords:0, bits: 30), Width(bits: 2)]
             public FilterType StandardFilterType;                    // SFT
         }
 
         [LeastSignificantByteFirst]
         private struct ExtendedMessageIDFilterElement
         {
-            [PacketField, Offset(doubleWords:0, bits: 0), Width(29)]
+            [PacketField, Offset(doubleWords:0, bits: 0), Width(bits: 29)]
             public uint ExtendedFilterID1;                           // EFID1
-            [PacketField, Offset(doubleWords:0, bits: 29), Width(3)]
+            [PacketField, Offset(doubleWords:0, bits: 29), Width(bits: 3)]
             public FilterElementConfiguration ExtendedFilterElementConfiguration; // EFEC
-            [PacketField, Offset(doubleWords:1, bits: 0), Width(29)]
+            [PacketField, Offset(doubleWords:1, bits: 0), Width(bits: 29)]
             public uint ExtendedFilterID2;                           // EFID2
-            [PacketField, Offset(doubleWords:1, bits: 29), Width(1)]
+            [PacketField, Offset(doubleWords:1, bits: 29), Width(bits: 1)]
             public bool ExtendedSyncMessage;                         // ESYNC
-            [PacketField, Offset(doubleWords:1, bits: 30), Width(2)]
+            [PacketField, Offset(doubleWords:1, bits: 30), Width(bits: 2)]
             public FilterType ExtendedFilterType;                    // EFT
         }
 #pragma warning restore 649, 169

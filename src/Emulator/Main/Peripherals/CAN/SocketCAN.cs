@@ -69,9 +69,9 @@ namespace Antmicro.Renode.Core.CAN
         private struct SocketCANFrameHeader
         {
 #pragma warning disable 649
-            [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  2), Width(1)]
+            [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  2), Width(bits: 1)]
             public bool FlexibleDataRateFrame;
-            [PacketField, Offset(doubleWords: 1, bytes: 0, bits: 7), Width(1)]
+            [PacketField, Offset(doubleWords: 1, bytes: 0, bits: 7), Width(bits: 1)]
             public bool ExtendedFrameLengthFrame;
 #pragma warning restore 649
 
@@ -113,17 +113,17 @@ namespace Antmicro.Renode.Core.CAN
 
 #pragma warning disable 649
         // can_id
-        [PacketField, Offset(doubleWords: 0, bits:  0), Width(29)]
+        [PacketField, Offset(doubleWords: 0, bits:  0), Width(bits: 29)]
         public uint Id;
-        [PacketField, Offset(doubleWords: 0, bits:  29), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits:  29), Width(bits: 1)]
         public bool ErrorMessageFrame;
-        [PacketField, Offset(doubleWords: 0, bits:  30), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits:  30), Width(bits: 1)]
         public bool RemoteTransmissionRequest;
-        [PacketField, Offset(doubleWords: 0, bits:  31), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits:  31), Width(bits: 1)]
         public bool ExtendedFrameFormat;
 
         // len
-        [PacketField, Offset(doubleWords: 1, bits:  0), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits:  0), Width(bits: 8)]
         public int Length;
 
         // data
@@ -170,26 +170,26 @@ namespace Antmicro.Renode.Core.CAN
 
 #pragma warning disable 649
         // can_id
-        [PacketField, Offset(doubleWords: 0, bits:  0), Width(29)]
+        [PacketField, Offset(doubleWords: 0, bits:  0), Width(bits: 29)]
         public uint Id;
-        [PacketField, Offset(doubleWords: 0, bits:  29), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits:  29), Width(bits: 1)]
         public bool ErrorMessageFrame;
-        [PacketField, Offset(doubleWords: 0, bits:  30), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits:  30), Width(bits: 1)]
         public bool RemoteTransmissionRequest;
-        [PacketField, Offset(doubleWords: 0, bits:  31), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits:  31), Width(bits: 1)]
         public bool ExtendedFrameFormat;
 
         // len
-        [PacketField, Offset(doubleWords: 1, bytes: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bytes: 0), Width(bits: 8)]
         public int Length;
 
         // flags
-        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  0), Width(1)]
+        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  0), Width(bits: 1)]
         public bool BitRateSwitch;
-        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  1), Width(1)]
+        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  1), Width(bits: 1)]
         public bool ErrorStateIndicator;
         // should always be set for FD CAN frame
-        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  2), Width(1)]
+        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  2), Width(bits: 1)]
         public bool FlexibleDataRateFrame;
 
         // data
@@ -219,27 +219,27 @@ namespace Antmicro.Renode.Core.CAN
 
 #pragma warning disable 649
         // prio
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(11)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 11)]
         public uint Priority;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
         public byte VirtualCANNetworkId;
 
         // flags
-        [PacketField, Offset(doubleWords: 1, bytes: 0, bits:  0), Width(1)]
+        [PacketField, Offset(doubleWords: 1, bytes: 0, bits:  0), Width(bits: 1)]
         public bool SimpleExtendedContent;
-        [PacketField, Offset(doubleWords: 1, bytes: 0, bits:  7), Width(1)]
+        [PacketField, Offset(doubleWords: 1, bytes: 0, bits:  7), Width(bits: 1)]
         public bool ExtendedFrameLengthFrame;
 
         // sdt
-        [PacketField, Offset(doubleWords: 1, bytes: 1, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bytes: 1, bits: 0), Width(bits: 8)]
         public byte ServiceDataUnit;
 
         // len
-        [PacketField, Offset(doubleWords: 1, words: 1), Width(16)]
+        [PacketField, Offset(doubleWords: 1, words: 1), Width(bits: 16)]
         public int Length;
 
         // af
-        [PacketField, Offset(doubleWords: 2), Width(32)]
+        [PacketField, Offset(doubleWords: 2), Width(bits: 32)]
         public uint AcceptanceField;
 
         // data

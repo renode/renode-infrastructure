@@ -45,10 +45,10 @@ namespace Antmicro.Renode.Core.USB.MSC
         [PacketField]
         public byte Flags { get; private set; }
 
-        [PacketField, Offset(bytes: 13), Width(4)]
+        [PacketField, Offset(bytes: 13), Width(bits: 4)]
         public byte LogicalUnitNumber { get; private set; }
 
-        [PacketField, Offset(bytes: 14), Width(5)]
+        [PacketField, Offset(bytes: 14), Width(bits: 5)]
         public byte Length { get; private set; }
 
         public const int CommandOffset = 15;

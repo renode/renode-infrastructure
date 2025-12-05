@@ -619,11 +619,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         [LeastSignificantByteFirst]
         private struct ControlMessage
         {
-            [PacketField, Width(32)]
+            [PacketField, Width(bits: 32)]
             public uint ID;
-            [PacketField, Offset(doubleWords: 1), Width(16)]
+            [PacketField, Offset(doubleWords: 1), Width(bits: 16)]
             public ushort Event;
-            [PacketField, Offset(doubleWords: 1, bits: 16), Width(16)]
+            [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 16)]
             public ushort Value;
         }
 

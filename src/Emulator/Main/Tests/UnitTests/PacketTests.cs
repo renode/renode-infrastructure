@@ -455,7 +455,7 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructA
         {
 #pragma warning disable 649
-            [PacketField, Offset(bits: 4), Width(16)]
+            [PacketField, Offset(bits: 4), Width(bits: 16)]
             public ulong A;
 #pragma warning restore 649
         }
@@ -463,19 +463,19 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructAMSB
         {
 #pragma warning disable 649
-            [PacketField, Offset(bits: 0), Width(64)]
+            [PacketField, Offset(bits: 0), Width(bits: 64)]
             public ulong Field0;
-            [PacketField, Offset(bits: 0), Width(32)]
+            [PacketField, Offset(bits: 0), Width(bits: 32)]
             public uint Field1;
-            [PacketField, Offset(bits: 0), Width(16)]
+            [PacketField, Offset(bits: 0), Width(bits: 16)]
             public ushort Field2;
-            [PacketField, Offset(bits: 0), Width(8)]
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
             public byte Field3;
-            [PacketField, Offset(bits: 0), Width(64)]
+            [PacketField, Offset(bits: 0), Width(bits: 64)]
             public long Field4;
-            [PacketField, Offset(bits: 0), Width(32)]
+            [PacketField, Offset(bits: 0), Width(bits: 32)]
             public int Field5;
-            [PacketField, Offset(bits: 0), Width(16)]
+            [PacketField, Offset(bits: 0), Width(bits: 16)]
             public short Field6;
 #pragma warning restore 649
         }
@@ -484,19 +484,19 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructALSB
         {
 #pragma warning disable 649
-            [PacketField, Offset(bits: 0), Width(64)]
+            [PacketField, Offset(bits: 0), Width(bits: 64)]
             public ulong Field0;
-            [PacketField, Offset(bits: 0), Width(32)]
+            [PacketField, Offset(bits: 0), Width(bits: 32)]
             public uint Field1;
-            [PacketField, Offset(bits: 0), Width(16)]
+            [PacketField, Offset(bits: 0), Width(bits: 16)]
             public ushort Field2;
-            [PacketField, Offset(bits: 0), Width(8)]
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
             public byte Field3;
-            [PacketField, Offset(bits: 0), Width(64)]
+            [PacketField, Offset(bits: 0), Width(bits: 64)]
             public long Field4;
-            [PacketField, Offset(bits: 0), Width(32)]
+            [PacketField, Offset(bits: 0), Width(bits: 32)]
             public int Field5;
-            [PacketField, Offset(bits: 0), Width(16)]
+            [PacketField, Offset(bits: 0), Width(bits: 16)]
             public short Field6;
 #pragma warning restore 649
         }
@@ -510,7 +510,7 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructExplicitZeroWidth
         {
 #pragma warning disable 649
-            [PacketField, Width(0)]
+            [PacketField, Width(bits: 0)]
             public byte Field;
 #pragma warning restore 649
         }
@@ -519,7 +519,7 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructExplicitZeroWidthWithOffset
         {
 #pragma warning disable 649
-            [PacketField, Width(0), Offset(bytes: 3)]
+            [PacketField, Width(bits: 0), Offset(bytes: 3)]
             public byte Field;
 #pragma warning restore 649
         }
@@ -528,7 +528,7 @@ namespace Antmicro.Renode.UnitTests
         private struct TestStructInvalidWidth
         {
 #pragma warning disable 649
-            [PacketField, Width(64)]
+            [PacketField, Width(bits: 64)]
             public byte Field;
 #pragma warning restore 649
         }
@@ -561,13 +561,13 @@ namespace Antmicro.Renode.UnitTests
             public bool B10;
             [PacketField, Offset(bits: 11)]
             public bool B11;
-            [PacketField, Offset(bits: 12), Width(1)]
+            [PacketField, Offset(bits: 12), Width(bits: 1)]
             public byte B12;
-            [PacketField, Offset(bits: 13), Width(1)]
+            [PacketField, Offset(bits: 13), Width(bits: 1)]
             public ushort B13;
-            [PacketField, Offset(bits: 14), Width(1)]
+            [PacketField, Offset(bits: 14), Width(bits: 1)]
             public uint B14;
-            [PacketField, Offset(bits: 15), Width(1)]
+            [PacketField, Offset(bits: 15), Width(bits: 1)]
             public ulong B15;
 #pragma warning restore 649
         }
@@ -658,11 +658,11 @@ namespace Antmicro.Renode.UnitTests
 #pragma warning disable 649
             [PacketField]
             public TestEnumByteType Enum0;
-            [PacketField, Width(8)]
+            [PacketField, Width(bits: 8)]
             public TestEnumByteType Enum1;
             [PacketField]
             public TestEnumDefaultType Enum2;
-            [PacketField, Width(8)]
+            [PacketField, Width(bits: 8)]
             public TestEnumDefaultType Enum3;
 #pragma warning restore 649
         }

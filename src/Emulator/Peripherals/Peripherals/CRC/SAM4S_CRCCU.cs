@@ -215,15 +215,15 @@ namespace Antmicro.Renode.Peripherals.CRC
         private struct TransferControlPacket
         {
 #pragma warning disable 649
-            [PacketField, Offset(doubleWords: 0, bits: 0), Width(32)]
+            [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 32)]
             public uint TransferAddress;
-            [PacketField, Offset(doubleWords: 1, bits: 0), Width(16)]
+            [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 16)]
             public uint TransferSize;
-            [PacketField, Offset(doubleWords: 1, bits: 24), Width(2)]
+            [PacketField, Offset(doubleWords: 1, bits: 24), Width(bits: 2)]
             public uint TransferWidth;
-            [PacketField, Offset(doubleWords: 1, bits: 27), Width(1)]
+            [PacketField, Offset(doubleWords: 1, bits: 27), Width(bits: 1)]
             public bool ContextDoneInterruptEnable;
-            [PacketField, Offset(doubleWords: 4, bits: 0), Width(32)]
+            [PacketField, Offset(doubleWords: 4, bits: 0), Width(bits: 32)]
             public uint ReferenceCRC;
 #pragma warning restore 649
 

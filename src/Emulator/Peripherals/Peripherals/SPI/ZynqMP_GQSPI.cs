@@ -664,29 +664,29 @@ namespace Antmicro.Renode.Peripherals.SPI
         private struct GenericFifoCommand
         {
 #pragma warning disable 649
-            [PacketField, Width(8), Offset(bits: 0)]
+            [PacketField, Width(bits: 8), Offset(bits: 0)]
             public byte Immediate;
-            [PacketField, Width(1), Offset(bits: 8)]
+            [PacketField, Width(bits: 1), Offset(bits: 8)]
             public bool DataXref;
-            [PacketField, Width(1), Offset(bits: 9)]
+            [PacketField, Width(bits: 1), Offset(bits: 9)]
             public bool Exponent;
-            [PacketField, Width(2), Offset(bits: 10)]
+            [PacketField, Width(bits: 2), Offset(bits: 10)]
             public SpiMode SpiMode;
-            [PacketField, Width(1), Offset(bits: 12)]
+            [PacketField, Width(bits: 1), Offset(bits: 12)]
             public bool CsLower;
-            [PacketField, Width(1), Offset(bits: 13)]
+            [PacketField, Width(bits: 1), Offset(bits: 13)]
             public bool CsUpper;
-            [PacketField, Width(1), Offset(bits: 14)]
+            [PacketField, Width(bits: 1), Offset(bits: 14)]
             public bool DataBusLower;
-            [PacketField, Width(1), Offset(bits: 15)]
+            [PacketField, Width(bits: 1), Offset(bits: 15)]
             public bool DataBusUpper;
-            [PacketField, Width(1), Offset(bits: 16)]
+            [PacketField, Width(bits: 1), Offset(bits: 16)]
             public bool Tx;
-            [PacketField, Width(1), Offset(bits: 17)]
+            [PacketField, Width(bits: 1), Offset(bits: 17)]
             public bool Rx;
-            [PacketField, Width(1), Offset(bits: 18)]
+            [PacketField, Width(bits: 1), Offset(bits: 18)]
             public bool Stripe;
-            [PacketField, Width(1), Offset(bits: 19)]
+            [PacketField, Width(bits: 1), Offset(bits: 19)]
             public bool Poll;
 #pragma warning restore 649
         }

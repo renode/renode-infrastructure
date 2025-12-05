@@ -11,11 +11,11 @@ namespace Antmicro.Renode.Core.USB
     [LeastSignificantByteFirst]
     public struct SetupPacket
     {
-        [PacketField, Width(5)]
+        [PacketField, Width(bits: 5)]
         public PacketRecipient Recipient;
-        [PacketField, Offset(bytes: 0, bits: 5), Width(2)]
+        [PacketField, Offset(bytes: 0, bits: 5), Width(bits: 2)]
         public PacketType Type;
-        [PacketField, Offset(bytes: 0, bits: 7), Width(1)]
+        [PacketField, Offset(bytes: 0, bits: 7), Width(bits: 1)]
         public Direction Direction;
         [PacketField]
         public byte Request;
