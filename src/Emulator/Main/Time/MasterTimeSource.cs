@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -63,6 +63,7 @@ namespace Antmicro.Renode.Time
 
             using(ObtainStartedState())
             using(this.ObtainSourceActiveState())
+            using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(ElapsedVirtualTime, Domain)))
             {
                 while(!isDisposed && period.Ticks > 0)
                 {
@@ -86,6 +87,7 @@ namespace Antmicro.Renode.Time
 
             using(ObtainStartedState())
             using(this.ObtainSourceActiveState())
+            using(TimeDomainsManager.Instance.RegisterCurrentThread(() => new TimeStamp(ElapsedVirtualTime, Domain)))
             {
                 for(var i = 0u; i < numberOfSyncPoints; i++)
                 {
