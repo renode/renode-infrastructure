@@ -12,7 +12,9 @@ namespace Antmicro.Renode.Utilities.Packets
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public sealed class AlignAttribute : Attribute
     {
-        public AlignAttribute(uint quadWords = 0, uint doubleWords = 0, uint words = 0, uint bytes = 0)
+#pragma warning disable IDE0060
+        public AlignAttribute(object[] doNotUsePositionalArguments = null, uint quadWords = 0, uint doubleWords = 0, uint words = 0, uint bytes = 0)
+#pragma warning restore IDE0060
         {
             AlignmentInBytes = new[]
             {

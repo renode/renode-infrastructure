@@ -12,7 +12,9 @@ namespace Antmicro.Renode.Utilities.Packets
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Struct | AttributeTargets.Class, Inherited = true, AllowMultiple = false)]
     public sealed class WidthAttribute : Attribute
     {
-        public WidthAttribute(uint bits = 0, uint bytes = 0, uint words = 0, uint doubleWords = 0, uint quadWords = 0, uint elements = 0)
+#pragma warning disable IDE0060
+        public WidthAttribute(object[] doNotUsePositionalArguments = null, uint bits = 0, uint bytes = 0, uint words = 0, uint doubleWords = 0, uint quadWords = 0, uint elements = 0)
+#pragma warning restore IDE0060
         {
             Value = new[]
             {

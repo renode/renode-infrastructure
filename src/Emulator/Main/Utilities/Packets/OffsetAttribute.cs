@@ -12,7 +12,9 @@ namespace Antmicro.Renode.Utilities.Packets
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public sealed class OffsetAttribute : Attribute
     {
-        public OffsetAttribute(uint quadWords = 0, uint doubleWords = 0, uint words = 0, uint bytes = 0, uint bits = 0)
+#pragma warning disable IDE0060
+        public OffsetAttribute(object[] doNotUsePositionalArguments = null, uint quadWords = 0, uint doubleWords = 0, uint words = 0, uint bytes = 0, uint bits = 0)
+#pragma warning restore IDE0060
         {
             OffsetInBytes = new[]
             {
