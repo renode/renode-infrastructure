@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -451,6 +451,14 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(0x55, structurePresent.After);
         }
 
+        [Test]
+        public void TestSerializingReadOnlyProperties()
+        {
+            var data = new TestStructWithReadOnlyProperty();
+            var bytes = Packet.Encode(data);
+            Assert.AreEqual(data.Value, bytes[0]);
+        }
+
         [LeastSignificantByteFirst]
         private struct TestStructA
         {
@@ -824,6 +832,13 @@ namespace Antmicro.Renode.UnitTests
             [PacketField]
             public byte After;
 #pragma warning restore 649
+        }
+
+        [LeastSignificantByteFirst]
+        private struct TestStructWithReadOnlyProperty
+        {
+            [PacketField, Width(bits: 8)]
+            public byte Value => 0xAA;
         }
 
         private enum TestEnumByteType : byte
