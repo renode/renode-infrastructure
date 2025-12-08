@@ -1953,6 +1953,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/PCA9548.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/TCA6416.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/ZynqMP_GQSPI.cs" />
+    <Compile Include="Emulator/Main/Utilities/GStreamerWrapper.cs" />
     <Compile Include="Emulator/Main/Core/RuntimeInfo.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/NXP_FLEXCOMM.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl.cs" />
