@@ -177,6 +177,15 @@ namespace Antmicro.Renode.Utilities
                 .Select(x => new TypeDescriptor(x));
         }
 
+        public IEnumerable<Type> GetConcreteSubclasses(Type t)
+        {
+            if(!concreteSubclassTypeNamesFromTypeName.TryGetValue(t.FullName, out var subclassNames))
+            {
+                return Enumerable.Empty<Type>();
+            }
+            return subclassNames.Select(name => GetTypeByName(name));
+        }
+
         public PluginManager PluginManager { get; set; }
 
         public IEnumerable<PluginDescriptor> AvailablePlugins { get { return foundPlugins.ToArray(); } }
@@ -323,6 +332,7 @@ namespace Antmicro.Renode.Utilities
             assemblyFromAssemblyName = new Dictionary<string, AssemblyDescription>();
             extensionMethodsFromThisType = new Dictionary<Type, MethodInfo[]>();
             extensionMethodsTraceFromTypeFullName = new Dictionary<string, HashSet<MethodDescription>>();
+            concreteSubclassTypeNamesFromTypeName = new Dictionary<string, List<string>>();
             knownDirectories = new HashSet<string>();
             dictSync = new object();
             AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
@@ -574,6 +584,7 @@ namespace Antmicro.Renode.Utilities
                 {
                     ProcessExtractedExtensionMethods(extractedMethods);
                 }
+                DiscoverAbstractSuperclasses(type);
             }
 
             return true;
@@ -761,6 +772,32 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        private void DiscoverAbstractSuperclasses(TypeDefinition type)
+        {
+            var baseType = type;
+            var name = type.FullName;
+            while(true)
+            {
+                baseType = ResolveBaseType(baseType);
+                if(baseType == null)
+                {
+                    break;
+                }
+                if(!baseType.IsAbstract)
+                {
+                    continue;
+                }
+                if(concreteSubclassTypeNamesFromTypeName.TryGetValue(baseType.FullName, out var list))
+                {
+                    list.Add(name);
+                }
+                else
+                {
+                    concreteSubclassTypeNamesFromTypeName[baseType.FullName] = new List<string> { name };
+                }
+            }
+        }
+
         private Action<Type> autoLoadedTypeEvent;
 
         private Dictionary<string, AssemblyDescription> assemblyFromAssemblyPath;
@@ -772,7 +809,7 @@ namespace Antmicro.Renode.Utilities
         {
             add
             {
-                // this lock is needed because it happens that two 
+                // this lock is needed because it happens that two
                 // threads add the event simulataneously and an exception is rised
                 lock(autoLoadedTypeLocker)
                 {
@@ -801,6 +838,7 @@ namespace Antmicro.Renode.Utilities
         private readonly Dictionary<string, List<AssemblyDescription>> assembliesFromTypeName;
         private readonly Dictionary<string, HashSet<MethodDescription>> extensionMethodsTraceFromTypeFullName;
         private readonly Dictionary<Type, MethodInfo[]> extensionMethodsFromThisType;
+        private readonly Dictionary<string, List<string>> concreteSubclassTypeNamesFromTypeName;
         private readonly object dictSync;
         private readonly HashSet<string> knownDirectories;
 
