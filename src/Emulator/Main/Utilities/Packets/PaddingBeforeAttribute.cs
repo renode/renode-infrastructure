@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Utilities.Packets
     public sealed class PaddingBeforeAttribute : Attribute
     {
 #pragma warning disable IDE0060
-        public PaddingBeforeAttribute(object[] doNotUsePositionalArguments = null, uint quadWords = 0, uint doubleWords = 0, uint words = 0, uint bytes = 0)
+        public PaddingBeforeAttribute(object[] doNotUsePositionalArguments = null, uint bytes = 0, uint words = 0, uint doubleWords = 0, uint quadWords = 0)
 #pragma warning restore IDE0060
         {
             PaddingInBytes = new[]

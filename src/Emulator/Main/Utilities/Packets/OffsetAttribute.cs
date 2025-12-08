@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Utilities.Packets
     public sealed class OffsetAttribute : Attribute
     {
 #pragma warning disable IDE0060
-        public OffsetAttribute(object[] doNotUsePositionalArguments = null, uint quadWords = 0, uint doubleWords = 0, uint words = 0, uint bytes = 0, uint bits = 0)
+        public OffsetAttribute(object[] doNotUsePositionalArguments = null, uint bits = 0, uint bytes = 0, uint words = 0, uint doubleWords = 0, uint quadWords = 0)
 #pragma warning restore IDE0060
         {
             OffsetInBytes = new[]
