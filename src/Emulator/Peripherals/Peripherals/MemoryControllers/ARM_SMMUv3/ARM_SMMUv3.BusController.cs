@@ -1,10 +1,12 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
@@ -43,15 +45,47 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 return true;
             }
 
-            if(!TryFindWindowIndex(address, out var index))
+            var accessKind = BusPrivilegesToAccessType(accessType);
+            var windowFound = TryFindWindowIndex(address, out var _);
+            if(!windowFound)
             {
-                var win = smmu.GetWindowFromPageTable(address, context);
+                var win = smmu.GetWindowFromPageTable(address, context, accessKind);
                 if(win != null)
                 {
+                    windowFound = true;
                     Windows.Add(win);
                 }
             }
-            return base.ValidateOperation(ref address, accessType, context);
+
+            var operationValid = base.ValidateOperation(ref address, accessType, context);
+            if(!operationValid && windowFound)
+            {
+                // Permission fault happens when access is invalid, but a window was found.
+                // If window was not found this is a different kind of fault (e.g. translation fault),
+                // which is signaled in `GetWindowFromPageTable`
+                smmu.SignalPermissionFaultEvent(context, address, accessKind);
+            }
+
+            return operationValid;
+        }
+
+        private AccessType BusPrivilegesToAccessType(BusAccessPrivileges busAccess)
+        {
+            if(busAccess.HasFlag(BusAccessPrivileges.Read))
+            {
+                return AccessType.Read;
+            }
+            else if(busAccess.HasFlag(BusAccessPrivileges.Write))
+            {
+                return AccessType.Write;
+            }
+            else if(busAccess.HasFlag(BusAccessPrivileges.Other))
+            {
+                return AccessType.Execute;
+            }
+
+            smmu.ErrorLog("Unexpected bus access type: {0}, falling back to: {1}", busAccess, AccessType.Read);
+            return AccessType.Read;
         }
 
         private readonly ARM_SMMUv3 smmu;

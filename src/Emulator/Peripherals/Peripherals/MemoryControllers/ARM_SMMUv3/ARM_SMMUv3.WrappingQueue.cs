@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -95,6 +95,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 var producerIndex = ProducerIndex;
                 var address = BaseAddress + producerIndex * elementSize;
                 sysbus.WriteBytes(Packet.Encode(element), address, context: smmu.Context);
+                smmu.DebugLog("Writing: {0} at 0x{1:X}", element, address);
 
                 var newIndex = (producerIndex + 1) & Mask;
                 var newWrap = ProducerWrap;

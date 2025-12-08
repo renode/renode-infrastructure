@@ -289,6 +289,525 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             public bool MSI_NS;
         }
 
+        [LeastSignificantByteFirst, Width(bytes: 32)]
+        private class Event
+        {
+            public override string ToString() => this.ToDebugString();
+
+            [PacketField, Offset(bits: 32), Width(bits: 32)]
+            public uint StreamID;
+        }
+
+        private class EventUUT : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_UUT;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 15)]
+            public ushort Reason;
+
+            [PacketField, Offset(bits: 97), Width(bits: 1)]
+            public bool Privileged;
+
+            [PacketField, Offset(bits: 98), Width(bits: 1)]
+            public bool InstructionOrData;
+
+            [PacketField, Offset(bits: 99), Width(bits: 1)]
+            public bool ReadOrWrite;
+
+            [PacketField, Offset(bits: 128), Width(bits: 64)]
+            public ulong InputAddress;
+        }
+
+        private class EventBadStreamId : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.C_BAD_STREAMID;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+        }
+
+        private class EventSTEFetch : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_STE_FETCH;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 15)]
+            public ushort Reason;
+
+            [PacketField, Offset(bits: 80), Width(bits: 1)]
+            public bool GranuleProtectionCheckFault;
+
+            [PacketField, Offset(bits: 195), Width(bits: 52)]
+            public ulong FetchAddress;
+        }
+
+        private class EventBadSTE : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.C_BAD_STE;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+        }
+
+        private class EventBadAstTreq : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_BAD_ATS_TREQ;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 4)]
+            public byte Span;
+
+            [PacketField, Offset(bits: 92), Width(bits: 1)]
+            public bool Privilege;
+
+            [PacketField, Offset(bits: 93), Width(bits: 1)]
+            public bool Execute;
+
+            [PacketField, Offset(bits: 94), Width(bits: 1)]
+            public bool Write;
+
+            [PacketField, Offset(bits: 95), Width(bits: 1)]
+            public bool Read;
+
+            [PacketField, Offset(bits: 140), Width(bits: 51)]
+            public ulong InputAddress;
+        }
+
+        private class EventStreamDisabled : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_STREAM_DISABLED;
+        }
+
+        private class EventTranslationForbidden : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_TRANSL_FORBIDDEN;
+
+            [PacketField, Offset(bits: 99), Width(bits: 1)]
+            public bool ReadOrWrite;
+
+            [PacketField, Offset(bits: 128), Width(bits: 64)]
+            public ulong InputAddress;
+        }
+
+        private class EventBadSubstream : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.C_BAD_SUBSTREAMID;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+        }
+
+        private class EventCDFetch : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_CD_FETCH;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 15)]
+            public ushort Reason;
+
+            [PacketField, Offset(bits: 80), Width(bits: 1)]
+            public bool GranuleProtectionCheckFault;
+
+            [PacketField, Offset(bits: 195), Width(bits: 52)]
+            public ulong FetchAddress;
+        }
+
+        private class EventBadCD : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.C_BAD_CD;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+        }
+
+        private class EventWalkEABT : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_WALK_EABT;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 15)]
+            public ushort Reason;
+
+            [PacketField, Offset(bits: 80), Width(bits: 1)]
+            public bool GranuleProtectionCheckFault;
+
+            [PacketField, Offset(bits: 97), Width(bits: 1)]
+            public bool Privileged;
+
+            [PacketField, Offset(bits: 98), Width(bits: 1)]
+            public bool InstructionOrData;
+
+            [PacketField, Offset(bits: 99), Width(bits: 1)]
+            public bool ReadOrWrite;
+
+            [PacketField, Offset(bits: 102), Width(bits: 1)]
+            public bool NonSecureIPA;
+
+            [PacketField, Offset(bits: 103), Width(bits: 1)]
+            public bool Stage2;
+
+            [PacketField, Offset(bits: 104), Width(bits: 2)]
+            public OperationClass Class;
+
+            [PacketField, Offset(bits: 128), Width(bits: 64)]
+            public ulong InputAddress;
+
+            [PacketField, Offset(bits: 195), Width(bits: 52)]
+            public ulong FetchAddress;
+        }
+
+        private class EventTranslation : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_TRANSLATION;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 15)]
+            public ushort Stag;
+
+            [PacketField, Offset(bits: 95), Width(bits: 1)]
+            public bool Stall;
+
+            [PacketField, Offset(bits: 97), Width(bits: 1)]
+            public bool Privileged;
+
+            [PacketField, Offset(bits: 98), Width(bits: 1)]
+            public bool InstructionOrData;
+
+            [PacketField, Offset(bits: 99), Width(bits: 1)]
+            public bool ReadOrWrite;
+
+            [PacketField, Offset(bits: 102), Width(bits: 1)]
+            public bool NonSecureIPA;
+
+            [PacketField, Offset(bits: 103), Width(bits: 1)]
+            public bool Stage2;
+
+            [PacketField, Offset(bits: 104), Width(bits: 2)]
+            public OperationClass Class;
+
+            [PacketField, Offset(bits: 114), Width(bits: 15)]
+            public ushort ImplementationDefined;
+
+            [PacketField, Offset(bits: 128), Width(bits: 64)]
+            public ulong InputAddress;
+
+            [PacketField, Offset(bits: 204), Width(bits: 43)]
+            public ulong IPA;
+        }
+
+        private class EventAddressSize : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_ADDR_SIZE;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 15)]
+            public ushort Stag;
+
+            [PacketField, Offset(bits: 95), Width(bits: 1)]
+            public bool Stall;
+
+            [PacketField, Offset(bits: 97), Width(bits: 1)]
+            public bool Privileged;
+
+            [PacketField, Offset(bits: 98), Width(bits: 1)]
+            public bool InstructionOrData;
+
+            [PacketField, Offset(bits: 99), Width(bits: 1)]
+            public bool ReadOrWrite;
+
+            [PacketField, Offset(bits: 102), Width(bits: 1)]
+            public bool NonSecureIPA;
+
+            [PacketField, Offset(bits: 103), Width(bits: 1)]
+            public bool Stage2;
+
+            [PacketField, Offset(bits: 104), Width(bits: 2)]
+            public OperationClass Class;
+
+            [PacketField, Offset(bits: 114), Width(bits: 15)]
+            public ushort ImplementationDefined;
+
+            [PacketField, Offset(bits: 128), Width(bits: 64)]
+            public ulong InputAddress;
+
+            [PacketField, Offset(bits: 204), Width(bits: 43)]
+            public ulong IPA;
+        }
+
+        private class EventAccess : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_ACCESS;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 15)]
+            public ushort Stag;
+
+            [PacketField, Offset(bits: 95), Width(bits: 1)]
+            public bool Stall;
+
+            [PacketField, Offset(bits: 97), Width(bits: 1)]
+            public bool Privileged;
+
+            [PacketField, Offset(bits: 98), Width(bits: 1)]
+            public bool InstructionOrData;
+
+            [PacketField, Offset(bits: 99), Width(bits: 1)]
+            public bool ReadOrWrite;
+
+            [PacketField, Offset(bits: 102), Width(bits: 1)]
+            public bool NonSecureIPA;
+
+            [PacketField, Offset(bits: 103), Width(bits: 1)]
+            public bool Stage2;
+
+            [PacketField, Offset(bits: 104), Width(bits: 2)]
+            public OperationClass Class;
+
+            [PacketField, Offset(bits: 114), Width(bits: 15)]
+            public ushort ImplementationDefined;
+
+            [PacketField, Offset(bits: 128), Width(bits: 64)]
+            public ulong InputAddress;
+
+            [PacketField, Offset(bits: 204), Width(bits: 43)]
+            public ulong IPA;
+        }
+
+        private class EventPermission : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_PERMISSION;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 15)]
+            public ushort Stag;
+
+            [PacketField, Offset(bits: 95), Width(bits: 1)]
+            public bool Stall;
+
+            [PacketField, Offset(bits: 97), Width(bits: 1)]
+            public bool Privileged;
+
+            [PacketField, Offset(bits: 98), Width(bits: 1)]
+            public bool InstructionOrData;
+
+            [PacketField, Offset(bits: 99), Width(bits: 1)]
+            public bool ReadOrWrite;
+
+            [PacketField, Offset(bits: 102), Width(bits: 1)]
+            public bool NonSecureIPA;
+
+            [PacketField, Offset(bits: 103), Width(bits: 1)]
+            public bool Stage2;
+
+            [PacketField, Offset(bits: 104), Width(bits: 2)]
+            public OperationClass Class;
+
+            [PacketField, Offset(bits: 106), Width(bits: 1)]
+            public bool DirtyBit;
+
+            [PacketField, Offset(bits: 107), Width(bits: 1)]
+            public bool AssuredOnly;
+
+            [PacketField, Offset(bits: 108), Width(bits: 1)]
+            public bool TranslationTableReadOrWrite;
+
+            [PacketField, Offset(bits: 109), Width(bits: 1)]
+            public bool Overlay;
+
+            [PacketField, Offset(bits: 114), Width(bits: 15)]
+            public ushort ImplementationDefined;
+
+            [PacketField, Offset(bits: 128), Width(bits: 64)]
+            public ulong InputAddress;
+
+            [PacketField, Offset(bits: 204), Width(bits: 43)]
+            public ulong IPA;
+        }
+
+        private class EventTlbConflict : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_TLB_CONFLICT;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 32)]
+            public ushort Reason;
+
+            [PacketField, Offset(bits: 97), Width(bits: 1)]
+            public bool Privileged;
+
+            [PacketField, Offset(bits: 98), Width(bits: 1)]
+            public bool InstructionOrData;
+
+            [PacketField, Offset(bits: 99), Width(bits: 1)]
+            public bool ReadOrWrite;
+
+            [PacketField, Offset(bits: 102), Width(bits: 1)]
+            public bool NonSecureIPA;
+
+            [PacketField, Offset(bits: 103), Width(bits: 1)]
+            public bool Stage2;
+
+            [PacketField, Offset(bits: 104), Width(bits: 2)]
+            public OperationClass Class;
+
+            [PacketField, Offset(bits: 128), Width(bits: 64)]
+            public ulong InputAddress;
+
+            [PacketField, Offset(bits: 204), Width(bits: 43)]
+            public ulong IPA;
+        }
+
+        private class EventCfgConflict : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_CFG_CONFLICT;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 32)]
+            public ushort Reason;
+        }
+
+        private class EventPageRequest : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.E_PAGE_REQUEST;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 32)]
+            public ushort Reason;
+
+            [PacketField, Offset(bits: 97), Width(bits: 1)]
+            public bool UnprivilegedExecute;
+
+            [PacketField, Offset(bits: 98), Width(bits: 1)]
+            public bool UnprivilegedWrite;
+
+            [PacketField, Offset(bits: 99), Width(bits: 1)]
+            public bool UnprivilegedRead;
+
+            [PacketField, Offset(bits: 100), Width(bits: 1)]
+            public bool PrivilegedExecute;
+
+            [PacketField, Offset(bits: 101), Width(bits: 1)]
+            public bool PrivilegedWrite;
+
+            [PacketField, Offset(bits: 102), Width(bits: 1)]
+            public bool PrivilegedRead;
+
+            [PacketField, Offset(bits: 108), Width(bits: 7)]
+            public byte Span;
+
+            [PacketField, Offset(bits: 140), Width(bits: 51)]
+            public ulong InputAddress;
+        }
+
+        private class EventVMSFetch : Event
+        {
+            [PacketField, Offset(bits: 0), Width(bits: 8)]
+            public EventId EventNumber => EventId.F_VMS_FETCH;
+
+            [PacketField, Offset(bits: 11), Width(bits: 1)]
+            public bool SubstreamValid;
+
+            [PacketField, Offset(bits: 12), Width(bits: 19)]
+            public uint SubstreamID;
+
+            [PacketField, Offset(bits: 64), Width(bits: 15)]
+            public ushort Reason;
+
+            [PacketField, Offset(bits: 80), Width(bits: 1)]
+            public bool GranuleProtectionCheckFault;
+
+            [PacketField, Offset(bits: 195), Width(bits: 52)]
+            public ulong FetchAddress;
+        }
+
         // VMSAv8-64/VMSAv8-32 LPAE
         [LeastSignificantByteFirst, Width(bytes: PageTableEntryLength)]
         public class PageTableEntry
@@ -1273,5 +1792,38 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             public readonly Opcode Opcode;
         }
+
+        private enum OperationClass
+        {
+            ContextDescriptor = 0b00,
+            TranslationTable = 0b01,
+            InputAddress = 0b10,
+            Reserved = 0b11,
+        }
+
+        private enum EventId
+        {
+            F_UUT = 0x01,
+            C_BAD_STREAMID = 0x02,
+            F_STE_FETCH = 0x03,
+            C_BAD_STE = 0x04,
+            F_BAD_ATS_TREQ = 0x05,
+            F_STREAM_DISABLED = 0x06,
+            F_TRANSL_FORBIDDEN = 0x07,
+            C_BAD_SUBSTREAMID = 0x08,
+            F_CD_FETCH = 0x09,
+            C_BAD_CD = 0x0A,
+            F_WALK_EABT = 0x0B,
+            F_TRANSLATION = 0x10,
+            F_ADDR_SIZE = 0x11,
+            F_ACCESS = 0x12,
+            F_PERMISSION = 0x13,
+            F_TLB_CONFLICT = 0x20,
+            F_CFG_CONFLICT = 0x21,
+            E_PAGE_REQUEST = 0x24,
+            F_VMS_FETCH = 0x25,
+            IMPDEF_EVENTn_First = 0xE0,
+            IMPDEF_EVENTn_Last = 0xEF,
+        };
     }
 }

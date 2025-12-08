@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -77,9 +77,21 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         private bool MmuFaultHook(ulong faultAddress, AccessType accessType, ulong? faultyWindowId, bool firstTry)
         {
+            if(!firstTry)
+            {
+                // Permission fault happens when access is invalid, but a window was found.
+                // If window was not found this is a different kind of fault (e.g. translation fault),
+                // which is signaled in `GetWindowFromPageTable`
+                if(faultyWindowId.HasValue)
+                {
+                    smmu.SignalPermissionFaultEvent(cpu, faultAddress, accessType);
+                }
+                return false;
+            }
+
             smmu.NoisyLog("MMU fault 0x{0:x} {1} win={2}", faultAddress, accessType, faultyWindowId);
 
-            var pageWindow = smmu.GetWindowFromPageTable(faultAddress, cpu);
+            var pageWindow = smmu.GetWindowFromPageTable(faultAddress, cpu, accessType);
             if(pageWindow == null)
             {
                 return false;
