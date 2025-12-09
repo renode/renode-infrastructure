@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Utilities
                 var sourceCode = File.ReadAllText(sourcePath);
                 var codeString = SourceText.From(sourceCode);
 
-                parsedSyntaxTrees.Add(SyntaxFactory.ParseSyntaxTree(codeString, options));
+                parsedSyntaxTrees.Add(SyntaxFactory.ParseSyntaxTree(codeString, options, sourcePath));
             }
 
             AssemblyHelper.GetAssembliesLocations().ToList()
@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Utilities
             {
                 // Access diagnostic informations
                 var failures = result.Diagnostics.Where(diagnostic => diagnostic.IsWarningAsError || diagnostic.Severity == DiagnosticSeverity.Error);
-                var diagnosticString = string.Join(Environment.NewLine, failures.Select(x => x.ToString()));
+                var diagnosticString = string.Join(Environment.NewLine, failures);
                 var sourcesString = string.Join(", ", sourcePaths);
                 throw new RecoverableException($"Could not compile assembly from: {sourcesString}\n{diagnosticString}");
             }
