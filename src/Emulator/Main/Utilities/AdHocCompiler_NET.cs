@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -57,7 +57,8 @@ namespace Antmicro.Renode.Utilities
                 // Access diagnostic informations 
                 var failures = result.Diagnostics.Where(diagnostic => diagnostic.IsWarningAsError || diagnostic.Severity == DiagnosticSeverity.Error);
                 var diagnosticString = string.Join(Environment.NewLine, failures.Select(x => x.ToString()));
-                throw new RecoverableException($"Could not compile assembly from: {sourcePaths}\n{diagnosticString}");
+                var sourcesString = string.Join(", ", sourcePaths);
+                throw new RecoverableException($"Could not compile assembly from: {sourcesString}\n{diagnosticString}");
             }
 
             return outputFilePath;
