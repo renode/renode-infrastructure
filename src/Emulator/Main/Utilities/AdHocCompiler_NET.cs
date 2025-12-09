@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Utilities
 
             if(!result.Success)
             {
-                // Access diagnostic informations 
+                // Access diagnostic informations
                 var failures = result.Diagnostics.Where(diagnostic => diagnostic.IsWarningAsError || diagnostic.Severity == DiagnosticSeverity.Error);
                 var diagnosticString = string.Join(Environment.NewLine, failures.Select(x => x.ToString()));
                 var sourcesString = string.Join(", ", sourcePaths);
