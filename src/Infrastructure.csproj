@@ -1399,6 +1399,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/AndesATCPIT100.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/AndesATCWDT200_Watchdog.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/AndesATCSPI200.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/SPI/Puya_P25Q.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
