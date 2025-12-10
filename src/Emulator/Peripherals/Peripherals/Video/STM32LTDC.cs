@@ -118,6 +118,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 registerMappings.Add(0x84 + offset, layer[i].ControlRegister);
                 registerMappings.Add(0x88 + offset, layer[i].WindowHorizontalPositionConfigurationRegister);
                 registerMappings.Add(0x8C + offset, layer[i].WindowVerticalPositionConfigurationRegister);
+                registerMappings.Add(0x90 + offset, layer[i].ColorKeyingConfigurationRegister);
                 registerMappings.Add(0x94 + offset, layer[i].PixelFormatConfigurationRegister);
                 registerMappings.Add(0x98 + offset, layer[i].ConstantAlphaConfigurationRegister);
                 registerMappings.Add(0x9C + offset, layer[i].DefaultColorConfigurationRegister);
@@ -125,6 +126,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 registerMappings.Add(0xAC + offset, layer[i].ColorFrameBufferAddressRegister);
                 registerMappings.Add(0xB0 + offset, layer[i].ColorFrameBufferLengthRegister);
                 registerMappings.Add(0xB4 + offset, layer[i].ColorFrameBufferLineNumberRegister);
+                registerMappings.Add(0xC4 + offset, layer[i].CLUTWriteRegister);
             }
 
             registers = new DoubleWordRegisterCollection(this, registerMappings);
@@ -300,6 +302,12 @@ namespace Antmicro.Renode.Peripherals.Video
                 WindowVerticalStopPositionField = new ShadowedRegisterField<ulong>(WindowVerticalPositionConfigurationRegister.DefineValueField(16, 12, name: "WVSPPOS", writeCallback: (_, __) => HandleLayerWindowConfigurationChange()));
                 WindowVerticalPositionConfigurationRegister.WithReservedBits(28, 4);
 
+                ColorKeyingConfigurationRegister = new DoubleWordRegister(video)
+                    .WithTag("CKBLUE", 0, 8)
+                    .WithTag("CKGREEN", 8, 8)
+                    .WithTag("CKGREEN", 16, 8)
+                    .WithReservedBits(24, 8);
+
                 PixelFormatConfigurationRegister = new DoubleWordRegister(video);
                 PixelFormatField = new ShadowedRegisterField<Dma2DColorMode>(PixelFormatConfigurationRegister.DefineEnumField<Dma2DColorMode>(0, 3, name: "PF"), writeCallback: (old, @new) => { if(old == @new) return; RestoreBuffers(); video.HandlePixelFormatChange(); });
                 PixelFormatConfigurationRegister.WithReservedBits(3, 29);
@@ -332,6 +340,12 @@ namespace Antmicro.Renode.Peripherals.Video
                 ColorFrameBufferLineNumberRegister = new DoubleWordRegister(video);
                 BufferLineNumber = new ShadowedRegisterField<ulong>(ColorFrameBufferLineNumberRegister.DefineValueField(0, 11, name: "CFBLNBR"));
                 ColorFrameBufferLineNumberRegister.WithReservedBits(11, 21);
+
+                CLUTWriteRegister = new DoubleWordRegister(video)
+                    .WithTag("BLUE", 0, 8)
+                    .WithTag("GREEN", 8, 8)
+                    .WithTag("RED", 16, 8)
+                    .WithTag("CLUEADD", 24, 8);
 
                 this.layerId = layerId;
                 this.video = video;
@@ -402,6 +416,8 @@ namespace Antmicro.Renode.Peripherals.Video
             public DoubleWordRegister ConstantAlphaConfigurationRegister;
             public ShadowedRegisterField<Dma2DColorMode> PixelFormatField;
 
+            public DoubleWordRegister ColorKeyingConfigurationRegister;
+
             public DoubleWordRegister PixelFormatConfigurationRegister;
             public ShadowedRegisterField<bool> LayerEnableFlag;
 
@@ -411,6 +427,8 @@ namespace Antmicro.Renode.Peripherals.Video
 
             public DoubleWordRegister ColorFrameBufferLineNumberRegister;
             public ShadowedRegisterField<ulong> BufferLineNumber;
+
+            public DoubleWordRegister CLUTWriteRegister;
 
             public byte[] LayerBuffer;
             public byte[] LayerBackgroundBuffer;
