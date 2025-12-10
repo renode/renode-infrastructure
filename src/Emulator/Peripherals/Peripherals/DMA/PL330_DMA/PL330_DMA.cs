@@ -13,7 +13,6 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.DMA
@@ -430,7 +429,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             // lock uses Monitor calls, and is re-entrant, so there will be no problems when executing on the same thread
             lock(executeLock)
             {
-                context = GetCurrentCPUOrNull();
                 // TODO: in case of infinite loop, this will hang the emulation.
                 // It's not ideal - separate thread will be good, but what about time flow?
                 // Still, it's enough in the beginning, for simple use cases
@@ -446,7 +444,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                             while(channelThread.Status == Channel.ChannelStatus.Executing)
                             {
                                 var address = channelThread.PC;
-                                sysbus.ReadBytes(address, insnBuffer.Length, insnBuffer, 0, context: context);
+                                sysbus.ReadBytes(address, insnBuffer.Length, insnBuffer, 0, context: Context);
 
                                 if(!decoderRoot.TryParseOpcode(insnBuffer[0], out var instruction))
                                 {
@@ -471,7 +469,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                         // As long as there are any channels in executing state, we have to retry
                     } while(channels.Any(c => c.Status == Channel.ChannelStatus.Executing));
                 }
-                context = null;
             }
         }
 
@@ -485,16 +482,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
-        private ICPU GetCurrentCPUOrNull()
-        {
-            if(!machine.SystemBus.TryGetCurrentCPU(out var cpu))
-            {
-                return null;
-            }
-            return cpu;
-        }
-
-        private ICPU context = null;
+        private IPeripheral Context => this;
 
         private IEnumRegisterField<DMAThreadType> debugThreadType;
         private IValueRegisterField debugChannelNumber;

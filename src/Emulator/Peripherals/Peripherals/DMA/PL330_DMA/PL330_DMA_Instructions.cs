@@ -395,7 +395,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 for(var burst = 0; burst < selectedChannel.DestinationBurstLength; ++burst)
                 {
-                    Parent.sysbus.WriteBytes(Enumerable.Repeat((byte)0, writeLength).ToArray(), selectedChannel.DestinationAddress, context: Parent.context);
+                    Parent.sysbus.WriteBytes(Enumerable.Repeat((byte)0, writeLength).ToArray(), selectedChannel.DestinationAddress, context: Parent.Context);
 
                     if(selectedChannel.DestinationIncrementingAddress)
                     {
@@ -431,7 +431,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         selectedChannel.SignalChannelAbort(Channel.ChannelFaultReason.NotEnoughStoredDataInMFIFO);
                         return;
                     }
-                    Parent.machine.GetSystemBus(Parent).WriteBytes(byteArray, selectedChannel.DestinationAddress, context: Parent.context);
+                    Parent.machine.GetSystemBus(Parent).WriteBytes(byteArray, selectedChannel.DestinationAddress, context: Parent.Context);
 
                     if(selectedChannel.DestinationIncrementingAddress)
                     {
@@ -453,7 +453,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 for(var burst = 0; burst < (ignoreBurst ? 1 : selectedChannel.SourceBurstLength); ++burst)
                 {
-                    var byteArray = Parent.machine.GetSystemBus(Parent).ReadBytes(selectedChannel.SourceAddress, readLength, context: Parent.context);
+                    var byteArray = Parent.machine.GetSystemBus(Parent).ReadBytes(selectedChannel.SourceAddress, readLength, context: Parent.Context);
                     selectedChannel.LocalMFIFO.EnqueueRange(byteArray);
 
                     if(selectedChannel.SourceIncrementingAddress)
@@ -593,7 +593,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     selectedChannel.SourceIncrementingAddress,
                     selectedChannel.DestinationIncrementingAddress
                 );
-                var response = dmaEngine.IssueCopy(request, Parent.context);
+                var response = dmaEngine.IssueCopy(request, Parent.Context);
 
                 // Update address, if it was incrementing
                 selectedChannel.SourceAddress = (uint)response.ReadAddress.Value;
@@ -648,7 +648,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     selectedChannel.SourceIncrementingAddress,
                     selectedChannel.DestinationIncrementingAddress
                 );
-                var response = dmaEngine.IssueCopy(request, Parent.context);
+                var response = dmaEngine.IssueCopy(request, Parent.Context);
 
                 // Update address, if it was incrementing
                 selectedChannel.DestinationAddress = (uint)response.WriteAddress.Value;
