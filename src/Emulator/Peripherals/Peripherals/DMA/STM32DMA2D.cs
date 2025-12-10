@@ -74,13 +74,13 @@ namespace Antmicro.Renode.Peripherals.DMA
             ;
 
             var interruptFlagClearRegister = new DoubleWordRegister(this)
+                // We currently only support the transfer complete interrupt, as such the other interrupt bits will always be 0,
+                // and clearing them is a noop.
+                .WithIgnoredBits(0, 1)
                 .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTCIF", writeCallback: (_, val) =>
                 {
                     if(val) { IRQ.Unset(); transferCompleteFlag.Value = false; }
                 })
-                // We currently only support the transfer complete interrupt, as such the other interrupt bits will always be 0,
-                // and clearing them is a noop.
-                .WithIgnoredBits(0, 1)
                 .WithIgnoredBits(2, 4)
                 .WithReservedBits(6, 26)
             ;
