@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public sealed class DmaEngine
     {
-        public static Response IssueCopy(IBusController sysbus, Request request, CPU.ICPU context = null)
+        public static Response IssueCopy(IBusController sysbus, Request request, IPeripheral context = null)
         {
             var response = new Response
             {
@@ -194,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             sysbus = systemBus;
         }
 
-        public Response IssueCopy(Request request, CPU.ICPU context = null)
+        public Response IssueCopy(Request request, IPeripheral context = null)
         {
             return IssueCopy(sysbus, request, context);
         }
