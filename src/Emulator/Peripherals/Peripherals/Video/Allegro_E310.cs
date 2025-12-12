@@ -222,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 return typeof(NoOperationMsg);
             case MessageId.EncodeOneFrame:
                 // After encoding is finished the driver sends an 8-byte all-zero message, ignore it (don't treat it as an error)
-                return payload.Count == 8 ? typeof(NoOperationMsg) : typeof(EncodeOneFrameMsg);
+                return payload.Count == 8 ? typeof(FinishEncodingMsg) : typeof(EncodeOneFrameMsg);
             case MessageId.PutStreamBuffer:
                 return typeof(PutStreamBufferMsg);
             default:
@@ -976,10 +976,42 @@ namespace Antmicro.Renode.Peripherals.Video
 
         private struct NoOperationMsg : ICommand
         {
+            public override string ToString() => this.ToDebugString();
+
             public IFeedback Execute(Allegro_E310 owner)
             {
                 return null;
             }
+        }
+
+        [LeastSignificantByteFirst, Width(bytes: 8)]
+        private struct FinishEncodingMsg : ICommand
+        {
+            public override string ToString() => this.ToDebugString();
+
+            public IFeedback Execute(Allegro_E310 owner)
+            {
+                return new FinishEncodingFeedback
+                {
+                    ChanUid = ChanUid,
+                };
+            }
+
+            [PacketField, Offset(bytes: 0)]
+            public uint ChanUid;
+
+            // padding
+        }
+
+        [LeastSignificantByteFirst, Width(bytes: 12)]
+        private struct FinishEncodingFeedback : IFeedback
+        {
+            public override string ToString() => this.ToDebugString();
+
+            [PacketField, Offset(bytes: 0)]
+            public uint ChanUid;
+
+            // padding
         }
 
         // Variable length!
