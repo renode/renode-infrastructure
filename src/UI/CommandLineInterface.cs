@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -55,26 +55,32 @@ namespace Antmicro.Renode.UI
 #endif
             Logger.AddBackend(new MemoryBackend(), "memory");
             Emulator.ShowAnalyzers = !options.HideAnalyzers;
-            XwtProvider xwt = null;
+            IDisposable ui = null;
             if(options.PidFile != null)
             {
                 var pid = Process.GetCurrentProcess().Id;
                 File.WriteAllText(options.PidFile, pid.ToString());
             }
 
-            if(!options.DisableXwt || options.RobotDebug)
+            if(options.UI)
             {
-                xwt = XwtProvider.Create(new WindowedUserInterfaceProvider());
+                var uiProvider = new UIProvider(WebSockets.WebSocketsManager.Instance.Port);
+                uiProvider.WindowClosed += Emulator.Exit;
+                ui = uiProvider;
+            }
+            else if(!options.DisableXwt || options.RobotDebug)
+            {
+                ui = XwtProvider.Create(new WindowedUserInterfaceProvider());
             }
 
-            if(xwt == null && options.RobotFrameworkRemoteServerPort == -1 && !options.Console && !options.ServerMode)
+            if(ui == null && options.RobotFrameworkRemoteServerPort == -1 && !options.Console && !options.ServerMode)
             {
                 if(options.Port == -1)
                 {
                     options.Port = 1234;
                 }
 
-                if(!options.DisableXwt)
+                if(options.UI || !options.DisableXwt)
                 {
                     Logger.Log(LogLevel.Warning, "Couldn't start UI - falling back to console mode");
                     options.Console = true;
@@ -102,7 +108,7 @@ namespace Antmicro.Renode.UI
                     videoAnalyzerType = typeof(DummyVideoAnalyzer);
 #endif
                 }
-                else if(xwt == null || options.RobotDebug)
+                else if(ui == null || options.RobotDebug)
                 {
                     uartAnalyzerType = typeof(LoggingUartAnalyzer);
                     videoAnalyzerType = typeof(DummyVideoAnalyzer);
@@ -126,8 +132,8 @@ namespace Antmicro.Renode.UI
                 Emulator.BeforeExit += () =>
                 {
                     Emulator.DisposeAll();
-                    xwt?.Dispose();
-                    xwt = null;
+                    ui?.Dispose();
+                    ui = null;
                 };
 
                 if(beforeRun != null)

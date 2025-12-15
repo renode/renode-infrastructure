@@ -843,10 +843,7 @@ namespace Antmicro.Renode.Utilities
             // If we couldn't find root directory in previous step, try again
             // starting from directory of main process' executable. This is fallback for
             // when Renode was executed from self-contained binary.
-            var currentProcess = Process.GetCurrentProcess();
-            var currentModulePath = Path.GetFullPath(currentProcess.MainModule.FileName);
-            var rootDirectory = Path.GetDirectoryName(currentModulePath);
-            return TryGetRootDirectory(rootDirectory, out directory);
+            return TryGetRootDirectory(ExecutableDirectory, out directory);
         }
 
         public static IEnumerable<T[]> Split<T>(this IEnumerable<T> values, int size)
@@ -1757,6 +1754,16 @@ namespace Antmicro.Renode.Utilities
                     return true;
                 }
                 return Directory.Exists("/Library") && Directory.Exists("/Applications");
+            }
+        }
+
+        public static string ExecutableDirectory
+        {
+            get
+            {
+                var currentProcess = Process.GetCurrentProcess();
+                var currentModulePath = Path.GetFullPath(currentProcess.MainModule.FileName);
+                return Path.GetDirectoryName(currentModulePath);
             }
         }
 

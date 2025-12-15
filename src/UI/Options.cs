@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -19,19 +19,33 @@ namespace Antmicro.Renode.UI
                 return false;
             }
 
-            if(DisableXwt)
+            if(UI)
+            {
+                if(Console)
+                {
+                    error = "--ui and --console cannot be set at the same time";
+                    return false;
+                }
+                ServerMode = true;
+            }
+            else if(DisableXwt)
             {
                 HideMonitor = true;
             }
 
 #if NET
-            if(ServerMode)
+            if(ServerMode && !UI)
             {
                 DisableXwt = true;
             }
             else if(ServerModePort != 21234 || !string.Equals(ServerModeWorkDir, "working-dir"))
             {
                 error = "--server-mode-port and --server-mode-work-dir options are allowed only if --server-mode is enabled";
+                return false;
+            }
+            if(ServerMode && RobotDebug)
+            {
+                error = "--server-mode (or --ui) and --robot-debug-on-error cannot be set at the same time";
                 return false;
             }
 #else
@@ -58,8 +72,11 @@ namespace Antmicro.Renode.UI
         [Name("config"), Description("Use the configuration file from the provided path, or create one if it does not exist")]
         public string ConfigFile { get; set; }
 
-        [Name("disable-xwt"), Alias("disable-gui"), DefaultValue(false), Description("Disable XWT GUI support. It automatically sets HideMonitor.")]
+        [Alias("disable-xwt"), Name("disable-gui"), DefaultValue(false), Description("Disable GUI support. It automatically sets HideMonitor.")]
         public bool DisableXwt { get; set; }
+
+        [Name("ui"), DefaultValue(false), Description("Use the new Neutralino-based UI. Experimental!")]
+        public bool UI { get; set; }
 
         [Name("file-to-include / snapshot"), PositionalArgument(0)]
         public string FilePath { get; set; }
