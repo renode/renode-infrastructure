@@ -14,16 +14,22 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
     {
         public static Command CreateCommand(Cadence_xSPI controller, CommandPayload payload)
         {
+            Command command;
             switch(controller.Mode)
             {
             case ControllerMode.SoftwareTriggeredInstructionGenerator:
-                return STIGCommand.CreateSTIGCommand(controller, payload);
+                command = STIGCommand.CreateSTIGCommand(controller, payload);
+                break;
             case ControllerMode.AutoCommand:
-                return AutoCommand.CreateAutoCommand(controller, payload);
+                command = AutoCommand.CreateAutoCommand(controller, payload);
+                break;
             default:
                 controller.Log(LogLevel.Warning, "Unable to create the command, unknown controller mode 0x{0:x}", controller.Mode);
                 return null;
             }
+
+            command.Mode = controller.Mode;
+            return command;
         }
 
         public Command(Cadence_xSPI controller)
@@ -59,6 +65,8 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
         public bool InvalidCommandError { get; protected set; }
 
         public bool Failed => CRCError || BusError || InvalidCommandError;
+
+        public ControllerMode Mode { get; private set; }
 
         public abstract uint ChipSelect { get; }
 

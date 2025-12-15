@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -131,6 +131,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             else if(previousCommand != null && previousCommand.ChipSelect != currentCommand.ChipSelect && !previousCommand.TransmissionFinished)
             {
                 this.Log(LogLevel.Error, "Triggering command with chip select different than previous one, when the previous transaction isn't finished.");
+                previousCommand.FinishTransmission();
+            }
+            else if(previousCommand != null && previousCommand.Mode != currentCommand.Mode)
+            {
+                this.Log(LogLevel.Error, "Finishing transmission due to mode change: {0} -> {1}", previousCommand.Mode, currentCommand.Mode);
                 previousCommand.FinishTransmission();
             }
 
@@ -464,16 +469,55 @@ namespace Antmicro.Renode.Peripherals.SPI
             Command5 = 0x0014,
             CommandStatusPointer = 0x0040,
             CommandStatus = 0x0044,
-            ControllerStatus = 0x0100,
-            AutoCommandStatus = 0x0104,
+            ControllerStatus = 0x0100, // GSTAT (General Controller Status)
+            AutoCommandStatus = 0x0104, // Auto Command Engine Thread Status Register
             InterruptStatus = 0x0110,
             InterruptEnable = 0x0114,
             AutoCommandCompleteInterruptStatus = 0x0120,
             AutoCommandErrorInterruptStatus = 0x0130,
             AutoCommandErrorInterruptEnable = 0x0134,
-            ControllerConfig = 0x0230,
+
+            // NOTE: From ADSP documentation
+            DMAErrorAddressLow = 0x150,
+            DMAErrorAddressHigh = 0x154,
+            BootStatus = 0x158,
+            LongPollingCount = 0x208,
+            ShortPollingCount = 0x208,
+
+            ControllerConfig = 0x0230, // Device Control Register
+
+            // NOTE: From ADSP documentation
+            DMAInterfaceControl = 0x23C,
+
             DMASize = 0x0240,
             DMAStatus = 0x0244,
+
+            // NOTE: From ADSP documentation
+            DMABufferAddress0 = 0x24C,
+            DMABufferAddress1 = 0x250,
+            DiscoveryControl = 0x260,
+
+            // NOTE: From ADSP documentation
+            XIPConfiguration = 0x388,
+            SequenceConfiguration0 = 0x390,
+            SequenceConfiguration1 = 0x394,
+            DACConfiguration = 0x398,
+            DACAddressRemapping0 = 0x39C,
+            DACAddressRemapping1 = 0x3A0,
+
+            // NOTE: From ADSP documentation
+            ResetSequenceConfiguration0 = 0x400,
+            ResetSequenceConfiguration1 = 0x404,
+            EraseSequenceConfiguration0 = 0x410,
+            EraseSequenceConfiguration1 = 0x414,
+            EraseSequenceConfiguration2 = 0x418,
+            ProgramSequenceConfiguration0 = 0x420,
+            ProgramSequenceConfiguration1 = 0x424,
+            ProgramSequenceConfiguration2 = 0x428,
+            ReadSequenceConfiguration0 = 0x430,
+            ReadSequenceConfiguration1 = 0x434,
+            ReadSequenceConfiguration2 = 0x428,
+
             ControllerVersion = 0x0f00,
             ControllerFeatures = 0x0f04,
             DLLControl = 0x1034,
