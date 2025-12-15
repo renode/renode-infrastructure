@@ -21,7 +21,7 @@ namespace Antmicro.Renode.WebSockets
 
     public interface IWebSocketServerProvider
     {
-        void NewConnectionEventHandler(WebSocket webSocket, List<string> extraSegments);
+        void NewConnectionEventHandler(HttpListenerContext listenerContext, WebSocket webSocket, List<string> extraSegments);
 
         IReadOnlyList<WebSocketConnection> Connections { get; }
     }
@@ -165,7 +165,7 @@ namespace Antmicro.Renode.WebSockets
                     break;
                 }
 
-                Logger.Log(LogLevel.Info, $"New connection at: {context.Request.Url.AbsolutePath}");
+                Logger.Log(LogLevel.Info, $"New connection at: {context.Request.Url.AbsolutePath} on port: {context.Request.RemoteEndPoint.Port}");
 
                 if(!context.Request.IsWebSocketRequest)
                 {
@@ -191,7 +191,7 @@ namespace Antmicro.Renode.WebSockets
                 var extraSegments = requestSegments.Skip(endpointSegments.Length).ToList();
                 var webSocketContext = await context.AcceptWebSocketAsync(null);
 
-                provider.NewConnectionEventHandler(webSocketContext.WebSocket, extraSegments);
+                provider.NewConnectionEventHandler(context, webSocketContext.WebSocket, extraSegments);
             }
         }
 

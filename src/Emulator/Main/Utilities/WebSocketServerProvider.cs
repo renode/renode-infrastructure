@@ -8,6 +8,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -91,7 +92,7 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public void NewConnectionEventHandler(WebSocket webSocket, List<string> extraSegments)
+        public void NewConnectionEventHandler(HttpListenerContext listenerContext, WebSocket webSocket, List<string> extraSegments)
         {
             if(!allowMultipleConnections && connections.Count != 0)
             {
@@ -99,7 +100,7 @@ namespace Antmicro.Renode.Utilities
                 currentConnection.Dispose();
             }
 
-            var newConnection = new WebSocketConnection(webSocket, connectionsSharedData);
+            var newConnection = new WebSocketConnection(listenerContext, webSocket, connectionsSharedData);
             connections.Add(newConnection);
             NewConnection?.Invoke(newConnection, extraSegments);
         }
@@ -209,8 +210,9 @@ namespace Antmicro.Renode.Utilities
 
     public class WebSocketConnection : IDisposable
     {
-        public WebSocketConnection(WebSocket socket, WebSocketConnectionSharedData sharedData)
+        public WebSocketConnection(HttpListenerContext listenerContext, WebSocket socket, WebSocketConnectionSharedData sharedData)
         {
+            this.listenerContext = listenerContext;
             this.webSocket = socket;
             this.sharedData = sharedData;
             BufferSize = 4096;
@@ -229,6 +231,7 @@ namespace Antmicro.Renode.Utilities
                 if(webSocket.State == WebSocketState.Open)
                 {
                     webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", cancellationToken.Token).GetAwaiter().GetResult();
+                    CloseSocket();
                 }
             }
             catch(Exception)
@@ -323,6 +326,8 @@ namespace Antmicro.Renode.Utilities
                 cancellationToken.Cancel();
             }
 
+            CloseSocket();
+
             Logger.Log(LogLevel.Debug, $"WebSocket: End of reader task for endpoint {sharedData.Endpoint}");
         }
 
@@ -359,8 +364,17 @@ namespace Antmicro.Renode.Utilities
             Logger.Log(LogLevel.Debug, $"WebSocket: End of writer task for endpoint {sharedData.Endpoint}");
         }
 
+        private void CloseSocket()
+        {
+            // HACK - calling .CloseAsync() on websocket closes only websocket (Application layer) and leaves
+            // socket (Transport layer) in half open state. To fix that we need to .Close() the httpListenerContext
+            // and completly close the connection
+            listenerContext.Response.Close();
+        }
+
         private readonly CancellationTokenSource cancellationToken;
         private readonly WebSocket webSocket;
+        private readonly HttpListenerContext listenerContext;
         private readonly Task readerTask;
         private readonly Task writerTask;
 
