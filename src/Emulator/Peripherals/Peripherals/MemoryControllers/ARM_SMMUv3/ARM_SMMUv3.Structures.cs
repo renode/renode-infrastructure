@@ -108,7 +108,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         {
             public override void Run(ARM_SMMUv3 parent)
             {
-                parent.InvalidateSte(StreamID);
+                // TODO: Secure domain
+                parent.nonSecureDomain.InvalidateSte(StreamID);
             }
 
             [PacketField, Offset(bits: 32), Width(bits: 32)]
@@ -127,7 +128,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 var start = StreamID & ~count;
                 for(var i = start; i <= start + count; ++i)
                 {
-                    parent.InvalidateSte(i);
+                    // TODO: Secure domain
+                    parent.nonSecureDomain.InvalidateSte(i);
                 }
             }
 
