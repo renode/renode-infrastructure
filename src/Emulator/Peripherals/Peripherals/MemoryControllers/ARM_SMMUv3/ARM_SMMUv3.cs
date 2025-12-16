@@ -46,14 +46,21 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             RegistersCollection = new DoubleWordRegisterCollection(this);
             QuadWordRegisters = new QuadWordRegisterCollection(this);
             nonSecureDomain = new Domain(this, SecurityState.NonSecure);
+            secureDomain = new Domain(this, SecurityState.Secure);
             DefineRegisters();
             // Queues expect I(Flag|Value)RegisterField values to be already initialized
             // so queues have to be created after defining the registers
             nonSecureDomain.CreateQueues();
+            secureDomain.CreateQueues();
         }
 
         public uint ReadDoubleWord(long offset)
         {
+            if(!CanAccessRegister(offset))
+            {
+                return 0;
+            }
+
             if(RegistersCollection.HasRegisterAtOffset(offset))
             {
                 return RegistersCollection.Read(offset);
@@ -63,6 +70,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         public void WriteDoubleWord(long offset, uint value)
         {
+            if(!CanAccessRegister(offset, value))
+            {
+                return;
+            }
+
             if(RegistersCollection.HasRegisterAtOffset(offset))
             {
                 RegistersCollection.Write(offset, value);
@@ -73,17 +85,28 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         public ulong ReadQuadWord(long offset)
         {
+            if(!CanAccessRegister(offset))
+            {
+                return 0;
+            }
+
             return ((IProvidesRegisterCollection<QuadWordRegisterCollection>)this).RegistersCollection.Read(offset);
         }
 
         public void WriteQuadWord(long offset, ulong value)
         {
+            if(!CanAccessRegister(offset, value))
+            {
+                return;
+            }
+
             ((IProvidesRegisterCollection<QuadWordRegisterCollection>)this).RegistersCollection.Write(offset, value);
         }
 
         public void Reset()
         {
             nonSecureDomain.Reset();
+            secureDomain.Reset();
         }
 
         public IEnumerable<ARM_SMMUv3RegistrationPoint> GetRegistrationPoints(IPeripheral peripheral)
@@ -133,15 +156,16 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
-        public MMUWindow GetWindowFromPageTable(ulong address, IPeripheral dmaContext)
+        public MMUWindow GetWindowFromPageTable(ulong address, IPeripheral initiator)
         {
-            if(!streams.TryGetValue(dmaContext, out var registration))
+            if(!streams.TryGetValue(initiator, out var registration))
             {
-                this.WarningLog("No stream for context {0}", dmaContext);
+                this.WarningLog("No stream for context {0}", initiator);
                 return null;
             }
             var streamId = registration.Stream;
-            var ste = nonSecureDomain.StreamTable[streamId];
+            var domain = SelectDomain(registration);
+            var ste = domain.StreamTable[streamId];
             if(ste.Config == StreamConfiguration.Abort)
             {
                 return null;
@@ -296,6 +320,18 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         private static int GetVaSizeShiftAtLevel(int level, int pageSizeShift)
         {
             return pageSizeShift + GetIndexBitsPerLevel(pageSizeShift) * (MaxPageTableLevel - level);
+        }
+
+        private Domain SelectDomain(SecurityState securityState)
+        {
+            return securityState == SecurityState.Secure ? secureDomain : nonSecureDomain;
+        }
+
+        private Domain SelectDomain(ARM_SMMUv3RegistrationPoint registration)
+        {
+            // TODO: For Cortex-A processors, the domain could also be established based
+            // on the processors' security state (TrustZone)
+            return SelectDomain(registration.SecurityState);
         }
 
         private bool GetFirstPageTableLevel(int vaBits, int? maybePageSizeShift, out int firstLevel)
@@ -797,23 +833,6 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 .WithReservedBits(1, 31))
             ;
 
-            Registers.SMMU_S_INIT.Define(this)
-                .WithFlag(0, name: "INV_ALL",
-                    valueProviderCallback: _ => false,
-                    writeCallback: (_, value) =>
-                    {
-                        if(value)
-                        {
-                            for(var i = 0; i < nonSecureDomain.StreamTableSize; i++)
-                            {
-                                nonSecureDomain.InvalidateSte((uint)i);
-                            }
-                            InvalidateTlb();
-                        }
-                    })
-                .WithReservedBits(1, 31)
-            ;
-
             Registers.SMMU_EVENTQ_PROD.Define(this)
                 .WithTag("WR", 0, 20)
                 .WithReservedBits(20, 11)
@@ -883,8 +902,35 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             ;
 
             // TODO: Proper Secure domain support
+            Registers.SMMU_S_IDR0.Define(this)
+                .WithReservedBits(0, 13)
+                .WithFlag(13, FieldMode.Read, valueProviderCallback: _ => msiSupported, name: "MSI")
+                .WithReservedBits(14, 9)
+                .WithEnumField<DoubleWordRegister, StallModelSupport>(24, 2, FieldMode.Read, valueProviderCallback: _ => StallModelSupport.StallNotSupported, name: "STALL_MODEL")
+                .WithReservedBits(26, 5)
+                .WithFlag(31, FieldMode.Read, valueProviderCallback: _ => false, name: "ECMDQ")
+            ;
+
+            Registers.SMMU_S_IDR1.Define(this)
+                .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => StreamIdBits, name: "SIDSIZE")
+                .WithReservedBits(6, 22)
+                .WithFlag(29, FieldMode.Read, valueProviderCallback: _ => false, name: "SEL2")
+                .WithReservedBits(30, 1)
+                .WithFlag(31, FieldMode.Read, valueProviderCallback: _ => true, name: "SECURE_IMPL")
+            ;
+
+            Registers.SMMU_S_IDR3.Define(this)
+                .WithReservedBits(0, 6)
+                .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => false, name: "SAMS")
+                .WithReservedBits(7, 24)
+            ;
+
+            Registers.SMMU_S_IDR4.Define(this)
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0x6f6e6572, name: "IMPLEMENTATION_DEFINED")
+            ;
+
             Registers.SMMU_S_CR0.Define(this)
-                .WithFlag(0, out var smmuEnableSecure, name: "SMMUEN")
+                .WithFlag(0, out var smmuEnableSecure, changeCallback: (_, val) => secureDomain.Enabled = val, name: "SMMUEN")
                 .WithReservedBits(1, 1)
                 .WithFlag(2, out var eventQueueEnableSecure, name: "EVENTQEN")
                 .WithFlag(3, out var commandQueueEnableSecure, name: "CMDQEN")
@@ -907,18 +953,105 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 .WithReservedBits(10, 22)
             ;
 
+            Registers.SMMU_S_INIT.Define(this)
+                .WithFlag(0, name: "INV_ALL",
+                    valueProviderCallback: _ => false,
+                    writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            foreach(var domain in new[] { nonSecureDomain, secureDomain })
+                            {
+                                for(var i = 0; i < domain.StreamTableSize; i++)
+                                {
+                                    domain.InvalidateSte((uint)i);
+                                }
+                            }
+                            InvalidateTlb();
+                        }
+                    })
+                .WithReservedBits(1, 31)
+            ;
+
             Registers.SMMU_S_IRQ_CTRL.Define(this)
-                .WithFlag(0, out var globalErrorInterruptEnableSecure, name: "GERROR_IRQEN")
+                .WithFlag(0, out secureDomain.GlobalErrorInterruptEnable, name: "GERROR_IRQEN")
                 .WithReservedBits(1, 1)
-                .WithFlag(2, out var eventQueueInterruptEnableSecure, name: "EVENTQ_IRQEN")
+                .WithFlag(2, out secureDomain.EventQueueInterruptEnable, name: "EVENTQ_IRQEN")
                 .WithReservedBits(3, 29)
             ;
 
             Registers.SMMU_S_IRQ_CTRLACK.Define(this)
-                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => globalErrorInterruptEnableSecure.Value, name: "GERROR_IRQEN_ACK")
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => secureDomain.GlobalErrorInterruptEnable.Value, name: "GERROR_IRQEN_ACK")
                 .WithReservedBits(1, 1)
-                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => eventQueueInterruptEnableSecure.Value, name: "EVENTQ_IRQEN_ACK")
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => secureDomain.EventQueueInterruptEnable.Value, name: "EVENTQ_IRQEN_ACK")
                 .WithReservedBits(3, 29)
+            ;
+
+            Registers.SMMU_S_GERROR.Define(this)
+                .WithFlag(0, out secureDomain.CommandQueueErrorPresent, name: "CMDQ_ERR")
+                .WithReservedBits(1, 1)
+                .WithTaggedFlag("EVENTQ_ABT_ERR", 2)
+                .WithReservedBits(3, 1)
+                .WithTaggedFlag("MSI_CMDQ_ABT_ERR", 4)
+                .WithTaggedFlag("MSI_EVENTQ_ABT_ERR", 5)
+                .WithReservedBits(6, 1)
+                .WithTaggedFlag("MSI_GERROR_ABT_ERR", 7)
+                .WithTaggedFlag("SFM_ERR", 8)
+                .WithTaggedFlag("CMDQP_ERR", 9)
+                .WithReservedBits(10, 22)
+            ;
+
+            QuadWordRegisters.DefineRegister((long)Registers.SMMU_S_STRTAB_BASE)
+                .WithValueField(6, 50, out secureDomain.StreamTableAddress, name: "ADDR")
+                .WithTaggedFlag("RA", 62)
+            ;
+
+            Registers.SMMU_S_STRTAB_BASE_CFG.Define(this)
+                .WithValueField(0, 6, out secureDomain.StreamTableShift, name: "LOG2SIZE")
+                .WithTag("SPLIT", 6, 5)
+                .WithReservedBits(11, 5)
+                .WithEnumField(16, 2, out secureDomain.StreamTableFormat, changeCallback: (_, val) =>
+                    {
+                        if(val == StreamTableLevel.TwoLevel)
+                        {
+                            this.ErrorLog("Two-level stream table is not supported yet");
+                        }
+                    }, name: "FMT")
+                .WithReservedBits(18, 14)
+            ;
+
+            QuadWordRegisters.DefineRegister((long)Registers.SMMU_S_CMDQ_BASE)
+                .WithValueField(0, 5, out secureDomain.CommandQueueShift, name: "LOG2SIZE", changeCallback: (_, val) =>
+                    {
+                        if(val > MaxCommandQueueShift)
+                        {
+                            secureDomain.CommandQueueShift.Value = MaxCommandQueueShift;
+                        }
+                    })
+                .WithValueField(5, 51, out secureDomain.CommandQueueAddress, name: "ADDR")
+                .WithReservedBits(56, 6)
+                .WithTaggedFlag("RA", 62)
+                .WithReservedBits(63, 1)
+            ;
+
+            Registers.SMMU_S_CMDQ_PROD.Define(this)
+                .WithValueField(0, 20, out secureDomain.CommandQueueProduce, changeCallback: (_, __) =>
+                    {
+                        if(!commandQueueEnableSecure.Value)
+                        {
+                            this.WarningLog("Secure command queue is disabled, ignoring PROD update");
+                            return;
+                        }
+                        secureDomain.ProcessCommandQueue();
+                    }, name: "WR")
+                .WithReservedBits(20, 12)
+            ;
+
+            Registers.SMMU_S_CMDQ_CONS.Define(this)
+                .WithValueField(0, 20, out secureDomain.CommandQueueConsume, mode: FieldMode.Read, name: "RD")
+                .WithReservedBits(20, 4)
+                .WithValueField(24, 7, out secureDomain.CommandQueueErrorReason, mode: FieldMode.Read, name: "ERR")
+                .WithReservedBits(31, 1)
             ;
         }
 
@@ -939,9 +1072,43 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             }
         }
 
+        private bool CanAccessRegister(long register, ulong? value = null)
+        {
+            var secureOffset = (long)Registers.SMMU_SECURE_BASE <= register && register <= (long)Registers.SMMU_SECURE_LAST_REGISTER;
+            // Access to SMMU_S_INIT is allowed from non-secure streams due to:
+            // 6.3.62 SMMU_S_INIT: When SMMU_S_IDR1.SECURE_IMPL == 1, but no Secure software exists, Arm strongly recommends
+            // this register is exposed for use by Non-secure initialization software.
+            if(secureOffset && register != (long)Registers.SMMU_S_INIT)
+            {
+                if(!sysbus.TryGetTransactionInitiator(out var initiator))
+                {
+                    this.ErrorLog("Could not obtain an initiator for an access to a secure register at 0x{0:X}, ignoring access", register);
+                    return false;
+                }
+
+                if(streams.TryGetValue(initiator, out var registration))
+                {
+                    if(SelectDomain(registration).SecurityState == SecurityState.Secure)
+                    {
+                        return true;
+                    }
+                    this.WarningLog("Non-secure stream #{0} attempted a {1} access to a secure register 0x{2:X}{3}",
+                        registration.Stream, value == null ? "read" : "write", register, value == null ? "" : $" (value: 0x{value:X})");
+                    return false;
+                }
+
+                this.WarningLog("Unknown stream attempted a {0} access to a secure register 0x{1:X}{2}",
+                    value == null ? "read" : "write", register, value == null ? "" : $" (value: 0x{value:X})");
+                return false;
+            }
+            // All initiators can access non-secure registers
+            return true;
+        }
+
         private IFlagRegisterField pageRequestQueueErrorInterruptEnable;
 
         private readonly Domain nonSecureDomain;
+        private readonly Domain secureDomain;
         private readonly TwoWayDictionary<ARM_SMMUv3RegistrationPoint, IPeripheral> streams = new TwoWayDictionary<ARM_SMMUv3RegistrationPoint, IPeripheral>();
         private readonly Dictionary<ARM_SMMUv3RegistrationPoint, ISMMUv3StreamController> streamControllers = new Dictionary<ARM_SMMUv3RegistrationPoint, ISMMUv3StreamController>(); // TODO: Index by (ASID, VMID, StreamWorld)
 
@@ -1087,6 +1254,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             SMMU_S_CMDQ_CONTROL_PAGE_BASE = SMMU_SECURE_BASE | SMMU_CMDQ_CONTROL_PAGE_BASE,
             SMMU_S_CMDQ_CONTROL_PAGE_CFG = SMMU_SECURE_BASE | SMMU_CMDQ_CONTROL_PAGE_CFG,
             SMMU_S_CMDQ_CONTROL_PAGE_STATUS = SMMU_SECURE_BASE | SMMU_CMDQ_CONTROL_PAGE_STATUS,
+            SMMU_SECURE_LAST_REGISTER = SMMU_S_CMDQ_CONTROL_PAGE_STATUS,
             // Page 1
             SMMU_EVENTQ_PROD = 0x100A8,
             SMMU_EVENTQ_CONS = 0x100AC,
