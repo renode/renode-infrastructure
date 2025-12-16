@@ -1392,6 +1392,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.StreamController.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.Structures.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.WrappingQueue.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.RegistrationPoint.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/ISSI_IS25WP.cs" />
   </ItemGroup>
   <ItemGroup>

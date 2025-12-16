@@ -24,7 +24,7 @@ using static Antmicro.Renode.Peripherals.Bus.WindowMMUBusController;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
-    public partial class ARM_SMMUv3 : SimpleContainer<IPeripheral>, IDoubleWordPeripheral, IQuadWordPeripheral,
+    public partial class ARM_SMMUv3 : IPeripheralContainer<IPeripheral, ARM_SMMUv3RegistrationPoint>, IDoubleWordPeripheral, IQuadWordPeripheral,
         IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<QuadWordRegisterCollection>, IKnownSize
     {
         static ARM_SMMUv3()
@@ -38,9 +38,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             registeredCommands = commands;
         }
 
-        public ARM_SMMUv3(IMachine machine, IPeripheral context = null) : base(machine)
+        public ARM_SMMUv3(IMachine machine, IPeripheral context = null)
         {
             this.Context = context ?? this; // Context used to read descriptors and tables from memory
+            this.machine = machine;
             sysbus = machine.GetSystemBus(this);
             RegistersCollection = new DoubleWordRegisterCollection(this);
             QuadWordRegisters = new QuadWordRegisterCollection(this);
@@ -78,55 +79,66 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             ((IProvidesRegisterCollection<QuadWordRegisterCollection>)this).RegistersCollection.Write(offset, value);
         }
 
-        public override void Reset()
+        public void Reset()
         {
             Enabled = false;
         }
 
-        public override void Register(IPeripheral peripheral, NumberRegistrationPoint<int> registrationPoint)
+        public IEnumerable<ARM_SMMUv3RegistrationPoint> GetRegistrationPoints(IPeripheral peripheral)
         {
+            return streams.Lefts.ToArray();
+        }
+
+        public void Register(IPeripheral peripheral, ARM_SMMUv3RegistrationPoint registrationPoint)
+        {
+            if(streams.Exists(registrationPoint))
+            {
+                throw new RecoverableException($"Stream ({registrationPoint}) is already registered");
+            }
+
             if(peripheral is IBusPeripheral busPeripheral)
             {
                 var busController = new ARM_SMMUv3BusController(this, sysbus);
-                streamControllers.Add(registrationPoint.Address, busController);
+                streamControllers.Add(registrationPoint, busController);
                 machine.RegisterBusController(busPeripheral, busController);
             }
             else if(peripheral is ICPUWithExternalMmu cpu)
             {
                 var mmu = new ARM_SMMUv3ExternalMmu(this, cpu);
-                streamControllers.Add(registrationPoint.Address, mmu);
+                streamControllers.Add(registrationPoint, mmu);
             }
             else
             {
                 throw new RecoverableException($"Don't know how to register a {peripheral?.GetType()?.Name ?? "(null)"}");
             }
-            base.Register(peripheral, registrationPoint);
-            streams.Add(registrationPoint.Address, peripheral);
+            streams.Add(registrationPoint, peripheral);
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
         }
 
-        public override void Unregister(IPeripheral peripheral)
+        public void Unregister(IPeripheral peripheral)
         {
-            var streamId = streams[peripheral];
+            var registration = streams[peripheral];
             if(peripheral is IBusPeripheral busPeripheral)
             {
                 machine.RegisterBusController(busPeripheral, sysbus); // Explicitly register sysbus as the controller to remove the SMMU bus controller
             }
-            if(streamControllers[streamId] is IDisposable disposable)
+            if(streamControllers[registration] is IDisposable disposable)
             {
                 disposable.Dispose();
             }
-            streamControllers.Remove(streamId);
-            base.Unregister(peripheral);
+            streamControllers.Remove(registration);
             streams.Remove(peripheral);
+            machine.UnregisterAsAChildOf(this, peripheral);
         }
 
         public MMUWindow GetWindowFromPageTable(ulong address, IPeripheral dmaContext)
         {
-            if(!streams.TryGetValue(dmaContext, out var streamId))
+            if(!streams.TryGetValue(dmaContext, out var registration))
             {
                 this.WarningLog("No stream for context {0}", dmaContext);
                 return null;
             }
+            var streamId = registration.Stream;
             var ste = streamTable[streamId];
             if(ste.Config == StreamConfiguration.Abort)
             {
@@ -259,6 +271,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public QuadWordRegisterCollection QuadWordRegisters { get; }
+
+        public IEnumerable<IRegistered<IPeripheral, ARM_SMMUv3RegistrationPoint>> Children => streams.Lefts.Select(reg => Registered.Create(streams[reg], reg));
 
         public readonly IPeripheral Context;
 
@@ -1000,9 +1014,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         private readonly WrappingQueue<Command> commandQueue;
         private readonly StreamTableEntry[] streamTable = new StreamTableEntry[1 << StreamIdBits];
-        private readonly TwoWayDictionary<int, IPeripheral> streams = new TwoWayDictionary<int, IPeripheral>();
-        private readonly Dictionary<int, ISMMUv3StreamController> streamControllers = new Dictionary<int, ISMMUv3StreamController>(); // TODO: Index by (ASID, VMID, StreamWorld)
+        private readonly TwoWayDictionary<ARM_SMMUv3RegistrationPoint, IPeripheral> streams = new TwoWayDictionary<ARM_SMMUv3RegistrationPoint, IPeripheral>();
+        private readonly Dictionary<ARM_SMMUv3RegistrationPoint, ISMMUv3StreamController> streamControllers = new Dictionary<ARM_SMMUv3RegistrationPoint, ISMMUv3StreamController>(); // TODO: Index by (ASID, VMID, StreamWorld)
 
+        private readonly IMachine machine;
         private readonly IBusController sysbus;
 
         private const int MaxPageTableLevel = 3;
@@ -1017,6 +1032,12 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             }
 
             public uint Reason { get; }
+        }
+
+        public enum SecurityState
+        {
+            NonSecure = 0,
+            Secure = 1,
         }
 
         public enum Registers
