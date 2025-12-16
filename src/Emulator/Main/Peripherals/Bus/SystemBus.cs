@@ -864,6 +864,17 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public bool TryGetTransactionInitiator(out IPeripheral initiator)
+        {
+            if(threadLocalContext.InUse && threadLocalContext.Initiator != null)
+            {
+                initiator = threadLocalContext.Initiator;
+                return true;
+            }
+            initiator = null;
+            return false;
+        }
+
         public bool TryConvertStateToUlongForContext(IPeripheral context, IContextState cpuStateObj, out ulong? state)
         {
             state = null;
