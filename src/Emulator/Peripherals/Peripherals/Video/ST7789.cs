@@ -1,16 +1,10 @@
-using System;
-using System.Collections.Generic;
-
-using Antmicro.Renode.Backends.Display;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Input;
-using Antmicro.Renode.Peripherals.SPI;
-
 /**
- * ST7789 LCD controller with keyboard and rotary encoder support.
+ * ST7789 LCD controller compatible with 8/16-bit GPIO/SPI
+ * Comes with a keyboard and rotary encoder knob.
  * (C)-2025 Gissio
  * 
+ * SPI assumes 16-bit data is sent as two 8-bit transmissions.
+ *
  * GPIO input lines:
  *   0: RESX (Reset)
  *   1: DCX (Data/Command)
@@ -30,8 +24,17 @@ using Antmicro.Renode.Peripherals.SPI;
  *   knobA (mapped to PageUp/PageDown keys)
  *   knobB (mapped to PageUp/PageDown keys)
  *
- * The rotary encoder is controlled with the PageUp/PageDown keys.
+ * The rotary encoder knob is controlled with the PageUp/PageDown keys.
  */
+
+using System;
+using System.Collections.Generic;
+
+using Antmicro.Renode.Backends.Display;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Input;
+using Antmicro.Renode.Peripherals.SPI;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
