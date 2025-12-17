@@ -1,6 +1,5 @@
 /**
- * ST7789 LCD controller compatible with 8/16-bit GPIO/SPI
- * Comes with a keyboard and rotary encoder knob.
+ * ST7789 LCD controller supporting 8/16-bit GPIO/SPI, keyboard and rotary encoder knob
  * (C)-2025 Gissio
  * 
  * SPI assumes 16-bit data is sent as two 8-bit transmissions.
@@ -24,6 +23,9 @@
  *   knobA (mapped to PageUp/PageDown keys)
  *   knobB (mapped to PageUp/PageDown keys)
  *
+ * The keyboard is by default inverted logic.
+ * You can reverse the logic using the XXXInvert:true parameters.
+ * 
  * The rotary encoder knob is controlled with the PageUp/PageDown keys.
  */
 
