@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.Video
         public override void Reset()
         {
             // Display
-            Array.Clear(framebuffer, 0, framebuffer.Length);
+            Array.Clear(framebuffer);
 
             isSleepOff = false;
             isDisplayOn = false;
@@ -155,11 +155,16 @@ namespace Antmicro.Renode.Peripherals.Video
         // Display
         protected override void Repaint()
         {
-            Buffer.BlockCopy(
-                framebuffer, 0,
-                buffer, 0,
-                framebuffer.Length
-            );
+            if (!isSleepOff || !isDisplayOn)
+            {
+                Array.Clear(buffer);
+            }
+            else
+            {
+                Buffer.BlockCopy(framebuffer, 0,
+                                 buffer, 0,
+                                 framebuffer.Length);
+            }
         }
 
         private void writeFramebuffer(int value)
@@ -213,18 +218,6 @@ namespace Antmicro.Renode.Peripherals.Video
 
                 switch (command)
                 {
-                    // RAMWR
-                    case 0x2C:
-                        x = xStart;
-                        y = yStart;
-
-                        break;
-                }
-            }
-            else
-            {
-                switch (command)
-                {
                     case 0x10:
                         // SLPIN
                         isSleepOff = false;
@@ -249,6 +242,23 @@ namespace Antmicro.Renode.Peripherals.Video
 
                         break;
 
+                    case 0x2C:
+                        // RAMWR
+                        x = xStart;
+                        y = yStart;
+
+                        break;
+                }
+
+                if (command < 0x2a || command > 0x2c)
+                {
+                    this.Log(LogLevel.Info, $"Command: 0x{value:X2}");
+                }
+            }
+            else
+            {
+                switch (command)
+                {
                     case 0x2A:
                         // CASET
                         switch (dataIndex)
@@ -356,17 +366,13 @@ namespace Antmicro.Renode.Peripherals.Video
                         break;
                 }
 
+                if (command < 0x2a || command > 0x2c)
+                {
+                    this.Log(LogLevel.Info, $"   Data: 0x{value:X2}");
+                }
+
                 dataIndex++;
             }
-
-            // if (!isData)
-            // {
-            //     this.Log(LogLevel.Info, $"Command: 0x{value:X2}");
-            // }
-            // else
-            // {
-            //     this.Log(LogLevel.Info, $"   Data: 0x{value:X2}");
-            // }
 
             return 0;
         }
@@ -393,7 +399,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
                 case 2:
                     // Write strobe for 8-bit parallel data
-                    if (!value)
+                    if (value)
                     {
                         WriteDisplay(parallelData, false);
                     }
@@ -402,7 +408,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
                 case 3:
                     // Write strobe for 16-bit parallel data
-                    if (!value)
+                    if (value)
                     {
                         WriteDisplay(parallelData, true);
                     }
@@ -411,8 +417,8 @@ namespace Antmicro.Renode.Peripherals.Video
 
                 default:
                     // Parallel data
-                    int bitIndex = index & 0xf;
-                    parallelData = (parallelData & ~(1 << bitIndex)) | ((value ? 1 : 0) << bitIndex);
+                    int mask = 1 << (index & 0xf);
+                    parallelData = (parallelData & ~mask) | (value ? mask : 0);
 
                     break;
             }
