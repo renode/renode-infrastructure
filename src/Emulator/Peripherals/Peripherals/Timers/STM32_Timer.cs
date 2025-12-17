@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -26,7 +26,6 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             this.machine = machine;
             sysbus = machine.GetSystemBus(this);
-            IRQ = new GPIO();
             connections = Enumerable.Range(0, NumberOfCCChannels).ToDictionary(i => i, _ => (IGPIO)new GPIO());
             this.initialLimit = initialLimit;
             // If initialLimit is 0, throw an error - this is an invalid state for us, since we would not be able to infer the counter's width
@@ -455,7 +454,18 @@ namespace Antmicro.Renode.Peripherals.Timers
             UpdateInterrupts();
         }
 
-        public GPIO IRQ { get; private set; }
+        [DefaultInterrupt]
+        public GPIO IRQ { get; } = new GPIO();
+
+        public GPIO BreakInterrupt { get; } = new GPIO();
+
+        public GPIO UpdateInterrupt { get; } = new GPIO();
+
+        public GPIO TriggerInterrupt { get; } = new GPIO();
+
+        public GPIO CommutationInterrupt { get; } = new GPIO();
+
+        public GPIO CaptureCompareInterrupt { get; } = new GPIO();
 
         public IReadOnlyDictionary<int, IGPIO> Connections => connections;
 
@@ -537,14 +547,20 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void UpdateInterrupts()
         {
-            var value = false;
-            value |= updateInterruptFlag & updateInterruptEnable.Value;
+            var ccIrq = false;
             for(var i = 0; i < NumberOfCCChannels; ++i)
             {
-                value |= ccInterruptFlag[i] & ccInterruptEnable[i];
+                ccIrq |= ccInterruptFlag[i] & ccInterruptEnable[i];
             }
 
-            IRQ.Set(value);
+            var updateIrq = updateInterruptFlag & updateInterruptEnable.Value;
+
+            IRQ.Set(ccIrq || updateIrq);
+            BreakInterrupt.Set(false);
+            UpdateInterrupt.Set(updateIrq);
+            TriggerInterrupt.Set(false);
+            CommutationInterrupt.Set(false);
+            CaptureCompareInterrupt.Set(ccIrq);
         }
 
         private uint autoReloadValue;
