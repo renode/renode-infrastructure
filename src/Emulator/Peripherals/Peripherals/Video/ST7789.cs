@@ -84,7 +84,9 @@ namespace Antmicro.Renode.Peripherals.Video
         private int knobState;
 
         public ST7789(IMachine machine,
-            int width, int height, int rotation,
+            int width = 240,
+            int height = 320,
+            int rotation = 0,
             bool keyEnterInvert = true,
             bool keySpaceInvert = true,
             bool keyBackSpaceInvert = true,
