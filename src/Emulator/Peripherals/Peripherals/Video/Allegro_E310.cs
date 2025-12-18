@@ -367,11 +367,7 @@ namespace Antmicro.Renode.Peripherals.Video
             public void PutStreamBuffer(PutStreamBufferMsg msg)
             {
                 owner.DebugLog("[ch{0}] Put stream buffer {1}", Uid, msg);
-                if((int)msg.Index != streamBuffers.Count) // TODO: Don't store all stream buffers, allow > 2³¹ of them, allow out of order (?)
-                {
-                    owner.WarningLog("[ch{0}] Stream buffer {0} arrived out of order", msg.Index);
-                }
-                streamBuffers.Add(msg);
+                streamBuffers.Enqueue(msg);
             }
 
             public EncodeOneFrameFeedback EncodeFrame(EncodeOneFrameMsg msg)
@@ -412,10 +408,14 @@ namespace Antmicro.Renode.Peripherals.Video
                     }
                 }
 
+                // Take the first available buffer.
+                var bufAvailable = streamBuffers.TryDequeue(out var streamBuf);
+                var streamBufferIndex = bufAvailable ? streamBuf.Index : ulong.MaxValue;
+
                 var feedback = new EncodeOneFrameFeedback
                 {
                     ChanUid = Uid,
-                    StreamBufferIndex = FrameIndex,
+                    StreamBufferIndex = streamBufferIndex,
                     UserParam = msg.Parameters.UserParam,
                     SrcHandle = msg.Parameters.SrcHandle,
                     DpbOutputDelay = 4,
@@ -437,9 +437,8 @@ namespace Antmicro.Renode.Peripherals.Video
                     PictureSize = encodedData.Length,
                 };
 
-                if(FrameIndex < streamBuffers.Count)
+                if(bufAvailable)
                 {
-                    var streamBuf = streamBuffers[(int)FrameIndex];
                     var addr = owner.TranslateDMAAddress(streamBuf.BusAddress);
                     var usableSize = streamBuf.Size - streamBuf.Offset - Packet.CalculateLength<StreamPartition>();
 
@@ -461,7 +460,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 }
                 else
                 {
-                    owner.WarningLog("[ch{0}] No stream buffer for frame index {1}, have [0; {2})", Uid, FrameIndex, streamBuffers.Count);
+                    owner.WarningLog("[ch{0}] No available stream buffer for frame index {1}", Uid, FrameIndex);
                 }
                 FrameIndex++;
                 FrameRendered?.Invoke(rawData);
@@ -620,7 +619,7 @@ namespace Antmicro.Renode.Peripherals.Video
 #endif
 
             private readonly Allegro_E310 owner;
-            private readonly List<PutStreamBufferMsg> streamBuffers = new List<PutStreamBufferMsg>();
+            private readonly Queue<PutStreamBufferMsg> streamBuffers = new Queue<PutStreamBufferMsg>();
             private static readonly EncodeResult FakeEncodeResult = new EncodeResult
             {
                 Buffer = new byte[] { 0x00, 0x00, 0x00, 0x01, 0x65, 0x80, 0xff, 0xff },
