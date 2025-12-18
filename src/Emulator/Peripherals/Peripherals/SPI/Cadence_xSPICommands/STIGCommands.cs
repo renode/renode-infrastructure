@@ -109,6 +109,7 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             DMADirection = BitHelper.GetValue(payload[4], 4, 1) == 0 ? TransmissionDirection.Read : TransmissionDirection.Write;
             doneTransmission = (payload[0] & 1) == 1;
             DMADataCount = (payload[3] & 0xffff) | payload[2] >> 16;
+            dataInStatusRegister = BitHelper.IsBitSet(payload[1], 24);
             var dummyBitsCount = BitHelper.GetValue(payload[3], 20, 6);
             if(dummyBitsCount % 8 != 0)
             {
@@ -125,7 +126,19 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
                 Finish();
                 return;
             }
-            DMATriggered = true;
+
+            if(DMADataCount <= 2 && dataInStatusRegister && DMADirection == TransmissionDirection.Read)
+            {
+                var readBytes = ReadDataInner((int)DMADataCount)
+                    .Concat(Enumerable.Repeat((byte)0, 2-(int)DMADataCount))
+                    .ToArray();
+                ShortOutput = BitConverter.ToUInt16(readBytes, 0);
+                Finish();
+            }
+            else
+            {
+                DMATriggered = true;
+            }
         }
 
         public void WriteData(IReadOnlyList<byte> data)
@@ -149,6 +162,29 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
 
         public IList<byte> ReadData(int length)
         {
+            var dataList = ReadDataInner(length);
+            FinishIfDone();
+
+            return dataList;
+        }
+
+        public override string ToString()
+        {
+            return $"{base.ToString()}, dataCount = {DMADataCount}, dummyBytesCount = {dummyBytesCount}, doneTransmission = {doneTransmission}";
+        }
+
+        public TransmissionDirection DMADirection { get; }
+
+        public uint DMADataCount { get; }
+
+        public ushort? ShortOutput { get; private set; } = null;
+
+        public bool DMATriggered { get; private set; }
+
+        public bool DMAError { get; private set; }
+
+        private IList<byte> ReadDataInner(int length)
+        {
             if(DMADirection != TransmissionDirection.Read)
             {
                 throw new InvalidOperationException($"Trying to read data using the command with wrong direction ({DMADirection}).");
@@ -164,23 +200,9 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             }
             var dataList = data.ToList();
             dataTransmittedCount += (uint)dataList.Count;
-            FinishIfDone();
 
             return dataList;
         }
-
-        public override string ToString()
-        {
-            return $"{base.ToString()}, dataCount = {DMADataCount}, dummyBytesCount = {dummyBytesCount}, doneTransmission = {doneTransmission}";
-        }
-
-        public TransmissionDirection DMADirection { get; }
-
-        public uint DMADataCount { get; }
-
-        public bool DMATriggered { get; private set; }
-
-        public bool DMAError { get; private set; }
 
         private void TransmitDummyIfFirst()
         {
@@ -212,6 +234,9 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
         }
 
         private uint dataTransmittedCount;
+        // If the data length is <= 2 bytes and statusDataSource is set,
+        // the data is available in status register
+        private readonly bool dataInStatusRegister;
         private readonly bool doneTransmission;
         private readonly uint dummyBytesCount;
     }
