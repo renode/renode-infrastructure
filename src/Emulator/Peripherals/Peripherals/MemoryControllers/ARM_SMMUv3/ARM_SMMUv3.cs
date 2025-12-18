@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -1227,8 +1227,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             SMMU_S_CMDQ_PROD = SMMU_SECURE_BASE | SMMU_CMDQ_PROD,
             SMMU_S_CMDQ_CONS = SMMU_SECURE_BASE | SMMU_CMDQ_CONS,
             SMMU_S_EVENTQ_BASE = SMMU_SECURE_BASE | SMMU_EVENTQ_BASE,
-            SMMU_S_EVENTQ_PROD = SMMU_SECURE_BASE | SMMU_EVENTQ_PROD,
-            SMMU_S_EVENTQ_CONS = SMMU_SECURE_BASE | SMMU_EVENTQ_CONS,
+            SMMU_S_EVENTQ_PROD = SMMU_SECURE_BASE | SMMU_EVENTQ_PROD_Alias,
+            SMMU_S_EVENTQ_CONS = SMMU_SECURE_BASE | SMMU_EVENTQ_CONS_Alias,
             SMMU_S_EVENTQ_IRQ_CFG0 = SMMU_SECURE_BASE | SMMU_EVENTQ_IRQ_CFG0,
             SMMU_S_EVENTQ_IRQ_CFG1 = SMMU_SECURE_BASE | SMMU_EVENTQ_IRQ_CFG1,
             SMMU_S_EVENTQ_IRQ_CFG2 = SMMU_SECURE_BASE | SMMU_EVENTQ_IRQ_CFG2,
