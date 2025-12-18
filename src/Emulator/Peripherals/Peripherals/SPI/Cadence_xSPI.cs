@@ -235,7 +235,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                     )
                 },
                 {(long)Registers.CommandStatus, new DoubleWordRegister(this)
-                    .WithReservedBits(16, 16)
+                    .WithValueField(16,16, name: "dataFromDev",
+                        valueProviderCallback: _ =>
+                        {
+                            return (currentCommand as DataSequenceCommand)?.ShortOutput ?? 0;
+                        })
                     .WithFlag(15, FieldMode.Read, name: "commandCompleted",
                         valueProviderCallback: _ => currentCommand?.Completed ?? false
                     )
