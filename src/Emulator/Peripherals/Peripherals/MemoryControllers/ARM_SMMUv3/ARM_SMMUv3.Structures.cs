@@ -44,7 +44,17 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         {
             public override string ToString() => this.ToDebugString();
 
-            public virtual CommandError Run(ARM_SMMUv3 parent)
+            public CommandError ValidateAndRun(ARM_SMMUv3 parent, SecurityState securityState)
+            {
+                if(securityState != SecurityState.Secure && SSec)
+                {
+                    parent.WarningLog("SSec set on a command executed from the non-secure queue ({0})", this);
+                    return CommandError.Illegal;
+                }
+                return Run(parent, securityState);
+            }
+
+            protected virtual CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
                 if(Enum.IsDefined(typeof(Opcode), Opcode))
                 {
@@ -65,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_PREFETCH_CONFIG)]
         public class PrefetchConfigCommand : Command
         {
-            public override CommandError Run(ARM_SMMUv3 parent)
+            protected override CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
                 parent.NoisyLog("Prefetch config: {0}", this);
                 // Do nothing (valid implementation)
@@ -87,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_PREFETCH_ADDR)]
         public class PrefetchAddressCommand : PrefetchConfigCommand
         {
-            public override CommandError Run(ARM_SMMUv3 parent)
+            protected override CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
                 parent.NoisyLog("Prefetch address: {0}", this);
                 // Do nothing (valid implementation)
@@ -114,10 +124,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_CFGI_STE)]
         public class InvalidateSteCommand : Command
         {
-            public override CommandError Run(ARM_SMMUv3 parent)
+            protected override CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
-                // TODO: Secure domain
-                parent.nonSecureDomain.InvalidateSte(StreamID);
+                // Security is checked in `ValidateAndRun`
+                parent.SelectDomain(securityState).InvalidateSte(StreamID);
                 return CommandError.None;
             }
 
@@ -131,14 +141,15 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_CFGI_STE_RANGE)]
         public class InvalidateSteRangeCommand : Command
         {
-            public override CommandError Run(ARM_SMMUv3 parent)
+            protected override CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
                 var count = (2u << (Range + 1)) - 1;
                 var start = StreamID & ~count;
+                // Security is checked in `ValidateAndRun`
+                var domain = parent.SelectDomain(securityState);
                 for(var i = start; i <= start + count; ++i)
                 {
-                    // TODO: Secure domain
-                    parent.nonSecureDomain.InvalidateSte(i);
+                    domain.InvalidateSte(i);
                 }
                 return CommandError.None;
             }
@@ -153,7 +164,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_TLBI_NH_ALL)]
         public class InvalidateTlbByVmidCommand : Command
         {
-            public override CommandError Run(ARM_SMMUv3 parent)
+            protected override CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
                 parent.InvalidateTlb(); // TODO: More granular invalidation
                 return CommandError.None;
@@ -166,7 +177,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_TLBI_NH_ASID)]
         public class InvalidateTlbByVmidAsid : InvalidateTlbByVmidCommand
         {
-            public override CommandError Run(ARM_SMMUv3 parent)
+            protected override CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
                 parent.InvalidateTlb(); // TODO: More granular invalidation
                 return CommandError.None;
@@ -179,7 +190,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_TLBI_NH_VA)]
         public class InvalidateTlbByVirtualAddress : InvalidateTlbByVmidCommand
         {
-            public override CommandError Run(ARM_SMMUv3 parent)
+            protected override CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
                 parent.InvalidateTlb(Address); // TODO: Use other hints
                 return CommandError.None;
@@ -218,9 +229,9 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_TLBI_NH_VAA)]
         public class InvalidateTlbByVirtualAddressAsid : InvalidateTlbByVirtualAddress
         {
-            public override CommandError Run(ARM_SMMUv3 parent)
+            protected override CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
-                return base.Run(parent); // TODO: Use ASID
+                return base.Run(parent, securityState); // TODO: Use ASID
             }
 
             [PacketField, Offset(bits: 48), Width(bits: 16)]
@@ -230,7 +241,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_SYNC)]
         public class SyncCommand : Command
         {
-            public override CommandError Run(ARM_SMMUv3 parent)
+            protected override CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
                 parent.NoisyLog("Sync: {0}", this);
                 // TODO: Raise completion sginal

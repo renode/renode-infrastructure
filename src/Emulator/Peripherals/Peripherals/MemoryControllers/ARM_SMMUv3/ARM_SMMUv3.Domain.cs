@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 while(commandQueue.TryPeek(out var command))
                 {
                     parent.DebugLog("Executing command {0} {1}", command.Opcode, command);
-                    CommandQueueErrorReason.Value = command.Run(parent);
+                    CommandQueueErrorReason.Value = command.ValidateAndRun(parent, SecurityState);
                     if(CommandQueueErrorReason.Value != CommandError.None)
                     {
                         CommandQueueErrorPresent.Value = !CommandQueueErrorPresent.Value;
