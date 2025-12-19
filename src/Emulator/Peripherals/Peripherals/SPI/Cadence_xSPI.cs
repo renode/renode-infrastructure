@@ -367,6 +367,21 @@ namespace Antmicro.Renode.Peripherals.SPI
                     )
                     .WithReservedBits(0, 8)
                 },
+                {(long)Registers.DiscoveryControl, new DoubleWordRegister(this, resetValue: 0b100)
+                    .WithTaggedFlag("REQ",0)
+                    .WithTaggedFlag("REQ_TYP",1)
+                    .WithTaggedFlag("PASS",2)
+                    .WithTag("FAIL",3,2)
+                    .WithTaggedFlag("INHIBIT",5)
+                    .WithTaggedFlag("OE_VAL",6)
+                    .WithTaggedFlag("OE_EN",7)
+                    .WithTag("CMD_TYP",8,2)
+                    .WithTaggedFlag("DMY_CNT",10)
+                    .WithTaggedFlag("ABNUM",11)
+                    .WithTag("NUM_LINES",12,3)
+                    .WithTag("BNK",16,3)
+                    .WithReservedBits(19,13)
+                },
                 {(long)Registers.ControllerVersion, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Read, name: "hardwareRevision",
                         valueProviderCallback: _ => HardwareRevision
