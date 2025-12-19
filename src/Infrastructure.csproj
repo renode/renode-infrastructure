@@ -1194,6 +1194,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_ScrambledMemory.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_ClockManager.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/GenericSpiFlash.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/SPI/GenericSpiFlash_SFDP.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/Macronix_MX25R.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/QuectelModem.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/Quectel_BC660K.cs" />

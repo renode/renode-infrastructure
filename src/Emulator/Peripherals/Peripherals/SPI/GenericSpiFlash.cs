@@ -18,7 +18,7 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public class GenericSpiFlash : ISPIPeripheral, IGPIOReceiver
+    public partial class GenericSpiFlash : ISPIPeripheral, IGPIOReceiver
     {
         public GenericSpiFlash(MappedMemory underlyingMemory, byte manufacturerId, byte memoryType, byte? capacityCode = null,
             bool writeStatusCanSetWriteEnable = true, byte extendedDeviceId = DefaultExtendedDeviceID,
@@ -65,7 +65,13 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.deviceConfiguration = deviceConfiguration;
 
             deviceData = GetDeviceData();
-            SFDPSignature = DefaultSFDPSignature;
+
+            SFDPSignature = (new SFDP(
+                new Dictionary<uint, SFDPParameter>
+                {
+                    [0x18] = new JEDECParameter(4.KB(), underlyingMemory.Size, 256, (byte)Commands.SubsectorErase4kb)
+                }
+            )).Bytes;
         }
 
         public void OnGPIO(int number, bool value)
@@ -148,13 +154,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         public MappedMemory UnderlyingMemory => underlyingMemory;
 
         public byte[] SFDPSignature { get; set; }
-
-        // Dummy SFDP header: 0 parameter tables, one empty required
-        public virtual byte[] DefaultSFDPSignature { get; } = new byte[]
-        {
-            0x53, 0x46, 0x44, 0x50, 0x06, 0x01, 0x00, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
-        };
 
         protected virtual byte ReadFromMemory()
         {

@@ -24,20 +24,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 throw new ConstructionException("Size of the underlying memory must be in range 32MB - 128MB");
             }
-        }
 
-        public override byte[] DefaultSFDPSignature
-        {
-            get
-            {
-                byte capacity = GetCapacityCode();
-                foreach(var patch in sfdpPatches[capacity])
-                {
-                    sfdpSignature[patch.Key] = patch.Value;
-                }
-
-                return sfdpSignature;
-            }
+            SFDPSignature = DefaultSFDPSignature();
         }
 
         protected override byte GetCapacityCode()
@@ -56,6 +44,17 @@ namespace Antmicro.Renode.Peripherals.SPI
             default:
                 return base.GetDummyBytes(command);
             }
+        }
+
+        private byte[] DefaultSFDPSignature()
+        {
+            var capacity = GetCapacityCode();
+            foreach(var patch in sfdpPatches[capacity])
+            {
+                sfdpSignature[patch.Key] = patch.Value;
+            }
+
+            return sfdpSignature;
         }
 
         private readonly byte[] sfdpSignature = new byte[]
