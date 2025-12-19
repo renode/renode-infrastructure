@@ -44,9 +44,15 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         {
             public override string ToString() => this.ToDebugString();
 
-            public virtual void Run(ARM_SMMUv3 parent)
+            public virtual CommandError Run(ARM_SMMUv3 parent)
             {
-                parent.ErrorLog("Unhandled command {0}: {1}", Opcode, this);
+                if(Enum.IsDefined(typeof(Opcode), Opcode))
+                {
+                    parent.ErrorLog("Unhandled command {0}: {1}", Opcode, this);
+                    return CommandError.None;
+                }
+                parent.ErrorLog("Invalid command opcode: 0x{0:X}", Opcode);
+                return CommandError.Illegal;
             }
 
             [PacketField, Offset(bits: 0), Width(bits: 8)]
@@ -59,10 +65,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_PREFETCH_CONFIG)]
         public class PrefetchConfigCommand : Command
         {
-            public override void Run(ARM_SMMUv3 parent)
+            public override CommandError Run(ARM_SMMUv3 parent)
             {
                 parent.NoisyLog("Prefetch config: {0}", this);
                 // Do nothing (valid implementation)
+                return CommandError.None;
             }
 
             // RES0 8-9
@@ -80,10 +87,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_PREFETCH_ADDR)]
         public class PrefetchAddressCommand : PrefetchConfigCommand
         {
-            public override void Run(ARM_SMMUv3 parent)
+            public override CommandError Run(ARM_SMMUv3 parent)
             {
                 parent.NoisyLog("Prefetch address: {0}", this);
                 // Do nothing (valid implementation)
+                return CommandError.None;
             }
 
             public ulong Address => address << 12;
@@ -106,10 +114,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_CFGI_STE)]
         public class InvalidateSteCommand : Command
         {
-            public override void Run(ARM_SMMUv3 parent)
+            public override CommandError Run(ARM_SMMUv3 parent)
             {
                 // TODO: Secure domain
                 parent.nonSecureDomain.InvalidateSte(StreamID);
+                return CommandError.None;
             }
 
             [PacketField, Offset(bits: 32), Width(bits: 32)]
@@ -122,7 +131,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_CFGI_STE_RANGE)]
         public class InvalidateSteRangeCommand : Command
         {
-            public override void Run(ARM_SMMUv3 parent)
+            public override CommandError Run(ARM_SMMUv3 parent)
             {
                 var count = (2u << (Range + 1)) - 1;
                 var start = StreamID & ~count;
@@ -131,6 +140,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                     // TODO: Secure domain
                     parent.nonSecureDomain.InvalidateSte(i);
                 }
+                return CommandError.None;
             }
 
             [PacketField, Offset(bits: 32), Width(bits: 32)]
@@ -143,9 +153,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_TLBI_NH_ALL)]
         public class InvalidateTlbByVmidCommand : Command
         {
-            public override void Run(ARM_SMMUv3 parent)
+            public override CommandError Run(ARM_SMMUv3 parent)
             {
                 parent.InvalidateTlb(); // TODO: More granular invalidation
+                return CommandError.None;
             }
 
             [PacketField, Offset(bits: 32), Width(bits: 16)]
@@ -155,9 +166,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_TLBI_NH_ASID)]
         public class InvalidateTlbByVmidAsid : InvalidateTlbByVmidCommand
         {
-            public override void Run(ARM_SMMUv3 parent)
+            public override CommandError Run(ARM_SMMUv3 parent)
             {
                 parent.InvalidateTlb(); // TODO: More granular invalidation
+                return CommandError.None;
             }
 
             [PacketField, Offset(bits: 48), Width(bits: 16)]
@@ -167,9 +179,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_TLBI_NH_VA)]
         public class InvalidateTlbByVirtualAddress : InvalidateTlbByVmidCommand
         {
-            public override void Run(ARM_SMMUv3 parent)
+            public override CommandError Run(ARM_SMMUv3 parent)
             {
                 parent.InvalidateTlb(Address); // TODO: Use other hints
+                return CommandError.None;
             }
 
             public ulong Address => address << 12;
@@ -205,9 +218,9 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_TLBI_NH_VAA)]
         public class InvalidateTlbByVirtualAddressAsid : InvalidateTlbByVirtualAddress
         {
-            public override void Run(ARM_SMMUv3 parent)
+            public override CommandError Run(ARM_SMMUv3 parent)
             {
-                base.Run(parent); // TODO: Use ASID
+                return base.Run(parent); // TODO: Use ASID
             }
 
             [PacketField, Offset(bits: 48), Width(bits: 16)]
@@ -217,10 +230,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         [Command(Opcode.CMD_SYNC)]
         public class SyncCommand : Command
         {
-            public override void Run(ARM_SMMUv3 parent)
+            public override CommandError Run(ARM_SMMUv3 parent)
             {
                 parent.NoisyLog("Sync: {0}", this);
                 // TODO: Raise completion sginal
+                return CommandError.None;
             }
 
             public ulong MSIAddress => msiAddress << 2;
@@ -1207,6 +1221,14 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             // gap 0x71-0x72
             CMD_DPTI_PA = 0x73,
             // gap 0x74-0xff; 0x80-0x8f are IMPLEMENTATION DEFINED
+        }
+
+        public enum CommandError
+        {
+            None = 0x0,
+            Illegal = 0x1,
+            Abort = 0x2,
+            ATCInvalidationSync = 0x3,
         }
 #pragma warning restore
 

@@ -38,20 +38,16 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             {
                 while(commandQueue.TryPeek(out var command))
                 {
-                    try
+                    parent.DebugLog("Executing command {0} {1}", command.Opcode, command);
+                    CommandQueueErrorReason.Value = command.Run(parent);
+                    if(CommandQueueErrorReason.Value != CommandError.None)
                     {
-                        parent.DebugLog("Executing command {0} {1}", command.Opcode, command);
-                        command.Run(parent);
-                        // If the command fails, SMMU_(*_)CMDQ_CONS.RD remains pointing to the erroneous command in the Command queue
-                        commandQueue.AdvanceConsumerIndex();
-                    }
-                    catch(CommandException e)
-                    {
-                        parent.WarningLog("Command {0} failed with {1}: {2}", command.Opcode, e.Reason, e.Message);
-                        CommandQueueErrorReason.Value = e.Reason;
                         CommandQueueErrorPresent.Value = !CommandQueueErrorPresent.Value;
                         break;
                     }
+
+                    // If the command fails, SMMU_(*_)CMDQ_CONS.RD remains pointing to the erroneous command in the Command queue
+                    commandQueue.AdvanceConsumerIndex();
                 }
             }
 
@@ -95,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             public IValueRegisterField CommandQueueAddress;
             public IValueRegisterField CommandQueueConsume;
             public IValueRegisterField CommandQueueProduce;
-            public IValueRegisterField CommandQueueErrorReason;
+            public IEnumRegisterField<CommandError> CommandQueueErrorReason;
             public IFlagRegisterField CommandQueueErrorPresent;
             public IValueRegisterField StreamTableShift;
             public IValueRegisterField StreamTableAddress;

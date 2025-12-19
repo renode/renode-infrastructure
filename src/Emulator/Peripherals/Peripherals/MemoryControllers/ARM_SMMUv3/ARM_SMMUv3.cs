@@ -682,7 +682,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             Registers.SMMU_CMDQ_CONS.Define(this)
                 .WithValueField(0, 20, out nonSecureDomain.CommandQueueConsume, mode: FieldMode.Read, name: "RD")
                 .WithReservedBits(20, 4)
-                .WithValueField(24, 7, out nonSecureDomain.CommandQueueErrorReason, mode: FieldMode.Read, name: "ERR")
+                .WithEnumField(24, 7, out nonSecureDomain.CommandQueueErrorReason, mode: FieldMode.Read, name: "ERR")
                 .WithReservedBits(31, 1)
             ;
 
@@ -1050,7 +1050,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             Registers.SMMU_S_CMDQ_CONS.Define(this)
                 .WithValueField(0, 20, out secureDomain.CommandQueueConsume, mode: FieldMode.Read, name: "RD")
                 .WithReservedBits(20, 4)
-                .WithValueField(24, 7, out secureDomain.CommandQueueErrorReason, mode: FieldMode.Read, name: "ERR")
+                .WithEnumField(24, 7, out secureDomain.CommandQueueErrorReason, mode: FieldMode.Read, name: "ERR")
                 .WithReservedBits(31, 1)
             ;
         }
@@ -1118,16 +1118,6 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         private const int MaxPageTableLevel = 3;
         private const int MaxCommandQueueShift = 7; // 128 bytes
         private const int StreamIdBits = 8;
-
-        public class CommandException : Exception
-        {
-            public CommandException(uint reason, string message = null, Exception innerException = null) : base(message, innerException)
-            {
-                Reason = reason;
-            }
-
-            public uint Reason { get; }
-        }
 
         public enum SecurityState
         {
