@@ -25,8 +25,16 @@ namespace Antmicro.Renode.Peripherals.Video
 #endif
         {
 #if PLATFORM_LINUX && NET
-            EnsureInitialized();
-            return Functions.ParseLaunch(pipelineStr) as Pipeline;
+            try
+            {
+                EnsureInitialized();
+                return Functions.ParseLaunch(pipelineStr) as Pipeline;
+            }
+            catch(DllNotFoundException)
+            {
+                Logger.Warning("Unable to load shared library for GStreamer");
+                return null;
+            }
 #else
             return null;
 #endif
@@ -35,11 +43,18 @@ namespace Antmicro.Renode.Peripherals.Video
 #if PLATFORM_LINUX && NET
         public static void SetBufferDimensions(Gst.Buffer buffer, uint width, uint height, uint pitch)
         {
-            // There is no binding for this function in GirCore yet so we have to call it manually
-            // with 4-element arrays
-            var planeOffsets = new UIntPtr[] { /* U */ 0, /* V */ (UIntPtr)pitch * height, 0, 0 };
-            var pitches = new uint[] { pitch, pitch, 0, 0 };
-            BufferAddVideoMetaFull(buffer.Handle, VideoFrameFlags.None, VideoFormat.Nv12, width, height, 2, planeOffsets, ref pitches[0]);
+            try
+            {
+                // There is no binding for this function in GirCore yet so we have to call it manually
+                // with 4-element arrays
+                var planeOffsets = new UIntPtr[] { /* U */ 0, /* V */ (UIntPtr)pitch * height, 0, 0 };
+                var pitches = new uint[] { pitch, pitch, 0, 0 };
+                BufferAddVideoMetaFull(buffer.Handle, VideoFrameFlags.None, VideoFormat.Nv12, width, height, 2, planeOffsets, ref pitches[0]);
+            }
+            catch(DllNotFoundException)
+            {
+                Logger.Warning("Unable to load shared library for GStreamer");
+            }
         }
 #endif
 
@@ -74,8 +89,16 @@ namespace Antmicro.Renode.Peripherals.Video
                 {
                     return;
                 }
-                Initialize();
-                initialized = true;
+                try
+                {
+                    Initialize();
+                    initialized = true;
+                }
+                catch(DllNotFoundException)
+                {
+                    Logger.Warning("Unable to load shared library for GStreamer");
+                    initialized = false;
+                }
             }
         }
 
