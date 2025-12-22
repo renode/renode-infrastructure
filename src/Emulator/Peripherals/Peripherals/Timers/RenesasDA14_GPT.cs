@@ -368,7 +368,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private const ulong DefaultLowPowerFrequency = 32000;
         private const ulong DivNClockFrequency = 32000000;
-        private const long FreeRunLimit = (1 << 24) - 1;
+        private const ulong FreeRunLimit = (1 << 24) - 1;
 
         private const int DefaultGPIOConnections = 2;
         private const int ExtendedGPIOConnections = 4;
