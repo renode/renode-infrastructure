@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; }
 
-        private void UpdateTimerFrequency(long newSysClkFrequency)
+        private void UpdateTimerFrequency(ulong newSysClkFrequency)
         {
             // Peripheral clock frequency is half of the System clock frequency
             Frequency = newSysClkFrequency / 2;
@@ -114,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         writeCallback: (_, val) =>
                         {
                             prescaler = (prescaler & 0x8) | (uint)val;
-                            Divider = 1 << (int)prescaler;
+                            Divider = 1UL << (int)prescaler;
                         })
                     .WithTaggedFlag("CN.tpol", 6)
                     .WithFlag(7, name: "CN.ten",
@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         writeCallback: (_, val) =>
                         {
                             BitHelper.SetBit(ref prescaler, 3, val);
-                            Divider = 1 << (int)prescaler;
+                            Divider = 1UL << (int)prescaler;
                         })
                     .WithTaggedFlag("CN.pwmsync", 9)
                     .WithTaggedFlag("CN.nolhpol", 10)

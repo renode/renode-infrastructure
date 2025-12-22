@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class EFR32_RTCCCounter
     {
-        public EFR32_RTCCCounter(IMachine machine, long frequency, IPeripheral owner, string localName, int counterWidth = 32, int preCounterWidth = 32, int numberOfCaptureCompareChannels = 3)
+        public EFR32_RTCCCounter(IMachine machine, ulong frequency, IPeripheral owner, string localName, int counterWidth = 32, int preCounterWidth = 32, int numberOfCaptureCompareChannels = 3)
         {
             var counterLimit = (1UL << counterWidth) - 1;
             var preCounterLimit = (1UL << preCounterWidth) - 1;
@@ -90,7 +90,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public int Prescaler
+        public ulong Prescaler
         {
             get => coreTimer.Divider;
             set
@@ -238,7 +238,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public int Divider
+            public ulong Divider
             {
                 set
                 {

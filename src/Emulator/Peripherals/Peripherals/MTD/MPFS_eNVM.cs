@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.MTD
                             /*hvTimer.Enabled - this causes the demo to run extremely slow, as the timers are bumped only
                              *after quantum. This is not that important, as these timers are for delay purposes only*/,
                             name: "Timer_En")
-                    .WithFlag(17, writeCallback: (_, value) => hvTimer.Divider = value ? 100 : 1, valueProviderCallback: _ => hvTimer.Divider == 100, name: "Scale")
+                    .WithFlag(17, writeCallback: (_, value) => hvTimer.Divider = value ? 100UL : 1UL, valueProviderCallback: _ => hvTimer.Divider == 100, name: "Scale")
                     .WithTag("Pe_en", 18, 1)
                     .WithFlag(19, writeCallback: (_, value) => { if(value) DoAclk(); }, name: "Aclk_en")
                     .WithTag("cfg", 24, 6)
@@ -390,7 +390,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly LimitTimer hvTimer;
         private readonly MappedMemory memory;
 
-        private const uint Frequency = 0x83000000;
+        private const ulong Frequency = 0x83000000;
 
         private static readonly Dictionary<Sector, SectorDescription> sectorMappings = new Dictionary<Sector, SectorDescription>
         {

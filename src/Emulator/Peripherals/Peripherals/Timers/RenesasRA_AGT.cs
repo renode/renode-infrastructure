@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class RenesasRA_AGT : IBytePeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, IWordPeripheral, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize
     {
-        public RenesasRA_AGT(IMachine machine, long lowSpeedOnChipOscillatorFrequency, long subClockOscillatorFrequency, long peripheralClockBFrequency)
+        public RenesasRA_AGT(IMachine machine, ulong lowSpeedOnChipOscillatorFrequency, ulong subClockOscillatorFrequency, ulong peripheralClockBFrequency)
         {
             this.lowSpeedOnChipOscillatorFrequency = lowSpeedOnChipOscillatorFrequency;
             this.subClockOscillatorFrequency = subClockOscillatorFrequency;
@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x100;
 
-        public long PeripheralClockBFrequency
+        public ulong PeripheralClockBFrequency
         {
             get => peripheralClockBFrequency;
             set
@@ -202,7 +202,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             break;
                         case CountSource.LowSpeedOnChipOscillator:
                             Frequency = lowSpeedOnChipOscillatorFrequency;
-                            Divider = 1 << (int)divider.Value;
+                            Divider = 1UL << (int)divider.Value;
                             break;
                         case CountSource.UnderflowEventFromAGT:
                             this.Log(LogLevel.Error, "Unimplemented count source selected ({0}). Ignoring write.", countSource.Value);
@@ -210,7 +210,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                             break;
                         case CountSource.SubClockOscillator:
                             Frequency = subClockOscillatorFrequency;
-                            Divider = 1 << (int)divider.Value;
+                            Divider = 1UL << (int)divider.Value;
                             break;
                         default:
                             this.Log(LogLevel.Error, "Illegal count source selected (0x{0:X}). Ignoring write.", countSource.Value);
@@ -230,7 +230,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                         case CountSource.LowSpeedOnChipOscillator:
                         case CountSource.SubClockOscillator:
-                            Divider = 1 << (int)divider.Value;
+                            Divider = 1UL << (int)divider.Value;
                             break;
                         default:
                             return;
@@ -346,7 +346,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private long Frequency
+        private ulong Frequency
         {
             set
             {
@@ -358,7 +358,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private int Divider
+        private ulong Divider
         {
             set
             {
@@ -379,10 +379,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IEnumRegisterField<CountSource> countSource;
         private IValueRegisterField divider;
 
-        private long peripheralClockBFrequency;
+        private ulong peripheralClockBFrequency;
 
-        private readonly long lowSpeedOnChipOscillatorFrequency;
-        private readonly long subClockOscillatorFrequency;
+        private readonly ulong lowSpeedOnChipOscillatorFrequency;
+        private readonly ulong subClockOscillatorFrequency;
 
         private readonly IMachine machine;
         private readonly LimitTimer timer;
@@ -404,7 +404,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class CompareChannel
         {
-            public CompareChannel(IMachine machine, long frequency, IPeripheral parent, string localName)
+            public CompareChannel(IMachine machine, ulong frequency, IPeripheral parent, string localName)
             {
                 this.parent = parent;
                 this.name = localName;
@@ -513,12 +513,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public long Frequency
+            public ulong Frequency
             {
                 set => innerTimer.Frequency = value;
             }
 
-            public int Divider
+            public ulong Divider
             {
                 set => innerTimer.Divider = value;
             }

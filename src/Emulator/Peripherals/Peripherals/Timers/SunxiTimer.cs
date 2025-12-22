@@ -168,7 +168,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 timerInterruptStatus[i] = timerStatusRegister.DefineFlagField(i, FieldMode.WriteOneToClear | FieldMode.Read);
             }
             lowOscillatorControlRegister = new DoubleWordRegister(this, 0x4000);
-            lowOscillatorControlRegister.DefineFlagField(0, changeCallback: (oldValue, newValue) => lowOscillatorFrequency = newValue ? 32768 : 32000);
+            lowOscillatorControlRegister.DefineFlagField(0, changeCallback: (oldValue, newValue) => lowOscillatorFrequency = newValue ? 32768UL : 32000UL);
         }
 
         private void OnTimerLimitReached(int timerId)
@@ -202,7 +202,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private DoubleWordRegister timerIrqEnableRegister, timerStatusRegister, lowOscillatorControlRegister;
-        private long lowOscillatorFrequency;
+        private ulong lowOscillatorFrequency;
 
         private readonly SunxiTimerUnit[] timers;
         private readonly IFlagRegisterField[] timerInterruptEnabled, timerInterruptStatus;
@@ -216,7 +216,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 timerGroup = parent;
                 controlRegister = new DoubleWordRegister(this, 0x04);
                 controlRegister.DefineFlagField(7, changeCallback: (oldValue, newValue) => Mode = newValue ? WorkMode.OneShot : WorkMode.Periodic);
-                controlRegister.DefineValueField(4, 3, changeCallback: (oldValue, newValue) => Divider = 1 << (int)newValue);
+                controlRegister.DefineValueField(4, 3, changeCallback: (oldValue, newValue) => Divider = 1UL << (int)newValue);
                 controlRegister.DefineFlagField(1, FieldMode.WriteOneToClear, writeCallback: (oldValue, newValue) => Value = Limit);
                 controlRegister.DefineFlagField(0, changeCallback: (oldValue, newValue) => Enabled = newValue);
                 controlRegister.DefineEnumField<ClockSource>(2, 2, changeCallback: OnClockSourceChange);

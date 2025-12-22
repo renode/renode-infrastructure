@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -184,9 +184,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         foreach(var timer in innerTimers)
                         {
-                            timer.Divider = (uint)(value + 1u);
+                            timer.Divider = value + 1;
                         }
-                        tickTimer.Divider = (int)(value + 1);
+                        tickTimer.Divider = value + 1;
                     })
                     .WithReservedBits(12, 20)
                 },
@@ -274,7 +274,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly ComparingTimer[] innerTimers;
 
         private readonly int numberOfEvents;
-        private const int InitialFrequency = 32768;
+        private const ulong InitialFrequency = 32768;
         private const int MaxNumberOfEvents = 4;
 
         private enum Register : long

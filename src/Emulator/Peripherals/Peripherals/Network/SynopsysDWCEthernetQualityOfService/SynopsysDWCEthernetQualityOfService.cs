@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public partial class SynopsysDWCEthernetQualityOfService : NetworkWithPHY, IMACInterface, IKnownSize
     {
-        public SynopsysDWCEthernetQualityOfService(IMachine machine, long systemClockFrequency, IPeripheral cpuContext = null, BusWidth? dmaBusWidth = null, long? ptpClockFrequency = null,
+        public SynopsysDWCEthernetQualityOfService(IMachine machine, ulong systemClockFrequency, IPeripheral cpuContext = null, BusWidth? dmaBusWidth = null, ulong? ptpClockFrequency = null,
             int rxQueueSize = 8192, int txQueueSize = 8192, int dmaChannelCount = 1) : base(machine)
         {
             if(dmaBusWidth.HasValue)
@@ -400,7 +400,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         private void ConfigureTimestampTimer()
         {
-            long effectiveFrequency;
+            ulong effectiveFrequency;
             // Check for values that would cause an invalid operation, either:
             // * Timer frequency equal to 0Hz
             // * Division by 0
@@ -408,11 +408,11 @@ namespace Antmicro.Renode.Peripherals.Network
             {
                 // Subsecond increment (SSINC) controls by what value the timestamp timer is incremented each clock cycle.
                 // This is implemented by multiplying the frequency of Renode's timer by SSINC.
-                var subsecondTicksPerSecond = ptpClockFrequency * (long)timestampSubsecondIncrement.Value;
+                var subsecondTicksPerSecond = ptpClockFrequency * timestampSubsecondIncrement.Value;
                 // In the fine update method subsecond timer is incremented when a 32-bit accumulator overflows while the timestamp addend (TSAR)
                 // is added to the accumulator. This creates a frequency divider so it is implemented in this way.
                 var timeBetweenTimeSyncs = fineOrCoarseTimestampUpdate.Value ? (1L << 32) / (double)timestampAddend.Value : 1;
-                effectiveFrequency = (long)Math.Round(subsecondTicksPerSecond / timeBetweenTimeSyncs);
+                effectiveFrequency = (ulong)Math.Round(subsecondTicksPerSecond / timeBetweenTimeSyncs);
             }
             else
             {
@@ -459,10 +459,10 @@ namespace Antmicro.Renode.Peripherals.Network
         private PhyInterface activePhyValue;
         private uint timestampSecondTimer;
         private readonly LimitTimer timestampSubsecondTimer;
-        private readonly long ptpClockFrequency;
+        private readonly ulong ptpClockFrequency;
 
         private const ulong CounterMaxValue = UInt32.MaxValue;
-        private const int RxWatchdogDivider = 256;
+        private const uint RxWatchdogDivider = 256;
         private const uint EtherTypeMinimalValue = 0x600;
         private const ulong DigitalSubsecondRollover = 0x3B9AC9FFUL;
         private const ulong BinarySubsecondRollover = 0x7FFFFFFFUL;

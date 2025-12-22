@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             };
         }
 
-        public long SysClk
+        public ulong SysClk
         {
             get
             {
@@ -35,7 +35,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public long Size => 0x400;
 
-        public Action<long> SysClkChanged;
+        public Action<ulong> SysClkChanged;
 
         private void DefineRegisters()
         {
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IValueRegisterField sysclkSelect;
 
         // Frequencies of oscillators (in Hz)
-        private readonly List<long> oscillators = new List<long>
+        private readonly List<ulong> oscillators = new List<ulong>
         {
             50000000,
             0, // Reserved

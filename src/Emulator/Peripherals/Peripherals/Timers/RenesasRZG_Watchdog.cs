@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class RenesasRZG_Watchdog : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public RenesasRZG_Watchdog(IMachine machine, long clockFrequency)
+        public RenesasRZG_Watchdog(IMachine machine, ulong clockFrequency)
         {
             this.machine = machine;
 

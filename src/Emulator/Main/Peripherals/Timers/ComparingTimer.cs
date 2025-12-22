@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class ComparingTimer : ITimer, IPeripheral
     {
-        public ComparingTimer(IClockSource clockSource, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1, uint step = 1)
+        public ComparingTimer(IClockSource clockSource, ulong frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, ulong divider = 1, ulong step = 1)
         {
             if(compare > limit)
             {
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public bool EventEnabled { get; set; }
 
-        public long Frequency
+        public ulong Frequency
         {
             get
             {
@@ -147,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public uint Divider
+        public ulong Divider
         {
             get
             {
@@ -171,7 +171,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public uint Step
+        public ulong Step
         {
             get
             {
@@ -193,7 +193,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public event Action CompareReached;
 
-        protected ComparingTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, uint divider = 1, uint step = 1)
+        protected ComparingTimer(IClockSource clockSource, ulong frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Ascending, bool enabled = false, WorkMode workMode = WorkMode.OneShot, bool eventEnabled = false, ulong compare = ulong.MaxValue, ulong divider = 1, ulong step = 1)
             : this(clockSource, frequency, null, null, limit, direction, enabled, workMode, eventEnabled, compare, divider, step)
         {
         }
@@ -266,14 +266,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private ulong valueAccumulatedSoFar;
         private ulong compareValue;
-        private uint divider;
-        private long frequency;
-        private uint step;
+        private ulong divider;
+        private ulong frequency;
+        private ulong step;
 
-        private readonly uint initialStep;
-        private readonly uint initialDivider;
+        private readonly ulong initialStep;
+        private readonly ulong initialDivider;
         private readonly Direction initialDirection;
-        private readonly long initialFrequency;
+        private readonly ulong initialFrequency;
         private readonly IClockSource clockSource;
         private readonly ulong initialLimit;
         private readonly WorkMode initialWorkMode;

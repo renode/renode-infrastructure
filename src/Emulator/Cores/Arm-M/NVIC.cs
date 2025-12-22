@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class NVIC : IDoubleWordPeripheral, IHasDivisibleFrequency, IKnownSize, IIRQController
     {
-        public NVIC(IMachine machine, long systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, bool haltSystickOnDeepSleep = true)
+        public NVIC(IMachine machine, ulong systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, bool haltSystickOnDeepSleep = true)
         {
             priorities = new ExceptionSimpleArray<byte>();
             activeIRQs = new Stack<int>();
@@ -619,7 +619,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public bool PauseInsteadOfReset { get; set; }
 
-        public long Frequency
+        public ulong Frequency
         {
             get => systick.Get(IsCurrentCPUInSecureState(out var _)).Frequency;
             set
@@ -628,7 +628,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public int Divider
+        public ulong Divider
         {
             get => systick.Get(IsCurrentCPUInSecureState(out var _)).Divider;
             set
@@ -1814,7 +1814,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private class SysTick
         {
-            public SysTick(IMachine machine, NVIC parent, long systickFrequency, bool isSecure = false)
+            public SysTick(IMachine machine, NVIC parent, ulong systickFrequency, bool isSecure = false)
             {
                 IsSecure = isSecure;
                 this.parent = parent;
@@ -1906,7 +1906,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             }
 
-            public long Frequency
+            public ulong Frequency
             {
                 get => systick.Frequency;
                 set
@@ -1915,7 +1915,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             }
 
-            public int Divider
+            public ulong Divider
             {
                 get => systick.Divider;
                 set

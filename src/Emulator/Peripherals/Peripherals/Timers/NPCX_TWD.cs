@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 this.Log(LogLevel.Warning, "Prescaler ratio should be in range <0,10>!");
                                 return;
                             }
-                            timerAndWatchdogPrescaler = (1 << (int)val);
+                            timerAndWatchdogPrescaler = (1UL << (int)val);
                             periodicInterruptTimer.Divider = timerAndWatchdogPrescaler;
                         },
                         valueProviderCallback: _ =>
@@ -258,7 +258,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 this.Log(LogLevel.Warning, "Prescaler ratio should be in range <0,15>!");
                                 return;
                             }
-                            watchdogPrescaler = (1 << (int)val);
+                            watchdogPrescaler = (1UL << (int)val);
 
                             if(isCounterClockSource.Value)
                             {
@@ -330,8 +330,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IFlagRegisterField watchdogResetStatus;
         private IFlagRegisterField isCounterClockSource;
         private StopUnlockSequence byteInSequence;
-        private int timerAndWatchdogPrescaler;
-        private int watchdogPrescaler;
+        private ulong timerAndWatchdogPrescaler;
+        private ulong watchdogPrescaler;
         private bool terminalCountReached;
         private byte watchdogCounterPresetValue;
 
@@ -340,8 +340,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly LimitTimer watchdogCounter;
         private readonly Watchdog watchdog;
 
-        private const int DefaultFrequency = 32768;
-        private const int DefaultDivider = 1;
+        private const ulong DefaultFrequency = 32768;
+        private const ulong DefaultDivider = 1;
         private const int WatchdogCounterDefaultValue = 0xF;
         private const int TouchValue = 0x5C;
 
@@ -395,7 +395,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 get; set;
             }
 
-            public int Divider
+            public ulong Divider
             {
                 get; set;
             }
@@ -406,7 +406,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 internalDivider = Divider;
             }
 
-            private int internalDivider;
+            private ulong internalDivider;
 
             private readonly NPCX_TWD parent;
 

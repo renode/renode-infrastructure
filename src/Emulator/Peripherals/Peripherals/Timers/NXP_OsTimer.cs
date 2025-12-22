@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class NXP_OsTimer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public NXP_OsTimer(IMachine machine, long frequency) : base(machine)
+        public NXP_OsTimer(IMachine machine, ulong frequency) : base(machine)
         {
             innerTimer = new ComparingTimer(machine.ClockSource, frequency, this, nameof(innerTimer), workMode: WorkMode.Periodic, eventEnabled: true, direction: Direction.Ascending, enabled: true);
             innerTimer.CompareReached += () =>

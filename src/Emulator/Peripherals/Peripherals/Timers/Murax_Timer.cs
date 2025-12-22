@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class Murax_Timer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public Murax_Timer(IMachine machine, long frequency = 12000000) : base(machine)
+        public Murax_Timer(IMachine machine, ulong frequency = 12000000) : base(machine)
         {
             DefineRegisters();
             for(var i = 0; i < NumberOfTimers; i++)
@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void UpdatePrescaler(int timerIdx)
         {
             // the effective prescaler's value is one higher than the value written to the register
-            innerTimers[timerIdx].Divider = (enableMode[timerIdx].Value == EnableMode.Prescaler) ? (int)(prescaler.Value + 1) : 1;
+            innerTimers[timerIdx].Divider = (enableMode[timerIdx].Value == EnableMode.Prescaler) ? (prescaler.Value + 1) : 1;
         }
 
         private IValueRegisterField prescaler;

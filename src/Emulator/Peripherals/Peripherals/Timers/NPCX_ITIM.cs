@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.DoubleWordToByte)]
     public class NPCX_ITIM : BasicDoubleWordPeripheral, IKnownSize
     {
-        public NPCX_ITIM(IMachine machine, long lfclkFrequency = DefaultLFCLKFrequency, long apb2Frequency = DefaultAPB2Frequency, bool is64Bit = false) : base(machine)
+        public NPCX_ITIM(IMachine machine, ulong lfclkFrequency = DefaultLFCLKFrequency, ulong apb2Frequency = DefaultAPB2Frequency, bool is64Bit = false) : base(machine)
         {
             this.lfclkFrequency = lfclkFrequency;
             this.apb2Frequency = apb2Frequency;
@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.Prescaler.Define(this)
                 .WithReservedBits(0, 8)
                 .WithValueField(8, 8, name: "PRE_8 (Prescaler Value)",
-                    changeCallback: (_, value) => timer.Divider = (int)value + 1)
+                    changeCallback: (_, value) => timer.Divider = value + 1)
                 .WithReservedBits(16, 16);
 
             Registers.ControlAndStatus.Define(this)
@@ -126,11 +126,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint timerLimitHigh;
 
         private readonly LimitTimer timer;
-        private readonly long lfclkFrequency;
-        private readonly long apb2Frequency;
+        private readonly ulong lfclkFrequency;
+        private readonly ulong apb2Frequency;
 
-        private const long DefaultLFCLKFrequency = 32768;
-        private const long DefaultAPB2Frequency = 10000000;
+        private const ulong DefaultLFCLKFrequency = 32768;
+        private const ulong DefaultAPB2Frequency = 10000000;
 
         private enum Registers
         {

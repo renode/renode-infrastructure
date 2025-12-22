@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class PulseGenerator : IPeripheral, INumberedGPIOOutput
     {
-        public PulseGenerator(IMachine machine, long frequency, ulong onTicks, ulong offTicks, bool startState = false)
+        public PulseGenerator(IMachine machine, ulong frequency, ulong onTicks, ulong offTicks, bool startState = false)
         {
             this.startState = startState;
             this.onTicks = onTicks;
@@ -47,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             set { timer.Enabled = value; }
         }
 
-        public long Frequency
+        public ulong Frequency
         {
             get { return timer.Frequency; }
             set { timer.Frequency = value; }

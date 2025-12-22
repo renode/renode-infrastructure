@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,7 +11,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     public class S32K3XX_GMAC : SynopsysDWCEthernetQualityOfService
     {
-        public S32K3XX_GMAC(IMachine machine, long systemClockFrequency, ICPU cpuContext = null)
+        public S32K3XX_GMAC(IMachine machine, ulong systemClockFrequency, ICPU cpuContext = null)
             : base(machine, systemClockFrequency, cpuContext, BusWidth.Bits64, rxQueueSize: DMAQueueSize, txQueueSize: DMAQueueSize, dmaChannelCount: 3)
         {
             IPVersion = 0x52;

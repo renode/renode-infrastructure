@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     // Variables for lambda capture
                     var local_j = j;
                     var local_i = i;
-                    timers[i, j] = new LimitTimer(machine.ClockSource, (long)clockFrequency, this, $"Channel {i} timer {j}", limit: 1, eventEnabled: true);
+                    timers[i, j] = new LimitTimer(machine.ClockSource, clockFrequency, this, $"Channel {i} timer {j}", limit: 1, eventEnabled: true);
                     timers[i, j].LimitReached += delegate
                     {
                         this.DebugLog("{0} fired", timers[local_i, local_j].LocalName);
@@ -73,7 +73,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; }
 
-        public long Frequency
+        public ulong Frequency
         {
             // All timers should always have the same frequency
             get => timers[0, 0].Frequency;

@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class AndesATCWDT200_Watchdog : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IHasFrequency
     {
-        public AndesATCWDT200_Watchdog(IMachine machine, long clockFrequency)
+        public AndesATCWDT200_Watchdog(IMachine machine, ulong clockFrequency)
         {
             this.machine = machine;
 
@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
-        public long Frequency
+        public ulong Frequency
         {
             get => interruptTimer.Frequency; // Both timers have the same frequency
             set

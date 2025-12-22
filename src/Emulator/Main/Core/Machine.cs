@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -157,8 +157,8 @@ namespace Antmicro.Renode.Core
                 x => x.Period.ToString(),
                 x => x.Value.ToString(),
                 x => x.Step.ToString(),
-                x => x.Period == 0 ? "---" : Misc.NormalizeDecimal((ulong)(x.Frequency * x.Step) / (double)x.Period) + "Hz",
-                x => (x.Frequency == 0 || x.Period == 0) ? "---" : Misc.NormalizeDecimal((ulong)x.Period / (x.Frequency * (double)x.Step)) + "s"
+                x => x.Period == 0 ? "---" : Misc.NormalizeDecimal((x.Frequency * x.Step) / (double)x.Period) + "Hz",
+                x => (x.Frequency == 0 || x.Period == 0) ? "---" : Misc.NormalizeDecimal(x.Period / (x.Frequency * (double)x.Step)) + "s"
             );
             return table.ToArray();
         }

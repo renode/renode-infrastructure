@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -389,7 +389,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private class DurationTimer : LimitTimer
         {
-            public DurationTimer(IClockSource clockSource, long frequency, IPeripheral owner, string name)
+            public DurationTimer(IClockSource clockSource, ulong frequency, IPeripheral owner, string name)
                 : base(clockSource, frequency, owner, name, limit: uint.MaxValue, direction: Direction.Ascending,
                        workMode: WorkMode.OneShot, enabled: false, eventEnabled: true, autoUpdate: true)
             {

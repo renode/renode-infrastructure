@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class S32K3XX_FlexIO_SENT : NullRegistrationPointPeripheralContainer<ISENTPeripheral>, IEndpoint
     {
-        public S32K3XX_FlexIO_SENT(IMachine machine, uint timerId, long? frequency = null)
+        public S32K3XX_FlexIO_SENT(IMachine machine, uint timerId, ulong? frequency = null)
             : base(machine)
         {
             this.timerId = timerId;
@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             sysbus = flexIO.GetMachine().GetSystemBus(flexIO);
-            innerTimer = new LimitTimer(Machine.ClockSource, frequency ?? flexIO.Frequency, this, $"SENT Timer{timerId}", TimerLimit, divider: (int)timer.Divider);
+            innerTimer = new LimitTimer(Machine.ClockSource, frequency ?? flexIO.Frequency, this, $"SENT Timer{timerId}", TimerLimit, divider: timer.Divider);
             timer.ConfigurationChanged += ConfigureTimer;
             timer.ControlChanged += ConfigureTimer;
         }
@@ -84,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 timer.Disable == TimerDisable.OnTriggerFallingEdge &&
                 timer.Mode == TimerMode.SingleInputCapture;
 
-            innerTimer.Divider = (int)timer.Divider;
+            innerTimer.Divider = timer.Divider;
             innerTimer.Frequency = frequency ?? flexIO.Frequency;
             innerTimer.Enabled = enableSENT;
 
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IBusController sysbus;
 
         private readonly uint timerId;
-        private readonly long? frequency;
+        private readonly ulong? frequency;
 
         private const ulong TimerLimit = (1 << 16) - 1;
     }

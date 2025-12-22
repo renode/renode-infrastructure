@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class RenesasRZG_GPT : IDoubleWordPeripheral, INumberedGPIOOutput, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public RenesasRZG_GPT(IMachine machine, int numberOf32BitChannels, long peripheralClockDFrequency)
+        public RenesasRZG_GPT(IMachine machine, int numberOf32BitChannels, ulong peripheralClockDFrequency)
         {
             this.peripheralClockDFrequency = peripheralClockDFrequency;
             this.machine = machine;
@@ -387,7 +387,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private readonly IMachine machine;
         private readonly int numberOf32BitChannels;
-        private readonly long peripheralClockDFrequency;
+        private readonly ulong peripheralClockDFrequency;
         private readonly GPTChannel[] channels;
 
         public enum Mode

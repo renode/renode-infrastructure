@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class EFR32_Timer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EFR32_Timer(IMachine machine, long frequency, TimerWidth width) : base(machine)
+        public EFR32_Timer(IMachine machine, ulong frequency, TimerWidth width) : base(machine)
         {
             IRQ = new GPIO();
             this.width = width;
@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     if(value <= 10)
                     {
-                        innerTimer.Divider = 2 << (int)value;
+                        innerTimer.Divider = 2UL << (int)value;
                     }
                     else
                     {

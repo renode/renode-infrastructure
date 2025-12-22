@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class RenesasDA14_GPT : BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver
     {
-        public RenesasDA14_GPT(IMachine machine, long lowPowerFrequency = DefaultLowPowerFrequency,
+        public RenesasDA14_GPT(IMachine machine, ulong lowPowerFrequency = DefaultLowPowerFrequency,
             bool extendedTimer = false) : base(machine)
         {
             this.lowPowerFrequency = lowPowerFrequency;
@@ -191,7 +191,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     })
                 .WithValueField(24, 5, name: "TIM_PRESCALER",
                     valueProviderCallback: _ => (ulong)timer.Divider - 1,
-                    writeCallback: (_, value) => timer.Divider = (int)value + 1)
+                    writeCallback: (_, value) => timer.Divider = value + 1)
                 .WithReservedBits(29, 3);
 
             Registers.ShotDuration.Define(this)
@@ -363,11 +363,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly LimitTimer timer;
         private readonly GPIOConnection[] connections;
 
-        private readonly long lowPowerFrequency;
+        private readonly ulong lowPowerFrequency;
         private readonly bool extendedTimer;
 
-        private const long DefaultLowPowerFrequency = 32000;
-        private const long DivNClockFrequency = 32000000;
+        private const ulong DefaultLowPowerFrequency = 32000;
+        private const ulong DivNClockFrequency = 32000000;
         private const long FreeRunLimit = (1 << 24) - 1;
 
         private const int DefaultGPIOConnections = 2;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class OpenTitan_AonTimer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_AonTimer(IMachine machine, OpenTitan_PowerManager powerManager, OpenTitan_ResetManager resetManager, long frequency = 200000) : base(machine)
+        public OpenTitan_AonTimer(IMachine machine, OpenTitan_PowerManager powerManager, OpenTitan_ResetManager resetManager, ulong frequency = 200000) : base(machine)
         {
             this.powerManager = powerManager;
             this.resetManager = resetManager;

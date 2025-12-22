@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class SAM_TC : BasicDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize
     {
-        public SAM_TC(IMachine machine, long masterClockFrequency = 20000000) : base(machine)
+        public SAM_TC(IMachine machine, ulong masterClockFrequency = 20000000) : base(machine)
         {
             var connections = new Dictionary<int, IGPIO>();
             channels = new Channel[NumberOfChannels];
@@ -323,7 +323,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class Channel
         {
-            public Channel(IClockSource clockSource, long masterClockFrequency, IPeripheral owner, int channel)
+            public Channel(IClockSource clockSource, ulong masterClockFrequency, IPeripheral owner, int channel)
             {
                 this.masterClockFrequency = masterClockFrequency;
                 this.channel = channel;
@@ -712,7 +712,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             private WaveSelection waveformSelected;
 
             private ClockSelection clockSelected;
-            private readonly long masterClockFrequency;
+            private readonly ulong masterClockFrequency;
             private readonly int channel;
             private readonly IPeripheral parent;
             private readonly LimitTimer timer;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.WordToByte)]
     public class SAMD21_Timer : IBytePeripheral, IDoubleWordPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, IKnownSize
     {
-        public SAMD21_Timer(IMachine machine, long baseFrequency)
+        public SAMD21_Timer(IMachine machine, ulong baseFrequency)
         {
             RegistersCollection = new ByteRegisterCollection(this);
 
@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public int Divider
+        public ulong Divider
         {
             get => mainTimer.Divider;
             set
@@ -336,7 +336,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
         }
 
-        private int GetPrescalerValue(Prescaler prescaler)
+        private ulong GetPrescalerValue(Prescaler prescaler)
         {
             switch(prescaler)
             {

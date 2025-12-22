@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class EFR32_RTCC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EFR32_RTCC(IMachine machine, long frequency) : base(machine)
+        public EFR32_RTCC(IMachine machine, ulong frequency) : base(machine)
         {
             IRQ = new GPIO();
 
@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithTaggedFlag("CCV1TOP", 5)
                 .WithReservedBits(6, 2)
                 .WithValueField(8, 4,
-                    writeCallback: (_, value) => innerTimer.Prescaler = (int)Math.Pow(2, value),
+                    writeCallback: (_, value) => innerTimer.Prescaler = (ulong)Math.Pow(2, value),
                     valueProviderCallback: _ => (uint)Math.Log(innerTimer.Prescaler, 2),
                     name: "CNTPRESC")
                 .WithTaggedFlag("CNTTICK", 12)

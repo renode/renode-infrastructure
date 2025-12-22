@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
             };
 
-            lapicTimer = new LimitTimer(machine.ClockSource, (long)lapicTimerFrequency, this, nameof(lapicTimer), direction: Direction.Descending, workMode: WorkMode.OneShot, eventEnabled: true, divider: 2);
+            lapicTimer = new LimitTimer(machine.ClockSource, lapicTimerFrequency, this, nameof(lapicTimer), direction: Direction.Descending, workMode: WorkMode.OneShot, eventEnabled: true, divider: 2);
             lapicTimer.LimitReached += limitReachedHandler;
 
             // timer used only in TSC Deadline mode, 1000000 is a placeholder and correct frequency (based on mips) is set every time the deadline value is set

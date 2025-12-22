@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class LimitTimer : ITimer, IPeripheral
     {
-        public LimitTimer(IClockSource clockSource, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false, WorkMode workMode = WorkMode.Periodic, bool eventEnabled = false, bool autoUpdate = false, int divider = 1)
+        public LimitTimer(IClockSource clockSource, ulong frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false, WorkMode workMode = WorkMode.Periodic, bool eventEnabled = false, bool autoUpdate = false, ulong divider = 1)
         {
             if(limit <= 0)
             {
@@ -190,7 +190,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public int Divider
+        public ulong Divider
         {
             get
             {
@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public long Frequency
+        public ulong Frequency
         {
             get
             {
@@ -288,7 +288,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public event Action LimitReached;
 
-        protected LimitTimer(IClockSource clockSource, long frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false, WorkMode workMode = WorkMode.Periodic, bool eventEnabled = false, bool autoUpdate = false, int divider = 1)
+        protected LimitTimer(IClockSource clockSource, ulong frequency, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false, WorkMode workMode = WorkMode.Periodic, bool eventEnabled = false, bool autoUpdate = false, ulong divider = 1)
             : this(clockSource, frequency, null, null, limit, direction, enabled, workMode, eventEnabled, autoUpdate, divider)
         {
         }
@@ -341,13 +341,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private long frequency;
+        private ulong frequency;
 
         private bool eventEnabled;
         private bool rawInterrupt;
-        private int divider;
+        private ulong divider;
 
-        private readonly long initialFrequency;
+        private readonly ulong initialFrequency;
         private readonly WorkMode initialWorkMode;
         private readonly ulong initialLimit;
         private readonly Direction initialDirection;
@@ -356,7 +356,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly object irqSync;
         private readonly bool initialEventEnabled;
         private readonly bool initialAutoUpdate;
-        private readonly int initialDivider;
+        private readonly ulong initialDivider;
         private readonly IPeripheral owner;
         private readonly string localName;
     }

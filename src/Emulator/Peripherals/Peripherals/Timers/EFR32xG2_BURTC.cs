@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class EFR32xG2_BURTC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EFR32xG2_BURTC(Machine machine, long frequency = 32768) : base(machine)
+        public EFR32xG2_BURTC(Machine machine, ulong frequency = 32768) : base(machine)
         {
             IRQ = new GPIO();
             interruptManager = new InterruptManager<Interrupt>(this);

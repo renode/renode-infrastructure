@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class ARM_GlobalTimer : BasicDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize
     {
-        public ARM_GlobalTimer(IMachine machine, long frequency, IARMCPUsConnectionsProvider irqController)
+        public ARM_GlobalTimer(IMachine machine, ulong frequency, IARMCPUsConnectionsProvider irqController)
             : base(machine)
         {
             BuildRegisters();
@@ -248,17 +248,17 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private ulong Prescaler
         {
-            get => (ulong)globalTimer.Divider;
+            get => globalTimer.Divider;
             set
             {
-                if((ulong)globalTimer.Divider == value + 1)
+                if(globalTimer.Divider == value + 1)
                 {
                     return;
                 }
-                globalTimer.Divider = (int)value + 1;
+                globalTimer.Divider = value + 1;
                 foreach(var cmp in comparators.Values)
                 {
-                    cmp.Divider = (uint)value + 1;
+                    cmp.Divider = value + 1;
                 }
             }
         }
@@ -288,7 +288,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 innerTimer = new ComparingTimer(clockSource, coreTimer.Frequency, owner, $"compareTimer-{coreName}", direction: Direction.Ascending, compare: 0, workMode: WorkMode.Periodic);
                 innerTimer.Value = coreTimer.Value;
                 innerTimer.Enabled = coreTimer.Enabled;
-                innerTimer.Divider = (uint)coreTimer.Divider;
+                innerTimer.Divider = coreTimer.Divider;
                 innerTimer.CompareReached += HandleCompareEvent;
                 IRQ = new GPIO();
             }
@@ -384,7 +384,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public uint Divider
+            public ulong Divider
             {
                 set => innerTimer.Divider = value;
             }

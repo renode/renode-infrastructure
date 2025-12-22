@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord)]
     public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRiscVTimeProvider
     {
-        public CoreLevelInterruptor(IMachine machine, long frequency, int numberOfTargets = 1, uint divider = 1)
+        public CoreLevelInterruptor(IMachine machine, ulong frequency, int numberOfTargets = 1, ulong divider = 1)
         {
             this.machine = machine;
             this.timerFrequency = frequency;
@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         var timerValue = TimerValue;
                         timerValue &= 0xffffffffUL;
-                        timerValue |= (ulong)value << 32;
+                        timerValue |= value << 32;
                         foreach(var timer in mTimers)
                         {
                             timer.Value = timerValue;
@@ -92,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     var limit = mTimers[hartId].Compare;
                     limit &= 0xffffffffUL;
-                    limit |= (ulong)value << 32;
+                    limit |= value << 32;
 
                     irqs[2 * hartId + 1].Set(false);
                     mTimers[hartId].Compare = limit;
@@ -156,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly DoubleWordRegisterCollection registers;
         private readonly Dictionary<int, IGPIO> irqs = new Dictionary<int, IGPIO>();
         private readonly List<ComparingTimer> mTimers = new List<ComparingTimer>();
-        private readonly long timerFrequency;
+        private readonly ulong timerFrequency;
         private readonly IMachine machine;
 
         private enum Registers : long

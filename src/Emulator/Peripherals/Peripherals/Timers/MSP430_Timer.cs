@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MSP430_Timer : BasicWordPeripheral
     {
-        public MSP430_Timer(IMachine machine, MSP430X cpu, int acknowledgeInterrupt, long baseFrequency = 32768, int captureCompareCount = 7) : base(machine)
+        public MSP430_Timer(IMachine machine, MSP430X cpu, int acknowledgeInterrupt, ulong baseFrequency = 32768, int captureCompareCount = 7) : base(machine)
         {
             if(captureCompareCount <= 0 || captureCompareCount > 7)
             {
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void UpdateDivider()
         {
-            Divider = (1 << (int)clockDivider.Value) * ((int)clockDividerExtended.Value + 1);
+            Divider = (1UL << (int)clockDivider.Value) * (clockDividerExtended.Value + 1);
         }
 
         private void UpdateMode()
@@ -310,7 +310,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private long Frequency
+        private ulong Frequency
         {
             get => mainTimer.Frequency;
             set
@@ -323,7 +323,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private int Divider
+        private ulong Divider
         {
             get => mainTimer.Divider;
             set

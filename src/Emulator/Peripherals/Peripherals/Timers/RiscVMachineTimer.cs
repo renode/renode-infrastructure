@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.DoubleWordToQuadWord)]
     public class RiscVMachineTimer : IQuadWordPeripheral, IKnownSize, IHasFrequency
     {
-        public RiscVMachineTimer(IMachine machine, long frequency)
+        public RiscVMachineTimer(IMachine machine, ulong frequency)
         {
             mTimer = new ComparingTimer(machine.ClockSource, frequency, this, nameof(mTimer), direction: Time.Direction.Ascending, workMode: Time.WorkMode.Periodic, eventEnabled: true, enabled: true);
             mTimer.CompareReached += () =>
@@ -65,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x10;
 
-        public long Frequency
+        public ulong Frequency
         {
             get => mTimer.Frequency;
             set => mTimer.Frequency = value;

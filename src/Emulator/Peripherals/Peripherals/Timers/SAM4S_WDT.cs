@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class SAM4S_WDT : LimitTimer, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public SAM4S_WDT(IMachine machine, SAM4S_RSTC resetController, long slowClockFrequency = 32768)
+        public SAM4S_WDT(IMachine machine, SAM4S_RSTC resetController, ulong slowClockFrequency = 32768)
             : base(machine.ClockSource, slowClockFrequency, enabled: false, divider: 128, limit: MaximumWatchdogValue, workMode: WorkMode.Periodic, autoUpdate: true, eventEnabled: true)
         {
             if(resetController == null)

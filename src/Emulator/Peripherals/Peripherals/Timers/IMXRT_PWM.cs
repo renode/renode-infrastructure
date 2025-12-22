@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class IMXRT_PWM : BasicWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
-        public IMXRT_PWM(IMachine machine, long frequency = 10000000) : base(machine)
+        public IMXRT_PWM(IMachine machine, ulong frequency = 10000000) : base(machine)
         {
             halfCycleTimer = new ComparingTimer(machine.ClockSource, frequency, this, "halfCycleTimer", compare: ushort.MaxValue, limit: ushort.MaxValue, workMode: WorkMode.Periodic, enabled: false, eventEnabled: true);
             fullCycleTimer = new ComparingTimer(machine.ClockSource, frequency, this, "fullCycleTimer", compare: ushort.MaxValue, limit: ushort.MaxValue, workMode: WorkMode.Periodic, enabled: false, eventEnabled: true);

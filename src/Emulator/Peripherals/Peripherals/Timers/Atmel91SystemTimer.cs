@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -115,7 +115,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     break;
 
                 case Register.RealTimeModeRegister:
-                    RealTimeTimer.Divider = (int)value;
+                    RealTimeTimer.Divider = value;
                     break;
 
                 default:
@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class AT91_InterruptibleTimer
         {
-            public AT91_InterruptibleTimer(IMachine machine, long frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false)
+            public AT91_InterruptibleTimer(IMachine machine, ulong frequency, IPeripheral owner, string localName, ulong limit = ulong.MaxValue, Direction direction = Direction.Descending, bool enabled = false)
             {
                 timer = new LimitTimer(machine.ClockSource, frequency, owner, localName, limit, direction, enabled);
                 timer.LimitReached += () => { if(OnUpdate != null) OnUpdate(); };
@@ -268,7 +268,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public int Divider
+            public ulong Divider
             {
                 get { return timer.Divider; }
                 set { timer.Divider = value; }

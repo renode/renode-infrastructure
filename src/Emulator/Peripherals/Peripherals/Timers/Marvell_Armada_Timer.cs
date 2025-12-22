@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class Marvell_Armada_Timer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public Marvell_Armada_Timer(IMachine machine, long frequency) : base(machine.ClockSource, frequency, direction: Direction.Descending, limit: uint.MaxValue, enabled: true)
+        public Marvell_Armada_Timer(IMachine machine, ulong frequency) : base(machine.ClockSource, frequency, direction: Direction.Descending, limit: uint.MaxValue, enabled: true)
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {

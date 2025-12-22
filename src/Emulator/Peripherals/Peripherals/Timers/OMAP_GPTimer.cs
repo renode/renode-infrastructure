@@ -57,11 +57,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 if((value & (1 << 5)) > 0)
                 {
-                    Divider = (int)Math.Pow(2, (((value >> 2) & 7) + 1));
+                    Divider = (ulong)Math.Pow(2, (((value >> 2) & 7) + 1));
                 }
                 else
                 {
-                    Divider = (int)Math.Pow(2, 0);
+                    Divider = (ulong)Math.Pow(2, 0);
                 }
                 Enabled = ((value & 1) > 0);
             }

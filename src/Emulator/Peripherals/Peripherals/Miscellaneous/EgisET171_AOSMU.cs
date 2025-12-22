@@ -51,11 +51,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public ulong ResetVector => resetVector.Value;
 
-        public long RootClockFrequency
+        public ulong RootClockFrequency
         {
             get
             {
-                long frequency;
+                ulong frequency;
                 switch(rootClock.Value)
                 {
                 // Base values taken from egis hal, https://github.com/EgisMCU/hal_egis/blob/545f4b8044cb7df0952692a0db22069fef7a7a0c/et171/src/et171_hal_smu.c#L17
@@ -73,7 +73,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        public long APBClockFrequency
+        public ulong APBClockFrequency
         {
             get
             {

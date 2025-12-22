@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class ZynqMP_RTC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public ZynqMP_RTC(IMachine machine, long frequency = 32767) : base(machine)
+        public ZynqMP_RTC(IMachine machine, ulong frequency = 32767) : base(machine)
         {
             DefineRegisters();
             SecondIRQ = new GPIO();
@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             // to simplify the implementation.
             // We also set limit == frequency to have the event at 1 Hz by default.
             var fractionalTicks = frequency * FractionalTicksPerTick;
-            ticker = new LimitTimer(machine.ClockSource, fractionalTicks, this, nameof(ticker), (ulong)fractionalTicks, Direction.Ascending, enabled: true, eventEnabled: true);
+            ticker = new LimitTimer(machine.ClockSource, fractionalTicks, this, nameof(ticker), fractionalTicks, Direction.Ascending, enabled: true, eventEnabled: true);
             ticker.LimitReached += HandleTick;
             machine.RealTimeClockModeChanged += _ => SetTimeFromMachine();
             Reset();
@@ -127,10 +127,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void ApplyCalibration()
         {
-            var newFrequency = (long)calibrationTicks.Value * FractionalTicksPerTick;
+            var newFrequency = calibrationTicks.Value * FractionalTicksPerTick;
             if(calibrationFractionalTicksEnable.Value)
             {
-                newFrequency += (long)calibrationFractionalTicks.Value;
+                newFrequency += calibrationFractionalTicks.Value;
             }
             ticker.Frequency = newFrequency;
         }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             timerGlobalControlRegister.DefineEnumField<TimerMode>(2, 2, changeCallback: OnTimerModeChanged);
 
-            timerGlobalControlRegister.DefineValueField(8, 4, changeCallback: (oldValue, newValue) => timer34.Divider = (int)newValue);
+            timerGlobalControlRegister.DefineValueField(8, 4, changeCallback: (oldValue, newValue) => timer34.Divider = newValue);
             interruptEnable12 = timerInterruptControlAndStatusRegister.DefineFlagField(0);
             interruptEnable34 = timerInterruptControlAndStatusRegister.DefineFlagField(16);
             interruptOccurred12 = timerInterruptControlAndStatusRegister.DefineFlagField(3);

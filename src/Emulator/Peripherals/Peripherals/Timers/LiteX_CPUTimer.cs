@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class LiteX_CPUTimer : BasicDoubleWordPeripheral, IKnownSize, IRiscVTimeProvider
     {
-        public LiteX_CPUTimer(IMachine machine, long frequency) : base(machine)
+        public LiteX_CPUTimer(IMachine machine, ulong frequency) : base(machine)
         {
             IRQ = new GPIO();
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class IMX_GPTimer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public IMX_GPTimer(IMachine machine, int frequency = DefaultFrequency) : base(machine)
+        public IMX_GPTimer(IMachine machine, ulong frequency = DefaultFrequency) : base(machine)
         {
             timers = new ComparingTimer[NumberOfCaptures];
             capturesPending = new IFlagRegisterField[NumberOfCaptures];

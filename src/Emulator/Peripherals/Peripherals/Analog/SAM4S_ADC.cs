@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 {
     public class SAM4S_ADC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public SAM4S_ADC(Machine machine, long baseFrequency = 32768, decimal referenceVoltage = 5m) : base(machine)
+        public SAM4S_ADC(Machine machine, ulong baseFrequency = 32768, decimal referenceVoltage = 5m) : base(machine)
         {
             internalTimer = new LimitTimer(machine.ClockSource, baseFrequency, this, "internalTimer", limit: 1, divider: 2, eventEnabled: true, workMode: WorkMode.Periodic);
             internalTimer.LimitReached += ConversionFinished;
@@ -174,7 +174,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithFlag(7, out freerunMode, name: "FREERUN")
                 .WithValueField(8, 8, name: "PRESCAL",
                     valueProviderCallback: _ => (byte)((internalTimer.Divider / 2) - 1),
-                    changeCallback: (_, value) => internalTimer.Divider = ((int)value + 1) * 2)
+                    changeCallback: (_, value) => internalTimer.Divider = (value + 1) * 2)
                 .WithTag("STARTUP", 16, 4)
                 .WithTag("SETTLING", 20, 2)
                 .WithTaggedFlag("ANACH", 23)

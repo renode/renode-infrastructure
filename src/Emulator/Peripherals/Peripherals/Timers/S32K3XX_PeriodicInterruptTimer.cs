@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class S32K3XX_PeriodicInterruptTimer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public S32K3XX_PeriodicInterruptTimer(IMachine machine, long oscillatorFrequency, bool hasRealTimeInterrupt = false, bool hasLifetimeTimer = false, bool supportsTimersChaining = false) : base(machine)
+        public S32K3XX_PeriodicInterruptTimer(IMachine machine, ulong oscillatorFrequency, bool hasRealTimeInterrupt = false, bool hasLifetimeTimer = false, bool supportsTimersChaining = false) : base(machine)
         {
             clockChannels = new SortedList<Registers, ClockChannel>();
 
@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
 #pragma warning disable IDE0060
-        private void DefineRegisters(long oscillatorFrequency, bool hasRealTimeInterrupt, bool hasLifetimeTimer, bool supportsTimersChaining)
+        private void DefineRegisters(ulong oscillatorFrequency, bool hasRealTimeInterrupt, bool hasLifetimeTimer, bool supportsTimersChaining)
 #pragma warning restore IDE0060
         {
             var moduleControl = Registers.ModuleControl.Define(this)
@@ -110,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private void DefineChannelRegisters(long oscillatorFrequency, Registers? chainedTo, Registers control, Registers flag, Registers load, Registers currentValue)
+        private void DefineChannelRegisters(ulong oscillatorFrequency, Registers? chainedTo, Registers control, Registers flag, Registers load, Registers currentValue)
         {
             var clockChannel = new ClockChannel(machine.ClockSource, this, oscillatorFrequency, Enum.GetName(typeof(Registers), control));
             clockChannel.OnInterrupt += UpdateInterrupts;
@@ -176,7 +176,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class ClockChannel
         {
-            public ClockChannel(IClockSource clockSource, IPeripheral parent, long frequency, string name)
+            public ClockChannel(IClockSource clockSource, IPeripheral parent, ulong frequency, string name)
             {
                 underlyingTimer = new LimitTimer(clockSource, frequency, parent, name);
                 underlyingTimer.LimitReached += () =>

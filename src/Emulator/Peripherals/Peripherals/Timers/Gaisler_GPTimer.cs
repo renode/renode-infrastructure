@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     public class Gaisler_GPTimer : BasicDoubleWordPeripheral, IKnownSize, IGaislerAPB, INumberedGPIOOutput
     {
         public Gaisler_GPTimer(IMachine machine, uint numberOfTimers = 4, int scalerWidth = 8,
-            int frequency = DefaultTimerFrequency, bool supportsTimeLatch = false, bool separateInterrupts = true) : base(machine)
+            ulong frequency = DefaultTimerFrequency, bool supportsTimeLatch = false, bool separateInterrupts = true) : base(machine)
         {
             if(numberOfTimers < 1 || numberOfTimers > MaximumNumberOfTimers)
             {
@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 timer.Reset();
             }
-            ScalerReloadValue = (int)scalerResetValue + 1;
+            ScalerReloadValue = scalerResetValue + 1;
         }
 
         public uint GetVendorID() => VendorID;
@@ -84,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Registers.ScalerReloadValue.Define(this, scalerResetValue)
                 .WithValueField(0, scalerWidth, name: "scalerReloadValue",
-                    valueProviderCallback: _ => (ulong)ScalerReloadValue - 1, changeCallback: (_, v) => ScalerReloadValue = (int)v + 1)
+                    valueProviderCallback: _ => ScalerReloadValue - 1, changeCallback: (_, v) => ScalerReloadValue = v + 1)
                 .WithReservedBits(scalerWidth, 32 - scalerWidth);
 
             Registers.Configuration.Define(this)
@@ -169,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private int ScalerReloadValue
+        private ulong ScalerReloadValue
         {
             get
             {
@@ -196,13 +196,13 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const uint VendorID = 0x01; // Gaisler Research
         private const uint DeviceID = 0x011; // GPTIMER
         private const uint DeviceIDWithLatch = 0x038; // GRTIMER
-        private const int DefaultTimerFrequency = 1000000;
+        private const ulong DefaultTimerFrequency = 1000000;
         private const int MaximumNumberOfTimers = 7;
         private const uint TimerStride = Registers.Timer2CounterValue - Registers.Timer1CounterValue;
 
         private class TimerUnit : ITimer
         {
-            public TimerUnit(IClockSource clockSource, long frequency, Gaisler_GPTimer parent, int index)
+            public TimerUnit(IClockSource clockSource, ulong frequency, Gaisler_GPTimer parent, int index)
             {
                 this.parent = parent;
                 this.index = index;
@@ -228,7 +228,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 set => timer.Enabled = value;
             }
 
-            public long Frequency
+            public ulong Frequency
             {
                 get => timer.Frequency;
                 set => timer.Frequency = value;
@@ -240,7 +240,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 set => timer.Limit = value;
             }
 
-            public int Divider
+            public ulong Divider
             {
                 get => timer.Divider;
                 set => timer.Divider = value;

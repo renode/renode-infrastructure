@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -23,6 +23,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -48,8 +49,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             if(offset == 0x00)
             {
-                int prescaler = (int)(value & 0xF000000) >> 24;
-                prescaler = 1 << prescaler;
+                var prescaler = 1UL << (int)BitHelper.GetValue(value, offset: 24, size: 4);
                 Divider = prescaler;
                 //TODO: Hack. Should support UPDOWN on 2 and quadrature decoder on 3
                 if((value & 0x3) == 0)

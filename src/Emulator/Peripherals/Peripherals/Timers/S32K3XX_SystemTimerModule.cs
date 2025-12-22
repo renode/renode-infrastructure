@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class S32K3XX_SystemTimerModule : LimitTimer, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public S32K3XX_SystemTimerModule(IMachine machine, uint clockFrequency) : base(machine.ClockSource, clockFrequency, uint.MaxValue)
+        public S32K3XX_SystemTimerModule(IMachine machine, ulong clockFrequency) : base(machine.ClockSource, clockFrequency, uint.MaxValue)
         {
             IRQ = new GPIO();
 
@@ -83,10 +83,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithTaggedFlag("Freeze", 1)
                 .WithReservedBits(2, 6)
                 .WithValueField(8, 8, name: "CounterPrescaler",
-                    valueProviderCallback: _ => (uint)(Divider - 1),
+                    valueProviderCallback: _ => Divider - 1,
                     writeCallback: (_, value) =>
                     {
-                        Divider = (int)value + 1;
+                        Divider = value + 1;
                         for(var i = 0; i < ChannelCount; ++i)
                         {
                             channelTimer[i].Divider = Divider;

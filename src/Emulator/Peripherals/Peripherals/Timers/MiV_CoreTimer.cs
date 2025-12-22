@@ -1,9 +1,10 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
@@ -15,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MiV_CoreTimer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public MiV_CoreTimer(IMachine machine, long clockFrequency) : base(machine.ClockSource, clockFrequency, limit: uint.MaxValue, autoUpdate: true, eventEnabled: true)
+        public MiV_CoreTimer(IMachine machine, ulong clockFrequency) : base(machine.ClockSource, clockFrequency, limit: uint.MaxValue, autoUpdate: true, eventEnabled: true)
         {
             this.machine = machine;
             IRQ = new GPIO();
@@ -55,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)Registers.ClockPrescale, new DoubleWordRegister(this)
                     .WithValueField(0, 4, name: "Prescale", writeCallback: (_, val) =>
                         {
-                            Divider = (2 << (val < 9 ? (int)val : 9));
+                            Divider = 2UL << (int)Math.Min(val, 9);
                         }, valueProviderCallback: _ =>
                         {
                             var currDivider = (Divider >> 1) - 1;

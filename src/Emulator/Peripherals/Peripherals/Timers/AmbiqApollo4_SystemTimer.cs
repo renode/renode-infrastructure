@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             base.Reset();
         }
 
-        public long Frequency => systemTimer.Frequency;
+        public ulong Frequency => systemTimer.Frequency;
 
         // Comparator IRQs
         public GPIO IRQA => interruptOutputs[0];
@@ -293,7 +293,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const uint CaptureRegistersCount = 4;
         private const uint InterruptOutputsCount = 9;
         // It's used for CLKSEL options which stop the timer. 0 can't be set as the timer's frequency, hence 1.
-        private const long InvalidFrequency = 1;
+        private const ulong InvalidFrequency = 1;
 
         private class CaptureRegister
         {
@@ -420,7 +420,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public long Frequency
+            public ulong Frequency
             {
                 get => innerTimer.Frequency;
                 set => innerTimer.Frequency = value;

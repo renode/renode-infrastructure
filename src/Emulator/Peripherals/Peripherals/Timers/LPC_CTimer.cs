@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     // This timer model is limited to only one match channel (channel 0), and only in reset mode (MR0R=1).
     public class LPC_CTimer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public LPC_CTimer(IMachine machine, long frequency = DefaultFrequency) : base(machine)
+        public LPC_CTimer(IMachine machine, ulong frequency = DefaultFrequency) : base(machine)
         {
             this.frequency = frequency;
             timer = new LimitTimer(machine.ClockSource, frequency, this, nameof(timer),
@@ -77,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.Prescale.Define(this)
                 .WithValueField(0, 32, name: "PRVAL",
                     valueProviderCallback: _ => (ulong)timer.Divider - 1,
-                    changeCallback: (_, value) => timer.Divider = (int)value + 1);
+                    changeCallback: (_, value) => timer.Divider = value + 1);
 
             Registers.PrescaleCounter.Define(this)
                 .WithTag("PCVAL", 0, 32)
@@ -183,11 +183,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IFlagRegisterField match0InterruptEnable;
 
         private readonly LimitTimer timer;
-        private readonly long frequency;
+        private readonly ulong frequency;
 
         // Currently only one channel (index 0) is implemented
         private const int NumberOfChannels = 4;
-        private const long DefaultFrequency = 10000000;
+        private const ulong DefaultFrequency = 10000000;
 
         private enum Registers : uint
         {

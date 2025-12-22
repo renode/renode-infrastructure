@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     // Based on IA-PC HPET (High Precision Event Timers) Specification
     public class HPET : LimitTimer, IQuadWordPeripheral, IKnownSize
     {
-        public HPET(IMachine machine, long frequency = 100000000)
+        public HPET(IMachine machine, ulong frequency = 100000000)
             : base(machine.ClockSource, frequency, direction: Direction.Ascending, limit: uint.MaxValue)
         {
             if(frequency < MinimumFrequency)
@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         // According to HPET Specification (2.4),
         // COUNTER_CLK_PERIOD should be at most 10^8, so frequency must be at least 10^7.
-        private const int MinimumFrequency = (int)1e7;
+        private const ulong MinimumFrequency = (ulong)1e7;
 
         private enum Registers : long
         {

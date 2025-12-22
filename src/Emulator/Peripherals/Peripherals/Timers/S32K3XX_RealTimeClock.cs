@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class S32K3XX_RealTimeClock : BasicDoubleWordPeripheral, IKnownSize
     {
-        public S32K3XX_RealTimeClock(IMachine machine, long externalFastCrystalOscillatorFrequency = 2097152, long externalSlowCrystalOscillatorFrequency = 32768) : base(machine)
+        public S32K3XX_RealTimeClock(IMachine machine, ulong externalFastCrystalOscillatorFrequency = 2097152, ulong externalSlowCrystalOscillatorFrequency = 32768) : base(machine)
         {
             this.externalFastCrystalOscillatorFrequency = externalFastCrystalOscillatorFrequency;
             this.externalSlowCrystalOscillatorFrequency = externalSlowCrystalOscillatorFrequency;
@@ -83,9 +83,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private long GetClockFrequency()
+        private ulong GetClockFrequency()
         {
-            long clockFrequency;
+            ulong clockFrequency;
             switch(clockSource.Value)
             {
             case ClockSource.SXOSC:
@@ -200,12 +200,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IFlagRegisterField rolloverInterruptPending;
 
         private readonly InternalClock internalClock;
-        private readonly long externalSlowCrystalOscillatorFrequency;
-        private readonly long externalFastCrystalOscillatorFrequency;
+        private readonly ulong externalSlowCrystalOscillatorFrequency;
+        private readonly ulong externalFastCrystalOscillatorFrequency;
 
         private class InternalClock
         {
-            public InternalClock(IClockSource clockSource, IPeripheral parent, long frequency)
+            public InternalClock(IClockSource clockSource, IPeripheral parent, ulong frequency)
             {
                 mainClock = new LimitTimer(clockSource, frequency, parent, "main_clk", limit: uint.MaxValue, direction: Direction.Ascending, eventEnabled: true);
                 mainClock.LimitReached += HandleOverflow;
@@ -219,7 +219,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public ulong Value => mainClock.Value;
 
-            public long Frequency
+            public ulong Frequency
             {
                 get => mainClock.Frequency;
                 set

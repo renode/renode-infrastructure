@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,8 +18,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     public class STM32L0_RCC : BasicDoubleWordPeripheral, IKnownSize
     {
         public STM32L0_RCC(IMachine machine, IPeripheral rtc = null, ITimer lptimer = null, IHasDivisibleFrequency systick = null,
-            long apbFrequency = DefaultApbFrequency, long lsiFrequency = DefaultLsiFrequency, long lseFrequency = DefaultLseFrequency,
-            long hseFrequency = DefaultHseFrequency) : base(machine)
+            ulong apbFrequency = DefaultApbFrequency, ulong lsiFrequency = DefaultLsiFrequency, ulong lseFrequency = DefaultLseFrequency,
+            ulong hseFrequency = DefaultHseFrequency) : base(machine)
         {
             if(systick == null)
             {
@@ -189,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                             return;
                         }
 
-                        msiMultiplier = (long)Math.Pow(2, value);
+                        msiMultiplier = (ulong)Math.Pow(2, value);
                     })
                 .WithValueField(16, 8, name: "MSICAL")
                 .WithValueField(24, 8, name: "MSITRIM")
@@ -226,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         else
                         {
                             var power = (0b111 & value) + 1;
-                            systick.Divider = (int)Math.Pow(2, power);
+                            systick.Divider = (ulong)Math.Pow(2, power);
                         }
                         this.Log(
                             LogLevel.Debug,
@@ -650,9 +650,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ;
         }
 
-        private long Hsi16Frequency { get => 16000000 / (hsi16diven.Value ? 4 : 1); }
+        private ulong Hsi16Frequency { get => 16000000UL / (hsi16diven.Value ? 4UL : 1UL); }
 
-        private long PllFrequency
+        private ulong PllFrequency
         {
             get =>
                 (pllSource.Value == PllSourceSelection.Hse ? hseFrequency : Hsi16Frequency)
@@ -660,7 +660,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 / pllDivisor;
         }
 
-        private long MsiFrequency { get => BaseMsiFrequency * msiMultiplier; }
+        private ulong MsiFrequency { get => BaseMsiFrequency * msiMultiplier; }
 
         private IFlagRegisterField hsi16diven;
         private IEnumRegisterField<PllSourceSelection> pllSource;
@@ -668,25 +668,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IEnumRegisterField<LpTimerClockSourceSelection> lpTimer1Selection;
         private IFlagRegisterField pllOn;
 
-        private long pllMultiplier;
-        private long pllDivisor;
-        private long msiMultiplier;
+        private ulong pllMultiplier;
+        private ulong pllDivisor;
+        private ulong msiMultiplier;
 
-        private readonly long apbFrequency;
-        private readonly long lsiFrequency;
-        private readonly long lseFrequency;
-        private readonly long hseFrequency;
+        private readonly ulong apbFrequency;
+        private readonly ulong lsiFrequency;
+        private readonly ulong lseFrequency;
+        private readonly ulong hseFrequency;
 
         private readonly IHasDivisibleFrequency systick;
         private readonly IPeripheral rtc;
         private readonly ITimer lptimer;
 
-        private const long DefaultApbFrequency = 32000000;
-        private const long DefaultLsiFrequency = 37000;
-        private const long DefaultLseFrequency = 32768;
-        private const long DefaultHseFrequency = 16000000;
-        private const long DefaultMsiFrequency = 2097000;
-        private const long BaseMsiFrequency = 65536;
+        private const ulong DefaultApbFrequency = 32000000;
+        private const ulong DefaultLsiFrequency = 37000;
+        private const ulong DefaultLseFrequency = 32768;
+        private const ulong DefaultHseFrequency = 16000000;
+        private const ulong DefaultMsiFrequency = 2097000;
+        private const ulong BaseMsiFrequency = 65536;
 
         // There can't be one common ClockSourceSelection enum because different peripherals
         // have different sets of possible values:

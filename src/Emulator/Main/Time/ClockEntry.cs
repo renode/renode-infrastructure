@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Time
 {
     public struct ClockEntry
     {
-        public ClockEntry(ulong period, long frequency, Action handler, IEmulationElement owner, string localName, bool enabled = true, Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic, long step = 1) : this()
+        public ClockEntry(ulong period, ulong frequency, Action handler, IEmulationElement owner, string localName, bool enabled = true, Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic, ulong step = 1) : this()
         {
             this.Value = direction == Direction.Ascending ? 0 : period;
             this.Frequency = frequency;
@@ -29,8 +29,8 @@ namespace Antmicro.Renode.Time
             this.ValueResiduum = Fraction.Zero;
         }
 
-        public ClockEntry With(ulong? period = null, long? frequency = null, Action handler = null, bool? enabled = null,
-            ulong? value = null, Direction? direction = null, WorkMode? workMode = null, long? step = null)
+        public ClockEntry With(ulong? period = null, ulong? frequency = null, Action handler = null, bool? enabled = null,
+            ulong? value = null, Direction? direction = null, WorkMode? workMode = null, ulong? step = null)
         {
             var result = new ClockEntry(
                 period ?? Period,
@@ -65,17 +65,17 @@ namespace Antmicro.Renode.Time
 
         public string LocalName { get; }
 
-        public long Step { get; }
+        public ulong Step { get; }
 
-        public long Frequency { get; }
+        public ulong Frequency { get; }
 
         // Ratio - i.e. how many emulator ticks are needed for this clock entry tick
         public Fraction Ratio { get; }
 
-        private static Fraction FrequencyToRatio(long desiredFrequency)
+        private static Fraction FrequencyToRatio(ulong desiredFrequency)
         {
             var maxHz = TimeInterval.TicksPerSecond;
-            return new Fraction((ulong)desiredFrequency, maxHz);
+            return new Fraction(desiredFrequency, maxHz);
         }
     }
 }

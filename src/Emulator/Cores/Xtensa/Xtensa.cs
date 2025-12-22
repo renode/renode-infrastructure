@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Xtensa : TranslationCPU, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>
     {
-        public Xtensa(string cpuType, IMachine machine, uint cpuId = 0, long frequency = 10000000)
+        public Xtensa(string cpuType, IMachine machine, uint cpuId = 0, ulong frequency = 10000000)
                 : base(cpuId, cpuType, machine, Endianess.LittleEndian)
         {
             innerTimers = new ComparingTimer[InnerTimersCount];

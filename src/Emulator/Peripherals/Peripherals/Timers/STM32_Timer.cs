@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32_Timer : LimitTimer, IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IPeripheralRegister<IGPIOReceiver, NumberRegistrationPoint<int>>, IPeripheralRegister<IGPIOReceiver, NullRegistrationPoint>
     {
-        public STM32_Timer(IMachine machine, long frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: initialLimit, direction: Direction.Ascending, enabled: false, eventEnabled: true, autoUpdate: false)
+        public STM32_Timer(IMachine machine, ulong frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: initialLimit, direction: Direction.Ascending, enabled: false, eventEnabled: true, autoUpdate: false)
         {
             this.machine = machine;
             sysbus = machine.GetSystemBus(this);
@@ -345,7 +345,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     })
                 },
                 {(long)Registers.Prescaler, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, writeCallback: (_, val) => Divider = (int)val + 1, valueProviderCallback: _ => (uint)Divider - 1, name: "Prescaler value (PSC)")
+                    .WithValueField(0, 16, writeCallback: (_, val) => Divider = val + 1, valueProviderCallback: _ => (uint)Divider - 1, name: "Prescaler value (PSC)")
                     .WithReservedBits(16, 16)
                     .WithWriteCallback((_, __) =>
                     {

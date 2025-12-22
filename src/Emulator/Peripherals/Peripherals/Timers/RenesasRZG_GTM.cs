@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class RenesasRZG_GTM : BasicDoubleWordPeripheral, IKnownSize
     {
-        public RenesasRZG_GTM(IMachine machine, long frequency) : base(machine)
+        public RenesasRZG_GTM(IMachine machine, ulong frequency) : base(machine)
         {
             timer = new LimitTimer(machine.ClockSource, frequency, this, "timer", FreeRunLimit, Direction.Descending, workMode: WorkMode.Periodic, eventEnabled: true);
             timer.LimitReached += HandleLimitReached;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class Cadence_TTC : IDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize
     {
-        public Cadence_TTC(IMachine machine, long frequency = DefaultFrequency)
+        public Cadence_TTC(IMachine machine, ulong frequency = DefaultFrequency)
         {
             var irqs = new Dictionary<int, IGPIO>(TimerUnitsCount);
             var registersMap = new Dictionary<long, DoubleWordRegister>();
@@ -73,7 +73,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
-        public long Frequency
+        public ulong Frequency
         {
             get => timerUnits[0].Frequency;
             set
@@ -212,14 +212,14 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly TimerUnit[] timerUnits = new TimerUnit[TimerUnitsCount];
         private readonly DoubleWordRegisterCollection registers;
 
-        private const long DefaultFrequency = 33330000;
+        private const ulong DefaultFrequency = 33330000;
         private const int RegisterSize = 4;
         private const int TimerUnitsCount = 3;
         private const int MatchTimerUnitsCount = 3;
 
         private class TimerUnit : ITimer
         {
-            public TimerUnit(IClockSource clockSource, IPeripheral parent, long frequency, string localName)
+            public TimerUnit(IClockSource clockSource, IPeripheral parent, ulong frequency, string localName)
             {
                 timer = new LimitTimer(clockSource, frequency, parent, localName, limit: OverflowLimit, direction: Direction.Ascending, eventEnabled: true);
                 timer.LimitReached += OnLimitReached;
@@ -346,7 +346,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public long Frequency
+            public ulong Frequency
             {
                 get => timer.Frequency;
                 set
@@ -386,7 +386,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 if(PrescalerEnabled)
                 {
-                    timer.Divider = 1 << (Prescaler + 1);
+                    timer.Divider = 1UL << (Prescaler + 1);
                 }
                 else
                 {
@@ -420,7 +420,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public class MatchTimerUnit
             {
-                public MatchTimerUnit(IClockSource clockSource, IPeripheral parent, TimerUnit owner, long frequency, string localName)
+                public MatchTimerUnit(IClockSource clockSource, IPeripheral parent, TimerUnit owner, ulong frequency, string localName)
                 {
                     this.owner = owner;
                     timer = new LimitTimer(clockSource, frequency, parent, localName, limit: OverflowLimit, direction: Direction.Ascending, workMode: WorkMode.OneShot);
@@ -487,7 +487,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     set => timer.EventEnabled = value;
                 }
 
-                public int Divider
+                public ulong Divider
                 {
                     set => timer.Divider = value;
                 }
@@ -501,7 +501,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     }
                 }
 
-                public long Frequency
+                public ulong Frequency
                 {
                     set => timer.Frequency = value;
                 }

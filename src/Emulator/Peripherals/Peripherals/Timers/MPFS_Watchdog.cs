@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class MPFS_Watchdog : BasicDoubleWordPeripheral, IKnownSize
     {
-        public MPFS_Watchdog(IMachine machine, long frequency) : base(machine)
+        public MPFS_Watchdog(IMachine machine, ulong frequency) : base(machine)
         {
             DefineRegisters();
             internalTimer = new LimitTimer(machine.ClockSource, frequency, this, String.Empty, workMode: WorkMode.OneShot, eventEnabled: true);

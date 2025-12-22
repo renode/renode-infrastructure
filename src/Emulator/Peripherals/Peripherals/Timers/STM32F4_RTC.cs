@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class STM32F4_RTC : IDoubleWordPeripheral, IKnownSize
     {
-        public STM32F4_RTC(IMachine machine, long wakeupTimerFrequency = DefaultWakeupTimerFrequency)
+        public STM32F4_RTC(IMachine machine, ulong wakeupTimerFrequency = DefaultWakeupTimerFrequency)
         {
             mainTimer = new TimerConfig(this);
             alarmA = new AlarmConfig(this, mainTimer);
@@ -130,13 +130,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 // 0xx: RTC / 2^(4 - xx) clock is selected
                                 // 000: RTC / 2^4 = RTC / 16
                                 // 011: RTC / 2^1 = RTC / 2
-                                wakeupTimer.Divider = (int)Math.Pow(2, 4 - value);
+                                wakeupTimer.Divider = (ulong)Math.Pow(2, 4 - value);
                             }
                             else
                             {
                                 // 1xx: ck_spre (usually 1 Hz) clock is selected
                                 // ck_spre = RTC / {(PREDIV_S + 1) * (PREDIV_A + 1)}, see RM p.548
-                                wakeupTimer.Divider = (int)((predivS.Value + 1) * (predivA.Value + 1));
+                                wakeupTimer.Divider = (predivS.Value + 1) * (predivA.Value + 1);
                             }
                         })
                     .WithTag("TSEDGE", 3, 1)
@@ -291,8 +291,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(15, 1)
                     .WithValueField(16, 7, out predivA, writeCallback: (_, value) =>
                     {
-                        ticker.Divider = (int)value + 1;
-                        fastTicker.Divider = (int)value + 1;
+                        ticker.Divider = value + 1;
+                        fastTicker.Divider = value + 1;
                     }, name: "PREDIV_A")
                     .WithReservedBits(23, 9)
                 },

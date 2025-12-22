@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class RenesasDA_Watchdog : BasicDoubleWordPeripheral, IKnownSize
     {
-        public RenesasDA_Watchdog(IMachine machine, long frequency, NVIC nvic) : base(machine)
+        public RenesasDA_Watchdog(IMachine machine, ulong frequency, NVIC nvic) : base(machine)
         {
             IRQ = new GPIO();
             this.nvic = nvic;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,7 +8,6 @@ using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 
@@ -21,12 +20,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         // run under Renode in the platform file.
         public ARM_GenericTimer(IMachine machine, ulong frequency, uint defaultCounterFrequencyRegister = 0)
         {
-            if(frequency > long.MaxValue)
-            {
-                throw new ConstructionException($"Timer doesn't support frequency greater than {long.MaxValue}, given {frequency}.");
-            }
-
-            Frequency = (long)frequency;
+            Frequency = frequency;
             this.defaultCounterFrequencyRegister = defaultCounterFrequencyRegister;
             clockSource = machine.ClockSource;
 
@@ -111,7 +105,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public bool EnableCountReadLogs { get; set; }
 
-        public long Frequency { get; }
+        public ulong Frequency { get; }
 
         // There is the counter frequency register used by a software to discover a frequency of a timer
         // In the model we allow to preset it using the `CounterFrequencyRegister` property to support simulation scenarios without a bootloader.
@@ -373,7 +367,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class TimerUnit
         {
-            public TimerUnit(IClockSource clockSource, IPeripheral parent, string name, GPIO irq, long frequency)
+            public TimerUnit(IClockSource clockSource, IPeripheral parent, string name, GPIO irq, ulong frequency)
             {
                 this.clockSource = clockSource;
                 this.name = name;

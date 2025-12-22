@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class EFR32xG24_SYSRTC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EFR32xG24_SYSRTC(Machine machine, long frequency = 32768) : base(machine)
+        public EFR32xG24_SYSRTC(Machine machine, ulong frequency = 32768) : base(machine)
         {
             AppIRQ = new GPIO();
             interruptManager = new InterruptManager<Interrupt>(this, AppIRQ);

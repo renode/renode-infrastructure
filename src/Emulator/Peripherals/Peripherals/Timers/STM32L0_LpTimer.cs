@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32L0_LpTimer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public STM32L0_LpTimer(IMachine machine, long frequency) : base(machine.ClockSource, frequency, limit: 0x1, direction: Direction.Ascending, enabled: false, eventEnabled: true)
+        public STM32L0_LpTimer(IMachine machine, ulong frequency) : base(machine.ClockSource, frequency, limit: 0x1, direction: Direction.Ascending, enabled: false, eventEnabled: true)
         {
             IRQ = new GPIO();
 
@@ -157,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithValueField(9, 3,
                         writeCallback: (_, val) =>
                         {
-                            var divider = (int)Math.Pow(2, val);
+                            var divider = (ulong)Math.Pow(2, val);
                             Divider = divider;
                             compareTimer.Divider = divider;
                         },

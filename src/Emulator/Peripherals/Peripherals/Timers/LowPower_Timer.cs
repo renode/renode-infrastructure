@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.UART
 {
     public class LowPower_Timer : LimitTimer, IDoubleWordPeripheral, IKnownSize
     {
-        public LowPower_Timer(IMachine machine, long frequency = 8000000) : base(machine.ClockSource, frequency, null, "", eventEnabled: true)
+        public LowPower_Timer(IMachine machine, ulong frequency = 8000000) : base(machine.ClockSource, frequency, null, "", eventEnabled: true)
         {
             IRQ = new GPIO();
 

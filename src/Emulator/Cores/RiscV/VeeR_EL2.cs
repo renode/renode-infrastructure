@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class VeeR_EL2 : RiscV32
     {
-        public VeeR_EL2(IMachine machine, IRiscVTimeProvider timeProvider = null, long timerFrequency = 600000000, uint hartId = 0, PrivilegedArchitecture privilegedArchitecture = PrivilegedArchitecture.Priv1_12,
+        public VeeR_EL2(IMachine machine, IRiscVTimeProvider timeProvider = null, ulong timerFrequency = 600000000, uint hartId = 0, PrivilegedArchitecture privilegedArchitecture = PrivilegedArchitecture.Priv1_12,
             Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imc_zicsr_zifencei_zba_zbb_zbc_zbs", PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineUser, bool allowUnalignedAccesses = true)
             : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, endianness, allowUnalignedAccesses: allowUnalignedAccesses, privilegeLevels: privilegeLevels, pmpNumberOfAddrBits: 30)
         {
@@ -224,7 +224,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected class InternalTimerBlock
         {
-            public InternalTimerBlock(IMachine machine, VeeR_EL2 owner, long timerFrequency, uint interrupt0, uint interrupt1, ushort counter0CSR, ushort bound0CSR, ushort control0CSR, ushort counter1CSR, ushort bound1CSR, ushort control1CSR)
+            public InternalTimerBlock(IMachine machine, VeeR_EL2 owner, ulong timerFrequency, uint interrupt0, uint interrupt1, ushort counter0CSR, ushort bound0CSR, ushort control0CSR, ushort counter1CSR, ushort bound1CSR, ushort control1CSR)
             {
                 // Hook to clear the timer `mip` bits on interrupt to simulate
                 // them clearing on next clock cycle
@@ -281,7 +281,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public class InternalTimer : LimitTimer
             {
-                public InternalTimer(IMachine machine, VeeR_EL2 owner, InternalTimerBlock internalTimerBlock, bool isTimer1, long timerFrequency, uint interrupt, ushort counterCSR, ushort boundCSR, ushort controlCSR)
+                public InternalTimer(IMachine machine, VeeR_EL2 owner, InternalTimerBlock internalTimerBlock, bool isTimer1, ulong timerFrequency, uint interrupt, ushort counterCSR, ushort boundCSR, ushort controlCSR)
                     : base(machine.ClockSource, timerFrequency, owner, localName: isTimer1 ? "InteralTimer1" : "InternalTimer0", limit: UInt32.MaxValue, enabled: true, direction: Direction.Ascending, eventEnabled: true)
                 {
                     LimitReached += delegate

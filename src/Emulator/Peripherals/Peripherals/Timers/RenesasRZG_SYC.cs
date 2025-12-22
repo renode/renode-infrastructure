@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     // This peripheral implements an interface to Arm CoreSight SoC-400 timestamp generator module
     public class RenesasRZG_SYC : BasicDoubleWordPeripheral, IKnownSize
     {
-        public RenesasRZG_SYC(IMachine machine, long frequency) : base(machine)
+        public RenesasRZG_SYC(IMachine machine, ulong frequency) : base(machine)
         {
             timer = new LimitTimer(machine.ClockSource, frequency, this, "Timestamp generator", ulong.MaxValue, Direction.Ascending, workMode: WorkMode.Periodic);
             DefineRegisters();
@@ -68,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.BaseFrequencyId.Define(this)
                 .WithValueField(0, 32, name: "FREQ",
                     valueProviderCallback: _ => (uint)timer.Frequency,
-                    writeCallback: (_, value) => timer.Frequency = (long)value);
+                    writeCallback: (_, value) => timer.Frequency = value);
 
             Registers.CounterValueLowerReadOnly.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, name: "CNTCVL_L_32",

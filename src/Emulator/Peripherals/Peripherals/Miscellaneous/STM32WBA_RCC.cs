@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     public class STM32WBA_RCC : BasicDoubleWordPeripheral, IKnownSize
     {
         public STM32WBA_RCC(IMachine machine, IHasFrequency nvic = null, IHasFrequency lptim1 = null, IHasFrequency lptim2 = null,
-            long lsiFrequency = DefaultLsiFrequency, long lseFrequency = DefaultLseFrequency, long hseFrequency = DefaultHseFreqeuency) : base(machine)
+            ulong lsiFrequency = DefaultLsiFrequency, ulong lseFrequency = DefaultLseFrequency, ulong hseFrequency = DefaultHseFreqeuency) : base(machine)
         {
             this.nvic = nvic;
             this.lptim1 = lptim1;
@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public long Size => 0x400;
 
-        private static void TrySetFrequency(IHasFrequency timer, long frequency)
+        private static void TrySetFrequency(IHasFrequency timer, ulong frequency)
         {
             if(timer != null)
             {
@@ -559,7 +559,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ;
         }
 
-        private long PrescaleApbAhb(long input, IValueRegisterField prescaler)
+        private ulong PrescaleApbAhb(ulong input, IValueRegisterField prescaler)
         {
             var ppre = (int)prescaler.Value;
             // 0xx - no division
@@ -572,7 +572,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             return input >> logDivisor;
         }
 
-        private long GetLpTimerClock(LpTimerClockSource source, long apbFrequency)
+        private ulong GetLpTimerClock(LpTimerClockSource source, ulong apbFrequency)
         {
             switch(source)
             {
@@ -590,9 +590,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         // Clock tree
-        private long DividedHse32 => hseFrequency / (hsePrescaler.Value ? 2 : 1);
+        private ulong DividedHse32 => hseFrequency / (hsePrescaler.Value ? 2UL : 1UL);
 
-        private long Pll1Source
+        private ulong Pll1Source
         {
             get
             {
@@ -611,17 +611,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private long Pll1VcoInput => Pll1Source / ((long)pll1Prescaler.Value + 1);
+        private ulong Pll1VcoInput => Pll1Source / (pll1Prescaler.Value + 1);
 
-        private long Pll1VcoOutput => Pll1VcoInput * ((long)pll1Multiplier.Value + 1);
+        private ulong Pll1VcoOutput => Pll1VcoInput * (pll1Multiplier.Value + 1);
 
-        private long Pll1Pclk => Pll1VcoOutput / ((long)pll1DividerP.Value + 1);
+        private ulong Pll1Pclk => Pll1VcoOutput / (pll1DividerP.Value + 1);
 
-        private long Pll1Qclk => Pll1VcoOutput / ((long)pll1DividerQ.Value + 1);
+        private ulong Pll1Qclk => Pll1VcoOutput / (pll1DividerQ.Value + 1);
 
-        private long Pll1Rclk => Pll1VcoOutput / ((long)pll1DividerR.Value + 1);
+        private ulong Pll1Rclk => Pll1VcoOutput / (pll1DividerR.Value + 1);
 
-        private long SystemClock
+        private ulong SystemClock
         {
             get
             {
@@ -638,17 +638,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private long AhbClock => PrescaleApbAhb(SystemClock, ahbPrescaler); // hclk1
+        private ulong AhbClock => PrescaleApbAhb(SystemClock, ahbPrescaler); // hclk1
 
-        private long Apb1Clock => PrescaleApbAhb(AhbClock, apb1Prescaler); // pclk1
+        private ulong Apb1Clock => PrescaleApbAhb(AhbClock, apb1Prescaler); // pclk1
 
-        private long Apb2Clock => PrescaleApbAhb(AhbClock, apb2Prescaler); // pclk2
+        private ulong Apb2Clock => PrescaleApbAhb(AhbClock, apb2Prescaler); // pclk2
 
-        private long Apb7Clock => PrescaleApbAhb(AhbClock, apb7Prescaler); // pclk7
+        private ulong Apb7Clock => PrescaleApbAhb(AhbClock, apb7Prescaler); // pclk7
 
-        private long LpTimer1Clock => GetLpTimerClock(lpTimer1Clock.Value, Apb7Clock);
+        private ulong LpTimer1Clock => GetLpTimerClock(lpTimer1Clock.Value, Apb7Clock);
 
-        private long LpTimer2Clock => GetLpTimerClock(lpTimer2Clock.Value, Apb1Clock);
+        private ulong LpTimer2Clock => GetLpTimerClock(lpTimer2Clock.Value, Apb1Clock);
 
         private IFlagRegisterField hsePrescaler;
         private IEnumRegisterField<SystemClockSource> systemClockSwitch;
@@ -668,14 +668,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IHasFrequency nvic;
         private readonly IHasFrequency lptim1;
         private readonly IHasFrequency lptim2;
-        private readonly long lsiFrequency;
-        private readonly long lseFrequency;
-        private readonly long hseFrequency;
+        private readonly ulong lsiFrequency;
+        private readonly ulong lseFrequency;
+        private readonly ulong hseFrequency;
 
-        private const long DefaultLsiFrequency = 32000;
-        private const long DefaultLseFrequency = 32768;
-        private const long DefaultHseFreqeuency = 32000000;
-        private const long Hsi16Frequency = 16000000;
+        private const ulong DefaultLsiFrequency = 32000;
+        private const ulong DefaultLseFrequency = 32768;
+        private const ulong DefaultHseFreqeuency = 32000000;
+        private const ulong Hsi16Frequency = 16000000;
 
         private enum PllEntryClockSource
         {

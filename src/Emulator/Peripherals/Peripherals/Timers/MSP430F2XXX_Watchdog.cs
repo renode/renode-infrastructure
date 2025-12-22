@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToWord)]
     public class MSP430F2XXX_Watchdog : BasicWordPeripheral, IKnownSize
     {
-        public MSP430F2XXX_Watchdog(IMachine machine, long baseFrequency) : base(machine)
+        public MSP430F2XXX_Watchdog(IMachine machine, ulong baseFrequency) : base(machine)
         {
             mainTimer = new LimitTimer(machine.ClockSource, baseFrequency, this, "wdt", limit: 0xFFFF, workMode: WorkMode.Periodic);
             mainTimer.LimitReached += LimitReached;

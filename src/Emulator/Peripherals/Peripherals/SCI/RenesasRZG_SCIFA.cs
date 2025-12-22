@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.SCI
 {
     public class RenesasRZG_SCIFA : BasicWordPeripheral, IBytePeripheral, IUART, IHasFrequency, IKnownSize, INumberedGPIOOutput
     {
-        public RenesasRZG_SCIFA(IMachine machine, long frequency) : base(machine)
+        public RenesasRZG_SCIFA(IMachine machine, ulong frequency) : base(machine)
         {
             Frequency = frequency;
 
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.Peripherals.SCI
             }
         }
 
-        public long Frequency { get; set; }
+        public ulong Frequency { get; set; }
 
         [field: Transient]
         public event Action<byte> CharReceived;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class ARM_SP804_Timer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public ARM_SP804_Timer(IMachine machine, long frequency = 1000000) : base(machine)
+        public ARM_SP804_Timer(IMachine machine, ulong frequency = 1000000) : base(machine)
         {
             DefineRegisters();
             for(var i = 0; i < NumberOfTimers; i++)

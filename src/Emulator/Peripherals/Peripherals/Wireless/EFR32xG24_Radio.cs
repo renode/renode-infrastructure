@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2022-2025 Silicon Labs
 //
 // This file is licensed under the MIT License.
@@ -4642,7 +4642,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             seqTimer.Enabled = false;
 
-            seqTimer.Divider = (int)RAC_seqTimerPrescaler.Value + 1;
+            seqTimer.Divider = RAC_seqTimerPrescaler.Value + 1;
             seqTimer.Limit = limit;
             seqTimer.Enabled = true;
             seqTimer.Value = startValue;

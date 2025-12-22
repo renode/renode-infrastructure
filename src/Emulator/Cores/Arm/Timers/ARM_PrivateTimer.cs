@@ -1,12 +1,11 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -15,11 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         public ARM_PrivateTimer(IMachine machine, ulong frequency) : base(machine)
         {
-            if(frequency > long.MaxValue)
-            {
-                throw new ConstructionException($"Timer doesn't support frequency greater than {long.MaxValue}, given {frequency}.");
-            }
-            Frequency = (long)frequency;
+            Frequency = frequency;
 
             BuildRegisters();
             timer = new LimitTimer(machine.ClockSource, Frequency, this, "Timer",
@@ -38,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; } = new GPIO();
 
-        public long Frequency { get; }
+        public ulong Frequency { get; }
 
         private void BuildRegisters()
         {
@@ -62,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.Control.Define(this)
                 .WithReservedBits(16, 16)
                 .WithValueField(8, 8, name: "Prescaler",
-                    writeCallback: (_, val) => timer.Divider = (int)val + 1,
+                    writeCallback: (_, val) => timer.Divider = val + 1,
                     valueProviderCallback: (_) => (ulong)timer.Divider - 1
                 )
                 .WithReservedBits(3, 5)

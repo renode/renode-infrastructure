@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class STM32H7_SystemWindowWatchdog : BasicDoubleWordPeripheral, IKnownSize
     {
-        public STM32H7_SystemWindowWatchdog(IMachine machine, long apbFrequency) : base(machine)
+        public STM32H7_SystemWindowWatchdog(IMachine machine, ulong apbFrequency) : base(machine)
         {
             // The WWDG counter works in two stages and is reported differently than the internal LimitTimer value:
             // - The internal LimitTimer counts "ticks remaining until CNT reaches 0x40".
@@ -171,7 +171,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const uint CountdownTriggerResetValue = 0x3F;
         private const uint CountdownTriggerIrqValue = 0x40;
         private const uint DefaultReloadValue = 0x7F - CountdownTriggerIrqValue;
-        private const int InternalDivider = 4096;
+        private const ulong InternalDivider = 4096;
 
         private enum Registers
         {

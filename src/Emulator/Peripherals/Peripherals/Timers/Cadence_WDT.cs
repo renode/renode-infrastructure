@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class Cadence_WDT : BasicDoubleWordPeripheral, IKnownSize
     {
-        public Cadence_WDT(IMachine machine, long frequency) : base(machine)
+        public Cadence_WDT(IMachine machine, ulong frequency) : base(machine)
         {
             IRQ = new GPIO();
 
@@ -99,7 +99,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         counterClockPrescale.Value = oldVal;
                         return;
                     }
-                    watchdogTimer.Divider = 1 << (int)(3 * (newVal + 1));
+                    watchdogTimer.Divider = 1UL << (int)(3 * (newVal + 1));
                 }, name: "CLKSEL")
                 .WithValueField(2, 12, out counterRestartValue, writeCallback: (oldVal, newVal) =>
                 {

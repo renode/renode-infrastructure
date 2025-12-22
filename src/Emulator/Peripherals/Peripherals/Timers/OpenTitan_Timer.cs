@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2021 Google LLC
 //
 // This file is licensed under the MIT License.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class OpenTitan_Timer : BasicDoubleWordPeripheral, IKnownSize, IRiscVTimeProvider
     {
-        public OpenTitan_Timer(IMachine machine, long frequency = 24000000) : base(machine)
+        public OpenTitan_Timer(IMachine machine, ulong frequency = 24000000) : base(machine)
         {
             IRQ = new GPIO();
             FatalAlert = new GPIO();

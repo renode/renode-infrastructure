@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -137,18 +137,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        private static Tuple<int, ulong> ConversionRateToFrequencyAndLimit(ConversionRate cr)
+        private static Tuple<ulong, ulong> ConversionRateToFrequencyAndLimit(ConversionRate cr)
         {
             switch(cr)
             {
             case ConversionRate.Quarter:
-                return new Tuple<int, ulong>(1, 4);
+                return new Tuple<ulong, ulong>(1, 4);
             case ConversionRate.One:
-                return new Tuple<int, ulong>(1, 1);
+                return new Tuple<ulong, ulong>(1, 1);
             case ConversionRate.Four:
-                return new Tuple<int, ulong>(4, 1);
+                return new Tuple<ulong, ulong>(4, 1);
             case ConversionRate.Eight:
-                return new Tuple<int, ulong>(8, 1);
+                return new Tuple<ulong, ulong>(8, 1);
             default:
                 throw new Exception("unreachable code");
             }

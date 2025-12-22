@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class LiteX_Timer_CSR32 : BasicDoubleWordPeripheral, IKnownSize
     {
-        public LiteX_Timer_CSR32(IMachine machine, long frequency) : base(machine)
+        public LiteX_Timer_CSR32(IMachine machine, ulong frequency) : base(machine)
         {
             uptimeTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(uptimeTimer), direction: Antmicro.Renode.Time.Direction.Ascending, enabled: true);
             innerTimer = new LimitTimer(machine.ClockSource, frequency, this, nameof(innerTimer), eventEnabled: true, autoUpdate: true);
