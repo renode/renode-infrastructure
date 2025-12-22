@@ -55,18 +55,18 @@ namespace Antmicro.Renode.Peripherals.Timers
             return clockEntry.Value;
         }
 
-        public uint Increment(ulong incrementBy)
+        public ulong Increment(ulong incrementBy)
         {
             var incValue = Value + incrementBy;
 
             Value = incValue % Limit;
 
-            return (uint)(incValue / Limit);
+            return incValue / Limit;
         }
 
-        public uint Decrement(ulong decrementBy)
+        public ulong Decrement(ulong decrementBy)
         {
-            var timesOverflown = (uint)(((Limit - 1 - Value) + decrementBy) / Limit);
+            var timesOverflown = ((Limit - 1 - Value) + decrementBy) / Limit;
 
             Value = Value + (Limit * timesOverflown) - decrementBy;
 
