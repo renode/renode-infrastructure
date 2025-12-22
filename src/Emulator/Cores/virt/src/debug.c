@@ -19,28 +19,27 @@
 #include "utils.h"
 #include "unwind.h"
 
-
 void kvm_add_breakpoint(uint64_t address)
 {
-    if (is_breakpoint_address(address)) {
+    if(is_breakpoint_address(address)) {
         return;
     }
 
     uint64_t phys_address = kvm_translate_guest_virtual_address(address);
-    if (phys_address == UINT64_MAX) {
+    if(phys_address == UINT64_MAX) {
         kvm_logf(LOG_LEVEL_WARNING, "Cannot add a breakpoint on address 0x%lx, it is outside mapped memory", address);
         return;
     }
 
     uint64_t size;
-    void* host_address = kvm_translate_guest_physical_to_host(phys_address, &size);
-    if (host_address == NULL) {
+    void *host_address = kvm_translate_guest_physical_to_host(phys_address, &size);
+    if(host_address == NULL) {
         kvm_logf(LOG_LEVEL_WARNING, "Cannot add a breakpoint on address 0x%lx, it does not map to memory", address);
         return;
     }
 
     Breakpoint *bp = malloc(sizeof(Breakpoint));
-    if (bp == NULL) {
+    if(bp == NULL) {
         kvm_abortf("Malloc failed");
     }
 
@@ -56,9 +55,10 @@ EXC_VOID_1(kvm_add_breakpoint, uint64_t, address)
 
 void kvm_remove_breakpoint(uint64_t address)
 {
-    Breakpoint* bp;
-    LIST_FOREACH(bp, &cpu->breakpoints, list) {
-        if (bp->pc == address) {
+    Breakpoint *bp;
+    LIST_FOREACH(bp, &cpu->breakpoints, list)
+    {
+        if(bp->pc == address) {
             *(bp->host_code_position) = bp->code_byte;
             LIST_REMOVE(bp, list);
             free(bp);
@@ -72,9 +72,10 @@ EXC_VOID_1(kvm_remove_breakpoint, uint64_t, address)
 
 bool is_breakpoint_address(uint64_t address)
 {
-    Breakpoint* bp;
-    LIST_FOREACH(bp, &cpu->breakpoints, list) {
-        if (bp->pc == address) {
+    Breakpoint *bp;
+    LIST_FOREACH(bp, &cpu->breakpoints, list)
+    {
+        if(bp->pc == address) {
             return true;
         }
     }
@@ -84,12 +85,10 @@ bool is_breakpoint_address(uint64_t address)
 
 uint64_t kvm_translate_guest_virtual_address(uint64_t address)
 {
-    struct kvm_translation address_translation = (struct kvm_translation){
-        .linear_address = address
-    };
+    struct kvm_translation address_translation = (struct kvm_translation) { .linear_address = address };
 
     /* Currently 'KVM_TRANSLATE' is only supported on x86 cpus */
-    if (ioctl(cpu->vcpu_fd, KVM_TRANSLATE, &address_translation) < 0) {
+    if(ioctl(cpu->vcpu_fd, KVM_TRANSLATE, &address_translation) < 0) {
         kvm_logf(LOG_LEVEL_WARNING, "KVM_TRANSLATE: %s", strerror(errno));
         return UINT64_MAX;
     }

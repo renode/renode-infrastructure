@@ -2,26 +2,22 @@
 
 #include <stdint.h>
 
-#define DEFAULT_VOID_HANDLER1(NAME, PARAM1)                                    \
-    NAME(PARAM1) __attribute__((weak));                                        \
-                                                                               \
-    NAME(PARAM1)                                                               \
-    {                                                                          \
-    }
+#define DEFAULT_VOID_HANDLER1(NAME, PARAM1) \
+    NAME(PARAM1) __attribute__((weak));     \
+                                            \
+    NAME(PARAM1) { }
 
-#define DEFAULT_VOID_HANDLER2(NAME, PARAM1, PARAM2)                            \
-    NAME(PARAM1, PARAM2) __attribute__((weak));                                \
-                                                                               \
-    NAME(PARAM1, PARAM2)                                                       \
-    {                                                                          \
-    }
+#define DEFAULT_VOID_HANDLER2(NAME, PARAM1, PARAM2) \
+    NAME(PARAM1, PARAM2) __attribute__((weak));     \
+                                                    \
+    NAME(PARAM1, PARAM2) { }
 
-#define DEFAULT_INT_HANDLER1(NAME, PARAM1)                                     \
-    NAME(PARAM1) __attribute__((weak));                                        \
-                                                                               \
-    NAME(PARAM1)                                                               \
-    {                                                                          \
-        return 0;                                                              \
+#define DEFAULT_INT_HANDLER1(NAME, PARAM1) \
+    NAME(PARAM1) __attribute__((weak));    \
+                                           \
+    NAME(PARAM1)                           \
+    {                                      \
+        return 0;                          \
     }
 
 void kvm_log(int level, char *message);

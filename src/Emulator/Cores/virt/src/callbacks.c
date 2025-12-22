@@ -8,11 +8,11 @@
 
 #include "callbacks.h"
 
-DEFAULT_VOID_HANDLER2(void kvm_log, int log_level, char* message)
+DEFAULT_VOID_HANDLER2(void kvm_log, int log_level, char *message)
 
-DEFAULT_VOID_HANDLER1(void kvm_abort, char* message)
+DEFAULT_VOID_HANDLER1(void kvm_abort, char *message)
 
-DEFAULT_VOID_HANDLER2(void kvm_runtime_abort, char* message, uint64_t pc)
+DEFAULT_VOID_HANDLER2(void kvm_runtime_abort, char *message, uint64_t pc)
 
 DEFAULT_INT_HANDLER1(uint32_t kvm_io_port_read_byte, uint16_t address)
 
@@ -26,11 +26,9 @@ DEFAULT_VOID_HANDLER2(void kvm_io_port_write_byte, uint16_t address, uint32_t va
 
 DEFAULT_VOID_HANDLER2(void kvm_io_port_write_word, uint16_t address, uint32_t value)
 
-DEFAULT_VOID_HANDLER2(void kvm_io_port_write_double_word, uint16_t address,
-                      uint32_t value)
+DEFAULT_VOID_HANDLER2(void kvm_io_port_write_double_word, uint16_t address, uint32_t value)
 
-DEFAULT_VOID_HANDLER2(void kvm_write_quad_word, uint64_t address,
-                      uint64_t value)
+DEFAULT_VOID_HANDLER2(void kvm_write_quad_word, uint64_t address, uint64_t value)
 
 DEFAULT_INT_HANDLER1(uint64_t kvm_sysbus_read_byte, uint64_t address)
 
@@ -44,8 +42,6 @@ DEFAULT_VOID_HANDLER2(void kvm_sysbus_write_byte, uint64_t address, uint64_t val
 
 DEFAULT_VOID_HANDLER2(void kvm_sysbus_write_word, uint64_t address, uint64_t value)
 
-DEFAULT_VOID_HANDLER2(void kvm_sysbus_write_double_word, uint64_t address,
-                      uint64_t value)
+DEFAULT_VOID_HANDLER2(void kvm_sysbus_write_double_word, uint64_t address, uint64_t value)
 
-DEFAULT_VOID_HANDLER2(void kvm_sysbus_write_quad_word, uint64_t address,
-                      uint64_t value)
+DEFAULT_VOID_HANDLER2(void kvm_sysbus_write_quad_word, uint64_t address, uint64_t value)

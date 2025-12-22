@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -6,11 +6,10 @@
 
 #define TRAP_OPCODE 0xCC
 
-
 typedef struct Breakpoint {
     uint64_t pc;
-    uint8_t code_byte; // stores value overshadowed by TRAP_OPCODE
-    uint8_t* host_code_position;
+    uint8_t code_byte;  //  stores value overshadowed by TRAP_OPCODE
+    uint8_t *host_code_position;
     LIST_ENTRY(Breakpoint) list;
 } Breakpoint;
 

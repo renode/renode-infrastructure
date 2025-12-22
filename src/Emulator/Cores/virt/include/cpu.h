@@ -34,15 +34,10 @@ typedef enum {
     ABORTED = UINT64_MAX
 } ExecutionResult;
 
-typedef enum {
-    CLEAR,
-    PRESENT,
-    DIRTY
-} RegisterState;
+typedef enum { CLEAR, PRESENT, DIRTY } RegisterState;
 
 #ifdef TARGET_X86KVM
-typedef enum
-{
+typedef enum {
     FAULT = 0,
     WARN = 1,
     IGNORE = 2,

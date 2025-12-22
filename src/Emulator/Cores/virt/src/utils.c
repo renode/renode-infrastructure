@@ -17,7 +17,6 @@
 
 #define VSNPRINTF_BUFFER_SIZE 1024
 
-
 void kvm_abortf(const char *fmt, ...)
 {
     char result[VSNPRINTF_BUFFER_SIZE];
@@ -50,7 +49,7 @@ void kvm_logf(LogLevel level, const char *fmt, ...)
     va_end(ap);
 }
 
-// Used to ignore unexpected signals.
+//  Used to ignore unexpected signals.
 int ioctl_with_retry(int fd, unsigned long op, ...)
 {
     int result;
@@ -60,12 +59,12 @@ int ioctl_with_retry(int fd, unsigned long op, ...)
 
     do {
         va_start(ap, op);
-        void* arg = va_arg(ap, void*);
+        void *arg = va_arg(ap, void *);
         result = ioctl(fd, op, arg);
         va_end(ap);
 
         failed_with_eintr = (result == -1 && errno == EINTR);
-    } while (failed_with_eintr && retry_count++ < IOCTL_RETRY_LIMIT);
-    
+    } while(failed_with_eintr && retry_count++ < IOCTL_RETRY_LIMIT);
+
     return result;
 }
