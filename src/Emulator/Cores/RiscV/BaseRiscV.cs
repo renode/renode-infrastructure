@@ -1359,9 +1359,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             ZVE64D = 13,
             ZACAS = 14,
             SSCOFPMF = 15,
-            ZCB = 16,
-            ZCMP = 17,
-            ZCMT = 18,
+            BKB = 16,
+            ZCB = 17,
+            ZCMP = 18,
+            ZCMT = 19,
         }
 
         public enum InterruptMode
@@ -1562,6 +1563,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 case "ZBB": standardExtensions.Add(StandardInstructionSetExtensions.BB); break;
                 case "ZBC": standardExtensions.Add(StandardInstructionSetExtensions.BC); break;
                 case "ZBS": standardExtensions.Add(StandardInstructionSetExtensions.BS); break;
+                case "ZBKB": standardExtensions.Add(StandardInstructionSetExtensions.BKB); break;
                 case "ZICSR": standardExtensions.Add(StandardInstructionSetExtensions.ICSR); break;
                 case "ZIFENCEI": standardExtensions.Add(StandardInstructionSetExtensions.IFENCEI); break;
                 case "ZFH": standardExtensions.Add(StandardInstructionSetExtensions.ZFH); break;
