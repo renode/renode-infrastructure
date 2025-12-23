@@ -228,7 +228,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private IFlagRegisterField[] outputData;
 
         private readonly GPIOInterruptManager irqManager;
-        private readonly DoubleWordRegisterCollection registers;
 
         private const int NumberOfPorts = 32;
         private const int PortsPerConfigurationRegister = 8;
