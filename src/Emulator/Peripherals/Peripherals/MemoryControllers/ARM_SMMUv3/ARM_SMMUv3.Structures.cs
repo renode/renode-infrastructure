@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
@@ -244,7 +245,26 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             protected override CommandError Run(ARM_SMMUv3 parent, SecurityState securityState)
             {
                 parent.NoisyLog("Sync: {0}", this);
-                // TODO: Raise completion sginal
+                // Completion signal can be triggered immediately as the model
+                // processes command in-order and instantly.
+                switch(CS)
+                {
+                case CompletionSignal.None:
+                    break; // Nothing to do
+                case CompletionSignal.Irq:
+                    // Since SMMU_IDR0.MSI is 0 we can ignore MSIAddress and always trigger the interrupt line.
+                    // TODO: Implement the above after changing the value of SMMU_IDR0.MSI
+                    // Interrupt is blinked as there is no status field for this signal.
+                    parent.CommandSyncIRQ.Blink();
+                    break;
+                case CompletionSignal.Sev:
+                    // Since SMMU_IDR0.SEV is 0 we can treat Sev in the same way as None.
+                    // TODO: Implement the above after changing the value of SMMU_IDR0.SEV
+                    break;
+                default:
+                    parent.ErrorLog("Invalid CS value 0x{0:X} in command: {1}", (int)CS, this);
+                    return CommandError.Illegal;
+                }
                 return CommandError.None;
             }
 

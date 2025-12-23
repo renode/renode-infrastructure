@@ -47,6 +47,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             QuadWordRegisters = new QuadWordRegisterCollection(this);
             nonSecureDomain = new Domain(this, SecurityState.NonSecure);
             secureDomain = new Domain(this, SecurityState.Secure);
+            CommandSyncIRQ = new GPIO();
             DefineRegisters();
             // Queues expect I(Flag|Value)RegisterField values to be already initialized
             // so queues have to be created after defining the registers
@@ -278,6 +279,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         public GPIO NonSecureGlobalErrorIRQ => nonSecureDomain.GlobalErrorIRQ;
 
         public GPIO SecureGlobalErrorIRQ => secureDomain.GlobalErrorIRQ;
+
+        public GPIO CommandSyncIRQ { get; }
 
         public long Size => 0x24000;
 
