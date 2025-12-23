@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,6 +7,7 @@
 using System;
 using System.Linq;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 
@@ -21,6 +22,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 this.parent = parent;
                 SecurityState = securityState;
                 StreamTable = new StreamTableEntry[1 << StreamIdBits];
+                GlobalErrorIRQ = new GPIO();
             }
 
             public void Reset()
@@ -43,6 +45,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                     if(CommandQueueErrorReason.Value != CommandError.None)
                     {
                         CommandQueueErrorPresent.Value = !CommandQueueErrorPresent.Value;
+                        UpdateInterrupts();
                         break;
                     }
 
@@ -62,6 +65,15 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 var ste = parent.ReadStruct<StreamTableEntry>(StreamTableAddress.Value << 6, streamId);
                 parent.NoisyLog("Invalidated STE {0} = {1}", streamId, ste);
                 StreamTable[streamId] = ste;
+            }
+
+            public void UpdateInterrupts()
+            {
+                var globalError = CommandQueueErrorPresent.Value; // TODO: Other global error flags
+                globalError &= GlobalErrorInterruptEnable.Value;
+                parent.DebugLog("{0}{1}: {2}", SecurityState, nameof(GlobalErrorIRQ), globalError);
+                GlobalErrorIRQ.Set(globalError);
+                // EventQueueIRQ is Blink()'ed so don't set it here
             }
 
             public SecurityState SecurityState { get; }
@@ -86,6 +98,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                     }
                 }
             }
+
+            public GPIO GlobalErrorIRQ { get; }
 
             public IValueRegisterField CommandQueueShift;
             public IValueRegisterField CommandQueueAddress;

@@ -275,6 +275,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             throw new Exception("Unreachable");
         }
 
+        public GPIO NonSecureGlobalErrorIRQ => nonSecureDomain.GlobalErrorIRQ;
+
+        public GPIO SecureGlobalErrorIRQ => secureDomain.GlobalErrorIRQ;
+
         public long Size => 0x24000;
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
@@ -559,6 +563,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 .WithFlag(1, out pageRequestQueueErrorInterruptEnable, name: "PRIQ_IRQEN")
                 .WithFlag(2, out nonSecureDomain.EventQueueInterruptEnable, name: "EVENTQ_IRQEN")
                 .WithReservedBits(3, 29)
+                .WithWriteCallback((_, __) => nonSecureDomain.UpdateInterrupts())
             ;
 
             Registers.SMMU_IRQ_CTRLACK.Define(this)
@@ -581,6 +586,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 .WithTaggedFlag("CMDQP_ERR", 9)
                 .WithTaggedFlag("DPT_ERR", 10)
                 .WithReservedBits(11, 21)
+                .WithWriteCallback((_, __) => nonSecureDomain.UpdateInterrupts())
             ;
 
             Registers.SMMU_GERRORN.Define(this)
@@ -978,6 +984,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 .WithReservedBits(1, 1)
                 .WithFlag(2, out secureDomain.EventQueueInterruptEnable, name: "EVENTQ_IRQEN")
                 .WithReservedBits(3, 29)
+                .WithWriteCallback((_, __) => secureDomain.UpdateInterrupts())
             ;
 
             Registers.SMMU_S_IRQ_CTRLACK.Define(this)
@@ -999,6 +1006,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 .WithTaggedFlag("SFM_ERR", 8)
                 .WithTaggedFlag("CMDQP_ERR", 9)
                 .WithReservedBits(10, 22)
+                .WithWriteCallback((_, __) => secureDomain.UpdateInterrupts())
             ;
 
             QuadWordRegisters.DefineRegister((long)Registers.SMMU_S_STRTAB_BASE)
