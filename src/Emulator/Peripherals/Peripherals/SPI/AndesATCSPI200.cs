@@ -144,11 +144,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                                 this.Log(LogLevel.Warning, "Address mode is available only for Master mode.");
                                 return;
                             }
-                            if(!isAddressPhaseEnabled.Value)
-                            {
-                                this.Log(LogLevel.Warning, "Address mode is not enabled, ignoring write.");
-                                return;
-                            }
+                            isSpiAddressAssigned = true;
                             spiAddress.Value = val;
                         })
                 },
@@ -309,6 +305,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                 this.Log(LogLevel.Warning, "Command mode is available only for Master mode.");
                 return;
             }
+            if(isSpiAddressAssigned && !isAddressPhaseEnabled.Value)
+            {
+                this.Log(LogLevel.Warning, "Address mode is not enabled, ignoring command.");
+                return;
+            }
             if(!TryVerifyTransferMode())
             {
                 return;
@@ -344,6 +345,13 @@ namespace Antmicro.Renode.Peripherals.SPI
             if(isCommandPhaseEnabled.Value)
             {
                 TransmitByte(data);
+                if(isAddressPhaseEnabled.Value)
+                {
+                    TransmitByte((byte)spiAddress.Value);
+                    TransmitByte((byte)(spiAddress.Value >> 8));
+                    TransmitByte((byte)(spiAddress.Value >> 16));
+                    isSpiAddressAssigned = false;
+                }
             }
             else
             {
@@ -443,6 +451,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField transactionEndInterruptEnabled;
         private ulong txTransferCounter;
         private ulong rxTransferCounter;
+        private bool isSpiAddressAssigned;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly IBusController sysbus;
