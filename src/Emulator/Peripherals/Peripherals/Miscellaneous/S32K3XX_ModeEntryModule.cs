@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             );
 
             Registers.Partition0ProcessUpdate.DefineMany(this, PartitionCount, stepInBytes: partitionSize, setup: (reg, index) => reg
-                .WithTaggedFlag("PCUD (Partition Clock Update)", 0)
+                .WithFlag(0, FieldMode.Write | FieldMode.ReadToClear, name: "PCUD (Partition Clock Update)")
                 .WithReservedBits(1, 31)
             );
 
@@ -103,11 +103,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 var offset = index * coreSize;
                 (Registers.Partition0Core0ProcessConfiguration + offset).Define(this)
-                    .WithTaggedFlag($"CCE (Core{index} Clock Enable)", 0)
+                    .WithFlag(0, out coreClockStarted[index], name: $"CCE (Core{index} Clock Enable)")
                     .WithReservedBits(1, 31);
 
                 (Registers.Partition0Core0ProcessUpdate + offset).Define(this)
-                    .WithTaggedFlag($"CCUPD (Core{index} Clock Update)", 0)
+                    .WithFlag(0, FieldMode.Write | FieldMode.ReadToClear,
+                        writeCallback: (_, val) => { if(val) TryStartCore(index); },
+                        name: $"CCUPD (Core{index} Clock Update)")
                     .WithReservedBits(1, 31);
             }
 
@@ -115,7 +117,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             // To mimics the initial state of a system, halted cores reports waiting for interrupt.
             Registers.Partition0Core0Status.DefineMany(this, (uint)cores.Length, stepInBytes: (uint)coreSize, setup: (reg, index) => reg
                 .WithFlag(0, name: $"CCS (Core{index} Clock Process Status)",
-                    valueProviderCallback: (_) => cores[index] != null
+                    valueProviderCallback: (_) => !(cores[index]?.IsHalted ?? true)
                 )
                 .WithReservedBits(1, 30)
                 .WithFlag(31, name: "WFI (WaitForInterruptStatus)",
@@ -125,8 +127,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             Registers.Partition0Core0Address.DefineMany(this, (uint)cores.Length, stepInBytes: (uint)coreSize, setup: (reg, index) => reg
                 .WithReservedBits(0, 2)
-                .WithTag($"ADDR (Core{index} Boot Address)", 2, 30)
+                .WithValueField(2, 30, out coreStartAddress[index], name: $"ADDR (Core{index} Boot Address)")
             );
+        }
+
+        private void TryStartCore(int coreIdx)
+        {
+            if(cores[coreIdx] is CortexM core && core.IsHalted && coreClockStarted[coreIdx].Value)
+            {
+                core.VectorTableOffset = (uint)coreStartAddress[coreIdx].Value;
+                core.IsHalted = false;
+            }
         }
 
         private void DefineStatusEnableRegisters(Registers statusOffset, uint[] statuses)
@@ -161,9 +172,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             cofbsStatus[2][2] = 0x00000003;
         }
 
+        private readonly IValueRegisterField[] coreStartAddress = new IValueRegisterField[NumberOfCores];
+        private readonly IFlagRegisterField[] coreClockStarted = new IFlagRegisterField[NumberOfCores];
+
         private readonly uint[][] cofbsStatus;
         private readonly ICPU[] cores;
         private const uint PartitionCount = 3;
+        private const int NumberOfCores = 6;
 
         public enum Registers
         {
