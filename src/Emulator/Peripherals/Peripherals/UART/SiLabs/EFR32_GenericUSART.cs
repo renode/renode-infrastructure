@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -192,7 +193,7 @@ namespace Antmicro.Renode.Peripherals.UART.Silabs
                     RxDataAvailableRequest.Set(true);
                     break;
                 default:
-                    throw new Exception("Unreachable code. Invalid BufferState value.");
+                    throw new UnreachableException("Invalid BufferState value.");
                 }
             }
         }

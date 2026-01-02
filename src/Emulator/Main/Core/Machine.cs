@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
@@ -220,7 +221,7 @@ namespace Antmicro.Renode.Core
             }
 
             default:
-                throw new Exception("Should not reach here");
+                throw new UnreachableException();
             }
         }
 
@@ -246,7 +247,7 @@ namespace Antmicro.Renode.Core
             }
 
             default:
-                throw new Exception("Should not reach here");
+                throw new UnreachableException();
             }
         }
 
@@ -269,7 +270,7 @@ namespace Antmicro.Renode.Core
             }
 
             default:
-                throw new Exception("Should not reach here");
+                throw new UnreachableException();
             }
         }
 
@@ -327,7 +328,7 @@ namespace Antmicro.Renode.Core
             }
 
             default:
-                throw new Exception("Should not reach here");
+                throw new UnreachableException();
             }
         }
 

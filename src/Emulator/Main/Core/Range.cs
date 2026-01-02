@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,6 +8,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Exceptions;
@@ -132,7 +133,7 @@ namespace Antmicro.Renode.Core
                 };
             }
 
-            throw new Exception("Unreachable");
+            throw new UnreachableException();
         }
 
         public bool Intersects(Range range)

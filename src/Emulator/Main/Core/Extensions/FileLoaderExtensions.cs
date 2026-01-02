@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -373,7 +374,7 @@ namespace Antmicro.Renode.Core.Extensions
                             }
                             break;
                         default:
-                            throw new Exception("Unreachable");
+                            throw new UnreachableException();
                         }
 
                         lineNum++;

@@ -1,13 +1,17 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Diagnostics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+#if !NET
+using Antmicro.Renode.Exceptions;
+#endif
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
@@ -151,7 +155,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 }
                 break;
             default:
-                throw new Exception("Should not reach here.");
+                throw new UnreachableException();
             }
 
             interruptStatus[idx] |= interruptPending;

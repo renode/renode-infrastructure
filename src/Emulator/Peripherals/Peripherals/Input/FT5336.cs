@@ -1,14 +1,18 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
+#if !NET
+using Antmicro.Renode.Exceptions;
+#endif
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Utilities;
@@ -171,7 +175,7 @@ namespace Antmicro.Renode.Peripherals.Input
                 queue.Enqueue(0);
                 break;
             default:
-                throw new Exception("Should not reach here.");
+                throw new UnreachableException();
             }
             SetReturnValue(queue.ToArray());
         }

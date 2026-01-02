@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,6 +7,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -133,7 +134,7 @@ namespace Antmicro.Renode.Plugins.TracePlugin
             string cpuName;
             if(!cpu.Bus.Machine.TryGetAnyName(cpu, out cpuName))
             {
-                throw new Exception("This should never have happened!");
+                throw new UnreachableException();
             }
             return "{0}.{1}-{2}".FormatWith(EmulationManager.Instance.CurrentEmulation[cpu.Bus.Machine], cpuName, TracerName);
         }

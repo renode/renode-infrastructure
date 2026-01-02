@@ -1,15 +1,19 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+#if !NET
+using Antmicro.Renode.Exceptions;
+#endif
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -128,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 var crc = CalculateCrc8(new byte[] {(byte)(SlaveAddress << 1), (byte)register, (byte)((SlaveAddress << 1) + 1), (byte)result, (byte)(result >> 8)});
                 return (byte)crc;
             default:
-                throw new Exception("unreachable state");
+                throw new UnreachableException();
             }
         }
 
