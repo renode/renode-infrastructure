@@ -78,6 +78,7 @@
     <Compile Remove="Plugins/**/*"/>
     <Compile Remove="Emulator/Main/Tests/**/*"/>
     <Compile Remove="Emulator/Main/Utilities/AdHocCompiler.cs"/>
+    <Compile Remove="Emulator/Main/Exceptions/UnreachableException.cs"/>
     <Compile Remove="Emulator/Peripherals/Test/**/*"/>
     <Compile Remove="Emulator/Extensions/MonitorTests/**/*" />
     <Compile Remove="Emulator/Extensions/TAPHelper/DynamicModuleSpawner.cs" />

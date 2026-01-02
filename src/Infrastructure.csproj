@@ -2013,6 +2013,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/FocalTechFT9001_Reset.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/Crypto/FocalTechFT9001_TRNG.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/S32K3XX_DMAMUX.cs" />
+    <Compile Include="Emulator/Main/Exceptions/UnreachableException.cs"/>
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
