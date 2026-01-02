@@ -82,11 +82,11 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public bool IsTransferAllowed()
         {
-            if(enableDebug.Value)
-            {
-                // eDMA doesn't transfer data
-                return false;
-            }
+            // if(enableDebug.Value)
+            // {
+            //     // eDMA doesn't transfer data
+            //     return false;
+            // }
 
             if(halt.Value)
             {
@@ -145,6 +145,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
+        public bool MasterIdReplicationEnabled => globalMasterIdReplicationControl.Value;
+
         public int NumberOfChannels { get; }
 
         public bool Halt
@@ -187,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 .WithFlag(4, out haltAfterError, name: "HAE")
                 .WithFlag(5, out halt, name: "HALT")
                 .WithFlag(6, out globalChannelLinkingControl, name: "GCLC")
-                .WithTaggedFlag("GMRC", 7)
+                .WithFlag(7, out globalMasterIdReplicationControl, name: "GMRC")
                 .WithTaggedFlag("ECX", 8) // Minor loops are atomic during emulation, so cancellation is immediate.
                 .WithTaggedFlag("CX", 9) // Same as above.
                 .WithReservedBits(10, 6)
@@ -239,6 +241,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private IFlagRegisterField haltAfterError;
         private IFlagRegisterField halt;
         private IFlagRegisterField globalChannelLinkingControl;
+        private IFlagRegisterField globalMasterIdReplicationControl;
         private IEnumRegisterField<Channel.ErrorFlags> channelError;
         private IValueRegisterField errorChannelNumber;
 
@@ -259,3 +262,4 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
     }
 }
+

@@ -9,9 +9,11 @@ using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
@@ -19,8 +21,16 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class NXP_eDMA_Channels : IDoubleWordPeripheral, IWordPeripheral, IKnownSize
     {
-        public NXP_eDMA_Channels(IMachine machine, NXP_eDMA dma, uint count, int firstChannel = 0, long channelSize = 0x1000, bool hasMuxingRegisters = true)
+        public NXP_eDMA_Channels(IMachine machine, NXP_eDMA dma, uint count, int firstChannel = 0, long channelSize = 0x1000, bool hasMuxingRegisters = true, NXP_XRDC xrdc = null, uint? firstChannelSlot = 0)
         {
+            if(xrdc is null && firstChannelSlot.HasValue)
+            {
+                throw new ConstructionException($"'{nameof(firstChannelSlot)}' is defined, but '{nameof(xrdc)}' is not");
+            }
+            if(!firstChannelSlot.HasValue && xrdc != null)
+            {
+                throw new ConstructionException($"'{nameof(xrdc)}' is defined, but '{nameof(firstChannelSlot)}' is not");
+            }
             Count = count;
             FirstChannelNumber = firstChannel;
             ChannelSize = channelSize;
@@ -29,11 +39,23 @@ namespace Antmicro.Renode.Peripherals.DMA
             channels = new Channel[count];
 
             var sysbus = machine.GetSystemBus(this);
+            // sysbus.Unregister(this);
             for(var i = 0; i < count; ++i)
             {
+                // sysbus.Register(this);
                 channels[i] = new Channel(sysbus, this, firstChannel + i, hasMuxingRegisters);
+                // TODO: Register channels in place of this
                 dma.SetChannel(firstChannel + i, channels[i]);
             }
+
+            if(xrdc != null && firstChannelSlot.HasValue)
+            {
+                for(var i = 0; i < Count; ++i)
+                {
+                    // xrdc.Register(channels[i], (int)(firstChannelSlot.Value + i));
+                }
+            }
+            this.xrdc = xrdc;
         }
 
         public void Reset()
@@ -74,10 +96,43 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public IEnumerable<Channel> Channels => channels;
 
+        private Channel.ErrorFlags CheckForErrorsWithMasterId(Request request, uint masterId, bool isPrivileged = false)
+        {
+            dma.DebugLog("Requesting transaction (master id {1}) for {0}", request, masterId);
+            if(request.Source.Address.HasValue && (!xrdc?.RequestTransactionWithMasterId(masterId, request.Source.Address.Value, MpuAccess.Read, isPrivileged: isPrivileged) ?? false))
+            {
+                dma.DebugLog("Read not allowed");
+                return Channel.ErrorFlags.SourceBus;
+            }
+            if(request.Destination.Address.HasValue && (!xrdc?.RequestTransactionWithMasterId(masterId, request.Destination.Address.Value, MpuAccess.Write, isPrivileged: isPrivileged) ?? false))
+            {
+                dma.DebugLog("Write not allowed");
+                return Channel.ErrorFlags.DestinationBus;
+            }
+            return Channel.ErrorFlags.NoError;
+        }
+
+        private Channel.ErrorFlags CheckForErrorsWithInitiator(Request request, IPeripheral context = null)
+        {
+            dma.DebugLog("Requesting transaction for {0}", request);
+            if(request.Source.Address.HasValue && (!xrdc?.RequestTransactionWithInitiator(context ?? dma, request.Source.Address.Value, MpuAccess.Read) ?? false))
+            {
+                dma.DebugLog("Read not allowed");
+                return Channel.ErrorFlags.SourceBus;
+            }
+            if(request.Destination.Address.HasValue && (!xrdc?.RequestTransactionWithInitiator(context ?? dma, request.Destination.Address.Value, MpuAccess.Write) ?? false))
+            {
+                dma.DebugLog("Write not allowed");
+                return Channel.ErrorFlags.DestinationBus;
+            }
+            return Channel.ErrorFlags.NoError;
+        }
+
         private readonly Channel[] channels;
         private readonly NXP_eDMA dma;
+        private readonly NXP_XRDC xrdc;
 
-        public class Channel : IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>
+        public class Channel : IPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>
         {
             public Channel(IBusController sysbus, NXP_eDMA_Channels channels, int channelNumber, bool hasMuxingRegisters = true)
             {
@@ -316,7 +371,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                         incrementWriteAddress: true
                     );
 
-                    var resp = dmaEngine.IssueCopy(req, context);
+                    errors |= CheckForErrors(req);
+                    if(errors != ErrorFlags.NoError)
+                    {
+                        ReportErrors(errors);
+                        return;
+                    }
+
+                    var resp = dmaEngine.IssueCopy(req, Context);
                     tcd = Packet.Decode<TransferControlDescriptorLocal>(data);
                     UpdateTCDInLocalMemory(tcd);
                 }
@@ -370,8 +432,15 @@ namespace Antmicro.Renode.Peripherals.DMA
                     incrementWriteAddress: true
                 );
 
+                errors |= CheckForErrors(request);
+                if(errors != ErrorFlags.NoError)
+                {
+                    ReportErrors(errors);
+                    return false;
+                }
+
                 channels.dma.DebugLog("CH{0}: Executing transfer from 0x{1:X} ({2}) to 0x{3:X} ({4}), size {5}B", ChannelNumber, request.Source.Address, request.ReadTransferType, request.Destination.Address, request.WriteTransferType, request.Size);
-                var response = dmaEngine.IssueCopy(request, context);
+                var response = dmaEngine.IssueCopy(request, Context);
 
                 // Minor loop completion
                 tcd.SourceAddress = (uint)response.ReadAddress;
@@ -415,6 +484,15 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
 
                 return true;
+            }
+
+            private ErrorFlags CheckForErrors(Request request)
+            {
+                if(enableMasterIdReplication.Value)
+                {
+                    return channels.CheckForErrorsWithMasterId(request, (uint)masterId.Value, privilegedAccessLevel.Value);
+                }
+                return channels.CheckForErrorsWithMasterId(request, 0x2, true);
             }
 
             private void ReportErrors(ErrorFlags errors)
@@ -527,6 +605,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                         // Master ID Replication (Channel System Bus register) is a different mechanism that would capture
                         // the identity of core programming the eDMA's TCD.
                         context = GetCurrentCPUOrNull();
+                        if(!channels.xrdc.TryGetMasterId(context, out var mid))
+                        {
+                            this.ErrorLog("Master ID for captured initiator not available");
+                            masterId.Value = 0x2;
+                            return;
+                        }
+                        masterId.Value = mid;
                     });
 
                 Registers.ChannelErrorStatus.Define(dwRegisters, name: "CHn_ES")
@@ -549,12 +634,18 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(1, 31)
                     .WithWriteCallback((_, __) => UpdateInterrupts());
 
-                Registers.ChannelSystemBus.Define(dwRegisters, 0x00008001, name: "CHn_SBR")
-                    .WithValueField(0, 5, out initiatorId, FieldMode.Read, name: "MID")
+                Registers.ChannelSystemBus.Define(dwRegisters, 0x00008002, name: "CHn_SBR")
+                    .WithValueField(0, 5, out masterId, FieldMode.Read, name: "MID")
                     .WithReservedBits(5, 9)
-                    .WithTaggedFlag("SEC", 14)
-                    .WithTaggedFlag("PAL", 15)
-                    .WithFlag(16, out enableInitiatorIdReplication, name: "EMI")
+                    .WithFlag(14, name: "SEC")
+                    .WithFlag(15, out privilegedAccessLevel, FieldMode.Read, name: "PAL")
+                    .WithFlag(16, out enableMasterIdReplication,
+                        changeCallback: (_, __) =>
+                        {
+                            enableMasterIdReplication.Value &= channels.dma.MasterIdReplicationEnabled;
+                        },
+                        name: "EMI"
+                    )
                     .WithTag("ATTR", 17, 3)
                     .WithReservedBits(20, 12);
 
@@ -658,14 +749,17 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(15, out tcdInMemory.BITERELINK, name: "ELINK");
             }
 
+            private IPeripheral Context => context;
+
             private IFlagRegisterField enableDMARequest;
             private IFlagRegisterField enableAsynchronousDMARequest;
             private IFlagRegisterField enableErrorInterrupt;
             private IFlagRegisterField channelDone;
             private IEnumRegisterField<ErrorFlags> channelError;
             private IFlagRegisterField interruptRequest;
-            private IValueRegisterField initiatorId;
-            private IFlagRegisterField enableInitiatorIdReplication;
+            private IValueRegisterField masterId;
+            private IFlagRegisterField privilegedAccessLevel;
+            private IFlagRegisterField enableMasterIdReplication;
 
             private TransferControlDescriptorLocal tcd;
             private TransferControlDescriptor tcdInMemory = new TransferControlDescriptor();
@@ -976,3 +1070,4 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
     }
 }
+
