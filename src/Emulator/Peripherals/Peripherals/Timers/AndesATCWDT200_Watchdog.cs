@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,7 +16,7 @@ using TimeDirection = Antmicro.Renode.Time.Direction;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class AndesATCWDT200_Watchdog : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    public class AndesATCWDT200_Watchdog : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IHasFrequency
     {
         public AndesATCWDT200_Watchdog(IMachine machine, long clockFrequency)
         {
@@ -70,6 +70,16 @@ namespace Antmicro.Renode.Peripherals.Timers
         public GPIO IRQ { get; }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        public long Frequency
+        {
+            get => interruptTimer.Frequency; // Both timers have the same frequency
+            set
+            {
+                interruptTimer.Frequency = value;
+                resetTimer.Frequency = value;
+            }
+        }
 
         private Dictionary<long, DoubleWordRegister> BuildRegisterMap() => new Dictionary<long, DoubleWordRegister>
         {

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,10 +15,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class EgisET171_AOSMU : BasicDoubleWordPeripheral, IKnownSize
     {
-        public EgisET171_AOSMU(IMachine machine, IHasFrequency mtimer, IHasFrequency pit) : base(machine)
+        public EgisET171_AOSMU(IMachine machine, IHasFrequency mtimer, IHasFrequency pit, IHasFrequency wdt) : base(machine)
         {
             this.mtimer = mtimer;
             this.pit = pit;
+            this.wdt = wdt;
             DefineRegisters();
             InnerReset();
             // On first start we set the reset cause to Power On
@@ -122,6 +123,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             mtimer.Frequency = APBClockFrequency;
             pit.Frequency = APBClockFrequency;
+            wdt.Frequency = APBClockFrequency;
         }
 
         private void DefineRegisters()
@@ -318,6 +320,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private bool isWarmReset = false;
         private readonly IHasFrequency pit;
         private readonly IHasFrequency mtimer;
+        private readonly IHasFrequency wdt;
 
         private enum RootClockSelect
         {
