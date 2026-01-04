@@ -1,48 +1,39 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Collections;
-using System.Linq;
-using System.Reflection;
-using System.Collections;
-using Microsoft.CSharp.RuntimeBinder;
-using AntShell.Commands;
-using Dynamitey;
-using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.UserInterface.Commands;
 using Antmicro.Renode.UserInterface.Exceptions;
-using System.Runtime.InteropServices;
-using System.Globalization;
-using System.Text;
+using Antmicro.Renode.UserInterface.Tokenizer;
+using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Collections;
+
+using AntShell.Commands;
+
+using Dynamitey;
+
+using Microsoft.CSharp.RuntimeBinder;
 
 namespace Antmicro.Renode.UserInterface
 {
     public partial class Monitor
     {
-        public event Action Quitted;
-
-        private readonly List<string> usings = new List<string>() { "sysbus." };
-
-        public enum NumberModes
-        {
-            Hexadecimal,
-            Decimal,
-            Both
-        }
-
-        public NumberModes CurrentNumberFormat{ get; set; }
-
         public static string SanitizePathSeparator(string baseString)
         {
             var sanitizedFile = baseString.Replace("\\", "/");
@@ -52,6 +43,274 @@ namespace Antmicro.Renode.UserInterface
             }
             return sanitizedFile;
         }
+
+        public void ClearCache()
+        {
+            cache.ClearCache();
+        }
+
+        public object ConvertValueOrThrowRecoverable(object value, Type type)
+        {
+            try
+            {
+                var convertedValue = ConvertValue(value, type);
+                return convertedValue;
+            }
+            catch(Exception e)
+            {
+                if(e is FormatException || e is RuntimeBinderException || e is OverflowException || e is InvalidCastException || e is ArgumentException)
+                {
+                    throw new RecoverableException(e);
+                }
+                throw;
+            }
+        }
+
+        public object ExecuteDeviceAction(string name, object device, IEnumerable<Token> p)
+        {
+            string commandValue;
+            var type = device.GetType();
+            var command = p.FirstOrDefault();
+            if(command is LiteralToken || command is LeftBraceToken)
+            {
+                commandValue = command.GetObjectValue() as string;
+            }
+            else
+            {
+                throw new RecoverableException("Bad syntax");
+            }
+
+            var methods = cache.Get(type, GetAvailableMethods);
+            var fields = cache.Get(type, GetAvailableFields);
+            var properties = cache.Get(type, GetAvailableProperties);
+            var indexers = cache.Get(type, GetAvailableIndexers).ToList();
+            var extensions = cache.Get(type, GetAvailableExtensions);
+
+            var foundMethods = methods.Where(x => x.Name == commandValue).ToList();
+            var foundField = fields.FirstOrDefault(x => x.Name == commandValue);
+            var foundProp = properties.FirstOrDefault(x => x.Name == commandValue);
+            var foundExts = extensions.Where(x => x.Name == commandValue).ToList();
+            var foundIndexers = command is LeftBraceToken && indexers.Any() && indexers.All(x => x.Name == indexers[0].Name) //can use default indexer
+                                ? indexers.ToList() : indexers.Where(x => x.Name == commandValue).ToList();
+
+            var parameterArray = p.Skip(command is LeftBraceToken ? 0 : 1).ToArray(); //Don't skip left brace, proper code to do that is below.
+
+            if((commandValue == SelectCommand || commandValue == ForEachCommand) && parameterArray.Any() && device is IEnumerable enumerable)
+            {
+                // Match on non-generic IEnumerable and .Cast<object> to box IEnumerable<int> for example.
+                var result = enumerable.Cast<object>().Select(o => RecursiveExecuteDeviceAction("", o, p, 1)).ToList();
+                return commandValue == SelectCommand ? result : null;
+            }
+            if(foundMethods.Any())
+            {
+                foreach(var foundMethod in foundMethods.OrderBy(x => x.GetParameters().Count())
+                        .ThenBy(y => y.GetParameters().Count(z => z.ParameterType == typeof(String))))
+                {
+                    var methodParameters = foundMethod.GetParameters();
+
+                    List<object> parameters;
+                    if(TryPrepareParameters(parameterArray, methodParameters, out parameters))
+                    {
+                        return InvokeMethod(device, foundMethod, parameters);
+                    }
+                }
+                if(!foundExts.Any())
+                {
+                    throw new ParametersMismatchException(type, commandValue, name);
+                }
+            }
+            if(foundExts.Any())
+            { //intentionaly no 'else' - extensions may override methods as well
+                foreach(var foundExt in foundExts.OrderBy(x => x.GetParameters().Count())
+                        .ThenBy(y => y.GetParameters().Count(z => z.ParameterType == typeof(String))))
+                {
+                    var extensionParameters = foundExt.GetParameters().Skip(1).ToList();
+                    List<object> parameters;
+                    if(TryPrepareParameters(parameterArray, extensionParameters, out parameters))
+                    {
+                        return InvokeExtensionMethod(device, foundExt, parameters);
+                    }
+                }
+                throw new ParametersMismatchException(type, commandValue, name);
+            }
+            else if(foundField != null)
+            {
+                TokenList setValue = null;
+                if(!ParseOptionalArgument(parameterArray, out setValue))
+                {
+                    throw new RecoverableException($"Failed to parse argument: {Misc.PrettyPrintCollection(parameterArray)}");
+                }
+                //if setValue is a LiteralToken then it must contain the next command to process in recursive call
+                if(CanTypeBeChained(foundField.FieldType) && setValue?.FirstOrDefault() is LiteralToken)
+                {
+                    var currentObject = InvokeGet(device, foundField);
+                    var objectFullName = $"{name} {commandValue}";
+                    return RecursiveExecuteDeviceAction(objectFullName, currentObject, p, 1);
+                }
+                else if(setValue != null && !foundField.IsLiteral && !foundField.IsInitOnly)
+                {
+                    if(!FitArgumentType(setValue, foundField.FieldType, out var value))
+                    {
+                        throw new RecoverableException($"Could not convert {setValue} to {foundField.FieldType}");
+                    }
+                    InvokeSet(device, foundField, value);
+                    return null;
+                }
+                else
+                {
+                    return InvokeGet(device, foundField);
+                }
+            }
+            else if(foundProp != null)
+            {
+                TokenList setValue = null;
+                if(!ParseOptionalArgument(parameterArray, out setValue))
+                {
+                    throw new RecoverableException($"Failed to parse argument: {Misc.PrettyPrintCollection(parameterArray)}");
+                }
+                //if setValue is a LiteralToken then it must contain the next command to process in recursive call
+                if(CanTypeBeChained(foundProp.PropertyType) && setValue?.FirstOrDefault() is LiteralToken)
+                {
+                    var currentObject = InvokeGet(device, foundProp);
+                    var objectFullName = $"{name} {commandValue}";
+                    return RecursiveExecuteDeviceAction(objectFullName, currentObject, p, 1);
+                }
+                else if(setValue != null && foundProp.IsCurrentlySettable(CurrentBindingFlags))
+                {
+                    if(!FitArgumentType(setValue, foundProp.PropertyType, out var value))
+                    {
+                        throw new RecoverableException($"Could not convert {setValue} to {foundProp.PropertyType}");
+                    }
+                    InvokeSet(device, foundProp, value);
+                    return null;
+                }
+                else if(foundProp.IsCurrentlyGettable(CurrentBindingFlags))
+                {
+                    return InvokeGet(device, foundProp);
+                }
+                else
+                {
+                    throw new RecoverableException(String.Format(
+                        "Could not execute this action on property {0}",
+                        foundProp.Name
+                    )
+                    );
+                }
+            }
+            else if(foundIndexers.Any())
+            {
+                var i = 0;
+                if(!ParseArgument(parameterArray, ref i, out var index))
+                {
+                    throw new RecoverableException($"Failed to parse index from {Misc.PrettyPrintCollection(parameterArray)}");
+                }
+                if(!ParseOptionalArgument(parameterArray, out var value, ++i))
+                {
+                    throw new RecoverableException($"Failed to parse value from {Misc.PrettyPrintCollection(parameterArray.Skip(i))}");
+                }
+                foreach(var foundIndexer in foundIndexers.OrderBy(x => x.GetIndexParameters().Count())
+                         .ThenByDescending(y => y.GetIndexParameters().Count(z => z.ParameterType == typeof(String))))
+                {
+                    List<object> parameters;
+                    var indexerParameters = foundIndexer.GetIndexParameters();
+
+                    if(TryPrepareParameters(index.Tokens, indexerParameters, out parameters))
+                    {
+                        if(value != null && foundIndexer.IsCurrentlySettable(CurrentBindingFlags))
+                        {
+                            if(!FitArgumentType(value, foundIndexer.PropertyType, out var convertedValue))
+                            {
+                                throw new RecoverableException($"Could not convert {value} to {foundIndexer.PropertyType}");
+                            }
+
+                            InvokeSetIndex(device, foundIndexer, parameters.Concat(new[] { convertedValue }).ToList());
+                            return null;
+                        }
+                        else
+                        {
+                            return InvokeGetIndex(device, foundIndexer, parameters);
+                        }
+                    }
+                }
+                throw new ParametersMismatchException(type, commandValue, name);
+            }
+            if(command is LiteralToken)
+            {
+                throw new RecoverableException(String.Format("{1} does not provide a field, method or property {0}.", command.GetObjectValue(), name));
+            }
+            else
+            {
+                throw new RecoverableException(String.Format("{0} does not provide a default-named indexer.", name));
+            }
+        }
+
+        public object FindFieldOrProperty(object node, string name)
+        {
+            var type = node.GetType();
+            var fields = cache.Get(type, GetAvailableFields);
+            var properties = cache.Get(type, GetAvailableProperties);
+            var foundField = fields.FirstOrDefault(x => x.Name == name);
+            var foundProp = properties.FirstOrDefault(x => x.Name == name);
+
+            if(foundProp?.GetMethod != null)
+            {
+                return InvokeGet(node, foundProp);
+            }
+            if(foundField != null)
+            {
+                return InvokeGet(node, foundField);
+            }
+
+            return null;
+        }
+
+        public MonitorInfo GetMonitorInfo(Type device)
+        {
+            var info = new MonitorInfo();
+            var methodsAndExtensions = new List<MethodInfo>();
+
+            var methods = cache.Get(device, GetAvailableMethods);
+            if(methods.Any())
+            {
+                methodsAndExtensions.AddRange(methods);
+            }
+
+            var properties = cache.Get(device, GetAvailableProperties);
+            if(properties.Any())
+            {
+                info.Properties = properties.OrderBy(x => x.Name);
+            }
+
+            var indexers = cache.Get(device, GetAvailableIndexers);
+            if(indexers.Any())
+            {
+                info.Indexers = indexers.OrderBy(x => x.Name);
+            }
+
+            var fields = cache.Get(device, GetAvailableFields);
+            if(fields.Any())
+            {
+                info.Fields = fields.OrderBy(x => x.Name);
+            }
+
+            var extensions = cache.Get(device, GetAvailableExtensions);
+
+            if(extensions.Any())
+            {
+                methodsAndExtensions.AddRange(extensions);
+            }
+            if(methodsAndExtensions.Any())
+            {
+                info.Methods = methodsAndExtensions.OrderBy(x => x.Name);
+            }
+            return info;
+        }
+
+        public NumberModes CurrentNumberFormat { get; set; }
+
+        public BindingFlags CurrentBindingFlags { get; set; }
+
+        public event Action Quitted;
 
         private static string GetPossibleEnumValues(Type type)
         {
@@ -77,6 +336,578 @@ namespace Antmicro.Renode.UserInterface
                 builder.AppendLine($"\t{EmulationToken} {nameof(emulation.SingleStepBlocking)} {!isBlocking}");
             }
             return builder.ToString();
+        }
+
+        /// <summary>
+        /// Parses an optional argument, which can be a single token like "a", or a list like [1, 2, 3],
+        /// starting at index <paramref name="i"/> within <paramref name="tokens"/>. The resulting
+        /// <paramref name="arg"/> will be a <see cref="TokenList"/> representing the argument,
+        /// or null if no argument was present.
+        /// </summary>
+        private static bool ParseOptionalArgument(IList<Token> tokens, out TokenList arg, int i = 0)
+        {
+            if(tokens.Count <= i)
+            {
+                arg = null;
+                return true;
+            }
+            return ParseArgument(tokens, ref i, out arg);
+        }
+
+        /// <summary>
+        /// Parses a single argument, which can be a single token like "a", or a list like [1, 2, 3],
+        /// starting at index <paramref name="i"/> within <paramref name="tokens"/>. The resulting
+        /// <paramref name="arg"/> will be a <see cref="TokenList"/> representing the argument,
+        /// with <paramref name="i"/> updated to point at the last parsed token.
+        /// </summary>
+        private static bool ParseArgument(IList<Token> tokens, ref int i, out TokenList arg)
+        {
+            arg = null;
+            if(tokens[i] is LeftBraceToken)
+            {
+                var result = new TokenList(isArray: true);
+                while(++i < tokens.Count && !(tokens[i] is RightBraceToken))
+                {
+                    result.Tokens.Add(tokens[i]);
+                    var next = tokens.ElementAtOrDefault(i + 1);
+                    if(next is CommaToken)
+                    {
+                        i++;
+                    }
+                    else if(!(next is RightBraceToken))
+                    {
+                        return false;
+                    }
+                }
+                if(i == tokens.Count)
+                {
+                    return false;
+                }
+                arg = result;
+                return true;
+            }
+            else
+            {
+                arg = TokenList.Single(tokens[i]);
+                return true;
+            }
+        }
+
+        private static void PrettyPrint2DArray(string[,] table, ICommandInteraction writer)
+        {
+            var columnLengths = new int[table.GetLength(1)];
+            for(var i = 0; i < columnLengths.Length; i++)
+            {
+                for(var j = 0; j < table.GetLength(0); j++)
+                {
+                    columnLengths[i] = Math.Max(table[j, i].Length, columnLengths[i]);
+                }
+            }
+            var lineLength = columnLengths.Sum() + columnLengths.Length + 1;
+            writer.WriteLine("".PadRight(lineLength, '-'));
+            for(var i = 0; i < table.GetLength(0); i++)
+            {
+                if(i == 1)
+                {
+                    writer.WriteLine("".PadRight(lineLength, '-'));
+                }
+                writer.Write('|');
+                for(var j = 0; j < table.GetLength(1); j++)
+                {
+                    writer.Write(table[i, j].PadRight(columnLengths[j]));
+                    writer.Write('|');
+                }
+                writer.WriteLine();
+            }
+            writer.WriteLine("".PadRight(lineLength, '-'));
+        }
+
+        private static string TypePrettyName(Type type)
+        {
+            var genericArguments = type.GetGenericArguments();
+            if(genericArguments.Length == 0)
+            {
+                return type.Name;
+            }
+            if(type.GetGenericTypeDefinition() == typeof(Nullable<>) && genericArguments.Length == 1)
+            {
+                return genericArguments.Select(x => TypePrettyName(x) + "?").First();
+            }
+            var typeDefeninition = type.Name;
+            var unmangledName = typeDefeninition.Substring(0, typeDefeninition.IndexOf("`", StringComparison.Ordinal));
+            return unmangledName + "<" + String.Join(",", genericArguments.Select(TypePrettyName)) + ">";
+        }
+
+        /// <summary>
+        /// Creates the invocation context.
+        /// </summary>
+        /// <returns>The invokation context or null, if can't be handled by Dynamitey.</returns>
+        /// <param name="device">Target device.</param>
+        /// <param name="info">Field, property or method info.</param>
+        private static InvokeContext CreateInvocationContext(object device, MemberInfo info)
+        {
+            if(info.IsStatic())
+            {
+                if(info is FieldInfo || info is PropertyInfo)
+                {
+                    //FieldInfo not supported in Dynamitey
+                    return null;
+                }
+                return InvokeContext.CreateStatic(device.GetType());
+            }
+            var propertyInfo = info as PropertyInfo;
+            if(propertyInfo != null)
+            {
+                //private properties not supported in Dynamitey
+                if((propertyInfo.CanRead && propertyInfo.GetGetMethod(true).IsPrivate)
+                   || (propertyInfo.CanWrite && propertyInfo.GetSetMethod(true).IsPrivate))
+                {
+                    return null;
+                }
+            }
+            return InvokeContext.CreateContext(device, info.ReflectedType);
+        }
+
+        private object InvokeGetIndex(object device, PropertyInfo property, List<object> parameters)
+        {
+            var context = CreateInvocationContext(device, property);
+            if(context != null)
+            {
+                return Dynamic.InvokeGetIndex(context, parameters.ToArray());
+            }
+            else
+            {
+                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeGetIndex", property.Name));
+            }
+        }
+
+        private object InvokeWithContext(InvokeContext context, MethodInfo method, object[] parameters)
+        {
+            if(method.ReturnType == typeof(void))
+            {
+                Dynamic.InvokeMemberAction(context, method.Name, parameters);
+                return null;
+            }
+            else
+            {
+                return Dynamic.InvokeMember(context, method.Name, parameters);
+            }
+        }
+
+        private bool TryParseTokenForParamType(Token token, Type type, out object result)
+        {
+            var underlyingType = Nullable.GetUnderlyingType(type);
+            var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == (underlyingType ?? type));
+            var isNull = (underlyingType != null || !type.IsValueType) && token is NullToken;
+            //If this result type is limited to specific token types, and this is not one of them, fail
+            if(tokenTypes.Any() && !(isNull || tokenTypes.Any(tt => tt.Item2.IsInstanceOfType(token))))
+            {
+                result = null;
+                return false;
+            }
+            result = ConvertValueOrThrowRecoverable(token.GetObjectValue(), type);
+            return true;
+        }
+
+        private bool FitArgumentType(TokenList tokens, Type paramType, out object result)
+        {
+            result = default;
+            Type elemType;
+            var isGenericList = typeof(IList).IsAssignableFrom(paramType) && paramType.IsGenericType;
+            if(isGenericList)
+            {
+                elemType = paramType.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IList<>))?.GenericTypeArguments?.Single();
+                if(elemType == null)
+                {
+                    throw new ArgumentException("Got a non-generic list somehow.");
+                }
+            }
+            else if(paramType.IsArray)
+            {
+                elemType = paramType.GetElementType();
+            }
+            else
+            {
+                elemType = paramType;
+            }
+            if(tokens.IsArray != (paramType.IsArray || isGenericList))
+            {
+                return false;
+            }
+            var genericListT = typeof(List<>).MakeGenericType(new [] { elemType });
+            var list = (IList)Activator.CreateInstance(genericListT);
+
+            foreach(var token in tokens)
+            {
+                if(!TryParseTokenForParamType(token, elemType, out var parsedValue))
+                {
+                    return false;
+                }
+                // For simple parameters (not arrays), the parameter type is equal to the element type which means
+                // we only expect, and will accept, one element. If we got an array in this case we will have already
+                // rejected it above, so now the correct thing to do is return this single element immediately instead
+                // of accumulating it into a list.
+                if(paramType == elemType)
+                {
+                    result = parsedValue;
+                    return true;
+                }
+                list.Add(parsedValue);
+            }
+
+            if(isGenericList)
+            {
+                result = list;
+                return true;
+            }
+            else if(paramType.IsArray)
+            {
+                var arr = Array.CreateInstance(elemType, list.Count);
+                for(var i = 0; i < list.Count; ++i)
+                {
+                    arr.SetValue(list[i], i);
+                }
+                result = arr;
+                return true;
+            }
+
+            throw new InvalidOperationException($"Unhandled parameter type {paramType}");
+        }
+
+        private void InvokeSetIndex(object device, PropertyInfo property, List<object> parameters)
+        {
+            var context = CreateInvocationContext(device, property);
+            if(context != null)
+            {
+                Dynamic.InvokeSetIndex(context, parameters.ToArray());
+            }
+            else
+            {
+                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeSetIndex", property.Name));
+            }
+        }
+
+        private bool TryPrepareParameters(IList<Token> values, IList<ParameterInfo> parameters, out List<object> result)
+        {
+            result = new List<object>();
+            //this might be expanded - try all parameters with the attribute, try to fill from factory based on it's type
+            if(parameters.Count > 0 && typeof(IMachine).IsAssignableFrom(parameters[0].ParameterType)
+                && Attribute.IsDefined(parameters[0], typeof(AutoParameterAttribute)))
+            {
+                result.Add(CurrentMachine);
+                parameters = parameters.Skip(1).ToList();
+            }
+
+            //The last parameter can be a param array
+            Type paramArrayType = null;
+            Type paramArrayElementType = null;
+            string paramArrayName = null;
+            var lastParam = parameters.LastOrDefault();
+            if(lastParam?.IsDefined(typeof(ParamArrayAttribute)) ?? false)
+            {
+                parameters = parameters.Take(parameters.Count - 1).ToList();
+                paramArrayType = lastParam.ParameterType;
+                paramArrayElementType = paramArrayType.GetElementType();
+                paramArrayName = lastParam.Name;
+            }
+
+            var indexedValues = new Dictionary<int, TokenList>();
+            var allowPositional = true;
+            for(int i = 0, currentPos = 0; i < values.Count; ++i, ++currentPos)
+            {
+                //Parse named arguments
+                if(i < values.Count - 2
+                    && values[i] is LiteralToken lit
+                    && values[i + 1] is EqualityToken)
+                {
+                    //Treat the params array as the position one after the last
+                    var parameterIndex = lit.Value == paramArrayName ? parameters.Count : parameters.IndexOf(p => p.Name == lit.Value);
+                    //Fail on nonexistent or duplicate names
+                    if(parameterIndex == -1 || indexedValues.ContainsKey(parameterIndex))
+                    {
+                        return false;
+                    }
+                    //Disallow further positional arguments only if the name doesn't match the position
+                    //For example, for f(a=0, b=0) `f a=4 9` is allowed, like in C#
+                    allowPositional &= parameterIndex == currentPos;
+                    i += 2; //Skip the name and = sign
+                    if(!ParseArgument(values, ref i, out var arg))
+                    {
+                        return false;
+                    }
+                    indexedValues[parameterIndex] = arg;
+                }
+                else
+                {
+                    //If we have filled all positional slots then allow further positional arguments
+                    //no matter what. This is used for a params T[] after named parameters
+                    if(!allowPositional && currentPos < parameters.Count)
+                    {
+                        return false;
+                    }
+                    if(!ParseArgument(values, ref i, out var arg))
+                    {
+                        return false;
+                    }
+                    indexedValues[currentPos] = arg;
+                }
+            }
+
+            //Too many arguments and no trailing params T[]
+            var valueCount = indexedValues.Count;
+            if(valueCount > parameters.Count && paramArrayElementType == null)
+            {
+                return false;
+            }
+
+            //Grab all arguments that we can treat as positional off the front
+            List<TokenList> positionalValues = new List<TokenList>(valueCount);
+            for(int i = 0; i < valueCount; ++i)
+            {
+                if(!indexedValues.TryGetValue(i, out var value))
+                {
+                    break;
+                }
+                indexedValues.Remove(i);
+                positionalValues.Add(value);
+            }
+
+            try
+            {
+                int i;
+                //Convert all given positional parameters
+                for(i = 0; i < positionalValues.Count; ++i)
+                {
+                    var paramType = parameters.ElementAtOrDefault(i)?.ParameterType ?? (positionalValues[i].IsArray ? paramArrayType : paramArrayElementType);
+                    if(!FitArgumentType(positionalValues[i], paramType, out var current))
+                    {
+                        return false;
+                    }
+                    result.Add(current);
+                }
+                //If not enough parameters, check for default values and named parameters
+                if(i < parameters.Count)
+                {
+                    for(; i < parameters.Count; ++i)
+                    {
+                        //See if it was passed as a named parameter
+                        if(indexedValues.TryGetValue(i, out var value))
+                        {
+                            var paramType = parameters[i].ParameterType;
+                            if(!FitArgumentType(value, paramType, out var current))
+                            {
+                                return false;
+                            }
+                            result.Add(current);
+                        }
+                        else if(parameters[i].IsOptional)
+                        {
+                            result.Add(parameters[i].DefaultValue);
+                        }
+                        else
+                        {
+                            return false; //non-optional parameter encountered
+                        }
+                    }
+                }
+            }
+            catch(RecoverableException)
+            {
+                //The 'expected' exceptions from conversion will have been wrapped; propagate all other exceptions
+                return false;
+            }
+            return true;
+        }
+
+        private bool CanTypeBeChained(Type type)
+        {
+            return !type.IsEnum && !type.IsValueType && type != typeof(string);
+        }
+
+        private object RecursiveExecuteDeviceAction(string name, object currentObject, IEnumerable<Token> p, int tokensToSkip)
+        {
+            if(currentObject == null)
+            {
+                return null;
+            }
+            return ExecuteDeviceAction(name, currentObject, p.Skip(tokensToSkip));
+        }
+
+        private IEnumerable<FieldInfo> GetAvailableFields(Type objectType)
+        {
+            var fields = new List<FieldInfo>();
+            var type = objectType;
+            while(type != null && type != typeof(object))
+            {
+                fields.AddRange(type.GetFields(CurrentBindingFlags)
+                                .Where(x => x.IsCallable())
+                );
+                type = type.BaseType;
+            }
+            return fields.DistinctBy(x => x.ToString()); //Look @ GetAvailableMethods for explanation.
+        }
+
+        private IEnumerable<MethodInfo> GetAvailableMethods(Type objectType)
+        {
+            var methods = new List<MethodInfo>();
+            var type = objectType;
+            while(type != null && type != typeof(object))
+            {
+                methods.AddRange(type.GetMethods(CurrentBindingFlags)
+                                 .Where(x => !(x.IsSpecialName
+                && (x.Name.StartsWith("get_", StringComparison.Ordinal) || x.Name.StartsWith("set_", StringComparison.Ordinal)
+                || x.Name.StartsWith("add_", StringComparison.Ordinal) || x.Name.StartsWith("remove_", StringComparison.Ordinal)))
+                && !x.IsAbstract
+                && !x.IsConstructor
+                && !x.IsGenericMethod
+                && x.IsCallable()
+                )
+                );
+                type = type.BaseType;
+            }
+            var enumerableType = objectType.GetEnumerableElementType();
+            if(enumerableType != null)
+            {
+                methods.Add(selectInfo.MakeGenericMethod(new[] { enumerableType, typeof(object) }));
+                methods.Add(typeof(List<>).MakeGenericType(new[] { enumerableType }).GetMethod(nameof(List<object>.ForEach)));
+            }
+            return methods.DistinctBy(x => x.ToString()); //This acutally gives us a full, easily comparable signature. Brilliant solution to avoid duplicates from overloaded methods.
+        }
+
+        private IEnumerable<MethodInfo> GetAvailableExtensions(Type type) => TypeManager.Instance.GetExtensionMethods(type).Where(y => y.IsExtensionCallable()).OrderBy(y => y.Name);
+
+        private IEmulationElement GetExternalInterfaceOrNull(string name)
+        {
+            IEmulationElement external;
+            Emulation.ExternalsManager.TryGetByName(name, out external);
+            return external;
+        }
+
+        private object InvokeMethod(object device, MethodInfo method, List<object> parameters)
+        {
+            var context = CreateInvocationContext(device, method);
+            if(context != null)
+            {
+                return InvokeWithContext(context, method, parameters.ToArray());
+            }
+            else
+            {
+                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeMethod", method.Name));
+            }
+        }
+
+        private object ConvertValue(object value, Type type)
+        {
+            var underlyingType = Nullable.GetUnderlyingType(type);
+            if((!type.IsValueType || underlyingType != null) && value == null)
+            {
+                return null;
+            }
+            if(value is bool && !type.IsInstanceOfType(value))
+            {
+                throw new FormatException(String.Format(
+                    "Bool value {0} is not convertible to {1}!",
+                    value, type.Name
+                ));
+            }
+            if(type.IsInstanceOfType(value))
+            {
+                return Dynamic.InvokeConvert(value, type, true);
+            }
+            if(value is string)
+            {
+                IPeripheral peripheral;
+                string longestMatch;
+                if(TryFindPeripheralByName((string)value, out peripheral, out longestMatch))
+                {
+                    if(type.IsInstanceOfType(peripheral))
+                    {
+                        return peripheral;
+                    }
+                }
+
+                if(CurrentMachine != null)
+                {
+                    IPeripheralsGroup group;
+                    if(CurrentMachine.PeripheralsGroups.TryGetByName((string)value, out group))
+                    {
+                        if(type.IsInstanceOfType(group))
+                        {
+                            return group;
+                        }
+                    }
+                }
+
+                IHostMachineElement @interface;
+                if(Emulation.ExternalsManager.TryGetByName((string)value, out @interface))
+                {
+                    if(type.IsInstanceOfType(@interface))
+                    {
+                        return @interface;
+                    }
+                }
+
+                IExternal external;
+                if(Emulation.ExternalsManager.TryGetByName((string)value, out external))
+                {
+                    if(type.IsInstanceOfType(external))
+                    {
+                        return external;
+                    }
+                }
+            }//intentionally no else (may be iconvertible or enum)
+            if(type.IsEnum)
+            {
+                if(value is string valueString)
+                {
+                    if(Enum.IsDefined(type, value))
+                    {
+                        return Enum.Parse(type, valueString);
+                    }
+                }
+                else
+                {
+                    var enumValue = Enum.ToObject(type, value);
+                    if(Enum.IsDefined(type, enumValue) || type.IsDefined(typeof(FlagsAttribute), false))
+                    {
+                        return enumValue;
+                    }
+                }
+                throw new FormatException(String.Format(
+                    "Enum value {0} is not defined for {1}!\n\n{2}",
+                    value, type.Name, GetPossibleEnumValues(type)
+                ));
+            }
+            if(underlyingType != null)
+            {
+                return ConvertValue(value, underlyingType);
+            }
+            return Dynamic.InvokeConvert(value, type, true);
+        }
+
+        private void InvokeSet(object device, MemberInfo info, object parameter)
+        {
+            var context = CreateInvocationContext(device, info);
+            if(context != null)
+            {
+                Dynamic.InvokeSet(context, info.Name, parameter);
+            }
+            else
+            {
+                var propInfo = info as PropertyInfo;
+                var fieldInfo = info as FieldInfo;
+                if(fieldInfo != null)
+                {
+                    fieldInfo.SetValue(null, parameter);
+                    return;
+                }
+                if(propInfo != null)
+                {
+                    propInfo.SetValue(!propInfo.IsStatic() ? device : null, parameter, null);
+                    return;
+                }
+                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeSet", info.Name));
+            }
         }
 
         private bool RunCommand(ICommandInteraction writer, Command command, IList<Token> parameters)
@@ -131,7 +962,7 @@ namespace Antmicro.Renode.UserInterface
                 //Check for types
                 if(parametersWithoutLastArray.Zip(
                        candidateParametersWithoutArrayAndWriters,
-                       (x, y) => new {FromUser = x.GetType(), FromMethod = y.ParameterType})
+                       (x, y) => new { FromUser = x.GetType(), FromMethod = y.ParameterType })
                     .Any(x => !x.FromMethod.IsAssignableFrom(x.FromUser)))
                 {
                     continue;
@@ -181,7 +1012,7 @@ namespace Antmicro.Renode.UserInterface
 
                 if(!parametersWithoutLastArray.Zip(
                        candidateParametersWithoutArrayAndWriters,
-                       (x, y) => new {FromUser = x.GetType(), FromMethod = y.ParameterType})
+                       (x, y) => new { FromUser = x.GetType(), FromMethod = y.ParameterType })
                     .Any(x => x.FromMethod != x.FromUser))
                 {
                     isAccurateMatch = true;
@@ -252,10 +1083,6 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        #region Parsing
-
-        private const string DefaultNamespace = "Antmicro.Renode.Peripherals.";
-
         private IEnumerable<String> GetObjectSuggestions(object node)
         {
             if(node != null)
@@ -269,12 +1096,12 @@ namespace Antmicro.Renode.UserInterface
         {
             var staticBound = FromStaticMapping(name);
             var iface = GetExternalInterfaceOrNull(name);
-            if(currentMachine != null || staticBound != null || iface != null)
+            if(CurrentMachine != null || staticBound != null || iface != null)
             {
                 var boundObject = staticBound ?? FromMapping(name) ?? iface;
                 if(boundObject != null)
                 {
-                    return boundObject; 
+                    return boundObject;
                 }
 
                 IPeripheral device;
@@ -284,7 +1111,7 @@ namespace Antmicro.Renode.UserInterface
                     return device;
                 }
             }
-            return null; 
+            return null;
         }
 
         private string GetResultFormat(object result, int num, int? width = null)
@@ -311,11 +1138,18 @@ namespace Antmicro.Renode.UserInterface
             return NumberFormats[mode].Replace("X", "X" + width);
         }
 
-        private Dictionary<NumberModes, string> NumberFormats = new Dictionary<NumberModes, string> {
-            { NumberModes.Both, "0x{0:X} ({0})" },
-            { NumberModes.Decimal, "{0}" },
-            { NumberModes.Hexadecimal, "0x{0:X}" },
-        };
+        private object InvokeExtensionMethod(object device, MethodInfo method, List<object> parameters)
+        {
+            var context = InvokeContext.CreateStatic(method.ReflectedType);
+            if(context != null)
+            {
+                return InvokeWithContext(context, method, (new[] { device }.Concat(parameters)).ToArray());
+            }
+            else
+            {
+                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeExtensionMethod", method.Name));
+            }
+        }
 
         private void PrintActionResult(object result, ICommandInteraction writer, bool withNewLine = true)
         {
@@ -351,7 +1185,7 @@ namespace Antmicro.Renode.UserInterface
                 }
                 return;
             }
-            else if(enumerable != null && !(result is string))
+            else if(enumerable != null && !(result is string) && !enumerable.Cast<object>().Any(x => x == enumerable))
             {
                 var i = 0;
                 writer.Write("[\r\n");
@@ -377,80 +1211,11 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        private static void PrettyPrint2DArray(string[,] table, ICommandInteraction writer)
-        {
-            var columnLengths = new int[table.GetLength(1)];
-            for(var i = 0; i < columnLengths.Length; i++)
-            {
-                for(var j = 0; j < table.GetLength(0); j++)
-                {
-                    columnLengths[i] = Math.Max(table[j, i].Length, columnLengths[i]);
-                }
-            }
-            var lineLength = columnLengths.Sum() + columnLengths.Length + 1;
-            writer.WriteLine("".PadRight(lineLength, '-'));
-            for(var i = 0; i < table.GetLength(0); i++)
-            {
-                if(i == 1)
-                {
-                    writer.WriteLine("".PadRight(lineLength, '-'));
-                }
-                writer.Write('|');
-                for(var j = 0; j < table.GetLength(1); j++)
-                {
-                    writer.Write(table[i, j].PadRight(columnLengths[j]));
-                    writer.Write('|');
-                }
-                writer.WriteLine();
-            }
-            writer.WriteLine("".PadRight(lineLength, '-'));
-        }
-
-        private void ProcessDeviceAction(Type deviceType, string name, IEnumerable<Token> p, ICommandInteraction writer)
-        {
-            var devInfo = GetMonitorInfo(deviceType);
-            if(!p.Any())
-            {
-                if(devInfo != null)
-                {
-                    PrintMonitorInfo(name, devInfo, writer);
-                }
-            }
-            else
-            {
-                object result;
-                try
-                {
-                    var device = IdentifyDevice(name);
-                    result = ExecuteDeviceAction(name, device, p);
-                }
-                catch(ParametersMismatchException e)
-                {
-                    var nodeInfo = GetMonitorInfo(e.Type);
-                    if(nodeInfo != null)
-                    {
-                        PrintMonitorInfo(e.Name, nodeInfo, writer, e.Command);
-                    }
-                    throw;
-                }
-                if(result != null)
-                {
-                    PrintActionResult(result, writer);
-
-                    if(result.GetType().IsEnum)
-                    {
-                        writer.WriteLine();
-                        writer.WriteLine(GetPossibleEnumValues(result.GetType()));
-                    }
-                }
-            }
-        }
-
         private void ProcessDeviceActionByName(string name, IEnumerable<Token> p, ICommandInteraction writer)
         {
             var staticBound = FromStaticMapping(name);
             var iface = GetExternalInterfaceOrNull(name);
-            if(currentMachine != null || staticBound != null || iface != null)
+            if(CurrentMachine != null || staticBound != null || iface != null)
             { //special cases
                 var boundElement = staticBound ?? FromMapping(name);
                 if(boundElement != null)
@@ -491,14 +1256,14 @@ namespace Antmicro.Renode.UserInterface
             string longestMatching;
             string currentMatch;
             string longestPrefix = string.Empty;
-            var ret = currentMachine.TryGetByName(name, out peripheral, out longestMatching);
+            var ret = CurrentMachine.TryGetByName(name, out peripheral, out longestMatching);
             longestMatch = longestMatching;
 
             if(!ret)
             {
                 foreach(var prefix in usings)
                 {
-                    ret = currentMachine.TryGetByName(prefix + name, out peripheral, out currentMatch);
+                    ret = CurrentMachine.TryGetByName(prefix + name, out peripheral, out currentMatch);
                     if(longestMatching.Split('.').Length < currentMatch.Split('.').Length - prefix.Split('.').Length)
                     {
                         longestMatching = currentMatch;
@@ -523,7 +1288,7 @@ namespace Antmicro.Renode.UserInterface
         {
             longestMatch = string.Empty;
 
-            if(currentMachine == null)
+            if(CurrentMachine == null)
             {
                 peripheral = null;
                 return false;
@@ -532,14 +1297,14 @@ namespace Antmicro.Renode.UserInterface
             string longestMatching;
             string currentMatch;
             string longestPrefix = string.Empty;
-            var ret = currentMachine.TryGetByName(name, out peripheral, out longestMatching);
+            var ret = CurrentMachine.TryGetByName(name, out peripheral, out longestMatching);
             longestMatch = longestMatching;
 
             if(!ret)
             {
                 foreach(var prefix in usings)
                 {
-                    ret = currentMachine.TryGetByName(prefix + name, out peripheral, out currentMatch);
+                    ret = CurrentMachine.TryGetByName(prefix + name, out peripheral, out currentMatch);
                     if(longestMatching.Split('.').Length < currentMatch.Split('.').Length - prefix.Split('.').Length)
                     {
                         longestMatching = currentMatch;
@@ -555,22 +1320,6 @@ namespace Antmicro.Renode.UserInterface
             return ret;
         }
 
-        private static string TypePrettyName(Type type)
-        {
-            var genericArguments = type.GetGenericArguments();
-            if(genericArguments.Length == 0)
-            {
-                return type.Name;
-            }
-            if(type.GetGenericTypeDefinition() == typeof(Nullable<>) && genericArguments.Length == 1)
-            {
-                return genericArguments.Select(x => TypePrettyName(x) + "?").First();
-            }
-            var typeDefeninition = type.Name;
-            var unmangledName = typeDefeninition.Substring(0, typeDefeninition.IndexOf("`", StringComparison.Ordinal));
-            return unmangledName + "<" + String.Join(",", genericArguments.Select(TypePrettyName)) + ">";
-        }
-
         private void PrintMonitorInfo(string name, MonitorInfo info, ICommandInteraction writer, string lookup = null)
         {
             if(info == null)
@@ -581,7 +1330,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 writer.WriteLine("\nThe following methods are available:");
 
-                foreach(var method in info.Methods.Where(x=> lookup == null || x.Name==lookup))
+                foreach(var method in info.Methods.Where(x => lookup == null || x.Name == lookup))
                 {
                     writer.Write(" - ");
                     writer.Write(TypePrettyName(method.ReturnType), ConsoleColor.Green);
@@ -600,7 +1349,7 @@ namespace Antmicro.Renode.UserInterface
                     parameters = parameters.Where(x => !Attribute.IsDefined(x, typeof(AutoParameterAttribute)));
 
                     var lastParameter = parameters.LastOrDefault();
-                    foreach(var param in parameters.Where(x=> !x.IsRetval))
+                    foreach(var param in parameters.Where(x => !x.IsRetval))
                     {
                         if(param.IsOut)
                         {
@@ -647,7 +1396,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 writer.WriteLine("\nThe following properties are available:");
 
-                foreach(var property in info.Properties.Where(x=> lookup==null || x.Name==lookup))
+                foreach(var property in info.Properties.Where(x => lookup == null || x.Name == lookup))
                 {
                     writer.Write(" - ");
                     writer.Write(TypePrettyName(property.PropertyType), ConsoleColor.Green);
@@ -677,7 +1426,7 @@ namespace Antmicro.Renode.UserInterface
             if(info.Indexers != null && info.Indexers.Any(x => lookup == null || x.Name == lookup))
             {
                 writer.WriteLine("\nThe following indexers are available:");
-                foreach(var indexer in info.Indexers.Where(x=> lookup==null || x.Name==lookup))
+                foreach(var indexer in info.Indexers.Where(x => lookup == null || x.Name == lookup))
                 {
                     writer.Write(" - ");
                     writer.Write(TypePrettyName(indexer.PropertyType), ConsoleColor.Green);
@@ -739,7 +1488,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 writer.WriteLine("\nThe following fields are available:");
 
-                foreach(var field in info.Fields.Where(x=> lookup==null || x.Name==lookup))
+                foreach(var field in info.Fields.Where(x => lookup == null || x.Name == lookup))
                 {
                     writer.Write(" - ");
                     writer.Write(TypePrettyName(field.FieldType), ConsoleColor.Green);
@@ -758,163 +1507,11 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        private class MachineWithWasPaused
-        {
-            public Machine Machine { get; set; }
-
-            public bool WasPaused { get; set; }
-        }
-
-        public MonitorInfo GetMonitorInfo(Type device)
-        {
-            var info = new MonitorInfo();
-            var methodsAndExtensions = new List<MethodInfo>();
-
-            var methods = cache.Get(device, GetAvailableMethods);
-            if(methods.Any())
-            {
-                methodsAndExtensions.AddRange(methods);
-            }
-
-            var properties = cache.Get(device, GetAvailableProperties);
-            if(properties.Any())
-            {
-                info.Properties = properties.OrderBy(x => x.Name);
-            }
-
-            var indexers = cache.Get(device, GetAvailableIndexers);
-            if(indexers.Any())
-            {
-                info.Indexers = indexers.OrderBy(x => x.Name);
-            }
-
-            var fields = cache.Get(device, GetAvailableFields);
-            if(fields.Any())
-            {
-                info.Fields = fields.OrderBy(x => x.Name);
-            }
-
-            var extensions = cache.Get(device, GetAvailableExtensions);
-
-            if(extensions.Any())
-            {
-                methodsAndExtensions.AddRange(extensions);
-            }
-            if(methodsAndExtensions.Any())
-            {
-                info.Methods = methodsAndExtensions.OrderBy(x => x.Name);
-            }
-            return info;
-        }
-
-        #endregion
-
-        #region Device invocations
-
-        public object ConvertValueOrThrowRecoverable(object value, Type type)
-        {
-            try
-            {
-                var convertedValue = ConvertValue(value, type);
-                return convertedValue;
-            }
-            catch(Exception e)
-            {
-                if(e is FormatException || e is RuntimeBinderException || e is OverflowException || e is InvalidCastException)
-                {
-                    throw new RecoverableException(e);
-                }
-                throw;
-            }
-        }
-
-        private object ConvertValue(object value, Type type)
-        {
-            var underlyingType = Nullable.GetUnderlyingType(type);
-            if((!type.IsValueType || underlyingType != null) && value == null)
-            {
-                return null;
-            }
-            if(type.IsInstanceOfType(value))
-            {
-                return Dynamic.InvokeConvert(value, type, true);
-            }
-            if(value is string)
-            {
-                IPeripheral peripheral;
-                string longestMatch;
-                if(TryFindPeripheralByName((string)value, out peripheral, out longestMatch))
-                {
-                    if(type.IsInstanceOfType(peripheral))
-                    {
-                        return peripheral;
-                    }
-                }
-
-                if(currentMachine != null)
-                {
-                    IPeripheralsGroup group;
-                    if(currentMachine.PeripheralsGroups.TryGetByName((string)value, out group))
-                    {
-                        if(type.IsInstanceOfType(group))
-                        {
-                            return group;
-                        }
-                    }
-                }
-
-                IHostMachineElement @interface;
-                if(Emulation.ExternalsManager.TryGetByName((string)value, out @interface))
-                {
-                    if(type.IsInstanceOfType(@interface))
-                    {
-                        return @interface;
-                    }
-                }
-
-                IExternal external;
-                if(Emulation.ExternalsManager.TryGetByName((string)value, out external))
-                {
-                    if(type.IsInstanceOfType(external))
-                    {
-                        return external;
-                    }
-                }
-            }//intentionally no else (may be iconvertible or enum)
-            if(type.IsEnum)
-            {
-                if(value is string valueString)
-                {
-                    if(Enum.IsDefined(type, value))
-                    {
-                        return Enum.Parse(type, valueString);
-                    }
-                }
-                else
-                {
-                    var enumValue = Enum.ToObject(type, value);
-                    if(Enum.IsDefined(type, enumValue) || type.IsDefined(typeof(FlagsAttribute), false))
-                    {
-                        return enumValue;
-                    }
-                }
-                throw new FormatException(String.Format(
-                    "Enum value {0} is not defined for {1}!\n\n{2}",
-                    value, type.Name, GetPossibleEnumValues(type)
-                ));
-            }
-            if(underlyingType != null)
-            {
-                return ConvertValue(value, underlyingType);
-            }
-            return Dynamic.InvokeConvert(value, type, true);
-        }
-
         private object IdentifyDevice(string name)
         {
             var device = FromStaticMapping(name);
             var iface = GetExternalInterfaceOrNull(name);
-            device = device ?? FromMapping(name) ?? iface ?? (object)currentMachine[name];
+            device = device ?? FromMapping(name) ?? iface ?? (object)CurrentMachine[name];
             return device;
         }
 
@@ -941,132 +1538,51 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        private void InvokeSet(object device, MemberInfo info, object parameter)
+        private void ProcessDeviceAction(Type deviceType, string name, IEnumerable<Token> p, ICommandInteraction writer)
         {
-            var context = CreateInvocationContext(device, info);
-            if(context != null)
+            var devInfo = GetMonitorInfo(deviceType);
+            if(!p.Any())
             {
-                Dynamic.InvokeSet(context, info.Name, parameter);
-            }
-            else
-            {
-                var propInfo = info as PropertyInfo;
-                var fieldInfo = info as FieldInfo;
-                if(fieldInfo != null)
+                if(devInfo != null)
                 {
-                    fieldInfo.SetValue(null, parameter);
-                    return;
-                }
-                if(propInfo != null)
-                {
-                    propInfo.SetValue(!propInfo.IsStatic() ? device : null, parameter, null);
-                    return;
-                }
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeSet", info.Name));
-            }
-        }
-
-        private object InvokeExtensionMethod(object device, MethodInfo method, List<object> parameters)
-        {
-            var context = InvokeContext.CreateStatic(method.ReflectedType);
-            if(context != null)
-            {
-                return InvokeWithContext(context, method, (new [] { device }.Concat(parameters)).ToArray());
-            }
-            else
-            {
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeExtensionMethod", method.Name));
-            }
-        }
-
-        private object InvokeMethod(object device, MethodInfo method, List<object> parameters)
-        {
-            var context = CreateInvocationContext(device, method);
-            if(context != null)
-            {
-                return InvokeWithContext(context, method, parameters.ToArray());
-            }
-            else
-            {
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeMethod", method.Name));
-            }
-        }
-
-        private void InvokeSetIndex(object device, PropertyInfo property, List<object> parameters)
-        {
-            var context = CreateInvocationContext(device, property);
-            if(context != null)
-            {
-                Dynamic.InvokeSetIndex(context, parameters.ToArray());
-            }
-            else
-            {
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeSetIndex", property.Name));
-            }
-        }
-
-        private object InvokeGetIndex(object device, PropertyInfo property, List<object> parameters)
-        {
-            var context = CreateInvocationContext(device, property);
-            if(context != null)
-            {
-                return Dynamic.InvokeGetIndex(context, parameters.ToArray());
-            }
-            else
-            {
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeGetIndex", property.Name));
-            }
-        }
-
-        private object InvokeWithContext(InvokeContext context, MethodInfo method, object[] parameters)
-        {
-            if(method.ReturnType == typeof(void))
-            {
-                Dynamic.InvokeMemberAction(context, method.Name, parameters);
-                return null;
-            }
-            else
-            {
-                return Dynamic.InvokeMember(context, method.Name, parameters);
-            }
-        }
-
-        /// <summary>
-        /// Creates the invocation context.
-        /// </summary>
-        /// <returns>The invokation context or null, if can't be handled by Dynamitey.</returns>
-        /// <param name="device">Target device.</param>
-        /// <param name="info">Field, property or method info.</param>
-        private static InvokeContext CreateInvocationContext(object device, MemberInfo info)
-        {
-            if(info.IsStatic())
-            {
-                if(info is FieldInfo || info is PropertyInfo)
-                {
-                    //FieldInfo not supported in Dynamitey
-                    return null;
-                }
-                return InvokeContext.CreateStatic(device.GetType());
-            }
-            var propertyInfo = info as PropertyInfo;
-            if(propertyInfo != null)
-            {
-                //private properties not supported in Dynamitey
-                if((propertyInfo.CanRead && propertyInfo.GetGetMethod(true).IsPrivate)
-                   || (propertyInfo.CanWrite && propertyInfo.GetSetMethod(true).IsPrivate))
-                {
-                    return null;
+                    PrintMonitorInfo(name, devInfo, writer);
                 }
             }
-            return InvokeContext.CreateContext(device, info.ReflectedType);
+            else
+            {
+                object result;
+                try
+                {
+                    var device = IdentifyDevice(name);
+                    result = ExecuteDeviceAction(name, device, p);
+                }
+                catch(ParametersMismatchException e)
+                {
+                    var nodeInfo = GetMonitorInfo(e.Type);
+                    if(nodeInfo != null)
+                    {
+                        PrintMonitorInfo(e.Name, nodeInfo, writer, e.Command);
+                    }
+                    throw;
+                }
+                if(result != null)
+                {
+                    PrintActionResult(result, writer);
+
+                    if(result.GetType().IsEnum)
+                    {
+                        writer.WriteLine();
+                        writer.WriteLine(GetPossibleEnumValues(result.GetType()));
+                    }
+                }
+            }
         }
 
-        private IEmulationElement GetExternalInterfaceOrNull(string name)
-        {
-            IEmulationElement external;
-            Emulation.ExternalsManager.TryGetByName(name, out external);
-            return external;
-        }
+        private readonly Dictionary<NumberModes, string> NumberFormats = new Dictionary<NumberModes, string> {
+            { NumberModes.Both, "0x{0:X} ({0})" },
+            { NumberModes.Decimal, "{0}" },
+            { NumberModes.Hexadecimal, "0x{0:X}" },
+        };
 
         private readonly HashSet<Tuple<Type, Type>> acceptableTokensTypes = new HashSet<Tuple<Type, Type>>() {
             { new Tuple<Type, Type>(typeof(string), typeof(StringToken)) },
@@ -1077,378 +1593,34 @@ namespace Antmicro.Renode.UserInterface
             { new Tuple<Type, Type>(typeof(short), typeof(DecimalIntegerToken)) },
         };
 
-        private bool TryParseTokenForParamType(Token token, Type type, out object result)
-        {
-            var tokenTypes = acceptableTokensTypes.Where(x => x.Item1 == type);
-            //If this result type is limited to specific token types, and this is not one of them, fail
-            if(tokenTypes.Any() && !tokenTypes.Any(tt => tt.Item2.IsInstanceOfType(token)))
+        private readonly SimpleCache cache = new SimpleCache();
+        private static readonly MethodInfo selectInfo = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Where(m => m.Name == nameof(Enumerable.Select) && m.GetParameters().Length == 2)
+            .Where(m =>
             {
-                result = null;
-                return false;
-            }
-            result = ConvertValue(token.GetObjectValue(), type);
-            return true;
+                var selectorType = m.GetParameters()[1].ParameterType;
+                return selectorType.IsGenericType && selectorType.GetGenericTypeDefinition() == typeof(Func<,>);
+            })
+            .Single();
+
+        private readonly List<string> usings = new List<string>() { "sysbus." };
+
+        private const string DefaultNamespace = "Antmicro.Renode.Peripherals.";
+        private const string SelectCommand = "Select";
+        private const string ForEachCommand = "ForEach";
+
+        public enum NumberModes
+        {
+            Hexadecimal,
+            Decimal,
+            Both
         }
 
-        private bool TryPrepareParameters(IList<Token> values, IList<ParameterInfo> parameters, out List<object> result)
+        private class MachineWithWasPaused
         {
-            result = new List<object>();
-            //this might be expanded - try all parameters with the attribute, try to fill from factory based on it's type
-            if(parameters.Count > 0 && typeof(IMachine).IsAssignableFrom(parameters[0].ParameterType)
-                && Attribute.IsDefined(parameters[0], typeof(AutoParameterAttribute)))
-            {
-                result.Add(currentMachine);
-                parameters = parameters.Skip(1).ToList();
-            }
+            public Machine Machine { get; set; }
 
-            //The last parameter can be a param array
-            Type paramArrayElementType = null;
-            var lastParam = parameters.LastOrDefault();
-            if(lastParam?.IsDefined(typeof(ParamArrayAttribute)) ?? false)
-            {
-                parameters = parameters.Take(parameters.Count - 1).ToList();
-                paramArrayElementType = lastParam.ParameterType.GetElementType();
-            }
-
-            var indexedValues = new Dictionary<int, Token>();
-            var allowPositional = true;
-            for(int i = 0, currentPos = 0; i < values.Count; ++i, ++currentPos)
-            {
-                //Parse named arguments
-                if(i < values.Count - 2
-                    && values[i] is LiteralToken lit
-                    && values[i + 1] is EqualityToken)
-                {
-                    var parameterIndex = parameters.IndexOf(p => p.Name == lit.Value);
-                    //Fail on nonexistent or duplicate names
-                    if(parameterIndex == -1 || indexedValues.ContainsKey(parameterIndex))
-                    {
-                        return false;
-                    }
-                    //Disallow further positional arguments only if the name doesn't match the position
-                    //For example, for f(a=0, b=0) `f a=4 9` is allowed, like in C#
-                    allowPositional &= parameterIndex == currentPos;
-                    indexedValues[parameterIndex] = values[i + 2];
-                    i += 2; //Skip the name and = sign
-                }
-                else
-                {
-                    //If we have filled all positional slots then allow further positional arguments
-                    //no matter what. This is used for a params T[] after named parameters
-                    if(!allowPositional && currentPos < parameters.Count)
-                    {
-                        return false;
-                    }
-                    indexedValues[currentPos] = values[i];
-                }
-            }
-
-            //Too many arguments and no trailing params T[]
-            var valueCount = indexedValues.Count;
-            if(valueCount > parameters.Count && paramArrayElementType == null)
-            {
-                return false;
-            }
-
-            //Grab all arguments that we can treat as positional off the front
-            values = new List<Token>(valueCount);
-            for(int i = 0; i < valueCount; ++i)
-            {
-                if(!indexedValues.TryGetValue(i, out var value))
-                {
-                    break;
-                }
-                indexedValues.Remove(i);
-                values.Add(value);
-            }
-
-            try
-            {
-                int i;
-                //Convert all given positional parameters
-                for(i = 0; i < values.Count; ++i)
-                {
-                    var paramType = parameters.ElementAtOrDefault(i)?.ParameterType ?? paramArrayElementType;
-                    if(!TryParseTokenForParamType(values[i], paramType, out var parsed))
-                    {
-                        return false;
-                    }
-                    result.Add(parsed);
-                }
-                //If not enough parameters, check for default values and named parameters
-                if(i < parameters.Count)
-                {
-                    for(; i < parameters.Count; ++i)
-                    {
-                        //See if it was passed as a named parameter
-                        if(indexedValues.TryGetValue(i, out var value))
-                        {
-                            //This can technically be a params T[], but it's not worth handling since
-                            //it would only be possible to pass one value
-                            if(!TryParseTokenForParamType(value, parameters[i].ParameterType, out var parsed))
-                            {
-                                return false;
-                            }
-                            result.Add(parsed);
-                        }
-                        else if(parameters[i].IsOptional)
-                        {
-                            result.Add(parameters[i].DefaultValue);
-                        }
-                        else
-                        {
-                            return false; //non-optional parameter encountered
-                        }
-                    }
-                }
-            }
-            catch(Exception e)
-            {
-                if(e is FormatException || e is RuntimeBinderException || e is OverflowException || e is InvalidCastException)
-                {
-                    return false;
-                }
-                throw;
-            }
-            return true;
-        }
-
-        public object FindFieldOrProperty(object node, string name)
-        {
-            var type = node.GetType();
-            var fields = cache.Get(type, GetAvailableFields);
-            var properties = cache.Get(type, GetAvailableProperties);
-            var foundField = fields.FirstOrDefault(x => x.Name == name);
-            var foundProp = properties.FirstOrDefault(x => x.Name == name);
-
-            if(foundProp?.GetMethod != null)
-            {
-                return InvokeGet(node, foundProp);
-            }
-            if(foundField != null)
-            {
-                return InvokeGet(node, foundField);
-            }
-
-            return null;
-        }
-
-        public object ExecuteDeviceAction(string name, object device, IEnumerable<Token> p)
-        {
-            string commandValue;
-            var type = device.GetType();
-            var command = p.FirstOrDefault();
-            if(command is LiteralToken || command is LeftBraceToken)
-            {
-                commandValue = command.GetObjectValue() as string;
-            }
-            else
-            {
-                throw new RecoverableException("Bad syntax");
-            }
-
-            var methods = cache.Get(type, GetAvailableMethods);
-            var fields = cache.Get(type, GetAvailableFields);
-            var properties = cache.Get(type, GetAvailableProperties);
-            var indexers = cache.Get(type, GetAvailableIndexers).ToList();
-            var extensions = cache.Get(type, GetAvailableExtensions);
-
-            var foundMethods = methods.Where(x => x.Name == commandValue).ToList();
-            var foundField = fields.FirstOrDefault(x => x.Name == commandValue);
-            var foundProp = properties.FirstOrDefault(x => x.Name == commandValue);
-            var foundExts = extensions.Where(x => x.Name == commandValue).ToList();
-            var foundIndexers = command is LeftBraceToken && indexers.Any() && indexers.All(x => x.Name == indexers[0].Name) //can use default indexer
-                                ? indexers.ToList() : indexers.Where(x => x.Name == commandValue).ToList();
-
-            var parameterArray = p.Skip(command is LeftBraceToken ? 0 : 1).ToArray(); //Don't skip left brace, proper code to do that is below.
-
-            var setValue = parameterArray.FirstOrDefault();
-
-            if(foundMethods.Any())
-            {
-                foreach(var foundMethod in foundMethods.OrderBy(x=>x.GetParameters().Count())
-                        .ThenBy(y=>y.GetParameters().Count(z=>z.ParameterType==typeof(String))))
-                {
-                    var methodParameters = foundMethod.GetParameters();
-
-                    List<object> parameters;
-                    if(TryPrepareParameters(parameterArray, methodParameters, out parameters))
-                    {
-                        return InvokeMethod(device, foundMethod, parameters);
-                    }
-
-                }
-                if(!foundExts.Any())
-                {
-                    throw new ParametersMismatchException(type, commandValue, name);
-                }
-            }
-            if(foundExts.Any())
-            { //intentionaly no 'else' - extensions may override methods as well
-                foreach(var foundExt in foundExts.OrderBy(x=>x.GetParameters().Count())
-                        .ThenBy(y=>y.GetParameters().Count(z=>z.ParameterType==typeof(String))))
-                {
-                    var extensionParameters = foundExt.GetParameters().Skip(1).ToList();
-                    List<object> parameters;
-                    if(TryPrepareParameters(parameterArray, extensionParameters, out parameters))
-                    {
-                        return InvokeExtensionMethod(device, foundExt, parameters);
-                    }
-                }
-                throw new ParametersMismatchException(type, commandValue, name);
-
-            }
-            else if(foundField != null)
-            {
-                //if setValue is a LiteralToken then it must contain the next command to process in recursive call
-                if(CanTypeBeChained(foundField.FieldType) && setValue != null && setValue is LiteralToken)
-                {
-                    var currentObject = InvokeGet(device, foundField);
-                    var objectFullName = $"{name} {commandValue}";
-                    return RecursiveExecuteDeviceAction(objectFullName, currentObject, p, 1);
-                }
-                else if(setValue != null && !foundField.IsLiteral && !foundField.IsInitOnly)
-                {
-                    object value;
-                    try
-                    {
-                        value = ConvertValue(setValue.GetObjectValue(), foundField.FieldType);
-                    }
-                    catch(Exception e)
-                    {
-                        if(e is FormatException || e is RuntimeBinderException)
-                        {
-                            throw new RecoverableException(e);
-                        }
-                        throw;
-                    }
-                    InvokeSet(device, foundField, value);
-                    return null;
-                }
-                else
-                {
-                    return InvokeGet(device, foundField);
-                }
-            }
-            else if(foundProp != null)
-            {
-                //if setValue is a LiteralToken then it must contain the next command to process in recursive call
-                if(CanTypeBeChained(foundProp.PropertyType) && setValue != null && setValue is LiteralToken)
-                {
-                    var currentObject = InvokeGet(device, foundProp);
-                    var objectFullName = $"{name} {commandValue}";
-                    return RecursiveExecuteDeviceAction(objectFullName, currentObject, p, 1);
-                }
-                else if(setValue != null && foundProp.IsCurrentlySettable(CurrentBindingFlags))
-                {
-                    object value;
-                    try
-                    {
-                        value = ConvertValue(setValue.GetObjectValue(), foundProp.PropertyType);
-                    }
-                    catch(Exception e)
-                    {
-                        if(e is FormatException || e is RuntimeBinderException)
-                        {
-                            throw new RecoverableException(e);
-                        }
-                        throw;
-                    }
-                    InvokeSet(device, foundProp, value);
-                    return null;
-                }
-                else if(foundProp.IsCurrentlyGettable(CurrentBindingFlags))
-                {
-                    return InvokeGet(device, foundProp);
-                }
-                else
-                {
-                    throw new RecoverableException(String.Format(
-                        "Could not execute this action on property {0}",
-                        foundProp.Name
-                    )
-                    );
-                }
-            }
-            else if(foundIndexers.Any())
-            {
-                setValue = null;
-                if(parameterArray.Length < 3 || !(parameterArray[0] is LeftBraceToken))
-                {
-                    throw new ParametersMismatchException(type, commandValue, name);
-                }
-                var index = parameterArray.IndexOf(x => x is RightBraceToken);
-                if(index == -1)
-                {
-                    throw new ParametersMismatchException(type, commandValue, name);
-                }
-                if(index == parameterArray.Length - 2)
-                {
-                    setValue = parameterArray[parameterArray.Length - 1];
-                }
-                else if(index != parameterArray.Length - 1)
-                {
-                    throw new ParametersMismatchException(type, commandValue, name);
-                }
-                var getParameters = parameterArray.Skip(1).Take(index - 1).ToArray();
-                foreach(var foundIndexer in foundIndexers.OrderBy(x=>x.GetIndexParameters ().Count())
-                         .ThenByDescending(y=>y.GetIndexParameters().Count(z=>z.ParameterType==typeof(String))))
-                {
-                    List<object> parameters;
-                    var indexerParameters = foundIndexer.GetIndexParameters();
-
-                    object value;
-                    if(TryPrepareParameters(getParameters, indexerParameters, out parameters))
-                    {
-                        try
-                        {
-                            if(setValue != null && foundIndexer.IsCurrentlySettable(CurrentBindingFlags))
-                            {
-                                value = ConvertValue(setValue.GetObjectValue(), foundIndexer.PropertyType);
-
-
-                                InvokeSetIndex(device, foundIndexer, parameters.Concat(new[] { value }).ToList());
-                                return null;
-                            }
-                            else
-                            {
-                                return InvokeGetIndex(device, foundIndexer, parameters);
-                            }
-                        }
-                        catch(Exception e)
-                        {
-                            if(e is FormatException || e is RuntimeBinderException || e is KeyNotFoundException)
-                            {
-                                throw new RecoverableException(e);
-                            }
-                            throw;
-                        }
-                    }
-                }
-                throw new ParametersMismatchException(type, commandValue, name);
-            }
-            if(command is LiteralToken)
-            {
-                throw new RecoverableException(String.Format("{1} does not provide a field, method or property {0}.", command.GetObjectValue(), name));
-            }
-            else
-            {
-                throw new RecoverableException(String.Format("{0} does not provide a default-named indexer.", name));
-            }
-        }
-
-        private bool CanTypeBeChained(Type type)
-        {
-            return !type.IsEnum && !type.IsValueType && type != typeof(string);
-        }
-
-        private object RecursiveExecuteDeviceAction(string name, object currentObject, IEnumerable<Token> p, int tokensToSkip)
-        {
-            if(currentObject == null)
-            {
-                return null;
-            }
-            return ExecuteDeviceAction(name, currentObject, p.Skip(tokensToSkip));
+            public bool WasPaused { get; set; }
         }
 
         IEnumerable<PropertyInfo> GetAvailableIndexers(Type objectType)
@@ -1462,7 +1634,7 @@ namespace Antmicro.Renode.UserInterface
                 );
                 type = type.BaseType;
             }
-            return properties.DistinctBy(x=> x.ToString()); //Look @ GetAvailableMethods for explanation.
+            return properties.DistinctBy(x => x.ToString()); //Look @ GetAvailableMethods for explanation.
         }
 
         IEnumerable<PropertyInfo> GetAvailableProperties(Type objectType)
@@ -1476,55 +1648,40 @@ namespace Antmicro.Renode.UserInterface
                 );
                 type = type.BaseType;
             }
-            return properties.DistinctBy(x=> x.ToString()); //Look @ GetAvailableMethods for explanation.
+            return properties.DistinctBy(x => x.ToString()); //Look @ GetAvailableMethods for explanation.
         }
 
-        private IEnumerable<FieldInfo> GetAvailableFields(Type objectType)
+        private class TokenList : IEnumerable<Token>
         {
-            var fields = new List<FieldInfo>();
-            var type = objectType;
-            while(type != null && type != typeof(object))
+            public static TokenList Single(Token token)
             {
-                fields.AddRange(type.GetFields(CurrentBindingFlags)
-                                .Where(x => x.IsCallable())
-                );
-                type = type.BaseType;
+                var list = new TokenList(false);
+                list.Tokens.Add(token);
+                return list;
             }
-            return fields.DistinctBy(x=> x.ToString()); //Look @ GetAvailableMethods for explanation.
-        }
 
-        private IEnumerable<MethodInfo> GetAvailableMethods(Type objectType)
-        {
-            var methods = new List<MethodInfo>();
-            var type = objectType;
-            while(type != null && type != typeof(object))
+            public TokenList(bool isArray)
             {
-                methods.AddRange(type.GetMethods(CurrentBindingFlags)
-                                 .Where(x => !(x.IsSpecialName
-                && (x.Name.StartsWith("get_", StringComparison.Ordinal) || x.Name.StartsWith("set_", StringComparison.Ordinal)
-                || x.Name.StartsWith("add_", StringComparison.Ordinal) || x.Name.StartsWith("remove_", StringComparison.Ordinal)))
-                && !x.IsAbstract
-                && !x.IsConstructor
-                && !x.IsGenericMethod
-                && x.IsCallable()
-                )
-                );
-                type = type.BaseType;
+                this.IsArray = isArray;
             }
-            return methods.DistinctBy(x=> x.ToString()); //This acutally gives us a full, easily comparable signature. Brilliant solution to avoid duplicates from overloaded methods.
+
+            public override string ToString()
+            {
+                return IsArray ? Misc.PrettyPrintCollection(Tokens) : Tokens.FirstOrDefault()?.ToString() ?? "null";
+            }
+
+            public IEnumerator<Token> GetEnumerator()
+            {
+                return Tokens.GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return ((IEnumerable)Tokens).GetEnumerator();
+            }
+
+            public readonly List<Token> Tokens = new List<Token>();
+            public readonly bool IsArray;
         }
-
-        private IEnumerable<MethodInfo> GetAvailableExtensions(Type type) => TypeManager.Instance.GetExtensionMethods(type).Where(y => y.IsExtensionCallable()).OrderBy(y => y.Name);
-
-        public void ClearCache()
-        {
-            cache.ClearCache();
-        }
-
-        public BindingFlags CurrentBindingFlags { get; set; }
-        private readonly SimpleCache cache = new SimpleCache();
-
-        #endregion
     }
 }
-

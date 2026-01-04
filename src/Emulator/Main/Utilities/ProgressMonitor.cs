@@ -7,8 +7,8 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Linq;
+using System.Threading;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Utilities
                 }
 
                 var actions = runningActions[threadId];
-                var action = new MonitoredAction(this, description, cancelable, progressable); 
+                var action = new MonitoredAction(this, description, cancelable, progressable);
                 actions.Push(action);
 
                 UpdateDialog();
@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Utilities
         {
             lock(locker)
             {
-                while (runningActions.Count > 0)
+                while(runningActions.Count > 0)
                 {
                     var kvp = runningActions.First();
                     while(kvp.Value.Count > 0)
@@ -49,6 +49,8 @@ namespace Antmicro.Renode.Utilities
                 }
             }
         }
+
+        public IProgressMonitorHandler Handler { get; set; }
 
         private void UpdateDialog()
         {
@@ -93,11 +95,9 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        private Dictionary<int, Stack<MonitoredAction>> runningActions = new Dictionary<int, Stack<MonitoredAction>>();
+        private readonly Dictionary<int, Stack<MonitoredAction>> runningActions = new Dictionary<int, Stack<MonitoredAction>>();
 
-        private object locker = new object();
-
-        public IProgressMonitorHandler Handler { get; set; }
+        private readonly object locker = new object();
 
         public class MonitoredAction : IDisposable
         {
@@ -138,12 +138,14 @@ namespace Antmicro.Renode.Utilities
             }
 
             public bool IsCancelable { get; private set; }
+
             public bool IsFinished { get; private set; }
+
             public int? Progress { get; private set; }
+
             public string Description { get; private set; }
 
-            private ProgressMonitor monitor;
+            private readonly ProgressMonitor monitor;
         }
     }
 }
-

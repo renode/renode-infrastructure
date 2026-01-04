@@ -5,7 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Network
@@ -15,7 +14,9 @@ namespace Antmicro.Renode.Network
     public interface IBasicNetworkNode<TData, TAddress> : IPeripheral
     {
         void ReceiveData(TData data, TAddress source, TAddress destination);
+
         event BasicNetworkSendDataDelegate<TData, TAddress> TrySendData;
+
         TAddress NodeAddress { get; }
     }
 }

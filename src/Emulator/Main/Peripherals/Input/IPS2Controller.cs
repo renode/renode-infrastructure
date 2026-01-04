@@ -5,8 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
-
 namespace Antmicro.Renode.Peripherals.Input
 {
     public interface IPS2Controller
@@ -14,4 +12,3 @@ namespace Antmicro.Renode.Peripherals.Input
         void Notify();
     }
 }
-

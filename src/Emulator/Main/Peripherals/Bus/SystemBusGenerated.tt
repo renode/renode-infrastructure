@@ -26,6 +26,7 @@
 */
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -44,9 +45,19 @@ namespace Antmicro.Renode.Peripherals.Bus
         var type = entry.Key;
         var name = entry.Value;
 #>
-        public <#= type #> Read<#= name #>(ulong address, ICPU context = null)
+        public <#= type #> Read<#= name #>(ulong address, IPeripheral context = null, ulong? cpuState = null)
         {
             var accessWidth = SysbusAccessWidth.<#=name#>;
+            if(context is BaseCPU cpu && cpu.CheckExternalPermissions(address) == 0)
+            {
+                this.WarningLog(
+                    "Tried to read {0} bytes at 0x{1:X}, with incorrect permissions, returning 0.",
+                    (uint)accessWidth,
+                    address
+                );
+                return 0;
+            }
+
             if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} which is inside a locked address range, returning 0",
@@ -54,15 +65,25 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return 0;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
+                TryGetTag(address, out var tag);
+                var warning = TagOverriddenRead;
+                if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
-                    return (<#= type #>)ReportNonExistingRead(address, accessWidth);
+                    warning = EnterTag(warning, foundTag);
+                    warning = DecorateWithCPUNameAndPC(warning);
+                    this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, accessWidth, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2));
+                    return (<#= type #>)foundTag.DefaultValue;
+                }
+
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
+                {
+                    return (<#= type #>)ReportNonExistingRead(address, tag, accessWidth);
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral, address);
+                    this.Log(LogLevel.Warning, "Tried to read a locked peripheral: {0}. Address 0x{1:X}.", accessMethods.Peripheral.GetName(), address);
                     return 0;
                 }
                 var lockTaken = false;
@@ -76,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    return accessMethods.Read<#=name#>(checked((long)(address - startAddress)));
+                    return accessMethods.Read<#=name#>(checked((long)((address - startAddress) + offset)));
                 }
                 finally
                 {
@@ -88,9 +109,31 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void Write<#=name#>(ulong address, <#=type#> value, ICPU context = null)
+        public <#= type #> Read<#= name #>WithState(ulong address, IPeripheral context, IContextState stateObj)
         {
             var accessWidth = SysbusAccessWidth.<#=name#>;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to read {0} bytes at 0x{1:X} but failed on context state conversion, returning 0",
+                    (uint)accessWidth, address);
+                return 0;
+            }
+            return Read<#=name#>(address, context, state);
+        }
+
+        public void Write<#=name#>(ulong address, <#=type#> value, IPeripheral context = null, ulong? cpuState = null)
+        {
+            var accessWidth = SysbusAccessWidth.<#=name#>;
+            if(context is BaseCPU cpu && cpu.CheckExternalPermissions(address) == 0)
+            {
+                this.WarningLog(
+                    "Tried to write {0} bytes at 0x{1:X}, with incorrect permissions, write ignored.",
+                    (uint)accessWidth,
+                    address
+                );
+                return;
+            }
+
             if(IsAddressRangeLocked(address.By((ulong)accessWidth), context))
             {
                 this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} which is inside a locked address range, write ignored",
@@ -98,16 +141,26 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
-                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress))
+                TryGetTag(address, out var tag);
+                var warning = TagOverriddenWrite;
+                if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
-                    ReportNonExistingWrite(address, value, accessWidth);
+                    warning = EnterTag(warning, foundTag);
+                    warning = DecorateWithCPUNameAndPC(warning);
+                    this.Log(LogLevel.Warning, warning, address, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2), accessWidth);
+                    return;
+                }
+
+                if(!TryFindPeripheralAccessMethods(address, context, out var accessMethods, out var startAddress, out var offset, cpuState))
+                {
+                    ReportNonExistingWrite(address, value, tag, accessWidth);
                     return;
                 }
                 if(!IsPeripheralEnabled(accessMethods.Peripheral))
                 {
-                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral, address, value);
+                    this.Log(LogLevel.Warning, "Tried to write a locked peripheral: {0}. Address 0x{1:X}, value 0x{2:X}", accessMethods.Peripheral.GetName(), address, value);
                     return;
                 }
 
@@ -122,7 +175,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         accessMethods.SetAbsoluteAddress(address);
                     }
-                    accessMethods.Write<#=name#>(checked((long)(address - startAddress)), value);
+                    var invalidationCtx = delayedInvalidation ? context as IHasDelayedInvalidationContext : null;
+                    using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
+                    {
+                        accessMethods.Write<#=name#>(checked((long)((address - startAddress) + offset)), value);
+                    }
                 }
                 finally
                 {
@@ -132,6 +189,18 @@ namespace Antmicro.Renode.Peripherals.Bus
                     }
                 }
             }
+        }
+
+        public void Write<#=name#>WithState(ulong address, <#=type#> value, IPeripheral context, IContextState stateObj)
+        {
+            var accessWidth = SysbusAccessWidth.<#=name#>;
+            if(!TryConvertStateToUlongForContext(context, stateObj, out ulong? state))
+            {
+                this.Log(LogLevel.Warning, "Tried to write {0} bytes (0x{1:X}) at 0x{2:X} but failed on context state conversion, write ignored",
+                    (uint)accessWidth, value, address);
+                return;
+            }
+            Write<#=name#>(address, value, context, state);
         }
 
 <# }
@@ -162,7 +231,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 #>
             if(type == typeof(<#=type#>))
             {
-                foreach(var peripherals in allPeripherals)
+                foreach(var peripherals in AllPeripherals)
                 {
                     peripherals.VisitAccessMethods(peripheral, pam =>
                     {
@@ -187,17 +256,25 @@ namespace Antmicro.Renode.Peripherals.Bus
 <#
     }
 #>
-        private bool TryFindPeripheralAccessMethods(ulong address, ICPU context, out PeripheralAccessMethods accessMethods, out ulong startAddress)
+        private bool TryFindPeripheralAccessMethods(ulong address, IPeripheral context, out PeripheralAccessMethods accessMethods, out ulong startAddress, out ulong offset, ulong? cpuState = null)
         {
-            if(context != null || TryGetCurrentCPU(out context))
+            if(context == null)
             {
-                accessMethods = peripheralsCollectionByContext[context].FindAccessMethods(address, out startAddress, out var _);
-                if(accessMethods != null)
+                TryGetCurrentCPU(out var cpu);
+                context = cpu;
+            }
+            if(context != null)
+            {
+                if(peripheralsCollectionByContext.TryGetValue(context, cpuState, out var collection))
                 {
-                    return true;
+                    accessMethods = collection.FindAccessMethods(address, out startAddress, out var _, out offset);
+                    if(accessMethods != null)
+                    {
+                        return true;
+                    }
                 }
             }
-            accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out _);
+            accessMethods = peripheralsCollectionByContext[null].FindAccessMethods(address, out startAddress, out _, out offset);
             return accessMethods != null;
         }
     }

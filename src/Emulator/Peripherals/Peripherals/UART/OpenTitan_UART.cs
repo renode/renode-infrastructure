@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -64,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
-            if(Count < rxFIFOCapacity)
+            if(Count < RxFIFOCapacity)
             {
                 base.WriteChar(value);
             }
@@ -89,26 +90,35 @@ namespace Antmicro.Renode.Peripherals.UART
             txWatermarkCrossed = false;
         }
 
-        public long Size => 0x30;
-        public BufferState BufferState => bufferState;
-
-        public GPIO TxWatermarkIRQ { get; }
-        public GPIO RxWatermarkIRQ { get; }
-        public GPIO TxEmptyIRQ { get; }
-        public GPIO RxOverflowIRQ { get; }
-        public GPIO RxFrameErrorIRQ { get; }
-        public GPIO RxBreakErrorIRQ { get; }
-        public GPIO RxTimeoutIRQ { get; }
-        public GPIO RxParityErrorIRQ { get; }
-        public GPIO FatalAlert { get; }
-
-        public event Action<BufferState> BufferStateChanged;
-
         public override Bits StopBits => Bits.One;
 
         public override Parity ParityBit => parityTypeField.Value == ParityType.Odd ? Parity.Odd : Parity.Even;
 
-        public override uint BaudRate => (uint)((baudClockRate.Value * fixedClockFrequency) >> 20);
+        public override uint BaudRate => (uint)((baudClockRate.Value * FixedClockFrequency) >> 20);
+
+        public long Size => 0x30;
+
+        public BufferState BufferState => bufferState;
+
+        public GPIO TxWatermarkIRQ { get; }
+
+        public GPIO RxWatermarkIRQ { get; }
+
+        public GPIO TxEmptyIRQ { get; }
+
+        public GPIO RxOverflowIRQ { get; }
+
+        public GPIO RxFrameErrorIRQ { get; }
+
+        public GPIO RxBreakErrorIRQ { get; }
+
+        public GPIO RxTimeoutIRQ { get; }
+
+        public GPIO RxParityErrorIRQ { get; }
+
+        public GPIO FatalAlert { get; }
+
+        public event Action<BufferState> BufferStateChanged;
 
         protected override void CharWritten()
         {
@@ -193,8 +203,8 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithValueField(16, 16, out baudClockRate, name: "CTRL.NCO")
                 },
                 {(long)Registers.LiveStatus, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => txQueue.Count == txFIFOCapacity, name: "STATUS.TXFULL")
-                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => Count == rxFIFOCapacity, name: "STATUS.RXFULL")
+                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => txQueue.Count == TxFIFOCapacity, name: "STATUS.TXFULL")
+                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => Count == RxFIFOCapacity, name: "STATUS.RXFULL")
                     .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => txQueue.Count == 0, name: "STATUS.TXEMPTY")
                     .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => txQueue.Count == 0, name: "STATUS.TXIDLE")
                     .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => true, name: "STATUS.RXIDLE")
@@ -229,7 +239,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             txOngoing = true;
                             TransmitCharacter((byte)val);
                         }
-                        else if(txQueue.Count < txFIFOCapacity)
+                        else if(txQueue.Count < TxFIFOCapacity)
                         {
                             txQueue.Enqueue((byte)val);
                             if(txQueue.Count >= TxWatermarkValue) {
@@ -292,7 +302,8 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             rxWatermarkPending.Value |= RxWatermarkValue <= Count;
 
-            if (txWatermarkCrossed && txQueue.Count < TxWatermarkValue) {
+            if(txWatermarkCrossed && txQueue.Count < TxWatermarkValue)
+            {
                 txWatermarkPending.Value = true;
                 txWatermarkCrossed = false;
             }
@@ -315,15 +326,15 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateBufferState()
         {
-            if((Count < rxFIFOCapacity && bufferState == BufferState.Full) ||
+            if((Count < RxFIFOCapacity && bufferState == BufferState.Full) ||
                (Count != 0 && bufferState == BufferState.Empty) ||
-               ((Count == 0 || Count >= rxFIFOCapacity) && bufferState == BufferState.Ready))
+               ((Count == 0 || Count >= RxFIFOCapacity) && bufferState == BufferState.Ready))
             {
                 if(Count == 0)
                 {
                     bufferState = BufferState.Empty;
                 }
-                else if(Count >= rxFIFOCapacity)
+                else if(Count >= RxFIFOCapacity)
                 {
                     bufferState = BufferState.Full;
                 }
@@ -342,19 +353,19 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 switch(rxWatermarkField.Value)
                 {
-                    default:
-                        this.Log(LogLevel.Error, "Unexpected state of rxWatermarkField ({0})", rxWatermarkField.Value);
-                        return 1;
-                    case RxWatermarkLevel.Level1:
-                        return 1;
-                    case RxWatermarkLevel.Level4:
-                        return 4;
-                    case RxWatermarkLevel.Level8:
-                        return 8;
-                    case RxWatermarkLevel.Level16:
-                        return 16;
-                    case RxWatermarkLevel.Level30:
-                        return 30;
+                default:
+                    this.Log(LogLevel.Error, "Unexpected state of rxWatermarkField ({0})", rxWatermarkField.Value);
+                    return 1;
+                case RxWatermarkLevel.Level1:
+                    return 1;
+                case RxWatermarkLevel.Level4:
+                    return 4;
+                case RxWatermarkLevel.Level8:
+                    return 8;
+                case RxWatermarkLevel.Level16:
+                    return 16;
+                case RxWatermarkLevel.Level30:
+                    return 30;
                 }
             }
         }
@@ -365,61 +376,62 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 switch(txWatermarkField.Value)
                 {
-                    default:
-                        this.Log(LogLevel.Error, "Unexpected state of txWatermarkField ({0})", txWatermarkField.Value);
-                        return 2;
-                    case TxWatermarkLevel.Level1:
-                        return 2;
-                    case TxWatermarkLevel.Level4:
-                        return 4;
-                    case TxWatermarkLevel.Level8:
-                        return 8;
-                    case TxWatermarkLevel.Level16:
-                        return 16;
+                default:
+                    this.Log(LogLevel.Error, "Unexpected state of txWatermarkField ({0})", txWatermarkField.Value);
+                    return 2;
+                case TxWatermarkLevel.Level1:
+                    return 2;
+                case TxWatermarkLevel.Level4:
+                    return 4;
+                case TxWatermarkLevel.Level8:
+                    return 8;
+                case TxWatermarkLevel.Level16:
+                    return 16;
                 }
             }
         }
 
-        private readonly DoubleWordRegisterCollection registers;
-        private readonly Queue<byte> txQueue;
         // InterruptState
         private IFlagRegisterField txWatermarkPending;
-        private IFlagRegisterField rxWatermarkPending;
-        private IFlagRegisterField txEmptyPending;
-        private IFlagRegisterField rxOverflowPending;
-        private IFlagRegisterField rxFrameErrorPending;
-        private IFlagRegisterField rxBreakErrorPending;
-        private IFlagRegisterField rxTimeoutPending;
-        private IFlagRegisterField rxParityErrorPending;
-        // InterruptEnable
-        private IFlagRegisterField txWatermarkEnabled;
-        private IFlagRegisterField rxWatermarkEnabled;
-        private IFlagRegisterField txEmptyEnabled;
-        private IFlagRegisterField rxOverflowEnabled;
-        private IFlagRegisterField rxFrameErrorEnabled;
-        private IFlagRegisterField rxBreakErrorEnabled;
-        private IFlagRegisterField rxTimeoutEnabled;
-        private IFlagRegisterField rxParityErrorEnabled;
-        // Control
-        private IFlagRegisterField txEnabled;
-        private IFlagRegisterField rxEnabled;
-        private IFlagRegisterField noiseFilterEnabled;
-        private IFlagRegisterField systemLoopbackEnabled;
-        private IFlagRegisterField lineLoopbackEnabled;
-        private IFlagRegisterField parityEnabled;
-        private IEnumRegisterField<ParityType> parityTypeField;
-        private IValueRegisterField baudClockRate;
-        // FIFOControl
-        private IEnumRegisterField<RxWatermarkLevel> rxWatermarkField;
-        private IEnumRegisterField<TxWatermarkLevel> txWatermarkField;
 
         private bool txOngoing;
+        private IEnumRegisterField<TxWatermarkLevel> txWatermarkField;
+        // FIFOControl
+        private IEnumRegisterField<RxWatermarkLevel> rxWatermarkField;
+        private IValueRegisterField baudClockRate;
+        private IEnumRegisterField<ParityType> parityTypeField;
+        private IFlagRegisterField parityEnabled;
+        private IFlagRegisterField lineLoopbackEnabled;
+        private IFlagRegisterField systemLoopbackEnabled;
+        private IFlagRegisterField noiseFilterEnabled;
+        private IFlagRegisterField rxEnabled;
+        // Control
+        private IFlagRegisterField txEnabled;
+        private IFlagRegisterField rxParityErrorEnabled;
         private bool txWatermarkCrossed;
+        private IFlagRegisterField rxTimeoutEnabled;
+        private IFlagRegisterField rxFrameErrorEnabled;
+        private IFlagRegisterField rxOverflowEnabled;
+        private IFlagRegisterField txEmptyEnabled;
+        private IFlagRegisterField rxWatermarkEnabled;
+        // InterruptEnable
+        private IFlagRegisterField txWatermarkEnabled;
+        private IFlagRegisterField rxParityErrorPending;
+        private IFlagRegisterField rxTimeoutPending;
+        private IFlagRegisterField rxBreakErrorPending;
+        private IFlagRegisterField rxFrameErrorPending;
+        private IFlagRegisterField rxOverflowPending;
+        private IFlagRegisterField txEmptyPending;
+        private IFlagRegisterField rxWatermarkPending;
+        private IFlagRegisterField rxBreakErrorEnabled;
         private BufferState bufferState;
 
-        private const int rxFIFOCapacity = 32;
-        private const int txFIFOCapacity = 32;
-        private const ulong fixedClockFrequency = 50000000;
+        private readonly DoubleWordRegisterCollection registers;
+        private readonly Queue<byte> txQueue;
+
+        private const int RxFIFOCapacity = 32;
+        private const int TxFIFOCapacity = 32;
+        private const ulong FixedClockFrequency = 50000000;
 
         private enum ParityType
         {

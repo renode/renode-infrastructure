@@ -1,14 +1,15 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
-using ELFSharp.ELF;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Utilities;
+
+using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -18,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             CSRValidation = CSRValidationLevel.None;
 
-            RegisterCSR((ulong)CSRs.IrqMask, () => (ulong)irqMask, value =>
+            RegisterCSR((ushort)CSRs.IrqMask, () => (ulong)irqMask, value =>
             {
                 lock(locker)
                 {
@@ -27,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     Update();
                 }
             });
-            RegisterCSR((ulong)CSRs.IrqPending, () => (ulong)irqPending, value =>
+            RegisterCSR((ushort)CSRs.IrqPending, () => (ulong)irqPending, value =>
             {
                 lock(locker)
                 {
@@ -59,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly object locker = new object();
 
-        private enum CSRs
+        private enum CSRs : ushort
         {
             IrqMask = 0x330,
             IrqPending = 0x360,

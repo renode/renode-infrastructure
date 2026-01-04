@@ -1,12 +1,11 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using System.Linq;
+
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
@@ -14,33 +13,26 @@ namespace Antmicro.Renode.Core.CAN
 {
     public static class ISocketCANFrameExtentions
     {
-        public static byte[] Encode<T>(this T @this, bool useNetworkByteOrder) where T : ISocketCANFrame
+        public static byte[] Encode<T>(this T @this, bool useNetworkByteOrder = false) where T : ISocketCANFrame
         {
             var frame = Packet.Encode<T>(@this);
             if(useNetworkByteOrder)
             {
-                @this.ByteSwap(frame);
+                // Only the ID and flags field is byte swapped
+                // For historical reasons this is also done for CAN XL
+                // see: https://github.com/wireshark/wireshark/blob/master/epan/dissectors/packet-socketcan.c
+                Misc.EndiannessSwapInPlace(frame, width: 4, offset: 0, length: 4);
             }
             return frame;
         }
 
-        public static bool TryDecode<T>(this IList<byte> buffer, out T frame, bool useNetworkByteOrder)
+        public static bool TryDecode<T>(this IList<byte> buffer, out T frame)
             where T : ISocketCANFrame
         {
-            frame = default(T);
-            if(useNetworkByteOrder)
-            {
-                if(!buffer.TryGetByteSwappedData<T>(out var data))
-                {
-                    return false;
-                }
-                buffer = data;
-            }
-
             return Packet.TryDecode<T>(buffer, out frame);
         }
 
-        public static bool TryDecodeAsSocketCANFrame(this IList<byte> buffer, out ISocketCANFrame frame, bool useNetworkByteOrder)
+        public static bool TryDecodeAsSocketCANFrame(this IList<byte> buffer, out ISocketCANFrame frame)
         {
             if(!Packet.TryDecode<SocketCANFrameHeader>(buffer, out var header))
             {
@@ -48,48 +40,23 @@ namespace Antmicro.Renode.Core.CAN
                 return false;
             }
 
-            if(header.extendedFrameLengthFrame)
+            if(header.ExtendedFrameLengthFrame)
             {
-                return buffer.TryDecode<XLSocketCANFrame>(out frame, useNetworkByteOrder);
+                return buffer.TryDecode<XLSocketCANFrame>(out frame);
             }
 
-            if(header.flexibleDataRateFrame)
+            if(header.FlexibleDataRateFrame)
             {
-                return buffer.TryDecode<FlexibleSocketCANFrame>(out frame, useNetworkByteOrder);
+                return buffer.TryDecode<FlexibleSocketCANFrame>(out frame);
             }
 
-            return buffer.TryDecode<ClassicalSocketCANFrame>(out frame, useNetworkByteOrder);
+            return buffer.TryDecode<ClassicalSocketCANFrame>(out frame);
         }
 
-        public static bool TryGetByteSwappedData<T>(this IList<byte> buffer, out byte[] data) where T : ISocketCANFrame
-        {
-            var prototype = default(T);
-            if(buffer.Count < prototype.Size)
-            {
-                data = new byte[0];
-                return false;
-            }
-            data = buffer.Take(prototype.Size).ToArray();
-            prototype.ByteSwap(data);
-            return true;
-        }
-
-        public static void ByteSwap(this ISocketCANFrame @this, byte[] frame)
-        {
-            if(frame.Length != @this.Size)
-            {
-                throw new ArgumentException($"Number of bytes in {nameof(frame)} must match the size of a SocketCAN structure", nameof(frame));
-            }
-            foreach(var marker in @this.MultibyteFields)
-            {
-                Misc.EndiannessSwapInPlace(frame, marker.size, marker.offset, marker.size);
-            }
-        }
-
-        private static bool TryDecode<T>(this IList<byte> buffer, out ISocketCANFrame frame, bool useNetworkByteOrder)
+        private static bool TryDecode<T>(this IList<byte> buffer, out ISocketCANFrame frame)
             where T : ISocketCANFrame
         {
-            if(buffer.TryDecode<T>(out T tFrame, useNetworkByteOrder))
+            if(buffer.TryDecode<T>(out T tFrame))
             {
                 frame = tFrame;
                 return true;
@@ -102,10 +69,10 @@ namespace Antmicro.Renode.Core.CAN
         private struct SocketCANFrameHeader
         {
 #pragma warning disable 649
-            [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  2), Width(1)]
-            public bool flexibleDataRateFrame;
-            [PacketField, Offset(doubleWords: 1, bytes: 0, bits: 7), Width(1)]
-            public bool extendedFrameLengthFrame;
+            [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  2), Width(bits: 1)]
+            public bool FlexibleDataRateFrame;
+            [PacketField, Offset(doubleWords: 1, bytes: 0, bits: 7), Width(bits: 1)]
+            public bool ExtendedFrameLengthFrame;
 #pragma warning restore 649
 
             public const int Size = 8;
@@ -115,16 +82,6 @@ namespace Antmicro.Renode.Core.CAN
     public interface ISocketCANFrame
     {
         int Size { get; }
-        IEnumerable<FieldMarker> MultibyteFields { get; }
-    }
-
-    public struct FieldMarker
-    {
-        public static FieldMarker Create(int size, int offset) =>
-            new FieldMarker { size = size, offset = offset };
-
-        public int size;
-        public int offset;
     }
 
     [LeastSignificantByteFirst]
@@ -134,55 +91,48 @@ namespace Antmicro.Renode.Core.CAN
         {
             return new ClassicalSocketCANFrame
             {
-                id = msg.Id,
-                errorMessageFrame = false,
-                remoteTransmissionRequest = msg.RemoteFrame,
-                extendedFrameFormat = msg.ExtendedFormat,
-                length = msg.Data.Length,
-                data = msg.Data.CopyAndResize(MaxDataLength)
+                Id = msg.Id,
+                ErrorMessageFrame = false,
+                RemoteTransmissionRequest = msg.RemoteFrame,
+                ExtendedFrameFormat = msg.ExtendedFormat,
+                Length = msg.Data.Length,
+                Data = msg.Data.CopyAndResize(MaxDataLength)
             };
         }
 
         public override string ToString() => $@"ClassicalSocketCANFrame {{
-    id: 0x{id:X},
-    errorMessageFrame: {errorMessageFrame},
-    remoteTransmissionRequest: {remoteTransmissionRequest},
-    extendedFrameFormat: {extendedFrameFormat},
-    length: {length},
-    data: {Misc.PrettyPrintCollectionHex(data)}
+    id: 0x{Id:X},
+    errorMessageFrame: {ErrorMessageFrame},
+    remoteTransmissionRequest: {RemoteTransmissionRequest},
+    extendedFrameFormat: {ExtendedFrameFormat},
+    length: {Length},
+    data: {Misc.PrettyPrintCollectionHex(Data)}
 }}";
-
-        public IEnumerable<FieldMarker> MultibyteFields => multibyteFields;
 
         int ISocketCANFrame.Size => ClassicalSocketCANFrame.Size;
 
 #pragma warning disable 649
         // can_id
-        [PacketField, Offset(doubleWords: 0, bits:  0), Width(29)]
-        public uint id;
-        [PacketField, Offset(doubleWords: 0, bits:  29), Width(1)]
-        public bool errorMessageFrame;
-        [PacketField, Offset(doubleWords: 0, bits:  30), Width(1)]
-        public bool remoteTransmissionRequest;
-        [PacketField, Offset(doubleWords: 0, bits:  31), Width(1)]
-        public bool extendedFrameFormat;
+        [PacketField, Offset(doubleWords: 0, bits:  0), Width(bits: 29)]
+        public uint Id;
+        [PacketField, Offset(doubleWords: 0, bits:  29), Width(bits: 1)]
+        public bool ErrorMessageFrame;
+        [PacketField, Offset(doubleWords: 0, bits:  30), Width(bits: 1)]
+        public bool RemoteTransmissionRequest;
+        [PacketField, Offset(doubleWords: 0, bits:  31), Width(bits: 1)]
+        public bool ExtendedFrameFormat;
 
         // len
-        [PacketField, Offset(doubleWords: 1, bits:  0), Width(8)]
-        public int length;
+        [PacketField, Offset(doubleWords: 1, bits:  0), Width(bits: 8)]
+        public int Length;
 
         // data
-        [PacketField, Offset(quadWords: 1), Width(MaxDataLength)]
-        public byte[] data;
+        [PacketField, Offset(quadWords: 1), Width(bytes: MaxDataLength)]
+        public byte[] Data;
 #pragma warning restore 649
 
         public const int MaxDataLength = 8;
         public const int Size = MaxDataLength + 8;
-
-        private readonly static FieldMarker[] multibyteFields = new FieldMarker[]
-        {
-            FieldMarker.Create(size: 4, offset: 0)
-        };
     }
 
     [LeastSignificantByteFirst]
@@ -192,128 +142,112 @@ namespace Antmicro.Renode.Core.CAN
         {
             return new FlexibleSocketCANFrame
             {
-                id = msg.Id,
-                errorMessageFrame = false,
-                remoteTransmissionRequest = msg.RemoteFrame,
-                extendedFrameFormat = msg.ExtendedFormat,
-                length = msg.Data.Length,
-                bitRateSwitch = msg.BitRateSwitch,
-                errorStateIndicator = false,
-                flexibleDataRateFrame = true,
-                data = msg.Data.CopyAndResize(MaxDataLength)
+                Id = msg.Id,
+                ErrorMessageFrame = false,
+                RemoteTransmissionRequest = msg.RemoteFrame,
+                ExtendedFrameFormat = msg.ExtendedFormat,
+                Length = msg.Data.Length,
+                BitRateSwitch = msg.BitRateSwitch,
+                ErrorStateIndicator = false,
+                FlexibleDataRateFrame = true,
+                Data = msg.Data.CopyAndResize(MaxDataLength)
             };
         }
 
         public override string ToString() => $@"FlexibleSocketCANFrame {{
-    id: 0x{id:X},
-    errorMessageFrame: {errorMessageFrame},
-    remoteTransmissionRequest: {remoteTransmissionRequest},
-    extendedFrameFormat: {extendedFrameFormat},
-    length: {length},
-    bitRateSwitch: {bitRateSwitch},
-    errorStateIndicator: {errorStateIndicator},
-    flexibleDataRateFrame: {flexibleDataRateFrame},
-    data: {Misc.PrettyPrintCollectionHex(data)}
+    id: 0x{Id:X},
+    errorMessageFrame: {ErrorMessageFrame},
+    remoteTransmissionRequest: {RemoteTransmissionRequest},
+    extendedFrameFormat: {ExtendedFrameFormat},
+    length: {Length},
+    bitRateSwitch: {BitRateSwitch},
+    errorStateIndicator: {ErrorStateIndicator},
+    flexibleDataRateFrame: {FlexibleDataRateFrame},
+    data: {Misc.PrettyPrintCollectionHex(Data)}
 }}";
-
-        public IEnumerable<FieldMarker> MultibyteFields => multibyteFields;
 
         int ISocketCANFrame.Size => FlexibleSocketCANFrame.Size;
 
 #pragma warning disable 649
         // can_id
-        [PacketField, Offset(doubleWords: 0, bits:  0), Width(29)]
-        public uint id;
-        [PacketField, Offset(doubleWords: 0, bits:  29), Width(1)]
-        public bool errorMessageFrame;
-        [PacketField, Offset(doubleWords: 0, bits:  30), Width(1)]
-        public bool remoteTransmissionRequest;
-        [PacketField, Offset(doubleWords: 0, bits:  31), Width(1)]
-        public bool extendedFrameFormat;
+        [PacketField, Offset(doubleWords: 0, bits:  0), Width(bits: 29)]
+        public uint Id;
+        [PacketField, Offset(doubleWords: 0, bits:  29), Width(bits: 1)]
+        public bool ErrorMessageFrame;
+        [PacketField, Offset(doubleWords: 0, bits:  30), Width(bits: 1)]
+        public bool RemoteTransmissionRequest;
+        [PacketField, Offset(doubleWords: 0, bits:  31), Width(bits: 1)]
+        public bool ExtendedFrameFormat;
 
         // len
-        [PacketField, Offset(doubleWords: 1, bytes: 0), Width(8)]
-        public int length;
+        [PacketField, Offset(doubleWords: 1, bytes: 0), Width(bits: 8)]
+        public int Length;
 
         // flags
-        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  0), Width(1)]
-        public bool bitRateSwitch;
-        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  1), Width(1)]
-        public bool errorStateIndicator;
+        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  0), Width(bits: 1)]
+        public bool BitRateSwitch;
+        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  1), Width(bits: 1)]
+        public bool ErrorStateIndicator;
         // should always be set for FD CAN frame
-        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  2), Width(1)]
-        public bool flexibleDataRateFrame;
+        [PacketField, Offset(doubleWords: 1, bytes: 1, bits:  2), Width(bits: 1)]
+        public bool FlexibleDataRateFrame;
 
         // data
-        [PacketField, Offset(quadWords: 1), Width(MaxDataLength)]
-        public byte[] data;
+        [PacketField, Offset(quadWords: 1), Width(bytes: MaxDataLength)]
+        public byte[] Data;
 #pragma warning restore 649
 
         public const int MaxDataLength = 64;
         public const int Size = MaxDataLength + 8;
-
-        private readonly static FieldMarker[] multibyteFields = new FieldMarker[]
-        {
-            FieldMarker.Create(size: 4, offset: 0)
-        };
     }
 
     [LeastSignificantByteFirst]
     public struct XLSocketCANFrame : ISocketCANFrame
     {
         public override string ToString() => $@"XLSocketCANFrame {{
-    priority: 0x{priority:X},
-    virtualCANNetworkId: 0x{virtualCANNetworkId:X},
-    simpleExtendedContent: {simpleExtendedContent},
-    extendedFrameLengthFrame: {extendedFrameLengthFrame},
-    serviceDataUnit: 0x{serviceDataUnit:X},
-    length: {length},
-    acceptanceField: 0x{acceptanceField:X},
-    data: {Misc.PrettyPrintCollectionHex(data)}
+    priority: 0x{Priority:X},
+    virtualCANNetworkId: 0x{VirtualCANNetworkId:X},
+    simpleExtendedContent: {SimpleExtendedContent},
+    extendedFrameLengthFrame: {ExtendedFrameLengthFrame},
+    serviceDataUnit: 0x{ServiceDataUnit:X},
+    length: {Length},
+    acceptanceField: 0x{AcceptanceField:X},
+    data: {Misc.PrettyPrintCollectionHex(Data)}
 }}";
-
-        public IEnumerable<FieldMarker> MultibyteFields => multibyteFields;
 
         int ISocketCANFrame.Size => XLSocketCANFrame.Size;
 
 #pragma warning disable 649
         // prio
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(11)]
-        public uint priority;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
-        public byte virtualCANNetworkId;
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 11)]
+        public uint Priority;
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
+        public byte VirtualCANNetworkId;
 
         // flags
-        [PacketField, Offset(doubleWords: 1, bytes: 0, bits:  0), Width(1)]
-        public bool simpleExtendedContent;
-        [PacketField, Offset(doubleWords: 1, bytes: 0, bits:  7), Width(1)]
-        public bool extendedFrameLengthFrame;
+        [PacketField, Offset(doubleWords: 1, bytes: 0, bits:  0), Width(bits: 1)]
+        public bool SimpleExtendedContent;
+        [PacketField, Offset(doubleWords: 1, bytes: 0, bits:  7), Width(bits: 1)]
+        public bool ExtendedFrameLengthFrame;
 
         // sdt
-        [PacketField, Offset(doubleWords: 1, bytes: 1, bits: 0), Width(8)]
-        public byte serviceDataUnit;
+        [PacketField, Offset(doubleWords: 1, bytes: 1, bits: 0), Width(bits: 8)]
+        public byte ServiceDataUnit;
 
         // len
-        [PacketField, Offset(doubleWords: 1, words: 1), Width(16)]
-        public int length;
+        [PacketField, Offset(doubleWords: 1, words: 1), Width(bits: 16)]
+        public int Length;
 
         // af
-        [PacketField, Offset(doubleWords: 2), Width(32)]
-        public uint acceptanceField;
+        [PacketField, Offset(doubleWords: 2), Width(bits: 32)]
+        public uint AcceptanceField;
 
         // data
-        [PacketField, Offset(doubleWords: 3), Width(MaxDataLength)]
-        public byte[] data;
+        [PacketField, Offset(doubleWords: 3), Width(bytes: MaxDataLength)]
+        public byte[] Data;
 #pragma warning restore 649
 
         public const int MaxDataLength = 2048;
         public const int Size = MaxDataLength + 12;
-
-        private readonly static FieldMarker[] multibyteFields = new FieldMarker[]
-        {
-            FieldMarker.Create(size: 4, offset: 0), // prio
-            FieldMarker.Create(size: 2, offset: 6), // len
-            FieldMarker.Create(size: 4, offset: 8)  // af
-        };
     }
 }

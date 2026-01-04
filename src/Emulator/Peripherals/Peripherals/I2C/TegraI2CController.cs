@@ -6,18 +6,18 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
     public class TegraI2CController : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral
     {
-
         public TegraI2CController(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
@@ -136,6 +136,8 @@ namespace Antmicro.Renode.Peripherals.I2C
             payloadSize = 0;
         }
 
+        public GPIO IRQ { get; private set; }
+
         private void TransferData(uint value)
         {
             this.Log(LogLevel.Debug, "TransferData(0x{0:X}) in mode {1}.", value, mode);
@@ -227,8 +229,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
-        public GPIO IRQ{ get; private set; }
-
         private void Update()
         {
             if((interruptStatus & (interruptMask | (1 << (int)Interrupts.PacketXferComplete))) > 0)
@@ -251,7 +251,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
             Update();
         }
-
 
         private void SetInterrupt(params Interrupts[] interrupt)
         {
@@ -278,8 +277,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte slaveAddressForPacket;
         private bool imInUse;
 
-        private List<byte> packet = new List<byte>();
-        private Queue<byte> rxQueue = new Queue<byte>();
+        private readonly List<byte> packet = new List<byte>();
+        private readonly Queue<byte> rxQueue = new Queue<byte>();
 
         private enum Mode
         {
@@ -316,9 +315,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             InterruptMask = 0x64,
             InterruptStatus = 0x68,
             ClockDivisor = 0x6C,
-
-
         }
     }
 }
-

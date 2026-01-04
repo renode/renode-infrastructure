@@ -9,18 +9,14 @@ using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
-    public class OpenTitan_SRAMController: BasicDoubleWordPeripheral, IKnownSize
+    public class OpenTitan_SRAMController : BasicDoubleWordPeripheral, IKnownSize
     {
-        public OpenTitan_SRAMController(IMachine machine): base(machine)
+        public OpenTitan_SRAMController(IMachine machine) : base(machine)
         {
             FatalError = new GPIO();
             DefineRegisters();
             Reset();
         }
-
-        public long Size => 0x20;
-
-        public GPIO FatalError { get; }
 
         public void DefineRegisters()
         {
@@ -54,6 +50,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 .WithTaggedFlag("INIT", 1)
                 .WithReservedBits(2, 30);
         }
+
+        public long Size => 0x20;
+
+        public GPIO FatalError { get; }
 
         public enum Registers
         {

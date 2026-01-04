@@ -6,6 +6,8 @@
 //
 using System;
 using System.Threading;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -139,6 +141,7 @@ namespace Antmicro.Renode.Time
                 sourceSideInProgress = true;
 
                 intervalGranted = interval;
+                finishedTimeInterval = false;
 
                 if(enabled)
                 {
@@ -304,27 +307,8 @@ namespace Antmicro.Renode.Time
                 return;
             }
 
-            lock(innerLock)
-            {
-                // reportedTimeResiduum represents time that
-                // has been reported, but not yet used;
-                // we cannot report it again
-                if(reportedTimeResiduum >= progress)
-                {
-                    reportedTimeResiduum -= progress;
-                    return;
-                }
-                if(reportedTimeResiduum != TimeInterval.Empty)
-                {
-                    progress -= reportedTimeResiduum;
-                    reportedTimeResiduum = TimeInterval.Empty;
-                }
-
-                this.Trace($"Reporting progress: {progress}");
-                TotalElapsedTime += progress;
-                reportedSoFar += progress;
-                TimeSource.ReportTimeProgress();
-            }
+            UpdateElapsedTime(progress);
+            TimeSource.ReportTimeProgress();
         }
 
         /// <summary>
@@ -351,6 +335,7 @@ namespace Antmicro.Renode.Time
                 DebugHelper.Assert(slaveTimeResiduum == TimeInterval.Empty, "Time residuum should be empty here.");
                 slaveTimeResiduum = timeLeft;
                 intervalToReport = intervalGranted;
+                finishedTimeInterval = true;
 
                 reportPending = true;
 
@@ -453,6 +438,7 @@ namespace Antmicro.Renode.Time
         public WaitResult WaitUntilDone(out TimeInterval intervalUsed)
         {
             this.Trace();
+            WaitResult result;
             lock(innerLock)
             {
                 Debugging.DebugHelper.Assert(sourceSideInProgress, "About to wait until time is used, but it seems none has recently been granted.");
@@ -489,7 +475,7 @@ namespace Antmicro.Renode.Time
                 Debugging.DebugHelper.Assert(reportedSoFar <= intervalUsed);
                 // here we report the remaining part of granted time
                 reportedTimeResiduum = TimeInterval.Empty;
-                ReportProgress(intervalUsed - reportedSoFar);
+                UpdateElapsedTime(intervalUsed - reportedSoFar);
                 reportedSoFar = TimeInterval.Empty;
 
                 reportPending = false;
@@ -499,7 +485,7 @@ namespace Antmicro.Renode.Time
                     sourceSideInProgress = false;
                 }
 
-                var result = new WaitResult(isDone, recentlyUnblocked);
+                result = new WaitResult(isDone, recentlyUnblocked);
                 recentlyUnblocked = false;
                 if(deferredUnlatch)
                 {
@@ -511,8 +497,9 @@ namespace Antmicro.Renode.Time
 
                 this.Trace($"Reporting {intervalUsed.Ticks} ticks used. Local elapsed virtual time is {TotalElapsedTime.Ticks} ticks.");
                 this.Trace(result.ToString());
-                return result;
             }
+            TimeSource.ReportTimeProgress();
+            return result;
         }
 
         /// <summary>
@@ -807,6 +794,8 @@ namespace Antmicro.Renode.Time
             }
         }
 
+        public bool FinishedTimeInterval => finishedTimeInterval;
+
         /// <summary>
         /// Informs the sink that the source wants to pause its execution.
         /// </summary>
@@ -824,6 +813,35 @@ namespace Antmicro.Renode.Time
         /// Call when the sink calls ReportBackAndContinue or ReportBackAndBreak.
         /// </summary>
         public event Action ReportedBack;
+
+        private void UpdateElapsedTime(TimeInterval progress)
+        {
+            if(progress.Ticks == 0)
+            {
+                return;
+            }
+
+            lock(innerLock)
+            {
+                // reportedTimeResiduum represents time that
+                // has been reported, but not yet used;
+                // we cannot report it again
+                if(reportedTimeResiduum >= progress)
+                {
+                    reportedTimeResiduum -= progress;
+                    return;
+                }
+                if(reportedTimeResiduum != TimeInterval.Empty)
+                {
+                    progress -= reportedTimeResiduum;
+                    reportedTimeResiduum = TimeInterval.Empty;
+                }
+
+                TotalElapsedTime += progress;
+                reportedSoFar += progress;
+                this.Trace($"Reporting progress: {progress}");
+            }
+        }
 
         [Antmicro.Migrant.Hooks.PreSerialization]
         private void VerifyStateBeforeSerialization()
@@ -873,6 +891,7 @@ namespace Antmicro.Renode.Time
 
         private bool enabled;
         private bool sinkSideActive;
+        [Transient]
         private bool sourceSideActive;
 
         private bool changingEnabled;
@@ -881,6 +900,7 @@ namespace Antmicro.Renode.Time
         private bool recentlyUnblocked;
         private bool delayGrant;
         private bool interrupt;
+        private bool finishedTimeInterval;
         private volatile bool isDone;
 
         private readonly object innerLock;
@@ -899,6 +919,7 @@ namespace Antmicro.Renode.Time
             }
 
             public bool IsDone { get; private set; }
+
             public bool IsUnblockedRecently { get; private set; }
         }
     }

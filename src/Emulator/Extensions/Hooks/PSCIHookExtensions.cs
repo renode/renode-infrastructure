@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,11 +11,10 @@ namespace Antmicro.Renode.Hooks
 {
     public static class PSCIHookExtensions
     {
-        public static void AddCustomPSCIStub(this ICPUWithPSCI cpu, ulong functionIdentifier, string pythonScript)
+        public static void AddCustomPSCIHandler(this ICPUWithPSCI cpu, ulong functionIdentifier, string pythonScript)
         {
             var engine = new PSCIPythonEngine(cpu, pythonScript, functionIdentifier);
-            cpu.AddCustomPSCIStub(functionIdentifier, engine.Hook);
+            cpu.AddCustomPSCIHandler(functionIdentifier, engine.Hook);
         }
     }
 }
-

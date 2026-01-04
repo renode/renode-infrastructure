@@ -1,15 +1,17 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Diagnostics;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -20,12 +22,12 @@ namespace Antmicro.Renode.Utilities
             Initialize(Path.GetTempPath(), DefaultDirectoryPrefix, !EmulationManager.DisableEmulationFilesCleanup);
         }
 
-        public static TemporaryFilesManager Instance { get; private set; }
-
         public static void Initialize(string tempDirectory, string tempDirPrefix, bool cleanFiles)
         {
             Instance = new TemporaryFilesManager(tempDirectory, tempDirPrefix, cleanFiles);
         }
+
+        public static TemporaryFilesManager Instance { get; private set; }
 
         public string GetTemporaryFile(string fileNameSuffix = null)
         {
@@ -82,6 +84,28 @@ namespace Antmicro.Renode.Utilities
             return true;
         }
 
+        public bool TryCreateDirectory(string dirName, out string path)
+        {
+            path = Path.Combine(emulatorTemporaryPath, dirName);
+
+            if(Directory.Exists(path))
+            {
+                return true;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(path);
+            }
+            catch(Exception)
+            {
+                path = null;
+                return false;
+            }
+
+            return true;
+        }
+
         public void Cleanup()
         {
             if(!shouldCleanFiles)
@@ -96,43 +120,24 @@ namespace Antmicro.Renode.Utilities
                 var pid = entry.Substring(otherEmulatorTempPrefix.Length);
                 int processId;
                 if(pid != null && int.TryParse(pid, out processId) && IsProcessAlive(processId))
-                { 
+                {
                     continue;
                 }
                 ClearDirectory(entry);
             }
         }
 
-        public event Action<string> OnFileCreated;
-
         public string EmulatorTemporaryPath
         {
             get
-            { 
+            {
                 return emulatorTemporaryPath;
             }
         }
 
-        private TemporaryFilesManager(string tempDirectory, string tempDirPrefix, bool cleanFiles)
-        {
-            shouldCleanFiles = cleanFiles;
-            if(AppDomain.CurrentDomain.IsDefaultAppDomain())
-            {
-                id = Process.GetCurrentProcess().Id.ToString();
-            }
-            else
-            {
-                id = string.Format("{0}-{1}", Process.GetCurrentProcess().Id, AppDomain.CurrentDomain.Id);
-            }
-            otherEmulatorTempPrefix = Path.Combine(tempDirectory, tempDirPrefix);
-            emulatorTemporaryPath = otherEmulatorTempPrefix + id;
+        public event Action<string> OnFileCreated;
 
-            if(!Directory.Exists(emulatorTemporaryPath))
-            {
-                Directory.CreateDirectory(emulatorTemporaryPath);
-            }
-            Cleanup();
-        }
+        public const string CrashSuffix = "-crash";
 
         private static bool IsProcessAlive(int pid)
         {
@@ -147,10 +152,40 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
+        private TemporaryFilesManager(string tempDirectory, string tempDirPrefix, bool cleanFiles)
+        {
+            shouldCleanFiles = cleanFiles;
+            var pid = Process.GetCurrentProcess().Id;
+            if(AppDomain.CurrentDomain.IsDefaultAppDomain())
+            {
+                id = pid.ToString();
+            }
+            else
+            {
+                id = string.Format("{0}-{1}", pid, AppDomain.CurrentDomain.Id);
+            }
+            otherEmulatorTempPrefix = Path.Combine(tempDirectory, tempDirPrefix);
+            emulatorTemporaryPath = otherEmulatorTempPrefix + id;
+
+            // Remove leftover directory from a previous run.
+            // This can happen with persistent temp directory (e.g., in Docker)
+            if(Directory.Exists(emulatorTemporaryPath))
+            {
+                if(!shouldCleanFiles)
+                {
+                    Logger.Log(LogLevel.Warning, "Clearing temporary directory with PID matching the currently running Renode instance ({0}) even though `--keep-temporary-files` is set, to ensure that Renode runs correctly", pid);
+                }
+                Directory.Delete(emulatorTemporaryPath, true);
+            }
+            Directory.CreateDirectory(emulatorTemporaryPath);
+
+            Cleanup();
+        }
+
         ~TemporaryFilesManager()
         {
             Cleanup();
-            ClearDirectory(emulatorTemporaryPath);           
+            ClearDirectory(emulatorTemporaryPath);
         }
 
         private void ClearDirectory(string path)
@@ -169,10 +204,8 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public const string CrashSuffix = "-crash";
-
         private readonly string otherEmulatorTempPrefix;
-        private readonly string emulatorTemporaryPath; 
+        private readonly string emulatorTemporaryPath;
         private readonly string id;
         private readonly bool shouldCleanFiles;
 

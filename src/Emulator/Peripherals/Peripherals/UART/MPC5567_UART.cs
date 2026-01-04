@@ -6,10 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -146,12 +147,10 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
-			
         }
 
         protected override void QueueEmptied()
         {
-            
         }
 
         private uint controlRegister1;
@@ -187,7 +186,5 @@ namespace Antmicro.Renode.Peripherals.UART
             TransmitComplete = 1u << 30,
             TransmitDataRegisterEmpty = 1u << 31
         }
-
     }
 }
-

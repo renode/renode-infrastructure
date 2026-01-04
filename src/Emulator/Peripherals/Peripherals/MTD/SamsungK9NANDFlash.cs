@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,6 +8,7 @@
 using System;
 using System.IO;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -20,12 +21,12 @@ namespace Antmicro.Renode.Peripherals.MTD
     public static class SamsungK9NANDFlashExtensions
     {
         public static void SamsungK9NANDFlashFromFile(this IMachine machine, string fileName, ulong busAddress, string name,
-            bool nonPersistent = false, byte? partId = null, byte? manufacturerId = null)
+            bool nonPersistent = false, byte? partId = null, byte? manufacturerId = null, CompressionType compression = CompressionType.None)
         {
             SamsungK9NANDFlash flash;
             try
             {
-                flash = new SamsungK9NANDFlash(machine, fileName, nonPersistent, partId, manufacturerId);
+                flash = new SamsungK9NANDFlash(machine, fileName, nonPersistent, partId, manufacturerId, compression);
             }
             catch(Exception e)
             {
@@ -39,11 +40,11 @@ namespace Antmicro.Renode.Peripherals.MTD
     public sealed class SamsungK9NANDFlash : BasicBytePeripheral, IKnownSize, IDisposable
     {
         public SamsungK9NANDFlash(IMachine machine, string fileName, bool nonPersistent = false,
-            byte? partId = null, byte? manufacturerId = null) : base(machine)
+            byte? partId = null, byte? manufacturerId = null, CompressionType compression = CompressionType.None) : base(machine)
         {
             this.partId = partId ?? DefaultPartId;
             this.manufacturerId = manufacturerId ?? DefaultManufacturerId;
-            backingStream = DataStorage.Create(fileName, persistent: !nonPersistent, paddingByte: ErasedValue);
+            backingStream = DataStorage.CreateFromFile(fileName, persistent: !nonPersistent, paddingByte: ErasedValue, compression: compression);
             addressBytes = new byte[AddressCycles];
             DefineRegisters();
             Reset();
@@ -73,28 +74,28 @@ namespace Antmicro.Renode.Peripherals.MTD
                 {
                     switch(state)
                     {
-                        case State.ReadMemory:
-                            return HandleReadByte();
-                        case State.ReadStatus:
-                            return (byte)statusRegister;
-                        case State.ReadID:
-                            return HandleReadID(idReadOffset++);
-                        case State.ReadOob:
-                            return ErasedValue;
-                        default:
-                            this.Log(LogLevel.Warning, "Data register read in unexpected state {0}", state);
-                            return 0;
+                    case State.ReadMemory:
+                        return HandleReadByte();
+                    case State.ReadStatus:
+                        return (byte)statusRegister;
+                    case State.ReadID:
+                        return HandleReadID(idReadOffset++);
+                    case State.ReadOob:
+                        return ErasedValue;
+                    default:
+                        this.Log(LogLevel.Warning, "Data register read in unexpected state {0}", state);
+                        return 0;
                     }
                 }, writeCallback: (_, value) =>
                 {
                     switch(state)
                     {
-                        case State.Programming:
-                            HandleProgramByte((byte)value);
-                            return;
-                        default:
-                            this.WarningLog("Data register written with 0x{0:x2} in unexpected state {1}", value, state);
-                            return;
+                    case State.Programming:
+                        HandleProgramByte((byte)value);
+                        return;
+                    default:
+                        this.WarningLog("Data register written with 0x{0:x2} in unexpected state {1}", value, state);
+                        return;
                     }
                 });
 
@@ -134,36 +135,36 @@ namespace Antmicro.Renode.Peripherals.MTD
 
                     switch((Command)value)
                     {
-                        case Command.ReadMemory1: // some flash chips might only have 1 command cycle for reading, this supports both
-                        case Command.ReadMemory2:
-                            state = State.ReadMemory;
-                            return;
-                        case Command.BlockErase1:
-                            state = State.Erasing;
-                            return;
-                        case Command.BlockErase2:
-                            HandleErase();
-                            state = State.ReadStatus;
-                            return;
-                        case Command.PageProgram1:
-                            state = State.Programming;
-                            return;
-                        case Command.ReadID:
-                            state = State.ReadID;
-                            return;
-                        case Command.ReadOob:
-                            state = State.ReadOob;
-                            return;
-                        case Command.PageProgram2: // do nothing, we already programmed on the #1 command
-                        case Command.ReadStatus:
-                            state = State.ReadStatus;
-                            return;
-                        case Command.Reset:
-                            Reset();
-                            return;
-                        default:
-                            this.WarningLog("Unknown command written, value 0x{0:x2}", value);
-                            return;
+                    case Command.ReadMemory1: // some flash chips might only have 1 command cycle for reading, this supports both
+                    case Command.ReadMemory2:
+                        state = State.ReadMemory;
+                        return;
+                    case Command.BlockErase1:
+                        state = State.Erasing;
+                        return;
+                    case Command.BlockErase2:
+                        HandleErase();
+                        state = State.ReadStatus;
+                        return;
+                    case Command.PageProgram1:
+                        state = State.Programming;
+                        return;
+                    case Command.ReadID:
+                        state = State.ReadID;
+                        return;
+                    case Command.ReadOob:
+                        state = State.ReadOob;
+                        return;
+                    case Command.PageProgram2: // do nothing, we already programmed on the #1 command
+                    case Command.ReadStatus:
+                        state = State.ReadStatus;
+                        return;
+                    case Command.Reset:
+                        Reset();
+                        return;
+                    default:
+                        this.WarningLog("Unknown command written, value 0x{0:x2}", value);
+                        return;
                     }
                 });
         }
@@ -172,13 +173,13 @@ namespace Antmicro.Renode.Peripherals.MTD
         {
             switch(offset)
             {
-                case 0:
-                    return manufacturerId;
-                case 1:
-                    return partId;
-                default:
-                    this.Log(LogLevel.Warning, "ID Read at unsupported offset 0x{0:x} (tried to read extended ID?)", offset);
-                    return 0;
+            case 0:
+                return manufacturerId;
+            case 1:
+                return partId;
+            default:
+                this.Log(LogLevel.Warning, "ID Read at unsupported offset 0x{0:x} (tried to read extended ID?)", offset);
+                return 0;
             }
         }
 
@@ -236,6 +237,15 @@ namespace Antmicro.Renode.Peripherals.MTD
             return offset >= 0 && offset < backingStream.Length;
         }
 
+        private StatusFlags statusRegister;
+        private State state;
+        private uint idReadOffset;
+        private int addressCycle;
+        private readonly byte partId;
+        private readonly byte manufacturerId;
+        private readonly byte[] addressBytes;
+        private readonly Stream backingStream;
+
         // The buffer size must be larger than the erase block size
         private const int BufferSize = 100 * 1024;
         private const int EraseBlockSize = 16 * 1024;
@@ -249,15 +259,6 @@ namespace Antmicro.Renode.Peripherals.MTD
         private const int AddressCycles = 5;
         // Address cycles for block erase
         private const int EraseAddressCycles = 3;
-        private readonly byte partId;
-        private readonly byte manufacturerId;
-        private readonly byte[] addressBytes;
-        private readonly Stream backingStream;
-
-        private StatusFlags statusRegister;
-        private State state;
-        private uint idReadOffset;
-        private int addressCycle;
 
         private enum Command : byte
         {

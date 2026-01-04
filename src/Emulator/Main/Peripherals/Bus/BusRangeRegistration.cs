@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.CPU;
@@ -16,14 +17,61 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusRangeRegistration : BusRegistration
     {
-        public BusRangeRegistration(Range range, ulong offset = 0, ICPU cpu = null, ICluster<ICPU> cluster = null) : base(range.StartAddress, offset, cpu, cluster)
+        public BusRangeRegistration(Range range, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null) : this(range, stateMask: null, offset, cpu, cluster)
         {
-            Range = range;
         }
 
-        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0, ICPU cpu = null, ICluster<ICPU> cluster = null) :
-            this(new Range(address, size), offset, cpu, cluster)
+        public BusRangeRegistration(Range range, string condition, ulong offset = 0) : this(range, stateMask: null, offset, condition: condition)
         {
+        }
+
+        public BusRangeRegistration(ulong address, ulong size, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null) : this(new Range(address, size), stateMask: null, offset, cpu, cluster)
+        {
+        }
+
+        public BusRangeRegistration(ulong address, ulong size, string condition, ulong offset = 0) : this(new Range(address, size), stateMask: null, offset, condition: condition)
+        {
+        }
+
+        public override string ToString()
+        {
+            var result = Range.ToString();
+            if(Offset != 0)
+            {
+                result += $" with offset 0x{Offset:X}";
+            }
+            if(Initiator != null)
+            {
+                result += $" for core {Initiator}";
+            }
+            if(Condition != null)
+            {
+                result += $" with condition \"{Condition}\"";
+            }
+            return result;
+        }
+
+        public void RegisterForEachContext(Action<BusRangeRegistration> register)
+        {
+            RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, StateMask, Offset, cpu, condition: Condition));
+        }
+
+        public override bool Equals(object obj)
+        {
+            return base.Equals(obj) && Range.Size == ((BusRangeRegistration)obj).Range.Size;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return 17 * base.GetHashCode() + 101 * Range.Size.GetHashCode();
+            }
+        }
+
+        public override IConditionalRegistration WithInitiatorAndStateMask(IPeripheral initiator, StateMask mask)
+        {
+            return new BusRangeRegistration(Range, mask, Offset, initiator, condition: Condition);
         }
 
         public override string PrettyString
@@ -34,20 +82,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public override string ToString()
-        {
-            var result = Range.ToString();
-            if(Offset != 0)
-            {
-                result += $" with offset 0x{Offset:X}";
-            }
-            if(CPU != null)
-            {
-                result += $" for core {CPU}";
-            }
-            return result;
-        }
-
         public static implicit operator BusRangeRegistration(Range range)
         {
             return new BusRangeRegistration(range);
@@ -55,28 +89,9 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public Range Range { get; set; }
 
-        public override bool Equals(object obj)
+        protected BusRangeRegistration(Range range, StateMask? stateMask, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, string condition = null) : base(range.StartAddress, offset, cpu, cluster, stateMask, condition)
         {
-            var other = obj as BusRangeRegistration;
-            if(other == null)
-                return false;
-            if(ReferenceEquals(this, obj))
-                return true;
-            return Range == other.Range && Offset == other.Offset && CPU == other.CPU && Cluster == other.Cluster;
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return 17 * Range.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0);
-            }
-        }
-
-        public void RegisterForEachContext(Action<BusRangeRegistration> register)
-        {
-            RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, Offset, cpu));
+            Range = range;
         }
     }
 }
-

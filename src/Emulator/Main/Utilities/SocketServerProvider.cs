@@ -14,26 +14,26 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Sockets;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
 {
     public class SocketServerProvider : IDisposable
     {
-        public SocketServerProvider(bool emitConfigBytes = true, bool flushOnConnect = false, string serverName = "")
+        public SocketServerProvider(bool telnetMode = true, bool flushOnConnect = false, string serverName = "")
         {
             queue = new ConcurrentQueue<byte[]>();
             enqueuedEvent = new AutoResetEvent(false);
-            this.emitConfigBytes = emitConfigBytes;
+            this.telnetMode = telnetMode;
             this.flushOnConnect = flushOnConnect;
             this.serverName = serverName;
         }
 
         public void Start(int port)
         {
-            server = SocketsManager.Instance.AcquireSocket(null ,AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp, new IPEndPoint(IPAddress.Any, port), listeningBacklog: 1, nameAppendix: this.serverName);
+            server = SocketsManager.Instance.AcquireSocket(null, AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp, new IPEndPoint(IPAddress.Any, port), listeningBacklog: 1, nameAppendix: this.serverName);
 
             listenerThread = new Thread(ListenerThreadBody)
             {
@@ -88,21 +88,34 @@ namespace Antmicro.Renode.Utilities
             Send(bytes.ToArray());
         }
 
+        public void ClearConnectionEvents()
+        {
+            ConnectionAccepted = null;
+            ConnectionClosed = null;
+            DataReceived = null;
+        }
+
         public int BufferSize { get; set; } = 1;
 
         public bool IsAnythingReceiving => DataReceived != null && DataBlockReceived != null;
 
         public int? Port => (server?.LocalEndPoint as IPEndPoint)?.Port;
 
+        public bool IsStarted => server?.IsBound ?? false;
+
         public event Action ConnectionClosed;
+
         public event Action<Stream> ConnectionAccepted;
+
         public event Action<int> DataReceived;
+
         public event Action<byte[]> DataBlockReceived;
 
         private void WriterThreadBody(Stream stream)
         {
             try
             {
+                var iacEscapePosition = -1;
                 // This thread will poll for bytes constantly for `MaxReadThreadPoolingTimeMs` to assert we have the lowest possible latency while transmiting packet.
                 var watch = new Stopwatch();
                 while(!cancellationToken.IsCancellationRequested)
@@ -112,7 +125,21 @@ namespace Antmicro.Renode.Utilities
                     {
                         while(queue.TryDequeue(out var dequeued))
                         {
-                            stream.Write(dequeued, 0, dequeued.Length);
+                            if(!telnetMode || (iacEscapePosition = Array.FindIndex(dequeued, x => x == IACEscape)) == -1)
+                            {
+                                stream.Write(dequeued, 0, dequeued.Length);
+                            }
+                            else
+                            {
+                                // If we're in telnetMode and we discover the IACEscape byte, we should double it
+                                stream.Write(dequeued, 0, iacEscapePosition + 1);
+                                stream.Write(new byte[] { IACEscape }, 0, 1);
+                                var lengthOfRest = dequeued.Length - (iacEscapePosition + 1);
+                                if(lengthOfRest > 0)
+                                {
+                                    stream.Write(dequeued, iacEscapePosition + 1, lengthOfRest);
+                                }
+                            }
                         }
                     }
                     watch.Reset();
@@ -152,12 +179,54 @@ namespace Antmicro.Renode.Utilities
                         break;
                     }
 
-                    DataBlockReceived?.Invoke(buffer.Take(count).ToArray());
+                    if(telnetMode && buffer[0] == IACEscape)
+                    {
+                        if(iacEscapeSpotted)
+                        {
+                            // Previous Read ended in IAC
+                            // IAC followed by IAC effectively sends 255 as input
+                            bytesToIgnore = 0;
+                            iacEscapeSpotted = false;
+                        }
+                        else
+                        {
+                            // Ignore IAC commands, 3 bytes each (unless followed by another IAC)
+                            // TODO: look for iac in the middle of the sequence?
+                            // In practice it doesn't seem to happen at all
+                            // We explicitly do NOT handle subcommand negotiation, a possible todo for the future
+                            bytesToIgnore = IACCommandBytes;
+
+                            if(count == 1)
+                            {
+                                // We see the IAC code and must ensure the next Read does not yield another one
+                                iacEscapeSpotted = true;
+                            }
+                            else if(buffer[1] == IACEscape)
+                            {
+                                // We receive a longer data batch starting with two IAC bytes: just skip one byte, leave the other one as is
+                                bytesToIgnore = 1;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Clear IAC escape mode - we encountered a different character in the package
+                        iacEscapeSpotted = false;
+                    }
+                    var skip = 0;
+                    if(bytesToIgnore > 0)
+                    {
+                        skip = bytesToIgnore > count ? count : bytesToIgnore;
+                        bytesToIgnore -= skip;
+                        count -= skip;
+                    }
+
+                    DataBlockReceived?.Invoke(buffer.Skip(skip).Take(count).ToArray());
 
                     var dataReceived = DataReceived;
                     if(dataReceived != null)
                     {
-                        foreach(var b in buffer.Take(count))
+                        foreach(var b in buffer.Skip(skip).Take(count))
                         {
                             dataReceived((int)b);
                         }
@@ -194,7 +263,7 @@ namespace Antmicro.Renode.Utilities
                 }
                 try
                 {
-                    if(emitConfigBytes)
+                    if(telnetMode)
                     {
                         var initBytes = new byte[] {
                             255, 253,   0, // IAC DO    BINARY
@@ -203,12 +272,6 @@ namespace Antmicro.Renode.Utilities
                             255, 252,  34, // IAC WONT  LINEMODE
                         };
                         stream.Write(initBytes, 0, initBytes.Length);
-                        // we expect 9 bytes as a result of sending
-                        // config bytes
-                        for (int i = 0; i < 9; i++)
-                        {
-                            stream.ReadByte();
-                        }
                     }
                 }
                 catch(OperationCanceledException)
@@ -264,20 +327,25 @@ namespace Antmicro.Renode.Utilities
             listenerThread = null;
         }
 
-        private ConcurrentQueue<byte[]> queue;
-
-        private CancellationTokenSource cancellationToken;
-        private AutoResetEvent enqueuedEvent;
-        private bool emitConfigBytes;
-        private bool flushOnConnect;
-        private readonly string serverName;
         private volatile bool stopRequested;
         private Thread listenerThread;
         private Thread readerThread;
         private Thread writerThread;
         private Socket server;
         private Socket socket;
+        private int bytesToIgnore;
+        private bool iacEscapeSpotted;
 
+        private ConcurrentQueue<byte[]> queue;
+
+        private CancellationTokenSource cancellationToken;
+        private readonly AutoResetEvent enqueuedEvent;
+        private readonly bool telnetMode;
+        private readonly bool flushOnConnect;
+        private readonly string serverName;
+
+        private const int IACEscape = 255;
+        private const int IACCommandBytes = 3;
         private const int MaxReadThreadPoolingTimeMs = 60;
     }
 }

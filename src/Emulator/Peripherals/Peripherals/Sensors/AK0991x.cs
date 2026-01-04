@@ -5,7 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 {
     public abstract class AK0991x : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, IMagneticSensor, IUnderstandRESD
     {
-        public AK0991x(IMachine machine)
+        public AK0991x()
         {
             RegistersCollection = new ByteRegisterCollection(this);
             DefineRegisters();
@@ -39,23 +39,23 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 switch(state)
                 {
-                    case State.Idle:
-                        selectedRegister = (Registers)b;
-                        this.Log(LogLevel.Noisy, "Selected register: 0x{0:X}", selectedRegister);
-                        state = State.ReceivedFirstByte;
-                        break;
-                    case State.ReceivedFirstByte:
-                    case State.WritingWaitingForValue:
-                        this.Log(LogLevel.Noisy, "Writing to register 0x{0:X} value 0x{1:X}", selectedRegister, b);
-                        RegistersCollection.Write((byte)selectedRegister, b);
-                        state = State.WritingWaitingForValue;
-                        selectedRegister = IICGetNextRegister();
+                case State.Idle:
+                    selectedRegister = (Registers)b;
+                    this.Log(LogLevel.Noisy, "Selected register: 0x{0:X}", selectedRegister);
+                    state = State.ReceivedFirstByte;
+                    break;
+                case State.ReceivedFirstByte:
+                case State.WritingWaitingForValue:
+                    this.Log(LogLevel.Noisy, "Writing to register 0x{0:X} value 0x{1:X}", selectedRegister, b);
+                    RegistersCollection.Write((byte)selectedRegister, b);
+                    state = State.WritingWaitingForValue;
+                    selectedRegister = IICGetNextRegister();
 
-                        break;
-                    case State.Reading:
-                        //this isn't documented, but reads are able to use address set during write transfer, opposite isn't true
-                        this.Log(LogLevel.Warning, "Trying to write without specifying address, byte is omitted");
-                        break;
+                    break;
+                case State.Reading:
+                    //this isn't documented, but reads are able to use address set during write transfer, opposite isn't true
+                    this.Log(LogLevel.Warning, "Trying to write without specifying address, byte is omitted");
+                    break;
                 }
             }
         }
@@ -97,12 +97,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
             set => throw new RecoverableException($"Explicitly setting magnetic flux density is not supported by this model. " +
                 $"Magnetic flux density should be provided from a RESD file or set via the '{nameof(DefaultMagneticFluxDensityX)}' property");
         }
+
         public int MagneticFluxDensityY
         {
             get => GetSampleFromRESDStream(ref magResdStream, Direction.Y);
             set => throw new RecoverableException($"Explicitly setting magnetic flux density is not supported by this model. " +
                 $"Magnetic flux density should be provided from a RESD file or set via the '{nameof(DefaultMagneticFluxDensityY)}' property");
         }
+
         public int MagneticFluxDensityZ
         {
             get => GetSampleFromRESDStream(ref magResdStream, Direction.Z);
@@ -111,10 +113,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public int DefaultMagneticFluxDensityX { get; set; }
+
         public int DefaultMagneticFluxDensityY { get; set; }
+
         public int DefaultMagneticFluxDensityZ { get; set; }
 
         public abstract byte CompanyID { get; }
+
         public abstract byte DeviceID { get; }
 
         private int GetMagneticSampleValueDefault(Direction d)
@@ -136,14 +141,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(d)
             {
-                case Direction.X:
-                    return sample.MagneticFluxDensityX;
-                case Direction.Y:
-                    return sample.MagneticFluxDensityY;
-                case Direction.Z:
-                    return sample.MagneticFluxDensityZ;
-                default:
-                    throw new Exception("Unreachable");
+            case Direction.X:
+                return sample.MagneticFluxDensityX;
+            case Direction.Y:
+                return sample.MagneticFluxDensityY;
+            case Direction.Z:
+                return sample.MagneticFluxDensityZ;
+            default:
+                throw new Exception("Unreachable");
             }
         }
 
@@ -160,21 +165,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return GetMagneticSampleValueDefault(d);
             }
 
-            switch(magResdStream.TryGetCurrentSample(this, out var sample, out var _))
+            switch(stream.TryGetCurrentSample(this, out var sample, out var _))
             {
-                case RESDStreamStatus.OK:
-                    this.Log(LogLevel.Noisy, "RESD stream status OK, setting sample: {0}", sample);
-                    return GetMagneticSampleValue(sample, d);
-                case RESDStreamStatus.BeforeStream:
-                    this.Log(LogLevel.Noisy, "RESD before stream status, setting default value");
-                    return GetMagneticSampleValueDefault(d);
-                case RESDStreamStatus.AfterStream:
-                    this.Log(LogLevel.Noisy, "RESD after stream status, setting default value");
-                    magResdStream.Dispose();
-                    magResdStream = null;
-                    return GetMagneticSampleValueDefault(d);
-                default:
-                    throw new Exception("Unreachable");
+            case RESDStreamStatus.OK:
+                this.Log(LogLevel.Noisy, "RESD stream status OK, setting sample: {0}", sample);
+                return GetMagneticSampleValue(sample, d);
+            case RESDStreamStatus.BeforeStream:
+                this.Log(LogLevel.Noisy, "RESD before stream status, setting default value");
+                return GetMagneticSampleValueDefault(d);
+            case RESDStreamStatus.AfterStream:
+                this.Log(LogLevel.Noisy, "RESD after stream status, setting last sample: {0}", sample);
+                return GetMagneticSampleValue(sample, d);
+            default:
+                throw new Exception("Unreachable");
             }
         }
 

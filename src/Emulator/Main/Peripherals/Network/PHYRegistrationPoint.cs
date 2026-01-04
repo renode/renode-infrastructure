@@ -6,29 +6,22 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core.Structure;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
-    public class PHYRegistrationPoint : IRegistrationPoint
+    public class PHYRegistrationPoint : IRegistrationPoint, IJsonSerializable
     {
         public PHYRegistrationPoint(uint id)
         {
             Id = id;
         }
 
-        public string PrettyString {
-            get {
-                return ToString();
-            }
-        }
-     
         public override string ToString()
         {
             return string.Format("Address: {0}", Id);
         }
-        
-        public uint Id {get; private set;}
 
         public override bool Equals(object obj)
         {
@@ -39,7 +32,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 return true;
             return Id == other.Id;
         }
-        
 
         public override int GetHashCode()
         {
@@ -48,7 +40,24 @@ namespace Antmicro.Renode.Peripherals.Network
                 return Id.GetHashCode();
             }
         }
-        
+
+        public Object SerializeJson()
+        {
+            return new
+            {
+                Type = "Network",
+                Value = Id
+            };
+        }
+
+        public string PrettyString
+        {
+            get
+            {
+                return ToString();
+            }
+        }
+
+        public uint Id { get; private set; }
     }
 }
-

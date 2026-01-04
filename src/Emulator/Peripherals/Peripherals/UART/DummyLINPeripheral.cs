@@ -81,7 +81,9 @@ namespace Antmicro.Renode.Peripherals.LIN
         }
 
         public override Bits StopBits => Bits.None;
+
         public override Parity ParityBit => Parity.None;
+
         public override uint BaudRate => 19200;
 
         protected override void CharWritten()

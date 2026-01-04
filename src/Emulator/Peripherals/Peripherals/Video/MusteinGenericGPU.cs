@@ -12,14 +12,15 @@
 // v0.3 2019/02/13 anton.krug@microchip.com More color modes, embedded memory and added versality
 //
 
+using System;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
-using System;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
@@ -60,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 }
                 else
                 {
-                    value = red << 5  | green << 13 | blue << 22; // Converting RGB332 to BGR888 which will be used for BGRX8888
+                    value = red << 5 | green << 13 | blue << 22; // Converting RGB332 to BGR888 which will be used for BGRX8888
                 }
                 colorTable[index] = value;
             }
@@ -79,7 +80,6 @@ namespace Antmicro.Renode.Peripherals.Video
                 { Tuple.Create(ColorMode.LowColor,  false, PixelPacking.SinglePixelPerWrite), () => ConvertAndSkip(1, 3) },
                 { Tuple.Create(ColorMode.HighColor, false, PixelPacking.SinglePixelPerWrite), () => CopyAndSkip(2, 2) },
                 { Tuple.Create(ColorMode.TrueColor, false, PixelPacking.SinglePixelPerWrite), CopyFully },
-
                 { Tuple.Create(ColorMode.LowColor,  false, PixelPacking.FullyPacked32bit), ConvertFully },
                 { Tuple.Create(ColorMode.HighColor, false, PixelPacking.FullyPacked32bit), CopyFully },
                 { Tuple.Create(ColorMode.TrueColor, false, PixelPacking.FullyPacked32bit), CopyFully },
@@ -88,15 +88,12 @@ namespace Antmicro.Renode.Peripherals.Video
                 { Tuple.Create(ColorMode.LowColor,  false, PixelPacking.FullyPacked64bit), ConvertFully },
                 { Tuple.Create(ColorMode.HighColor, false, PixelPacking.FullyPacked64bit), CopyFully },
                 { Tuple.Create(ColorMode.TrueColor, false, PixelPacking.FullyPacked64bit), CopyFully },
-
                 { Tuple.Create(ColorMode.LowColor,  true,  PixelPacking.SinglePixelPerWrite), () => ConvertAndSkip(1, 7) },
                 { Tuple.Create(ColorMode.HighColor, true,  PixelPacking.SinglePixelPerWrite), () => CopyAndSkip(2, 6) },
                 { Tuple.Create(ColorMode.TrueColor, true,  PixelPacking.SinglePixelPerWrite), () => CopyAndSkip(4, 4) },
-
                 { Tuple.Create(ColorMode.LowColor,  true, PixelPacking.FullyPacked32bit), () => ConvertAndSkip(4, 4) },
                 { Tuple.Create(ColorMode.HighColor, true, PixelPacking.FullyPacked32bit), () => CopyAndSkip(2, 4) },
                 { Tuple.Create(ColorMode.TrueColor, true, PixelPacking.FullyPacked32bit), () => CopyAndSkip(4, 4) },
-
                 { Tuple.Create(ColorMode.LowColor,  true, PixelPacking.FullyPacked64bit), ConvertFully },
                 { Tuple.Create(ColorMode.HighColor, true, PixelPacking.FullyPacked64bit), CopyFully },
                 { Tuple.Create(ColorMode.TrueColor, true, PixelPacking.FullyPacked64bit), CopyFully },
@@ -181,11 +178,9 @@ namespace Antmicro.Renode.Peripherals.Video
                 { controlOffset + (long)Registers.Width * accessAligment, new DoubleWordRegister(this, DefaultWidth)
                     .WithValueField(0, 16, name: "Width", writeCallback: (_, x) => Reconfigure(setWidth: (uint)x), valueProviderCallback: _ => (uint)Width)
                 },
-
                 { controlOffset + (long)Registers.Height * accessAligment, new DoubleWordRegister(this, DefaultHeight)
                     .WithValueField(0, 16, name: "Height", writeCallback: (_, y) => Reconfigure(setHeight: (uint)y), valueProviderCallback: _ => (uint)Height)
                 },
-
                 { controlOffset + (long)Registers.Format * accessAligment, new DoubleWordRegister(this, (uint)DefaultColor | ((uint)DefaultPacking << 4))
                     .WithEnumField<DoubleWordRegister, ColorMode>(0, 4, name: "Color", writeCallback: (_, c) => Reconfigure(setColor: c), valueProviderCallback: _ => colorMode)
                     .WithEnumField<DoubleWordRegister, PixelPacking>(4, 4, name: "Packing", writeCallback: (_, c) => ChangePacking(c), valueProviderCallback: _ => pixelPacking)
@@ -270,10 +265,11 @@ namespace Antmicro.Renode.Peripherals.Video
             }
         }
 
-        private DoubleWordRegisterCollection registers;
-        private object sync;
         private ColorMode colorMode;
         private PixelPacking pixelPacking;
+
+        private DoubleWordRegisterCollection registers;
+        private readonly object sync;
         private readonly MappedMemory underlyingBuffer;
 
         private readonly IMachine machine;

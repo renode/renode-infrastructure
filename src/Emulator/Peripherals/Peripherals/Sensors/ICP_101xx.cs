@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -133,6 +134,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 ClampPressureAndLogWarning(ref pressure);
                 return pressure;
             }
+
             set
             {
                 throw new RecoverableException("Explicitly setting pressure is not supported by this model. " +
@@ -159,6 +161,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 ClampTemperatureAndLogWarning(ref temperature);
                 return temperature;
             }
+
             set
             {
                 throw new RecoverableException("Explicitly setting temperature is not supported by this model. " +
@@ -273,7 +276,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         this.Log(LogLevel.Error, "Read from OTP from offset 0x{0:X}, different than 0x{1:X} is unsupported!", addr, CalibrationAddress);
                         return;
                     }
-                    // Just reset the current calibration value number, as there is no data 
+                    // Just reset the current calibration value number, as there is no data
                     // other than calibration values to be read from the sensor memory
                     // and the docs don't mention another usage for this command at this moment (rev 1.2)
                     calibrationValueIndex = 0;
@@ -354,7 +357,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
 
             var currentTimestamp = machine.ClockSource.CurrentValue.TotalNanoseconds;
-            if(stream.TryGetSample(currentTimestamp, out sample) == RESDStreamStatus.OK)
+            if(stream.TryGetSample(currentTimestamp, out sample) != RESDStreamStatus.BeforeStream)
             {
                 return true;
             }
@@ -373,9 +376,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private uint GetPressure(OperationMode mode)
         {
-            GetCoefficients(mode, out long A, out long B, out long C);
+            GetCoefficients(mode, out long a, out long b, out long c);
 
-            var decimalPressure = (B / (Pressure - A)) - C;
+            var decimalPressure = (b / (Pressure - a)) - c;
             // Detect and report that the sensor might be miscalibrated
             if(decimalPressure < 0 || decimalPressure > 0xFFFFFF)
             {
@@ -393,25 +396,25 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return BitHelper.GetBytesFromValue((uint)(GetPressure(mode) << 8), 4, reverse: false);
         }
 
-        private void GetCoefficients(OperationMode mode, out long A, out long B, out long C)
+        private void GetCoefficients(OperationMode mode, out long a, out long b, out long c)
         {
             long t = GetTemperature(mode) - 32768;
             long p_LUT0 = LUT_lower + (CalibrationValues[0] * t * t) / InverseQuadraticFactor;
             long p_LUT1 = OffsetFactor * CalibrationValues[3] + (CalibrationValues[1] * t * t) / InverseQuadraticFactor;
             long p_LUT2 = LUT_upper + (CalibrationValues[2] * t * t) / InverseQuadraticFactor;
-            
-            C = (p_LUT0 * p_LUT1 * (p_Pa[0] - p_Pa[1]) +
+
+            c = (p_LUT0 * p_LUT1 * (p_Pa[0] - p_Pa[1]) +
                  p_LUT1 * p_LUT2 * (p_Pa[1] - p_Pa[2]) +
                  p_LUT2 * p_LUT0 * (p_Pa[2] - p_Pa[0])) /
                 (p_LUT2 * (p_Pa[0] - p_Pa[1]) +
                  p_LUT0 * (p_Pa[1] - p_Pa[2]) +
                  p_LUT1 * (p_Pa[2] - p_Pa[0]));
 
-            A = (p_Pa[0] * p_LUT0 - p_Pa[1] * p_LUT1 - (p_Pa[1] - p_Pa[0]) * C) / (p_LUT0 - p_LUT1);
+            a = (p_Pa[0] * p_LUT0 - p_Pa[1] * p_LUT1 - (p_Pa[1] - p_Pa[0]) * c) / (p_LUT0 - p_LUT1);
 
-            B = (p_Pa[0] - A) * (p_LUT0 + C);
+            b = (p_Pa[0] - a) * (p_LUT0 + c);
 
-            this.Log(LogLevel.Noisy, "A={0} B={1} C={2}, p_LUT0={3}, p_LUT1={4}, p_LUT2={5}", A, B, C, p_LUT0, p_LUT1, p_LUT2);
+            this.Log(LogLevel.Noisy, "A={0} B={1} C={2}, p_LUT0={3}, p_LUT1={4}, p_LUT2={5}", a, b, c, p_LUT0, p_LUT1, p_LUT2);
         }
 
         private IEnumerable<byte> InsertCrc(IEnumerable<byte> data)
@@ -448,7 +451,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         private Action<byte[], int> HandleWrite => writeHandlers.TryGetValue(command.Value, out var handler) ? handler : HandleWriteDefault;
+
         private Func<int, IEnumerable<byte>> HandleRead => readHandlers.TryGetValue(command.Value, out var handler) ? handler : HandleReadDefault;
+
+        // Which calibration value is read in incremental read-from OTP
+        private int calibrationValueIndex = 0;
+
+        private RESDStream<TemperatureSample> temperatureResdStream;
+        private RESDStream<PressureSample> pressureResdStream;
 
         private Command? command;
 
@@ -461,12 +471,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private readonly IMachine machine;
         private readonly Dictionary<Command, Action<byte[], int>> writeHandlers;
         private readonly Dictionary<Command, Func<int, IEnumerable<byte>>> readHandlers;
-
-        // Which calibration value is read in incremental read-from OTP
-        private int calibrationValueIndex = 0;
-
-        private RESDStream<TemperatureSample> temperatureResdStream;
-        private RESDStream<PressureSample> pressureResdStream;
 
         // Configuration constants, taken directly from the datasheet (https://invensense.tdk.com/wp-content/uploads/2021/06/DS-000408-ICP-10101-v1.2.pdf)
         private readonly int[] p_Pa = new int [] { 45000, 80000, 105000 };

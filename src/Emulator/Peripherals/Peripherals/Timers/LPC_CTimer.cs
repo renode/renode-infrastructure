@@ -5,9 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -37,6 +37,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public GPIO IRQ { get; }
+
         public long Size => 0x100;
 
         private void DefineRegisters()

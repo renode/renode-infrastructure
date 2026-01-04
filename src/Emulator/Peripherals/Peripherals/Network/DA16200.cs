@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
@@ -85,10 +86,6 @@ namespace Antmicro.Renode.Peripherals.Network
             ExecuteWithDelay(() => SendBytes(response), DataResponseDelayMilliseconds);
         }
 
-        public NetworkAddress NodeAddress => address;
-
-        public event BasicNetworkSendDataDelegate<byte[], NetworkAddress> TrySendData;
-
         public ulong DataResponseDelayMilliseconds { get; set; } = 50;
 
         public string IpAddress
@@ -96,6 +93,10 @@ namespace Antmicro.Renode.Peripherals.Network
             get => address.Address;
             set => address = new NetworkAddress(value);
         }
+
+        public NetworkAddress NodeAddress => address;
+
+        public event BasicNetworkSendDataDelegate<byte[], NetworkAddress> TrySendData;
 
         private void SendData(int connectionId, NetworkAddress destination, byte[] data)
         {
@@ -286,11 +287,11 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         [AtCommand("AT+TRTRM", CommandType.Write)]
-        private Response Trtrm(int connectionId, string ip = null, ushort? port = null)
+        private Response Trtrm(int connectionId, string _ = null, ushort? __ = null)
         {
             lock(sync)
             {
-                if(!TryGetConnection(connectionId, out var _))
+                if(!TryGetConnection(connectionId, out var ___))
                 {
                     this.ErrorLog("AT+TRTRM: Invalid connection id: {0}", connectionId);
                     return Error;
@@ -319,7 +320,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
                 var connection = new Connection(this, connectionNumber, ConnectionType.UDP, localPort);
                 connections[connectionNumber] = connection;
-                
+
                 return Ok.WithParameters($"+TRUSE:{connectionNumber}");
             }
         }
@@ -332,13 +333,14 @@ namespace Antmicro.Renode.Peripherals.Network
             return Ok.WithParameters($"+TRUR:{DefaultUDPConnection}");
         }
 
-        private readonly object sync;
-        private readonly Connection[] connections = new Connection[MaxConnections];
-        private readonly DataModeState dataModeState;
         private NetworkAddress address;
 
         private string udpSendAddress;
         private ushort? udpSendPort;
+
+        private readonly object sync;
+        private readonly Connection[] connections = new Connection[MaxConnections];
+        private readonly DataModeState dataModeState;
 
         // We assume that there is 10 maximum connections possible, because when
         // sending data there is no separator between the connection id and the length
@@ -393,6 +395,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             public string Address { get; }
+
             public ushort Port { get; }
         }
 
@@ -407,7 +410,9 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             public ConnectionType Type { get; }
+
             public int ID { get; }
+
             public ushort LocalPort { get; }
 
             private readonly DA16200 owner;
@@ -529,7 +534,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 remoteAddress = null;
                 remotePort = null;
                 dataToSend = null;
-                
+
                 dataBuffer.Clear();
             }
 

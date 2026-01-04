@@ -19,13 +19,12 @@ namespace Antmicro.Renode.Exceptions
         {
         }
 
-        public RecoverableException(string message):base(message)
+        public RecoverableException(string message) : base(message)
         {
         }
 
-        public RecoverableException():base()
+        public RecoverableException() : base()
         {
         }
     }
 }
-

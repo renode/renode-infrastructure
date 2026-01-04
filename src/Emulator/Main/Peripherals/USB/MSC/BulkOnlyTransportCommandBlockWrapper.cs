@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.USB.MSC
@@ -39,15 +40,15 @@ namespace Antmicro.Renode.Core.USB.MSC
         public uint Tag { get; private set; }
 
         [PacketField]
-        public uint DataTransferLength  { get; private set; }
+        public uint DataTransferLength { get; private set; }
 
         [PacketField]
         public byte Flags { get; private set; }
 
-        [PacketField, Offset(bytes: 13), Width(4)]
+        [PacketField, Offset(bytes: 13), Width(bits: 4)]
         public byte LogicalUnitNumber { get; private set; }
 
-        [PacketField, Offset(bytes: 14), Width(5)]
+        [PacketField, Offset(bytes: 14), Width(bits: 5)]
         public byte Length { get; private set; }
 
         public const int CommandOffset = 15;

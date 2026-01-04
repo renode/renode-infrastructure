@@ -7,11 +7,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
@@ -24,8 +27,8 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 transmitBuffers[i] = new TransmitBuffer
                 {
-                    parent = this,
-                    data = new IValueRegisterField[2], // 2 double words
+                    Parent = this,
+                    Data = new IValueRegisterField[2], // 2 double words
                 };
             }
             receiveFifo = new Queue<CANMessageFrame>();
@@ -35,9 +38,6 @@ namespace Antmicro.Renode.Peripherals.CAN
             DefineRegisters();
             Reset();
         }
-
-        public GPIO TxIRQ { get; }
-        public GPIO RxIRQ { get; }
 
         public override void Reset()
         {
@@ -53,6 +53,10 @@ namespace Antmicro.Renode.Peripherals.CAN
             receiveFifo.Enqueue(message);
             UpdateInterrupts();
         }
+
+        public GPIO TxIRQ { get; }
+
+        public GPIO RxIRQ { get; }
 
         public event Action<CANMessageFrame> FrameSent;
 
@@ -74,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             receiveInterruptFlag.Value = receiveFifo.Any();
 
-            var txIrqValue = transmitBuffers.Any(b => b.transmitInterruptEnable.Value && b.transmitInterruptFlag.Value);
+            var txIrqValue = transmitBuffers.Any(b => b.TransmitInterruptEnable.Value && b.TransmitInterruptFlag.Value);
             var rxIrqValue = receiveInterruptEnable.Value && receiveInterruptFlag.Value;
             if(TxIRQ.IsSet == txIrqValue && RxIRQ.IsSet == rxIrqValue)
             {
@@ -104,13 +108,13 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     if(value)
                     {
-                        var buffersToTransmit = transmitBuffers.Where(b => b.select.Value).OrderBy(b => b.priority.Value).ToList();
+                        var buffersToTransmit = transmitBuffers.Where(b => b.Select.Value).OrderBy(b => b.Priority.Value).ToList();
                         if(!buffersToTransmit.Any())
                         {
                             // If no buffers are selected with the STB bits, we always transmit buffer 1.
                             transmitBuffers[0].DoTransmission();
                             // In this case we also force its transmit interrupt enable flag to on.
-                            transmitBuffers[0].transmitInterruptEnable.Value = true;
+                            transmitBuffers[0].TransmitInterruptEnable.Value = true;
                         }
                         else
                         {
@@ -131,9 +135,9 @@ namespace Antmicro.Renode.Peripherals.CAN
                 })
                 .WithTaggedFlag("CDO", 3)
                 .WithTaggedFlag("SRR", 4)
-                .WithFlag(5, out transmitBuffers[0].select, name: "STB1")
-                .WithFlag(6, out transmitBuffers[1].select, name: "STB2")
-                .WithFlag(7, out transmitBuffers[2].select, name: "STB3")
+                .WithFlag(5, out transmitBuffers[0].Select, name: "STB1")
+                .WithFlag(6, out transmitBuffers[1].Select, name: "STB2")
+                .WithFlag(7, out transmitBuffers[2].Select, name: "STB3")
                 .WithReservedBits(8, 24)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
@@ -153,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             Registers.InterruptCapture.Define(this)
                 .WithFlag(0, out receiveInterruptFlag, mode: FieldMode.Read, name: "RI")
-                .WithFlag(1, out transmitBuffers[0].transmitInterruptFlag, mode: FieldMode.ReadToClear, name: "TI1")
+                .WithFlag(1, out transmitBuffers[0].TransmitInterruptFlag, mode: FieldMode.ReadToClear, name: "TI1")
                 .WithTaggedFlag("EI", 2)
                 .WithTaggedFlag("DOI", 3)
                 .WithTaggedFlag("WUI", 4)
@@ -161,8 +165,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithTaggedFlag("ALI", 6)
                 .WithTaggedFlag("BEI", 7)
                 .WithTaggedFlag("IDI", 8)
-                .WithFlag(9, out transmitBuffers[1].transmitInterruptFlag, mode: FieldMode.ReadToClear, name: "TI2")
-                .WithFlag(10, out transmitBuffers[2].transmitInterruptFlag, mode: FieldMode.ReadToClear, name: "TI3")
+                .WithFlag(9, out transmitBuffers[1].TransmitInterruptFlag, mode: FieldMode.ReadToClear, name: "TI2")
+                .WithFlag(10, out transmitBuffers[2].TransmitInterruptFlag, mode: FieldMode.ReadToClear, name: "TI3")
                 .WithReservedBits(11, 5)
                 .WithTag("ERRBIT4_0", 16, 5)
                 .WithTaggedFlag("ERRDIR", 21)
@@ -172,7 +176,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             Registers.InterruptEnable.Define(this)
                 .WithFlag(0, out receiveInterruptEnable, name: "RIE")
-                .WithFlag(1, out transmitBuffers[0].transmitInterruptEnable, name: "TIE1")
+                .WithFlag(1, out transmitBuffers[0].TransmitInterruptEnable, name: "TIE1")
                 .WithTaggedFlag("EIE", 2)
                 .WithTaggedFlag("DOIE", 3)
                 .WithTaggedFlag("WUIE", 4)
@@ -180,8 +184,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithTaggedFlag("ALIE", 6)
                 .WithTaggedFlag("BEIE", 7)
                 .WithTaggedFlag("IDIE", 8)
-                .WithFlag(9, out transmitBuffers[1].transmitInterruptEnable, name: "TIE2")
-                .WithFlag(10, out transmitBuffers[2].transmitInterruptEnable, name: "TIE3")
+                .WithFlag(9, out transmitBuffers[1].TransmitInterruptEnable, name: "TIE2")
+                .WithFlag(10, out transmitBuffers[2].TransmitInterruptEnable, name: "TIE3")
                 .WithReservedBits(11, 21)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
@@ -250,33 +254,33 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             // Each transmit buffer consists of these 4 registers
             Registers.TransmitBuffer1FrameInfo.DefineMany(this, NumberOfTransmitBuffers, stepInBytes: TransmitBufferStride, setup: (register, i) => register
-                .WithValueField(0, 8, out transmitBuffers[i].priority, name: "PRIO")
+                .WithValueField(0, 8, out transmitBuffers[i].Priority, name: "PRIO")
                 .WithReservedBits(8, 8)
-                .WithValueField(16, 4, out transmitBuffers[i].dataLengthCode, name: "DLC")
+                .WithValueField(16, 4, out transmitBuffers[i].DataLengthCode, name: "DLC")
                 .WithReservedBits(20, 10)
                 .WithTaggedFlag("RTR", 30)
                 .WithTaggedFlag("FF", 31)
             );
 
             Registers.TransmitBuffer1Identifier.DefineMany(this, NumberOfTransmitBuffers, stepInBytes: TransmitBufferStride, setup: (register, i) => register
-                .WithValueField(0, 11, out transmitBuffers[i].id, name: "ID")
+                .WithValueField(0, 11, out transmitBuffers[i].Id, name: "ID")
                 .WithReservedBits(11, 21) // 29-bit ID mode (FrameInfo.FF=1) is not implemented
             );
 
             Registers.TransmitBuffer1DataBytes1To4.DefineMany(this, NumberOfTransmitBuffers, stepInBytes: TransmitBufferStride, setup: (register, i) => register
-                .WithValueField(0, 32, out transmitBuffers[i].data[0], name: "DATA[1:4]")
+                .WithValueField(0, 32, out transmitBuffers[i].Data[0], name: "DATA[1:4]")
             );
 
             Registers.TransmitBuffer1DataBytes5To8.DefineMany(this, NumberOfTransmitBuffers, stepInBytes: TransmitBufferStride, setup: (register, i) => register
-                .WithValueField(0, 32, out transmitBuffers[i].data[1], name: "DATA[5:8]")
+                .WithValueField(0, 32, out transmitBuffers[i].Data[1], name: "DATA[5:8]")
             );
         }
 
-        private readonly TransmitBuffer[] transmitBuffers;
-        private readonly Queue<CANMessageFrame> receiveFifo;
-
         private IFlagRegisterField receiveInterruptFlag;
         private IFlagRegisterField receiveInterruptEnable;
+
+        private readonly TransmitBuffer[] transmitBuffers;
+        private readonly Queue<CANMessageFrame> receiveFifo;
 
         private const int NumberOfTransmitBuffers = 3;
         private const int FrameMaxLength = 8;
@@ -286,25 +290,25 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             public void DoTransmission()
             {
-                var length = Math.Min((int)dataLengthCode.Value, FrameMaxLength);
+                var length = Math.Min((int)DataLengthCode.Value, FrameMaxLength);
                 if(length == 0)
                 {
                     return;
                 }
 
-                var bytes = data.SelectMany(d => BitConverter.GetBytes((uint)d.Value)).Take(length).ToArray();
-                parent.TransmitMessage(new CANMessageFrame((uint)id.Value, bytes));
-                transmitInterruptFlag.Value = true;
+                var bytes = Data.SelectMany(d => BitConverter.GetBytes((uint)d.Value)).Take(length).ToArray();
+                Parent.TransmitMessage(new CANMessageFrame((uint)Id.Value, bytes));
+                TransmitInterruptFlag.Value = true;
             }
 
-            public LPC_CAN parent;
-            public IFlagRegisterField transmitInterruptEnable;
-            public IFlagRegisterField transmitInterruptFlag;
-            public IFlagRegisterField select;
-            public IValueRegisterField priority;
-            public IValueRegisterField id;
-            public IValueRegisterField dataLengthCode;
-            public IValueRegisterField[] data;
+            public LPC_CAN Parent;
+            public IFlagRegisterField TransmitInterruptEnable;
+            public IFlagRegisterField TransmitInterruptFlag;
+            public IFlagRegisterField Select;
+            public IValueRegisterField Priority;
+            public IValueRegisterField Id;
+            public IValueRegisterField DataLengthCode;
+            public IValueRegisterField[] Data;
         }
 
         private enum Registers

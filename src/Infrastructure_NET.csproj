@@ -22,11 +22,15 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.9.0" />
     <PackageReference Include="Dynamitey" Version="2.0.10.189" />
     <PackageReference Include="Mono.Cecil" Version="0.11.3" />
+    <PackageReference Include="K4os.Compression.LZ4" Version="1.3.8" />
     <Reference Include="IronPython">
       <HintPath>..\..\..\lib\resources\libraries\ironpython-netcore\IronPython.dll</HintPath>
     </Reference>
     <Reference Include="IronPython.Modules">
       <HintPath>..\..\..\lib\resources\libraries\ironpython-netcore\IronPython.Modules.dll</HintPath>
+    </Reference>
+    <Reference Include="Sprache">
+      <HintPath>../../../lib/resources/libraries/Sprache.dll</HintPath>
     </Reference>
     <PackageReference Include="IronPython.StdLib" Version="2.7.12.0">
       <!-- We only need the Lib directory with python files, IronPython is referenced from our patched dll -->
@@ -59,14 +63,13 @@
     <Reference Include="Nini">
       <HintPath>../../../lib/resources/libraries/Nini.dll</HintPath>
     </Reference>
-    <Reference Include="LZ4">
-      <HintPath>../../../lib/resources/libraries/LZ4.dll</HintPath>
-    </Reference>
   </ItemGroup>
 
   <ItemGroup Condition=" $(CurrentPlatform) != Windows And $(GUI_DISABLED) != 'true' ">
     <PackageReference Include="GdkSharp" Version="3.24.24.95" />
     <PackageReference Include="GLibSharp" Version="3.24.24.95" />
+    <PackageReference Include="GirCore.Gst-1.0" Version="0.7.0" />
+    <PackageReference Include="GirCore.GstApp-1.0" Version="0.7.0" />
   </ItemGroup>
   <Import Project="$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets" Condition="Exists('$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets')" />
   <ItemGroup>
@@ -82,6 +85,9 @@
     -->
     <Compile Remove="**/obj/**/*AssemblyInfo.cs"/>
     <Compile Remove="**/obj/**/*AssemblyAttributes.cs"/>
+  </ItemGroup>
+  <ItemGroup Condition="$(CurrentPlatform) != 'Linux' Or $(Architecture) != 'i386'">
+    <Compile Remove="Emulator/Cores/KVM/**" />
   </ItemGroup>
 
   <Target Name="PrepareEmbeddedResources" BeforeTargets="ResolveReferences" >
@@ -127,6 +133,12 @@
       </EmbeddedResource>
       <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-sparc-be.so">
         <LogicalName>Antmicro.Renode.translate-sparc-be.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-x86.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+        <LogicalName>Antmicro.Renode.kvm-x86.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-x86_64.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+        <LogicalName>Antmicro.Renode.kvm-x86_64.so</LogicalName>
       </EmbeddedResource>
     </ItemGroup>
   </Target>

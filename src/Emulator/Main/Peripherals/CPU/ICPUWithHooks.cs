@@ -12,13 +12,21 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface ICPUWithHooks : ICPU
     {
         void AddHookAtInterruptBegin(Action<ulong> hook);
+
         void AddHookAtInterruptEnd(Action<ulong> hook);
+
         void AddHookAtWfiStateChange(Action<bool> hook);
 
-        void AddHook(ulong addr, Action<ICpuSupportingGdb, ulong> hook);
-        void RemoveHook(ulong addr, Action<ICpuSupportingGdb, ulong> hook);
+        void AddHook(ulong addr, CpuAddressHook hook);
+
+        void RemoveHook(ulong addr, CpuAddressHook hook);
+
         void RemoveHooksAt(ulong addr);
+
+        void RemoveHooks(CpuAddressHook hook);
+
         void RemoveAllHooks();
     }
-}
 
+    public delegate void CpuAddressHook(ICpuSupportingGdb cpu, ulong address);
+}

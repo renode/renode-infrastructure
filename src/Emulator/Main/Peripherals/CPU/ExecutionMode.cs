@@ -12,4 +12,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         SingleStep,
     }
 }
-

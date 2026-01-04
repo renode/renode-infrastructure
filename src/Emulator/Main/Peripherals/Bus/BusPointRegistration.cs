@@ -1,11 +1,13 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.CPU;
 
@@ -13,8 +15,40 @@ namespace Antmicro.Renode.Peripherals.Bus
 {
     public class BusPointRegistration : BusRegistration
     {
-        public BusPointRegistration(ulong address, ulong offset = 0, ICPU cpu = null, ICluster<ICPU> cluster = null) : base(address, offset, cpu, cluster)
+        public BusPointRegistration(ulong address, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null) : this(address, stateMask: null, offset, cpu, cluster)
         {
+        }
+
+        public BusPointRegistration(ulong address, string condition, ulong offset = 0) : this(address, stateMask: null, offset, condition: condition)
+        {
+        }
+
+        public override IConditionalRegistration WithInitiatorAndStateMask(IPeripheral initiator, StateMask mask)
+        {
+            return new BusPointRegistration(StartingPoint, mask, Offset, initiator, condition: Condition);
+        }
+
+        public void RegisterForEachContext(Action<BusPointRegistration> register)
+        {
+            RegisterForEachContextInner(register, cpu => new BusPointRegistration(StartingPoint, StateMask, Offset, cpu, condition: Condition));
+        }
+
+        public BusRangeRegistration ToRangeRegistration(ulong size)
+        {
+            BusRangeRegistration result;
+            if(Condition != null)
+            {
+                result = new BusRangeRegistration(StartingPoint, size, Condition, Offset);
+            }
+            else
+            {
+                result = new BusRangeRegistration(StartingPoint, size, Offset, Initiator, Cluster);
+            }
+            if(StateMask.HasValue)
+            {
+                return (BusRangeRegistration)result.WithInitiatorAndStateMask(Initiator, StateMask.Value);
+            }
+            return result;
         }
 
         public override string ToString()
@@ -24,9 +58,13 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 result += $" with offset 0x{Offset:X}";
             }
-            if(CPU != null)
+            if(Initiator != null)
             {
-                result += $" for core {CPU}";
+                result += $" for core {Initiator}";
+            }
+            if(Condition != null)
+            {
+                result += $" with condition \"{Condition}\"";
             }
             return result;
         }
@@ -44,29 +82,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new BusPointRegistration(address);
         }
 
-        public override bool Equals(object obj)
+        private BusPointRegistration(ulong address, StateMask? stateMask, ulong offset = 0, IPeripheral cpu = null, ICluster<ICPU> cluster = null, string condition = null) : base(address, offset, cpu, cluster, stateMask, condition)
         {
-            var other = obj as BusPointRegistration;
-            if(other == null)
-                return false;
-            if(ReferenceEquals(this, obj))
-                return true;
-
-            return StartingPoint == other.StartingPoint && Offset == other.Offset && CPU == other.CPU && Cluster == other.Cluster;
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return 17 * StartingPoint.GetHashCode() + 23 * Offset.GetHashCode() + 101 * (CPU?.GetHashCode() ?? 0) + 397 * (Cluster?.GetHashCode() ?? 0);
-            }
-        }
-
-        public void RegisterForEachContext(Action<BusPointRegistration> register)
-        {
-            RegisterForEachContextInner(register, cpu => new BusPointRegistration(StartingPoint, Offset, cpu));
         }
     }
 }
-

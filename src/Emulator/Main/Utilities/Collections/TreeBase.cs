@@ -7,22 +7,79 @@
 //
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections;
 using System.Linq;
 
 namespace Antmicro.Renode.Utilities.Collections
 {
-
     public abstract class TreeBase<TNode, TValue> : IEnumerable<TValue> where TNode : TreeBase<TNode, TValue>
     {
-        protected TreeBase(TValue value)
+        public virtual void RemoveChild(TValue value)
         {
-            this.value = value;
-            ChildrenList = new List<TNode>();
-            ParentsList = new List<TNode>();
+            var node = ChildrenList.FirstOrDefault(x => value.Equals(x.Value));
+            if(node == null)
+            {
+                throw new InvalidOperationException($"Could not find child '{value}'.");
+            }
+            ChildrenList.Remove(node);
         }
+
+        public void TraverseChildrenFirst(Action<TNode, List<TNode>, int> nodeHandler, int initialLevel)
+        {
+            foreach(var child in ChildrenList)
+            {
+                child.TraverseChildrenFirst(nodeHandler, initialLevel + 1);
+            }
+
+            nodeHandler((TNode)this, ChildrenList, initialLevel);
+        }
+
+        public void TraverseParentFirst(Action<TValue, int> nodeHandler, int initialLevel)
+        {
+            nodeHandler(value, initialLevel);
+            foreach(var child in ChildrenList)
+            {
+                child.TraverseParentFirst(nodeHandler, initialLevel + 1);
+            }
+        }
+
+        public TNode TryGetNode(Func<TValue, bool> predicate)
+        {
+            if(predicate(value))
+            {
+                return (TNode)this;
+            }
+            foreach(var child in ChildrenList)
+            {
+                var node = child.TryGetNode(predicate);
+                if(node != null)
+                {
+                    return node;
+                }
+            }
+            return null;
+        }
+
+        public IEnumerator<TValue> GetEnumerator()
+        {
+            yield return Value;
+            foreach(var child in ChildrenList)
+            {
+                foreach(var element in child)
+                {
+                    yield return element;
+                }
+            }
+        }
+
+        public TNode TryGetNode(TValue valueToFind)
+        {
+            return TryGetNode(val => valueToFind.Equals(val));
+        }
+
+        public abstract TNode AddChild(TValue value);
 
         public IEnumerable<TNode> Children
         {
@@ -48,74 +105,16 @@ namespace Antmicro.Renode.Utilities.Collections
             }
         }
 
-        public void TraverseChildrenFirst(Action<TNode, List<TNode>, int> nodeHandler, int initialLevel)
+        protected TreeBase(TValue value)
         {
-            foreach(var child in ChildrenList)
-            {
-                child.TraverseChildrenFirst(nodeHandler, initialLevel + 1);
-            }
-
-            nodeHandler((TNode)this, ChildrenList, initialLevel);
-        }
-
-        public void TraverseParentFirst(Action<TValue, int> nodeHandler, int initialLevel)
-        {
-            nodeHandler(value, initialLevel);
-            foreach (var child in ChildrenList)
-            {
-                child.TraverseParentFirst(nodeHandler, initialLevel + 1);
-            }
-        }
-
-        public TNode TryGetNode(Func<TValue, bool> predicate)
-        {
-            if(predicate(value))
-            {
-                return (TNode)this;
-            }
-            foreach (var child in ChildrenList)
-            {
-                var node = child.TryGetNode(predicate);
-                if (node != null)
-                {
-                    return node;
-                }
-            }
-            return null;
+            this.value = value;
+            ChildrenList = new List<TNode>();
+            ParentsList = new List<TNode>();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
-        }
-
-        public IEnumerator<TValue> GetEnumerator()
-        {
-            yield return Value;
-            foreach(var child in ChildrenList)
-            {
-                foreach(var element in child)
-                {
-                    yield return element;
-                }
-            }
-        }
-
-        public abstract TNode AddChild(TValue value);
-
-        public TNode TryGetNode(TValue valueToFind)
-        {
-            return TryGetNode(val => valueToFind.Equals(val));
-        }
-
-        public virtual void RemoveChild(TValue value)
-        {
-            var node = ChildrenList.FirstOrDefault(x => value.Equals(x.Value));
-            if(node == null)
-            {
-                throw new InvalidOperationException($"Could not find child '{value}'.");
-            }
-            ChildrenList.Remove(node);
         }
 
         protected readonly List<TNode> ParentsList;

@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Bus
@@ -39,4 +38,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         private readonly SysbusAccessWidth width;
     }
 }
-

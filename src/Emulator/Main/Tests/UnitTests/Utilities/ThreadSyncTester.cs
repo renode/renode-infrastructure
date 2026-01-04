@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+
 using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests.Utilities
@@ -88,11 +89,11 @@ namespace Antmicro.Renode.UnitTests.Utilities
 
             public void Dispose()
             {
-            #if NET
+#if NET
                 underlyingThread.Interrupt();
-            #else
+#else
                 underlyingThread.Abort();
-            #endif
+#endif
                 underlyingThread.Join();
             }
 
@@ -177,7 +178,8 @@ namespace Antmicro.Renode.UnitTests.Utilities
 
             public void ExecuteOn(TestThread t)
             {
-                t.Execute(() => {
+                t.Execute(() =>
+                {
                     executionResult.Result = fun();
                     executionResult.MarkAsFinished();
                 });
@@ -205,7 +207,8 @@ namespace Antmicro.Renode.UnitTests.Utilities
 
             public ExecutionResult ShouldFinish(object result = null)
             {
-                tester.Execute(tester.LocalThread, () => {
+                tester.Execute(tester.LocalThread, () =>
+                {
                     if(!actionFinished.WaitOne(BlockingThreshold))
                     {
                         tester.ReportError($"Expected operation '{name}' to finish, but it looks like being stuck.");
@@ -224,7 +227,8 @@ namespace Antmicro.Renode.UnitTests.Utilities
 
             public ExecutionResult ShouldBlock()
             {
-                tester.Execute(tester.LocalThread, () => {
+                tester.Execute(tester.LocalThread, () =>
+                {
                     if(actionFinished.WaitOne(BlockingThreshold))
                     {
                         tester.ReportError($"Expected operation '{name}' to block, but it finished with result: {Result}.");
@@ -239,7 +243,7 @@ namespace Antmicro.Renode.UnitTests.Utilities
                 get; set;
             }
 
-            private string name;
+            private readonly string name;
             private readonly ManualResetEvent actionFinished;
             private readonly ThreadSyncTester tester;
 

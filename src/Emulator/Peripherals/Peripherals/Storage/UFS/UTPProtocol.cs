@@ -53,68 +53,68 @@ namespace Antmicro.Renode.Peripherals.Storage
     [LeastSignificantByteFirst]
     public struct UTPTransferRequest
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 8)]
         public byte CryptoConfigurationIndex;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 0, bits: 23), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 23), Width(bits: 1)]
         public bool CryptoEnable;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 1)]
         public bool Interrupt;
-        [PacketField, Offset(doubleWords: 0, bits: 25), Width(2)]
+        [PacketField, Offset(doubleWords: 0, bits: 25), Width(bits: 2)]
         public DataDirection DataDirection;
-        [PacketField, Offset(doubleWords: 0, bits: 28), Width(4)]
+        [PacketField, Offset(doubleWords: 0, bits: 28), Width(bits: 4)]
         public CommandType CommandType;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 32)]
         public uint DataUnitNumberLower;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public UTPTransferStatus OverallCommandStatus;
-        [PacketField, Offset(doubleWords: 2, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 8), Width(bits: 8)]
         public uint CommonDataSize;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort LastDataByteCount;
-        [PacketField, Offset(doubleWords: 3, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
         public uint DataUnitNumberUpper;
-        [PacketField, Offset(doubleWords: 4, bits: 7), Width(25)]
+        [PacketField, Offset(doubleWords: 4, bits: 7), Width(bits: 25)]
         public uint UTPCommandDescriptorBaseAddressLower;
-        [PacketField, Offset(doubleWords: 5, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 5, bits: 0), Width(bits: 32)]
         public uint UTPCommandDescriptorBaseAddressUpper;
-        [PacketField, Offset(doubleWords: 6, bits: 0), Width(16)]
+        [PacketField, Offset(doubleWords: 6, bits: 0), Width(bits: 16)]
         public ushort ResponseUPIULength;
-        [PacketField, Offset(doubleWords: 6, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 6, bits: 16), Width(bits: 16)]
         public ushort ResponseUPIUOffset;
-        [PacketField, Offset(doubleWords: 7, bits: 0), Width(16)]
+        [PacketField, Offset(doubleWords: 7, bits: 0), Width(bits: 16)]
         public ushort PRDTLength;
-        [PacketField, Offset(doubleWords: 7, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 7, bits: 16), Width(bits: 16)]
         public ushort PRDTOffset;
     }
 
     [LeastSignificantByteFirst]
     public struct UTPTaskManagementRequestHeader
     {
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 1)]
         public bool Interrupt;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public UTPTaskManagementStatus OverallCommandStatus;
     }
 
     [LeastSignificantByteFirst]
     public struct PRDT4DW
     {
-        [PacketField, Offset(doubleWords: 0, bits: 2), Width(30)]
+        [PacketField, Offset(doubleWords: 0, bits: 2), Width(bits: 30)]
         public uint DataBaseAddress;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 32)]
         public uint DataBaseAddressUpper;
-        [PacketField, Offset(doubleWords: 3, bits: 0), Width(18)]
+        [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 18)]
         public uint DataByteCount;
     }
 
     [LeastSignificantByteFirst]
     public struct PRDT2DW
     {
-        [PacketField, Offset(doubleWords: 0, bits: 2), Width(30)]
+        [PacketField, Offset(doubleWords: 0, bits: 2), Width(bits: 30)]
         public uint DataBaseAddress;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 32)]
         public uint DataBaseAddressUpper;
     }
 #pragma warning restore 649, 169

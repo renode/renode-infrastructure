@@ -1,12 +1,12 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -65,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 connection.Reset();
             }
-            
+
             timer.Reset();
             IRQ.Unset();
             CaptureIRQ.Unset();
@@ -83,6 +83,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         [DefaultInterrupt]
         public GPIO IRQ { get; }
+
         public GPIO CaptureIRQ { get; }
 
         public long Size => 0x100;
@@ -350,12 +351,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             UpdateInterrupts();
         }
 
-        private readonly LimitTimer timer;
-        private readonly GPIOConnection[] connections;
-
-        private readonly long lowPowerFrequency;
-        private readonly bool extendedTimer;
-
         private bool interruptTriggered;
 
         private IFlagRegisterField interruptEnabled;
@@ -365,6 +360,12 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private IValueRegisterField timerLimit;
 
+        private readonly LimitTimer timer;
+        private readonly GPIOConnection[] connections;
+
+        private readonly long lowPowerFrequency;
+        private readonly bool extendedTimer;
+
         private const long DefaultLowPowerFrequency = 32000;
         private const long DivNClockFrequency = 32000000;
         private const long FreeRunLimit = (1 << 24) - 1;
@@ -372,34 +373,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         private const int DefaultGPIOConnections = 2;
         private const int ExtendedGPIOConnections = 4;
 
-        private enum Registers
-        {
-            Control                 = 0x00, // TIMER_CTRL_REG
-            CounterValue            = 0x04, // TIMER_TIMER_VAL_REG
-            Status                  = 0x08, // TIMER_STATUS_REG
-            GPIO1Selection          = 0x0C, // TIMER_GPIO1_CONF_REG
-            GPIO2Selection          = 0x10, // TIMER_GPIO2_CONF_REG
-            Settings                = 0x14, // TIMER_SETTINGS_REG
-            ShotDuration            = 0x18, // TIMER_SHOTWIDTH_REG
-            // Gap
-            EventValueGPIO1         = 0x20, // TIMER_CAPTURE_GPIO1_REG
-            EventValueGPIO2         = 0x24, // TIMER_CAPTURE_GPIO2_REG
-            Prescaler               = 0x28, // TIMER_PRESCALER_VAL_REG
-            PWMControl              = 0x2C, // TIMER_PWM_CTRL_REG
-            // Gap
-            InterruptClear          = 0x34, // TIMER_CLEAR_IRQ_REG
-
-            // Registers for extended timer version
-            GPIO3Selection          = 0x34, // TIMER_GPIO3_CONF_REG
-            GPIO4Selection          = 0x38, // TIMER_GPIO4_CONF_REG
-            EventValueGPIO3         = 0x3C, // TIMER_CAPTURE_GPIO3_REG
-            EventValueGPIO4         = 0x40, // TIMER_CAPTURE_GPIO4_REG
-            GPIOEventClear          = 0x44, // TIMER_CLEAR_GPIO_EVENT_REG
-            InterruptClearExtended  = 0x48, // TIMER_CLEAR_IRQ_REG
-        }
-
         private class GPIOConnection
-        {            
+        {
             public GPIOConnection(RenesasDA14_GPT owner)
             {
                 this.owner = owner;
@@ -444,12 +419,40 @@ namespace Antmicro.Renode.Peripherals.Timers
             public bool EventTriggered { get; set; }
 
             public bool Value { get; private set; }
+
             public ulong CaptureTimestamp { get; private set; }
 
             public bool InterruptEnabled { get; set; }
+
             public bool UseFallingEdge { get; set; }
 
             private readonly RenesasDA14_GPT owner;
+        }
+
+        private enum Registers
+        {
+            Control                 = 0x00, // TIMER_CTRL_REG
+            CounterValue            = 0x04, // TIMER_TIMER_VAL_REG
+            Status                  = 0x08, // TIMER_STATUS_REG
+            GPIO1Selection          = 0x0C, // TIMER_GPIO1_CONF_REG
+            GPIO2Selection          = 0x10, // TIMER_GPIO2_CONF_REG
+            Settings                = 0x14, // TIMER_SETTINGS_REG
+            ShotDuration            = 0x18, // TIMER_SHOTWIDTH_REG
+            // Gap
+            EventValueGPIO1         = 0x20, // TIMER_CAPTURE_GPIO1_REG
+            EventValueGPIO2         = 0x24, // TIMER_CAPTURE_GPIO2_REG
+            Prescaler               = 0x28, // TIMER_PRESCALER_VAL_REG
+            PWMControl              = 0x2C, // TIMER_PWM_CTRL_REG
+            // Gap
+            InterruptClear          = 0x34, // TIMER_CLEAR_IRQ_REG
+
+            // Registers for extended timer version
+            GPIO3Selection          = 0x34, // TIMER_GPIO3_CONF_REG
+            GPIO4Selection          = 0x38, // TIMER_GPIO4_CONF_REG
+            EventValueGPIO3         = 0x3C, // TIMER_CAPTURE_GPIO3_REG
+            EventValueGPIO4         = 0x40, // TIMER_CAPTURE_GPIO4_REG
+            GPIOEventClear          = 0x44, // TIMER_CLEAR_GPIO_EVENT_REG
+            InterruptClearExtended  = 0x48, // TIMER_CLEAR_IRQ_REG
         }
     }
 }

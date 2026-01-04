@@ -15,4 +15,3 @@ namespace Antmicro.Renode.Utilities.RESD
         }
     }
 }
-

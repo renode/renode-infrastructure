@@ -5,14 +5,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 
 using System;
-using System.Collections.Generic;
-using System.IO;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -62,12 +60,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             registerAddress = data[0];
             this.Log(LogLevel.Noisy, "Register set to {0}", (Registers)registerAddress);
-            
+
             if(data.Length > 2)
             {
                 this.Log(LogLevel.Error, "Received write transaction with multiple bytes to write. As burst writes are not specified for this peripheral, redundant bytes will be ignored.");
             }
-            
+
             if(data.Length > 1)
             {
                 RegistersCollection.Write(registerAddress, data[1]);
@@ -132,17 +130,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             get => accelerationFifo.Sample.X;
         }
-        
+
         public decimal CurrentAccelerationY
         {
             get => accelerationFifo.Sample.Y;
         }
-        
+
         public decimal CurrentAccelerationZ
         {
             get => accelerationFifo.Sample.Z;
         }
-        
+
         public decimal DefaultAccelerationX
         {
             get => accelerationFifo.DefaultSample.X;
@@ -266,75 +264,75 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             switch(currentMode.Value)
             {
-                // As there is no pattern, all possibilities must be handled manually
-                case PowerModes.UltraLow:
-                    switch(samplingRateRegister.Value)
-                    {
-                        case 0x6:
-                            samplingRate = 25; break;
-                        case 0x7:
-                            samplingRate = 50; break;
-                        case 0x8:
-                            samplingRate = 100; break;
-                        case 0x9:
-                            samplingRate = 190; break;
-                        case 0xA:
-                            samplingRate = 380; break;
-                        case 0xB:
-                            samplingRate = 750; break;
-                        case 0xC:
-                            samplingRate = 1100; break;
-                        case 0xF:
-                            samplingRate = 1300; break;
-                        default:
-                            this.Log(LogLevel.Error, "0x{0:X} is not a legal RATE setting in {1} power mode. Setting the lowest possible value", samplingRateRegister.Value, continuousPowerMode);
-                            goto case 0x6;
-                    }
-                    break;
-                case PowerModes.Low:
-                    switch(samplingRateRegister.Value)
-                    {
-                        case 0x5:
-                            samplingRate = 14; break;
-                        case 0x6:
-                            samplingRate = 28; break;
-                        case 0x7:
-                            samplingRate = 54; break;
-                        case 0x8:
-                            samplingRate = 105; break;
-                        case 0x9:
-                            samplingRate = 210; break;
-                        case 0xA:
-                            samplingRate = 400; break;
-                        case 0xB:
-                            samplingRate = 600; break;
-                        case 0xF:
-                            samplingRate = 750; break;
-                        default:
-                            this.Log(LogLevel.Error, "0x{0:X} is not a legal RATE setting in {1} power mode. Setting the lowest possible value", samplingRateRegister.Value, continuousPowerMode);
-                            goto case 0x5;
-                    }
-                    break;
-                case PowerModes.Precision:
-                    switch(samplingRateRegister.Value)
-                    {
-                        case 0x5:
-                            samplingRate = 14; break;
-                        case 0x6:
-                            samplingRate = 28; break;
-                        case 0x7:
-                            samplingRate = 55; break;
-                        case 0x8:
-                            samplingRate = 80; break;
-                        case 0xF:
-                            samplingRate = 100; break;
-                        default:
-                            this.Log(LogLevel.Error, "0x{0:X} is not a legal RATE setting in {1} power mode. Setting the lowest possible value", samplingRateRegister.Value, continuousPowerMode);
-                            goto case 0x5;
-                    }
-                    break;
+            // As there is no pattern, all possibilities must be handled manually
+            case PowerModes.UltraLow:
+                switch(samplingRateRegister.Value)
+                {
+                case 0x6:
+                    samplingRate = 25; break;
+                case 0x7:
+                    samplingRate = 50; break;
+                case 0x8:
+                    samplingRate = 100; break;
+                case 0x9:
+                    samplingRate = 190; break;
+                case 0xA:
+                    samplingRate = 380; break;
+                case 0xB:
+                    samplingRate = 750; break;
+                case 0xC:
+                    samplingRate = 1100; break;
+                case 0xF:
+                    samplingRate = 1300; break;
                 default:
-                    throw new ArgumentException($"Invalid power mode: {continuousPowerMode}");
+                    this.Log(LogLevel.Error, "0x{0:X} is not a legal RATE setting in {1} power mode. Setting the lowest possible value", samplingRateRegister.Value, continuousPowerMode);
+                    goto case 0x6;
+                }
+                break;
+            case PowerModes.Low:
+                switch(samplingRateRegister.Value)
+                {
+                case 0x5:
+                    samplingRate = 14; break;
+                case 0x6:
+                    samplingRate = 28; break;
+                case 0x7:
+                    samplingRate = 54; break;
+                case 0x8:
+                    samplingRate = 105; break;
+                case 0x9:
+                    samplingRate = 210; break;
+                case 0xA:
+                    samplingRate = 400; break;
+                case 0xB:
+                    samplingRate = 600; break;
+                case 0xF:
+                    samplingRate = 750; break;
+                default:
+                    this.Log(LogLevel.Error, "0x{0:X} is not a legal RATE setting in {1} power mode. Setting the lowest possible value", samplingRateRegister.Value, continuousPowerMode);
+                    goto case 0x5;
+                }
+                break;
+            case PowerModes.Precision:
+                switch(samplingRateRegister.Value)
+                {
+                case 0x5:
+                    samplingRate = 14; break;
+                case 0x6:
+                    samplingRate = 28; break;
+                case 0x7:
+                    samplingRate = 55; break;
+                case 0x8:
+                    samplingRate = 80; break;
+                case 0xF:
+                    samplingRate = 100; break;
+                default:
+                    this.Log(LogLevel.Error, "0x{0:X} is not a legal RATE setting in {1} power mode. Setting the lowest possible value", samplingRateRegister.Value, continuousPowerMode);
+                    goto case 0x5;
+                }
+                break;
+            default:
+                throw new ArgumentException($"Invalid power mode: {continuousPowerMode}");
             }
             this.Log(LogLevel.Debug, "Sampling rate set to {0} Hz", samplingRate);
         }
@@ -410,7 +408,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("EXT_TRIG_POL", 6)
                 .WithTaggedFlag("EXT_TRIG_EN", 7);
             Registers.Initialization1.Define(this, 0x40)
-                .WithValueField(0, 8, writeCallback: (_, val) => 
+                .WithValueField(0, 8, writeCallback: (_, val) =>
                     {
                         if(val == 0x42)
                         {
@@ -418,7 +416,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         }
                         else
                         {
-                            this.Log(LogLevel.Error, "INIT_1 should always be written with 0x42, got 0x{0:x}", val); 
+                            this.Log(LogLevel.Error, "INIT_1 should always be written with 0x42, got 0x{0:x}", val);
                         }
                     }, valueProviderCallback: (_) => { return initialized ? 0x43u : 0x40u; }, name: "INIT_1");
             Registers.ModeControl.Define(this)
@@ -426,18 +424,18 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         switch(mode.Value)
                         {
-                            case Modes.Cwake:
-                                StartSampleCollection();
-                                break;
-                            case Modes.Sniff:
-                            case Modes.Swake:
-                                this.Log(LogLevel.Error, "{0} mode unimplemented. Switching to Standby", mode.Value);
-                                mode.Value = Modes.Standby;
-                                break;
-                            default:
-                                // SLEEP and STANDBY
-                                StopCollection();
-                                break;
+                        case Modes.Cwake:
+                            StartSampleCollection();
+                            break;
+                        case Modes.Sniff:
+                        case Modes.Swake:
+                            this.Log(LogLevel.Error, "{0} mode unimplemented. Switching to Standby", mode.Value);
+                            mode.Value = Modes.Standby;
+                            break;
+                        default:
+                            // SLEEP and STANDBY
+                            StopCollection();
+                            break;
                         }
                         this.Log(LogLevel.Debug, "Changed mode to {0}", mode);
                         SetSamplingFrequency();
@@ -468,27 +466,27 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         switch(val)
                         {
-                            case 0b000:  //6 bits
-                                maximumValue = MaximumValue.bits6;
-                                break;
-                            case 0b001:  //7 bits
-                                maximumValue = MaximumValue.bits7;
-                                break;
-                            case 0b010:  //8 bits
-                                maximumValue = MaximumValue.bits8;
-                                break;
-                            case 0b011:  //10 bits
-                                maximumValue = MaximumValue.bits10;
-                                break;
-                            case 0b100:  //12 bits
-                                maximumValue = MaximumValue.bits12;
-                                break;
-                            case 0b101:  //14 bits (only 12-bits if FIFO enabled)
-                                maximumValue = MaximumValue.bits14;
-                                break;
-                            default:
-                                this.Log(LogLevel.Error, "Invalid RANGE.RES value. Setting to default");
-                                goto case 0b000;
+                        case 0b000:  //6 bits
+                            maximumValue = MaximumValue.bits6;
+                            break;
+                        case 0b001:  //7 bits
+                            maximumValue = MaximumValue.bits7;
+                            break;
+                        case 0b010:  //8 bits
+                            maximumValue = MaximumValue.bits8;
+                            break;
+                        case 0b011:  //10 bits
+                            maximumValue = MaximumValue.bits10;
+                            break;
+                        case 0b100:  //12 bits
+                            maximumValue = MaximumValue.bits12;
+                            break;
+                        case 0b101:  //14 bits (only 12-bits if FIFO enabled)
+                            maximumValue = MaximumValue.bits14;
+                            break;
+                        default:
+                            this.Log(LogLevel.Error, "Invalid RANGE.RES value. Setting to default");
+                            goto case 0b000;
                         }
                         this.Log(LogLevel.Debug, "Bit width set to {0}", maximumValue);
                     }, name: "RES")
@@ -497,24 +495,24 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         switch(val)
                         {
-                            case 0b000: // ±2g
-                                range = GRange.G2;
-                                break;
-                            case 0b001: // ±4g
-                                range = GRange.G4;
-                                break;
-                            case 0b010: // ±8g
-                                range = GRange.G8;
-                                break;
-                            case 0b011: // ±16g
-                                range = GRange.G16;
-                                break;
-                            case 0b100: // ±12g
-                                range = GRange.G12;
-                                break;
-                            default:
-                                this.Log(LogLevel.Error, "Invalid RANGE.RANGE value. Setting to default");
-                                goto case 0b000;
+                        case 0b000: // ±2g
+                            range = GRange.G2;
+                            break;
+                        case 0b001: // ±4g
+                            range = GRange.G4;
+                            break;
+                        case 0b010: // ±8g
+                            range = GRange.G8;
+                            break;
+                        case 0b011: // ±16g
+                            range = GRange.G16;
+                            break;
+                        case 0b100: // ±12g
+                            range = GRange.G12;
+                            break;
+                        default:
+                            this.Log(LogLevel.Error, "Invalid RANGE.RANGE value. Setting to default");
+                            goto case 0b000;
                         }
                         this.Log(LogLevel.Debug, "Range set to {0}", range);
                     }, name: "RANGE")
@@ -540,9 +538,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Registers.Scratchpad.Define(this)
                 .WithValueField(0, 8, name: "SCRATCH"); // Any value can be written and read-back, this is a part of the initialization
             Registers.PowerModeControl.Define(this)
-                .WithEnumField(0, 2, out continuousPowerMode, writeCallback: (_ , __) => SetSamplingFrequency(), name: "CSPM")
+                .WithEnumField(0, 2, out continuousPowerMode, writeCallback: (_, __) => SetSamplingFrequency(), name: "CSPM")
                 .WithReservedBits(3, 1)
-                .WithEnumField(4, 3, out sniffPowerMode, writeCallback: (_ , __) => SetSamplingFrequency(), name: "SPM")
+                .WithEnumField(4, 3, out sniffPowerMode, writeCallback: (_, __) => SetSamplingFrequency(), name: "SPM")
                 .WithTaggedFlag("SPI_HS_EN", 7);
             Registers.DriveMotionX.Define(this)
                 .WithReservedBits(0, 2, 0b01)
@@ -591,6 +589,31 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTag("ZGAINL", 0, 8);
         }
 
+        private IEnumRegisterField<PowerModes> continuousPowerMode;
+        private IFlagRegisterField fifoThresholdInterrupt;
+        private IFlagRegisterField fifoFullInterrupt;
+        private IFlagRegisterField fifoEmptyInterrupt;
+
+        private IFlagRegisterField acquiredInterrupt;
+        private IFlagRegisterField wakeInterruptEnable;
+        private IFlagRegisterField sniffInterruptEnable;
+        private IFlagRegisterField fifoThresholdInterruptEnable;
+        private IFlagRegisterField fifoFullInterruptEnable;
+        private IFlagRegisterField sniffInterrupt;
+        private IFlagRegisterField fifoEmptyInterruptEnable;
+        private IFlagRegisterField zAxisDisabled;
+        private IFlagRegisterField yAxisDisabled;
+        private IFlagRegisterField xAxisDisabled;
+        private IFlagRegisterField wrapAfterStatus;
+        private IFlagRegisterField interruptClearOnlyOnWrite;
+
+        private IFlagRegisterField dataOverwritten;
+        private IEnumRegisterField<Modes> mode;
+        private IEnumRegisterField<PowerModes> sniffPowerMode;
+
+        private IFlagRegisterField acquiredInterruptEnable;
+        private IFlagRegisterField wakeInterrupt;
+
         private bool sampleRead;
         private bool initialized;
         private uint registerAddress;
@@ -605,32 +628,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private readonly SensorSamplesFifo<Vector3DSample> accelerationFifo;
 
-        private IEnumRegisterField<PowerModes> continuousPowerMode;
-        private IEnumRegisterField<PowerModes> sniffPowerMode;
-        private IEnumRegisterField<Modes> mode;
-
-        private IFlagRegisterField dataOverwritten;
-        private IFlagRegisterField interruptClearOnlyOnWrite;
-        private IFlagRegisterField wrapAfterStatus;
-        private IFlagRegisterField xAxisDisabled;
-        private IFlagRegisterField yAxisDisabled;
-        private IFlagRegisterField zAxisDisabled;
-
-        private IFlagRegisterField acquiredInterruptEnable;
-        private IFlagRegisterField fifoEmptyInterruptEnable;
-        private IFlagRegisterField fifoFullInterruptEnable;
-        private IFlagRegisterField fifoThresholdInterruptEnable;
-        private IFlagRegisterField sniffInterruptEnable;
-        private IFlagRegisterField wakeInterruptEnable;
-
-        private IFlagRegisterField acquiredInterrupt;
-        private IFlagRegisterField fifoEmptyInterrupt;
-        private IFlagRegisterField fifoFullInterrupt;
-        private IFlagRegisterField fifoThresholdInterrupt;
-        private IFlagRegisterField sniffInterrupt;
-        private IFlagRegisterField wakeInterrupt;
-
-        private enum GRange: ushort
+        private enum GRange : ushort
         {
             G2  = 2,
             G4  = 4,
@@ -713,6 +711,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             GainY                  = 0x31,
             GainZ                  = 0x32,
             // 0x33 – 0x3F RESERVED
-       }
+        }
     }
 }

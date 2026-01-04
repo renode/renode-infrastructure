@@ -5,11 +5,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
@@ -86,9 +85,9 @@ namespace Antmicro.Renode.Peripherals.Video
 
         protected override void Repaint()
         {
-            lock (lock_obj) 
+            lock(lock_obj)
             {
-                if ((bufferAddress == 0xFFFFFFFF)) 
+                if((bufferAddress == 0xFFFFFFFF))
                 {
                     return;
                 }
@@ -103,4 +102,3 @@ namespace Antmicro.Renode.Peripherals.Video
         private readonly IBusController sysbus;
     }
 }
-

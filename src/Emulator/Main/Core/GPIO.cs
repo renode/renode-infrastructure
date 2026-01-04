@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
@@ -20,7 +21,22 @@ namespace Antmicro.Renode.Core
         {
             sync = new object();
             targets = new List<GPIOEndpoint>();
-            stateChangedHook = delegate {};
+            stateChangedHook = delegate { };
+        }
+
+        public void AddStateChangedHook(Action<bool> hook)
+        {
+            stateChangedHook += hook;
+        }
+
+        public void RemoveStateChangedHook(Action<bool> hook)
+        {
+            stateChangedHook -= hook;
+        }
+
+        public void RemoveAllStateChangedHooks()
+        {
+            stateChangedHook = delegate { };
         }
 
         public void Set(bool value)
@@ -120,36 +136,15 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public void AddStateChangedHook(Action<bool> hook)
-        {
-            stateChangedHook += hook;
-        }
-
-        public void RemoveStateChangedHook(Action<bool> hook)
-        {
-            stateChangedHook -= hook;
-        }
-
-        public void RemoveAllStateChangedHooks()
-        {
-            stateChangedHook = delegate {};
-        }
-
-        private static GPIOAttribute GetAttribute(IGPIOReceiver per)
-        {
-            return (GPIOAttribute)per.GetType().GetCustomAttributes(true).FirstOrDefault(x => x is GPIOAttribute);
-        }
-        
         private static void Validate(IGPIOReceiver to, int toNumber)
         {
-            var destPeriAttribute = GetAttribute(to);
-            var destPeriInNum = destPeriAttribute != null ? destPeriAttribute.NumberOfInputs : 0;
+            var destPeriInNum = to.GetPeripheralInputCount();
             if(destPeriInNum != 0 && toNumber >= destPeriInNum)
             {
                 throw new ConstructionException(string.Format(
                     "Cannot connect {0}th input of {1}; it has only {2} GPIO inputs.",
                     toNumber, to, destPeriInNum));
-            }           
+            }
         }
 
         private bool state;
@@ -158,4 +153,3 @@ namespace Antmicro.Renode.Core
         private readonly IList<GPIOEndpoint> targets;
     }
 }
-

@@ -1,15 +1,15 @@
 //
-// Copyright (c) 2021 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using NUnit.Framework;
 using System;
-using System.Collections.Generic;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Utilities;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -48,7 +48,6 @@ namespace Antmicro.Renode.UnitTests
             testArray.SetPart(2, 0x0);
             testArray.SetPart(3, 0x18244281);
             Assert.AreEqual(testArray.RetriveData(), secondWrite);
-
         }
 
         [Test]
@@ -156,4 +155,3 @@ namespace Antmicro.Renode.UnitTests
         }
     }
 }
-

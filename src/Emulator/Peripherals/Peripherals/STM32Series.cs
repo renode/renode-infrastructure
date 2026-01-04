@@ -7,11 +7,10 @@
 
 namespace Antmicro.Renode.Peripherals
 {
-        public enum STM32Series
-        {
-            F0,
-            F4,
-            WBA,
-        }
+    public enum STM32Series
+    {
+        F0,
+        F4,
+        WBA,
+    }
 }
-

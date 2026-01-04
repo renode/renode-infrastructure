@@ -1,26 +1,28 @@
 //
 // Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
-using Antmicro.Migrant;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.UART;
-using Antmicro.Renode.Time;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+
+using Antmicro.Migrant;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.UART;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.SCI
 {
     public class RenesasRZG_SCIFA : BasicWordPeripheral, IBytePeripheral, IUART, IHasFrequency, IKnownSize, INumberedGPIOOutput
     {
-        public RenesasRZG_SCIFA(IMachine machine, long frequency): base(machine)
+        public RenesasRZG_SCIFA(IMachine machine, long frequency) : base(machine)
         {
             Frequency = frequency;
 
@@ -37,6 +39,7 @@ namespace Antmicro.Renode.Peripherals.SCI
             base.Reset();
             parityBit = Parity.Even;
             receiveQueue.Clear();
+            txFifoResetCancellationTokenSrc?.Cancel();
             UpdateInterrupts();
         }
 
@@ -47,17 +50,17 @@ namespace Antmicro.Renode.Peripherals.SCI
         {
             switch((Registers)offset)
             {
-                case Registers.BitRate: // ModulationDuty
-                case Registers.FifoDataReceive:
-                case Registers.FifoDataTransmit:
-                case Registers.SerialExtendedMode:
-                    return (byte)RegistersCollection.Read(offset);
-                default:
-                    this.ErrorLog(
-                        "Trying to read byte from word register at offset 0x{0:X}. Returning 0x0",
-                        offset
-                    );
-                    return 0;
+            case Registers.BitRate: // ModulationDuty
+            case Registers.FifoDataReceive:
+            case Registers.FifoDataTransmit:
+            case Registers.SerialExtendedMode:
+                return (byte)RegistersCollection.Read(offset);
+            default:
+                this.ErrorLog(
+                    "Trying to read byte from word register at offset 0x{0:X}. Returning 0x0",
+                    offset
+                );
+                return 0;
             }
         }
 
@@ -65,19 +68,19 @@ namespace Antmicro.Renode.Peripherals.SCI
         {
             switch((Registers)offset)
             {
-                case Registers.BitRate: // ModulationDuty
-                case Registers.FifoDataReceive:
-                case Registers.FifoDataTransmit:
-                case Registers.SerialExtendedMode:
-                    RegistersCollection.Write(offset, (ushort)value);
-                    break;
-                default:
-                    this.ErrorLog(
-                        "Trying to write byte 0x{0:X} to word register at offset 0x{1:X}. Register won't be updated",
-                        value,
-                        offset
-                    );
-                    break;
+            case Registers.BitRate: // ModulationDuty
+            case Registers.FifoDataReceive:
+            case Registers.FifoDataTransmit:
+            case Registers.SerialExtendedMode:
+                RegistersCollection.Write(offset, (ushort)value);
+                break;
+            default:
+                this.ErrorLog(
+                    "Trying to write byte 0x{0:X} to word register at offset 0x{1:X}. Register won't be updated",
+                    value,
+                    offset
+                );
+                break;
             }
         }
 
@@ -105,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.SCI
         // IRQs are bundled into 5 signals per channel in the following order:
         // 0: ERI - Receive error
         // 1: BRI - Break detection or overrun
-        // 2: RXI - Receive FIFO data full 
+        // 2: RXI - Receive FIFO data full
         // 3: TXI - Transmit FIFO data empty
         // 4: TEI_DRI - Transmit end / Receive data ready
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
@@ -140,6 +143,19 @@ namespace Antmicro.Renode.Peripherals.SCI
 
         [field: Transient]
         public event Action<byte> CharReceived;
+
+        private void UpdateInterrupts()
+        {
+            Connections[ReceiveFifoFullIrqIdx].Set(receiveInterruptEnabled.Value && receiveFifoFull.Value);
+            // Transmit is always instant, so if the transmit interrupt is enabled
+            // and we have written some char, the IRQ triggers.
+            Connections[TransmitFifoEmptyIrqIdx].Set(transmitInterruptEnabled.Value && transmitFIFOEmpty.Value);
+            Connections[TransmitEndReceiveReadyIrqIdx].Set((receiveInterruptEnabled.Value && receiveDataReady.Value) ||
+                                                           (transmitEndInterruptEnabled.Value && transmitEnd.Value));
+            // We don't implement these interrupts
+            Connections[ReceiveErrorIrqIdx].Set(false);
+            Connections[BreakOrOverrunIrqIdx].Set(false);
+        }
 
         private void DefineRegisters()
         {
@@ -227,22 +243,56 @@ namespace Antmicro.Renode.Peripherals.SCI
                             this.ErrorLog("Transmitter is not enabled, dropping byte: 0x{0:x}", (byte)val);
                             return;
                         }
-                        CharReceived?.Invoke((byte)val);
-                        // RZ/G2L Group, RZ/G2LC Group User's Manual: Hardware, states that
-                        // TDFE and TEND flags are cleared when data is written to FTDR register.
-                        // But TDFE is set again when quantity of data written FTDR is less than
-                        // specified threshold, and TEND is set when FTDR becomes empty.
-                        // Both actions take some time on real hardware, but happen immediately in Renode.
-                        // Hence we use delay to prevent interrupts from being triggered too soon.
-                        transmitFIFOEmpty.Value = false;
-                        transmitEnd.Value = false;
-                        UpdateInterrupts();
-                        machine.ScheduleAction(TimeInterval.FromMicroseconds(TransmitInterruptDelay), ___ =>
+                        // RZ/G2L Group, RZ/G2LC Group User's Manual:
+                        // 1. The hardware manual states that the TDFE and TEND flags are cleared when data is written to the FTDR register.
+                        //    However, TDFE is set again when the quantity of data written to FTDR is less than the 'TranmitFIFOTriggerCount',
+                        //    and TEND is set when FTDR becomes empty.
+                        //    These updates take some time on real hardware but happen immediately in Renode.
+                        //
+                        // 2. If additional data is written when the transmit FIFO is full, the data is ignored.
+                        //
+                        // Additionally, software like Zephyr uses the 'FifoDataCount.T' register to determine how much data
+                        // can be written to the FTDR at once. The use of an explicit queue is tricky,
+                        // as there is no simple way to ensure constant transmission timing.
+                        // Therefore, the current solution uses an implicit queue:
+                        // After each write to FTDR, a write action is scheduled to run after 'TransmitInterruptDelay' micro seconds,
+                        // and the number of scheduled data items is tracked using 'transmitFifoLevel',
+                        // which is accessible via the 'FifoDataCount.T' register.
+
+                        if(transmitFifoLevel < MaxFIFOSize)
                         {
-                            transmitFIFOEmpty.Value = true;
-                            transmitEnd.Value = true;
+                            CharReceived?.Invoke((byte)val);
+                            transmitFIFOEmpty.Value = false;
+                            transmitEnd.Value = false;
                             UpdateInterrupts();
-                        });
+                            transmitFifoLevel++;
+                            var txFifoResetCancellationToken = txFifoResetCancellationTokenSrc.Token;
+                            machine.ScheduleAction(TimeInterval.FromMicroseconds(TransmitInterruptDelay), ___ =>
+                            {
+                                if(!txFifoResetCancellationToken.IsCancellationRequested)
+                                {
+                                    transmitFifoLevel--;
+                                    if(transmitFifoLevel < 0)
+                                    {
+                                        this.ErrorLog("Transmit FIFO contains a negative amount of characters, resetting it to 0");
+                                        transmitFifoLevel = 0;
+                                    }
+                                    if(transmitFifoLevel <= TranmitFIFOTriggerCount)
+                                    {
+                                        transmitFIFOEmpty.Value = true;
+                                    }
+                                    if(transmitFifoLevel <= 0)
+                                    {
+                                        transmitEnd.Value = true;
+                                    }
+                                    UpdateInterrupts();
+                                }
+                            });
+                        }
+                        else
+                        {
+                            this.ErrorLog("Transmit FIFO is full, dropping byte: 0x{0:x}", (byte)val);
+                        }
                     },
                     name: "FTDR")
                 .WithIgnoredBits(8, 8);
@@ -250,24 +300,39 @@ namespace Antmicro.Renode.Peripherals.SCI
             // According to the documentation this register should have a reset value of 0x20.
             // Some software expects the TEND flag to be set even before transmitting the first character.
             // Error status flags are modeled as fields to reduce the amount of logs generated during the simulation.
+            //
+            // This register has an uncommon property: "0 can be only written to clear the flag after 1 is read."
+            // from: RZG/2L PDF Datasheet section 22.2.7 Serial Status Register (FSR)
+            // It is solved via RenesasFlagState flag extension tracking whether flag was read after most recent write (also via code).
             Registers.SerialStatus.Define(this, 0x60)
-                .WithFlag(0, out receiveDataReady, FieldMode.Read | FieldMode.WriteZeroToClear, name: "DR")
-                .WithFlag(1, out receiveFifoFull, FieldMode.Read | FieldMode.WriteZeroToClear, name: "RDF")
-                .WithFlag(2, FieldMode.Read | FieldMode.WriteZeroToClear, name: "PER")
-                .WithFlag(3, FieldMode.Read | FieldMode.WriteZeroToClear, name: "FER")
-                .WithFlag(4, FieldMode.Read | FieldMode.WriteZeroToClear, name: "BRK")
-                .WithFlag(5, out transmitFIFOEmpty, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TDFE")
-                .WithFlag(6, out transmitEnd, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TEND")
-                .WithFlag(7, FieldMode.Read | FieldMode.WriteZeroToClear, name: "ER")
+                .WithWriteAllowedAfterReadingOneFlag(0, this, out receiveDataReady, "RD")
+                .WithWriteAllowedAfterReadingOneFlag(1, this, out receiveFifoFull, "RDF")
+                .WithFlag(2, FieldMode.Read, name: "PER")
+                .WithFlag(3, FieldMode.Read, name: "FER")
+                .WithWriteAllowedAfterReadingOneFlag(4, this, "BRK")
+                .WithWriteAllowedAfterReadingOneFlag(5, this, out transmitFIFOEmpty, "TDFE")
+                .WithWriteAllowedAfterReadingOneFlag(6, this, out transmitEnd, "TEND")
+                .WithWriteAllowedAfterReadingOneFlag(7, this, "ER")
                 .WithReservedBits(8, 8)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.FifoControl.Define(this)
                 .WithTaggedFlag("LOOP", 0)
                 .WithFlag(1, FieldMode.Read | FieldMode.WriteOneToClear, name: "RFRST", writeCallback: (_, __) => receiveQueue.Clear())
-                .WithTaggedFlag("TFRST", 2)
+                .WithFlag(2, FieldMode.Read | FieldMode.WriteOneToClear, name: "TFRST",
+                    writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            txFifoResetCancellationTokenSrc?.Cancel();
+                            txFifoResetCancellationTokenSrc = new CancellationTokenSource();
+                            transmitFifoLevel = 0;
+                            transmitFIFOEmpty.Value = true;
+                            transmitEnd.Value = true;
+                        }
+                    })
                 .WithTaggedFlag("MCE", 3)
-                .WithTag("TTRG", 4, 2)
+                .WithValueField(4, 2, out transmitFifoDataTriggerNumberSelect, name: "TTRG")
                 .WithValueField(6, 2, out receiveFifoDataTriggerNumberSelect, name: "RTRG")
                 .WithTag("RSTRG", 8, 3)
                 .WithReservedBits(11, 5)
@@ -277,8 +342,8 @@ namespace Antmicro.Renode.Peripherals.SCI
                 .WithValueField(0, 5, FieldMode.Read, name: "R",
                     valueProviderCallback: _ => (ulong)receiveQueue.Count >= MaxFIFOSize ? MaxFIFOSize : (ulong)receiveQueue.Count)
                 .WithReservedBits(5, 3)
-                // Transmission is instantaneous, so it will always be empty
-                .WithValueField(8, 5, name: "T", valueProviderCallback: _ => 0x0)
+                .WithValueField(8, 5, FieldMode.Read, name: "T",
+                    valueProviderCallback: _ => (ulong)transmitFifoLevel >= MaxFIFOSize ? MaxFIFOSize : (ulong)transmitFifoLevel)
                 .WithReservedBits(13, 3);
 
             Registers.SerialPort.Define(this)
@@ -321,9 +386,9 @@ namespace Antmicro.Renode.Peripherals.SCI
             // "When the number of entries in the reception FIFO ... rises to or above the specified trigger number for reception,
             //  the RDF flag is set to 1 and a receive FIFO data full interrupt (RXI) request is generated"
             Registers.FifoTriggerControl.Define(this, 0x1f1f)
-                .WithTag("TFTC", 0, 5)
+                .WithValueField(0, 5, out transmitFifoDataTriggerNumber, name: "TFTC")
                 .WithReservedBits(5, 2)
-                .WithTaggedFlag("TTRGS", 7)
+                .WithFlag(7, out transmitTriggerSelect, name: "TTRGS")
                 .WithValueField(8, 5, out receiveFifoDataTriggerNumber, name: "RFTC")
                 .WithReservedBits(13, 2)
                 .WithFlag(15, out receiveTriggerSelect, name: "RTRGS");
@@ -341,37 +406,56 @@ namespace Antmicro.Renode.Peripherals.SCI
                 {
                     switch(receiveFifoDataTriggerNumberSelect.Value)
                     {
-                        case 0:
-                            return 1;
-                        case 1:
-                            return 4;
-                        case 2:
-                            return 8;
-                        case 3:
-                            return 14;
-                        default:
-                            this.ErrorLog(
-                                "{0} has invalid value {1}. Defaulting to 0x1.",
-                                nameof(receiveFifoDataTriggerNumberSelect),
-                                receiveFifoDataTriggerNumberSelect.Value
-                            );
-                            return 1;
+                    case 0:
+                        return 1;
+                    case 1:
+                        return 4;
+                    case 2:
+                        return 8;
+                    case 3:
+                        return 14;
+                    default:
+                        this.ErrorLog(
+                            "{0} has invalid value {1}. Defaulting to 0x1.",
+                            nameof(receiveFifoDataTriggerNumberSelect),
+                            receiveFifoDataTriggerNumberSelect.Value
+                        );
+                        return 1;
                     }
                 }
             }
         }
 
-        private void UpdateInterrupts()
+        private int TranmitFIFOTriggerCount
         {
-            Connections[ReceiveFifoFullIrqIdx].Set(receiveInterruptEnabled.Value && receiveFifoFull.Value);
-            // Transmit is always instant, so if the transmit interrupt is enabled
-            // and we have written some char, the IRQ triggers.
-            Connections[TransmitFifoEmptyIrqIdx].Set(transmitInterruptEnabled.Value && transmitFIFOEmpty.Value);
-            Connections[TransmitEndReceiveReadyIrqIdx].Set((receiveInterruptEnabled.Value && receiveDataReady.Value) ||
-                                                           (transmitEndInterruptEnabled.Value && transmitEnd.Value));
-            // We don't implement these interrupts
-            Connections[ReceiveErrorIrqIdx].Set(false);
-            Connections[BreakOrOverrunIrqIdx].Set(false);
+            get
+            {
+                if(transmitTriggerSelect.Value)
+                {
+                    return (int)transmitFifoDataTriggerNumber.Value;
+                }
+                else
+                {
+                    switch(transmitFifoDataTriggerNumberSelect.Value)
+                    {
+                    case 0:
+                        return 8;
+                    case 1:
+                        return 4;
+                    case 2:
+                        return 2;
+                    case 3:
+                        return 0;
+                    default:
+                        this.ErrorLog(
+                            "{0} has invalid value {1}. Defaulting to 0x1.",
+                            nameof(transmitFifoDataTriggerNumberSelect),
+                            transmitFifoDataTriggerNumberSelect.Value
+                        );
+                        return 1;
+                    }
+                }
+            }
         }
 
         private Parity parityBit;
@@ -384,18 +468,23 @@ namespace Antmicro.Renode.Peripherals.SCI
         private IFlagRegisterField receiveEnabled;
         private IFlagRegisterField receiveInterruptEnabled;
         private IFlagRegisterField transmitInterruptEnabled;
-        private IFlagRegisterField transmitFIFOEmpty;
-        private IFlagRegisterField transmitEnd;
-        private IFlagRegisterField receiveDataReady;
-        private IFlagRegisterField receiveFifoFull;
+        private WriteAllowedAfterReadingOneFlag transmitFIFOEmpty;
+        private WriteAllowedAfterReadingOneFlag transmitEnd;
+        private WriteAllowedAfterReadingOneFlag receiveDataReady;
+        private WriteAllowedAfterReadingOneFlag receiveFifoFull;
         private IValueRegisterField bitRate;
         private IValueRegisterField clockSource;
         private IValueRegisterField receiveFifoDataTriggerNumber;
         private IFlagRegisterField receiveTriggerSelect;
         private IValueRegisterField receiveFifoDataTriggerNumberSelect;
+        private IValueRegisterField transmitFifoDataTriggerNumber;
+        private IFlagRegisterField transmitTriggerSelect;
+        private IValueRegisterField transmitFifoDataTriggerNumberSelect;
         private IFlagRegisterField asynchronousBaseClock8Times;
         private IEnumRegisterField<ModulationDutyRegisterSelect> registerSelect;
         private IEnumRegisterField<CommunicationMode> communicationMode;
+        private int transmitFifoLevel = 0;
+        private CancellationTokenSource txFifoResetCancellationTokenSrc;
 
         private readonly Queue<byte> receiveQueue = new Queue<byte>();
 
@@ -406,7 +495,50 @@ namespace Antmicro.Renode.Peripherals.SCI
         private const int ReceiveFifoFullIrqIdx = 2;
         private const int TransmitFifoEmptyIrqIdx = 3;
         private const int TransmitEndReceiveReadyIrqIdx = 4;
-        private const int TransmitInterruptDelay = 5;
+        private const int TransmitInterruptDelay = 10;
+
+        internal class WriteAllowedAfterReadingOneFlag
+        {
+            public WriteAllowedAfterReadingOneFlag(int position, PeripheralRegister register, IPeripheral parent, string name)
+            {
+                flag = register.DefineFlagField(position, FieldMode.Read | FieldMode.WriteZeroToClear, readCallback: ReadCallback, changeCallback: ChangeCallback, name: name);
+                this.name = name;
+                this.parent = parent;
+            }
+
+            public bool Value
+            {
+                get => flag.Value;
+                set
+                {
+                    flag.Value = value;
+                    canWrite = false;
+                }
+            }
+
+            private void ReadCallback(bool oldValue, bool value)
+            {
+                if(oldValue)
+                {
+                    canWrite = true;
+                }
+            }
+
+            private void ChangeCallback(bool oldValue, bool value)
+            {
+                if(!canWrite)
+                {
+                    parent.WarningLog("Flag {0} was changed while this was not allowed, write ignored", name);
+                    flag.Value = oldValue;
+                }
+                canWrite = false;
+            }
+
+            private bool canWrite;
+            private readonly IFlagRegisterField flag;
+            private readonly string name;
+            private readonly IPeripheral parent;
+        }
 
         private enum CommunicationMode
         {
@@ -437,6 +569,22 @@ namespace Antmicro.Renode.Peripherals.SCI
             LineStatus          = 0x12, // LSR
             SerialExtendedMode  = 0x14,  // SEMR
             FifoTriggerControl  = 0x16,  // FTCR
+        }
+    }
+
+    internal static class RenesasRZG_SCIFA_Extensions
+    {
+        public static T WithWriteAllowedAfterReadingOneFlag<T>(this T register, int position, IPeripheral parent, string name = null)
+            where T : PeripheralRegister
+        {
+            return WithWriteAllowedAfterReadingOneFlag(register, position, parent, out _, name);
+        }
+
+        public static T WithWriteAllowedAfterReadingOneFlag<T>(this T register, int position, IPeripheral parent, out RenesasRZG_SCIFA.WriteAllowedAfterReadingOneFlag flag, string name = null)
+            where T : PeripheralRegister
+        {
+            flag = new RenesasRZG_SCIFA.WriteAllowedAfterReadingOneFlag(position, register, parent, name);
+            return register;
         }
     }
 }

@@ -1,12 +1,9 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Utilities;
-using System;
-using System.Linq;
 using System.Numerics;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
@@ -39,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
             var n = AthenaX5200_BigIntegerHelper.CreateBigIntegerFromMemory(manager, (long)RSARegisters.Modulus, modulusLength);
             var a = AthenaX5200_BigIntegerHelper.CreateBigIntegerFromMemory(manager, (long)RSARegisters.Operand, operandLength);
-            
+
             var resultBytes = (a % n).ToByteArray();
             AthenaX5200_BigIntegerHelper.StoreBigIntegerBytes(manager, modulusLength, resultBytes, (long)RSARegisters.Operand);
         }
@@ -87,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         }
 
         private readonly InternalMemoryManager manager;
-        
+
         private enum RSARegisters
         {
             ReductionOperandLength = 0x8,

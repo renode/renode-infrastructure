@@ -1,10 +1,11 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -57,15 +58,15 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(currentOperation.State)
             {
-                case DecodedOperation.OperationState.RecognizeOperation:
-                case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
-                case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
-                case DecodedOperation.OperationState.HandleImmediateCommand:
-                    this.Log(LogLevel.Warning, "Transmission finished in the unexpected state: {0}", currentOperation.State);
-                    break;
-                default:
-                    this.Log(LogLevel.Noisy, "Transmission finished in state: {0}", currentOperation.State);
-                    break;
+            case DecodedOperation.OperationState.RecognizeOperation:
+            case DecodedOperation.OperationState.AccumulateCommandAddressBytes:
+            case DecodedOperation.OperationState.AccumulateNoDataCommandAddressBytes:
+            case DecodedOperation.OperationState.HandleImmediateCommand:
+                this.Log(LogLevel.Warning, "Transmission finished in the unexpected state: {0}", currentOperation.State);
+                break;
+            default:
+                this.Log(LogLevel.Noisy, "Transmission finished in state: {0}", currentOperation.State);
+                break;
             }
             currentOperation.State = DecodedOperation.OperationState.RecognizeOperation;
             currentOperation = default(DecodedOperation);
@@ -86,17 +87,19 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.Log(LogLevel.Noisy, "Transmitting data 0x{0:X}, current state: {1}", data, currentOperation.State);
             switch(currentOperation.State)
             {
-                case DecodedOperation.OperationState.RecognizeOperation:
-                    // When the command is decoded, depending on the operation, we will either start accumulating address bytes
-                    // or immediately handle the command bytes
-                    RecognizeOperation(data);
-                    break;
-                case DecodedOperation.OperationState.HandleCommand:
-                    // Process the remaining command bytes
-                    return HandleCommand(data);
+            case DecodedOperation.OperationState.RecognizeOperation:
+                // When the command is decoded, depending on the operation, we will either start accumulating address bytes
+                // or immediately handle the command bytes
+                RecognizeOperation(data);
+                break;
+            case DecodedOperation.OperationState.HandleCommand:
+                // Process the remaining command bytes
+                return HandleCommand(data);
             }
             return 0;
         }
+
+        private static readonly byte[] deviceID = { 0xC8, 0x60, 0x18 };
 
         private void RecognizeOperation(byte firstByte)
         {
@@ -105,46 +108,46 @@ namespace Antmicro.Renode.Peripherals.SPI
             currentOperation.State = DecodedOperation.OperationState.HandleCommand;
             switch((Commands)firstByte)
             {
-                case Commands.WriteStatusRegister:
-                    currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
-                    currentOperation.Register = (uint)Register.StatusLow;
-                    currentOperation.State = DecodedOperation.OperationState.HandleCommand;
-                    break;
-                case Commands.ReadStatusRegisterLow:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.StatusLow;
-                    currentOperation.State = DecodedOperation.OperationState.HandleCommand;
-                    break;
-                case Commands.WriteEnable:
-                    currentOperation.Operation = DecodedOperation.OperationType.WriteEnable;
-                    currentOperation.State = DecodedOperation.OperationState.HandleImmediateCommand;
-                    break;
-                case Commands.ReadStatusRegisterHigh:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
-                    currentOperation.Register = (uint)Register.StatusHigh;
-                    currentOperation.State = DecodedOperation.OperationState.HandleCommand;
-                    break;
-                case Commands.ReadID:
-                    currentOperation.Operation = DecodedOperation.OperationType.ReadID;
-                    currentOperation.State = DecodedOperation.OperationState.HandleImmediateCommand;
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X} ({1}).", firstByte, (Commands)firstByte);
-                    return;
+            case Commands.WriteStatusRegister:
+                currentOperation.Operation = DecodedOperation.OperationType.WriteRegister;
+                currentOperation.Register = (uint)Register.StatusLow;
+                currentOperation.State = DecodedOperation.OperationState.HandleCommand;
+                break;
+            case Commands.ReadStatusRegisterLow:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.StatusLow;
+                currentOperation.State = DecodedOperation.OperationState.HandleCommand;
+                break;
+            case Commands.WriteEnable:
+                currentOperation.Operation = DecodedOperation.OperationType.WriteEnable;
+                currentOperation.State = DecodedOperation.OperationState.HandleImmediateCommand;
+                break;
+            case Commands.ReadStatusRegisterHigh:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadRegister;
+                currentOperation.Register = (uint)Register.StatusHigh;
+                currentOperation.State = DecodedOperation.OperationState.HandleCommand;
+                break;
+            case Commands.ReadID:
+                currentOperation.Operation = DecodedOperation.OperationType.ReadID;
+                currentOperation.State = DecodedOperation.OperationState.HandleImmediateCommand;
+                break;
+            default:
+                this.Log(LogLevel.Error, "Command decoding failed on byte: 0x{0:X} ({1}).", firstByte, (Commands)firstByte);
+                return;
             }
             if(currentOperation.State == DecodedOperation.OperationState.HandleImmediateCommand)
             {
                 switch(currentOperation.Operation)
                 {
-                    case DecodedOperation.OperationType.WriteEnable:
-                        writeEnableLatch = true;
-                        break;
-                    case DecodedOperation.OperationType.ReadID:
-                        currentOperation.State = DecodedOperation.OperationState.HandleCommand;
-                        break;
-                    default:
-                        this.Log(LogLevel.Error, "Encountered invalid immediate command: {0}", currentOperation.Operation);
-                        break;
+                case DecodedOperation.OperationType.WriteEnable:
+                    writeEnableLatch = true;
+                    break;
+                case DecodedOperation.OperationType.ReadID:
+                    currentOperation.State = DecodedOperation.OperationState.HandleCommand;
+                    break;
+                default:
+                    this.Log(LogLevel.Error, "Encountered invalid immediate command: {0}", currentOperation.Operation);
+                    break;
                 }
             }
             this.Log(LogLevel.Noisy, "Decoded operation: {0}", currentOperation);
@@ -155,36 +158,36 @@ namespace Antmicro.Renode.Peripherals.SPI
             byte result = 0;
             switch(currentOperation.Operation)
             {
-                case DecodedOperation.OperationType.ReadID:
-                    if(currentOperation.CommandBytesHandled < deviceID.Length)
-                    {
-                        result = deviceID[currentOperation.CommandBytesHandled];
-                    }
-                    else
-                    {
-                        this.Log(LogLevel.Error, "Trying to read beyond the length of the device ID table.");
-                        result = 0;
-                    }
-                    break;
-                case DecodedOperation.OperationType.ReadRegister:
-                    result = ReadRegister(currentOperation.Register);
-                    break;
-                case DecodedOperation.OperationType.WriteRegister:
-                    if(currentOperation.Register == (uint)Register.StatusLow)
-                    {
-                        WriteRegister(currentOperation.Register, data);
-                        currentOperation.Register = (uint)Register.StatusHigh;
-                        writeInProgress = true;
-                    }
-                    else
-                    {
-                        WriteRegister(currentOperation.Register, data);
-                        writeEnableLatch = false;
-                    }
-                    break;
-                default:
-                    this.Log(LogLevel.Warning, "Unhandled operation encountered while processing command bytes: {0}", currentOperation.Operation);
-                    break;
+            case DecodedOperation.OperationType.ReadID:
+                if(currentOperation.CommandBytesHandled < deviceID.Length)
+                {
+                    result = deviceID[currentOperation.CommandBytesHandled];
+                }
+                else
+                {
+                    this.Log(LogLevel.Error, "Trying to read beyond the length of the device ID table.");
+                    result = 0;
+                }
+                break;
+            case DecodedOperation.OperationType.ReadRegister:
+                result = ReadRegister(currentOperation.Register);
+                break;
+            case DecodedOperation.OperationType.WriteRegister:
+                if(currentOperation.Register == (uint)Register.StatusLow)
+                {
+                    WriteRegister(currentOperation.Register, data);
+                    currentOperation.Register = (uint)Register.StatusHigh;
+                    writeInProgress = true;
+                }
+                else
+                {
+                    WriteRegister(currentOperation.Register, data);
+                    writeEnableLatch = false;
+                }
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Unhandled operation encountered while processing command bytes: {0}", currentOperation.Operation);
+                break;
             }
             currentOperation.CommandBytesHandled++;
             this.Log(LogLevel.Noisy, "Handled command: {0}, returning 0x{1:X}", currentOperation, result);
@@ -207,16 +210,15 @@ namespace Antmicro.Renode.Peripherals.SPI
             registers.Write(offset, data);
         }
 
+        private bool writeEnableLatch;
+
+        private bool writeInProgress;
+
         private DecodedOperation currentOperation;
-        private ByteRegisterCollection registers;
+        private readonly ByteRegisterCollection registers;
 
         private readonly MappedMemory underlyingMemory;
         private readonly IFlagRegisterField quadEnable;
-
-        private bool writeInProgress;
-        private bool writeEnableLatch;
-
-        private static byte[] deviceID = { 0xC8, 0x60, 0x18 };
 
         private enum Commands : byte
         {

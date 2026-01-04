@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
@@ -16,10 +17,18 @@ namespace Antmicro.Renode.Storage.VirtIO
     // Source: https://docs.oasis-open.org/virtio/virtio/v1.2/csd01/virtio-v1.2-csd01.html#x1-350007
     public class Virtqueue
     {
+        public Virtqueue(VirtIO parent, uint maxSize, ulong arrayIndex)
+        {
+            this.parent = parent;
+            this.MaxSize = maxSize;
+            this.ArrayIndex = arrayIndex;
+        }
+
         public Virtqueue(VirtIO parent, uint maxSize)
         {
             this.parent = parent;
-            this.maxSize = maxSize;
+            this.MaxSize = maxSize;
+            this.ArrayIndex = 0;
         }
 
         public void Reset()
@@ -35,6 +44,9 @@ namespace Antmicro.Renode.Storage.VirtIO
             IsReset = false;
         }
 
+        // A lenght that is smaller than the received buffers length will not read the entire buffer
+        // But also not report any problems. Length of the received buffer can be acquired to the 
+        // caller using the Descriptor field
         public bool TryReadFromBuffers(int len, out byte[] data)
         {
             var readLen = 0;
@@ -116,7 +128,6 @@ namespace Antmicro.Renode.Storage.VirtIO
 
                 if(!parent.ProcessChain(this))
                 {
-                    parent.Log(LogLevel.Error, "Error processing virtqueue requests");
                     BytesWritten = 0;
                     return;
                 }
@@ -158,7 +169,7 @@ namespace Antmicro.Renode.Storage.VirtIO
 
         public void ReadDescriptorMetadata()
         {
-            parent.Log(LogLevel.Debug, "Reading desc meta, queueSel: {0}, descIndex: {1}", parent.QueueSel, DescriptorIndex);
+            parent.Log(LogLevel.Debug, "Reading desc meta, queueIndex: {0}, descIndex: {1}", ArrayIndex, DescriptorIndex);
             var descriptorAddress = DescTableAddress + DescriptorSize * (ulong)DescriptorIndex;
             var scanBytes = parent.SystemBus.ReadBytes(descriptorAddress, DescriptorSizeOffset, context: GetCurrentContext());
             Descriptor = Packet.Decode<DescriptorMetadata>(scanBytes);
@@ -172,17 +183,28 @@ namespace Antmicro.Renode.Storage.VirtIO
         public ulong AvailableAddress { get; set; }
         /// Guest physical address of the used ring.
         public ulong UsedAddress { get; set; }
+
         public int DescriptorIndex { get; set; }
+
         public ulong AvailableIndex { get; set; }
+
         public ulong AvailableIndexFromDriver { get; set; }
+
         public ulong UsedIndex { get; set; }
+
         public ulong UsedIndexForDriver { get; set; }
+
         public bool IsReady { get; set; }
+
         public bool IsReset { get; set; }
+
         public DescriptorMetadata Descriptor { get; set; }
+
         public int BytesWritten { get; set; }
 
-        public readonly uint maxSize;
+        public readonly uint MaxSize;
+        // The index this queue has in its parents index
+        public readonly ulong ArrayIndex;
 
         public const uint AvailableRingEntrySize = 0x2;
         public const uint UsedRingEntrySize = 0x8;
@@ -226,6 +248,19 @@ namespace Antmicro.Renode.Storage.VirtIO
         private readonly VirtIO parent;
         private const int DescriptorSizeOffset = 0x12;
 
+        [LeastSignificantByteFirst]
+        public struct DescriptorMetadata
+        {
+            [PacketField, Width(bits: 64)]
+            public ulong BufferAddress;
+            [PacketField, Offset(doubleWords: 2), Width(bits: 32)]
+            public int Length;
+            [PacketField, Offset(doubleWords: 3), Width(bits: 16)]
+            public ushort Flags;
+            [PacketField, Offset(doubleWords: 3, bits: 16), Width(bits: 16)]
+            public ushort Next;
+        }
+
         // Used and Available have the same structure. The main difference is type of elements used in ring arrays.
         // In Available it's only a 16bit number. In Used it's a structure described in UsedRing enum.
         public enum UsedAndAvailable
@@ -242,7 +277,7 @@ namespace Antmicro.Renode.Storage.VirtIO
         }
 
         [Flags]
-        public enum DescriptorFlags: ushort
+        public enum DescriptorFlags : ushort
         {
             Next = 1 << 0,
             Write = 1 << 1,
@@ -250,22 +285,9 @@ namespace Antmicro.Renode.Storage.VirtIO
         }
 
         [Flags]
-        public enum UsedAndAvailableFlags: ushort
+        public enum UsedAndAvailableFlags : ushort
         {
             NoNotify = 1 << 0,
-        }
-
-        [LeastSignificantByteFirst]
-        public struct DescriptorMetadata
-        {
-            [PacketField, Width(64)]
-            public ulong BufferAddress;
-            [PacketField, Offset(doubleWords: 2), Width(32)]
-            public int Length;
-            [PacketField, Offset(doubleWords: 3), Width(16)]
-            public ushort Flags;
-            [PacketField, Offset(doubleWords: 3, bits: 16), Width(16)]
-            public ushort Next;
         }
     }
 }

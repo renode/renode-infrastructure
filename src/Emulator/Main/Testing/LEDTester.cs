@@ -6,13 +6,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Runtime.CompilerServices;
+using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
-using System.Threading;
 using Antmicro.Renode.Peripherals.Miscellaneous;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Time;
-using System.Runtime.CompilerServices;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Testing
 {
@@ -72,7 +73,7 @@ namespace Antmicro.Renode.Testing
                         return this;
                     }
 
-                    WaitHandle.WaitAny(new [] { timeoutEvent.WaitHandle, ev });
+                    WaitHandle.WaitAny(new[] { timeoutEvent.WaitHandle, ev });
                 }
                 while(!timeoutEvent.IsTriggered);
             }
@@ -266,6 +267,25 @@ namespace Antmicro.Renode.Testing
             return this;
         }
 
+        // If no min or max is provided, this function checks whether the argument is not negative
+        // (if allowZero) or positive (otherwise)
+        private static void ValidateArgument(double value, string name, bool allowZero = false,
+            double? min = null, double? max = null)
+        {
+            if(min != null || max != null)
+            {
+                if(value < min || value > max)
+                {
+                    throw new ArgumentException($"Value must be in range [{min}; {max}], but was {value}", name);
+                }
+            }
+            else if(value < 0 || !allowZero && value == 0)
+            {
+                var explanation = allowZero ? "not be negative" : "be positive";
+                throw new ArgumentException($"Value must {explanation}, but was {value}", name);
+            }
+        }
+
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         private bool IsInRange(double actualValue, double expectedValue, double tolerance)
         {
@@ -334,28 +354,8 @@ namespace Antmicro.Renode.Testing
             return emulationPausedEvent;
         }
 
-        // If no min or max is provided, this function checks whether the argument is not negative
-        // (if allowZero) or positive (otherwise)
-        private static void ValidateArgument(double value, string name, bool allowZero = false,
-            double? min = null, double? max = null)
-        {
-            if(min != null || max != null)
-            {
-                if(value < min || value > max)
-                {
-                    throw new ArgumentException($"Value must be in range [{min}; {max}], but was {value}", name);
-                }
-            }
-            else if(value < 0 || !allowZero && value == 0)
-            {
-                var explanation = allowZero ? "not be negative" : "be positive";
-                throw new ArgumentException($"Value must {explanation}, but was {value}", name);
-            }
-        }
-
         private readonly ILed led;
         private readonly IMachine machine;
         private readonly float defaultTimeout;
     }
 }
-

@@ -6,13 +6,15 @@
 //
 using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Core;
+
 using Antmicro.Migrant;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.UART;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+#pragma warning disable IDE0005
+using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -29,6 +31,11 @@ namespace Antmicro.Renode.Peripherals.UART
             Reset();
         }
 
+        public void Reset()
+        {
+            RegistersCollection.Reset();
+        }
+
         public uint ReadDoubleWord(long offset)
         {
             return RegistersCollection.Read(offset);
@@ -36,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteDoubleWord(long offset, uint value)
         {
-           RegistersCollection.Write(offset, value);
+            RegistersCollection.Write(offset, value);
         }
 
         public void WriteChar(byte value)
@@ -44,6 +51,21 @@ namespace Antmicro.Renode.Peripherals.UART
             receiveQueue.Enqueue(value);
             // UpdateInterrupts();
         }
+
+        public GPIO IRQ { get; }
+
+        public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        public long Size => 0x100;
+
+        public uint BaudRate => 115200;
+
+        public Bits StopBits => Bits.One;
+
+        public Parity ParityBit => Parity.None;
+
+        [field: Transient]
+        public event Action<byte> CharReceived;
 
         private void TransmitData(byte value)
         {
@@ -62,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("CHR", 6)
                 .WithTaggedFlag("CM", 7)
                 .WithReservedBits(8, 24);
-            
+
             Registers.BitRate.Define(this, 0xff)
                 .WithTag("BRR", 0, 8)
                 .WithReservedBits(8, 24);
@@ -83,8 +105,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithValueField(0, 8, FieldMode.Write, name: "TDR",
                     writeCallback: (_, value) =>
                     {
-                    TransmitData((byte)value);
-                    //UpdateInterrupts();
+                        TransmitData((byte)value);
+                        //UpdateInterrupts();
                     })
                 .WithReservedBits(8, 24);
 
@@ -101,7 +123,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 });
 
             Registers.FifoDataCount.Define(this)
-                .WithValueField(0, 16, valueProviderCallback: _ => (ulong) receiveQueue.Count);
+                .WithValueField(0, 16, valueProviderCallback: _ => (ulong)receiveQueue.Count);
 
             Registers.SerialStatus.Define(this, 0x60)
 
@@ -126,26 +148,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private readonly Queue<byte> receiveQueue;
 
-        [field: Transient]
-        public event Action<byte> CharReceived;
-
-        public GPIO IRQ { get; }
-
-        public DoubleWordRegisterCollection RegistersCollection { get; }
-
-        public long Size => 0x100;
-
-        public uint BaudRate => 115200;
-
-        public void Reset()
-        {
-          RegistersCollection.Reset();
-        }
-
-        public Bits StopBits => Bits.One;
-
-        public Parity ParityBit => Parity.None;
-
         private enum Registers
         {
             SerialMode = 0x0,
@@ -163,4 +165,3 @@ namespace Antmicro.Renode.Peripherals.UART
         }
     }
 }
-

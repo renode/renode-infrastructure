@@ -6,8 +6,8 @@
 //
 
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
@@ -45,6 +45,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             RegistersCollection.Reset();
         }
 
+        public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        public long Size => 0x200;
+
         private void DefineCommonRegisters()
         {
             Registers.ClockSel.Define(this)
@@ -55,10 +59,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 .WithTaggedFlag("RC32M_OUTPUT_EN", 9)
                 .WithTaggedFlag("DIVN_OUTPUT_EN", 10);
         }
-
-        public DoubleWordRegisterCollection RegistersCollection { get; }
-
-        public long Size => 0x200;
 
         private readonly Port[] ports;
 

@@ -6,9 +6,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using AntShell.Commands;
-using System.Text;
 using System.IO;
+using System.Text;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface
 {
@@ -60,7 +61,9 @@ namespace Antmicro.Renode.UserInterface
         }
 
         public string CommandToExecute { get { return underlyingCommandInteraction.CommandToExecute; } set { underlyingCommandInteraction.CommandToExecute = value; } }
+
         public bool QuitEnvironment { get { return underlyingCommandInteraction.QuitEnvironment; } set { underlyingCommandInteraction.QuitEnvironment = value; } }
+
         public ICommandInteraction UnderlyingCommandInteraction { get { return underlyingCommandInteraction; } }
 
         private readonly ICommandInteraction underlyingCommandInteraction;
@@ -70,6 +73,21 @@ namespace Antmicro.Renode.UserInterface
 
     public class CommandInteractionEater : ICommandInteraction
     {
+        public string GetContents()
+        {
+            return data.ToString();
+        }
+
+        public string GetError()
+        {
+            return error.ToString();
+        }
+
+        public Stream GetRawInputStream()
+        {
+            return null;
+        }
+
         public void Clear()
         {
             data.Clear();
@@ -96,21 +114,6 @@ namespace Antmicro.Renode.UserInterface
         public bool QuitEnvironment { get; set; }
 
         public bool HasError => error.Length > 0;
-
-        public string GetContents()
-        {
-            return data.ToString();
-        }
-
-        public string GetError()
-        {
-            return error.ToString();
-        }
-
-        public Stream GetRawInputStream()
-        {
-            return null;
-        }
 
         private readonly StringBuilder data = new StringBuilder();
         private readonly StringBuilder error = new StringBuilder();
@@ -150,8 +153,8 @@ namespace Antmicro.Renode.UserInterface
             return null;
         }
 
-        public bool ErrorDetected 
-        { 
+        public bool ErrorDetected
+        {
             get
             {
                 var result = errorDetected;
@@ -169,8 +172,8 @@ namespace Antmicro.Renode.UserInterface
 
         public bool QuitEnvironment { get; set; }
 
-        private bool verbose;
         private bool errorDetected;
+
+        private readonly bool verbose;
     }
 }
-

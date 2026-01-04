@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
@@ -89,7 +90,7 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     if(CommandResponseDelayMilliseconds.HasValue)
                     {
-                        machine.ScheduleAction(TimeInterval.FromMilliseconds(CommandResponseDelayMilliseconds.Value), _ => SendResponse(response)); 
+                        machine.ScheduleAction(TimeInterval.FromMilliseconds(CommandResponseDelayMilliseconds.Value), _ => SendResponse(response));
                     }
                     else
                     {
@@ -137,6 +138,66 @@ namespace Antmicro.Renode.Peripherals.Network
         protected static readonly byte[] CrLfBytes = StringEncoding.GetBytes(CrLf);
         protected static readonly Response Ok = new Response(OkMessage);
         protected static readonly Response Error = new Response(ErrorMessage);
+
+        protected virtual Response HandleCommand(string command)
+        {
+            if(commandOverrides.TryGetValue(command, out var overrideResp))
+            {
+                this.Log(LogLevel.Debug, "Using overridden response for '{0}'{1}",
+                    command, overrideResp.OneShot ? " once" : "");
+                if(overrideResp.OneShot)
+                {
+                    commandOverrides.Remove(command);
+                }
+                return overrideResp.Response;
+            }
+
+            if(!ParsedCommand.TryParse(command, out var parsed))
+            {
+                this.Log(LogLevel.Warning, "Failed to parse command '{0}'", command);
+                return Error;
+            }
+
+            if(!TryFindCommandMethod(parsed, out var handler))
+            {
+                this.Log(LogLevel.Warning, "Unhandled command '{0}'", command);
+                return Error;
+            }
+
+            var parameters = handler.GetParameters();
+            var argumentsString = parsed.Arguments;
+            object[] arguments;
+            try
+            {
+                arguments = ParseArguments(argumentsString, parameters);
+            }
+            catch(ArgumentException e)
+            {
+                this.Log(LogLevel.Warning, "Failed to parse arguments: {0}", e.Message);
+                // An incorrectly-formatted argument always leads to a plain ERROR
+                return Error;
+            }
+            // Pad arguments to the number of parameters with Type.Missing to use defaults
+            if(arguments.Length < parameters.Length)
+            {
+                arguments = arguments
+                    .Concat(Enumerable.Repeat(Type.Missing, parameters.Length - arguments.Length))
+                    .ToArray();
+            }
+
+            try
+            {
+                return (Response)handler.Invoke(this, arguments);
+            }
+            catch(ArgumentException)
+            {
+                var parameterTypesString = string.Join(", ", parameters.Select(t => t.ParameterType.FullName));
+                var argumentTypesString = string.Join(", ", arguments.Select(a => a?.GetType()?.FullName ?? "(null)"));
+                this.Log(LogLevel.Error, "Argument type mismatch in command '{0}'. Got types [{1}], expected [{2}]",
+                    command, argumentTypesString, parameterTypesString);
+                return Error;
+            }
+        }
 
         protected void SendChar(char ch)
         {
@@ -253,7 +314,10 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         protected bool Enabled { get; set; }
+
         protected bool PassthroughMode { get; set; }
+
+        protected readonly IMachine machine;
 
         protected const string OkMessage = "OK";
         protected const string ErrorMessage = "ERROR";
@@ -261,8 +325,6 @@ namespace Antmicro.Renode.Peripherals.Network
         protected const string CrLfSymbol = "⏎";
         protected const byte ControlZ = 26;
         protected const byte Escape = 27;
-
-        protected readonly IMachine machine;
 
         private Response DefaultTestCommand()
         {
@@ -290,66 +352,6 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             return method != null;
-        }
-
-        protected virtual Response HandleCommand(string command)
-        {
-            if(commandOverrides.TryGetValue(command, out var overrideResp))
-            {
-                this.Log(LogLevel.Debug, "Using overridden response for '{0}'{1}",
-                    command, overrideResp.oneShot ? " once" : "");
-                if(overrideResp.oneShot)
-                {
-                    commandOverrides.Remove(command);
-                }
-                return overrideResp.response;
-            }
-
-            if(!ParsedCommand.TryParse(command, out var parsed))
-            {
-                this.Log(LogLevel.Warning, "Failed to parse command '{0}'", command);
-                return Error;
-            }
-
-            if(!TryFindCommandMethod(parsed, out var handler))
-            {
-                this.Log(LogLevel.Warning, "Unhandled command '{0}'", command);
-                return Error;
-            }
-
-            var parameters = handler.GetParameters();
-            var argumentsString = parsed.Arguments;
-            object[] arguments;
-            try
-            {
-                arguments = ParseArguments(argumentsString, parameters);
-            }
-            catch(ArgumentException e)
-            {
-                this.Log(LogLevel.Warning, "Failed to parse arguments: {0}", e.Message);
-                // An incorrectly-formatted argument always leads to a plain ERROR
-                return Error;
-            }
-            // Pad arguments to the number of parameters with Type.Missing to use defaults
-            if(arguments.Length < parameters.Length)
-            {
-                arguments = arguments
-                    .Concat(Enumerable.Repeat(Type.Missing, parameters.Length - arguments.Length))
-                    .ToArray();
-            }
-
-            try
-            {
-                return (Response)handler.Invoke(this, arguments);
-            }
-            catch(ArgumentException)
-            {
-                var parameterTypesString = string.Join(", ", parameters.Select(t => t.ParameterType.FullName));
-                var argumentTypesString = string.Join(", ", arguments.Select(a => a?.GetType()?.FullName ?? "(null)"));
-                this.Log(LogLevel.Error, "Argument type mismatch in command '{0}'. Got types [{1}], expected [{2}]",
-                    command, argumentTypesString, parameterTypesString);
-                return Error;
-            }
         }
 
         private Dictionary<string, Dictionary<CommandType, MethodInfo>> GetCommandMethods()
@@ -488,12 +490,15 @@ namespace Antmicro.Renode.Peripherals.Network
 
             // The status line is usually "OK" or "ERROR"
             public string Status { get; }
+
             // The parameters are the actual useful data returned by a command, for example
             // the current value of a parameter in the case of a Read command
             public string[] Parameters { get; }
+
             // Alternatively to parameters, a binary body can be provided. It is placed where
             // the parameters would be and surrounded with CrLf
             public byte[] BinaryBody { get; }
+
             // The trailer can be thought of as an immediately-sent URC: it is sent after
             // the status line.
             public string Trailer { get; }
@@ -546,12 +551,12 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             public CommandOverride(Response response, bool oneShot)
             {
-                this.response = response;
-                this.oneShot = oneShot;
+                this.Response = response;
+                this.OneShot = oneShot;
             }
 
-            public readonly Response response;
-            public readonly bool oneShot;
+            public readonly Response Response;
+            public readonly bool OneShot;
         }
     }
 }

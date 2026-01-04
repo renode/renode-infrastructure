@@ -4,14 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
@@ -23,8 +16,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
     }
 
-    public sealed class IEEE802_15_4Medium : WirelessMedium 
+    public sealed class IEEE802_15_4Medium : WirelessMedium
     {
-        public IEEE802_15_4Medium() {}
+        public IEEE802_15_4Medium() { }
     }
 }

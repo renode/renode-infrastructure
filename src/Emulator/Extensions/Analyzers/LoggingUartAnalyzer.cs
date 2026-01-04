@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,14 +7,14 @@
 //
 using System;
 using System.Text;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.UART;
-using Antmicro.Renode.Utilities;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Analyzers
 {
@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Analyzers
     // properties from Monitor. In order to do this one must create analyzer
     // and add it as external using command below:
     //
-    // showAnalyzer "ExternalName" sysbus.uart_name Antmicro.Renode.Analyzers.LoggingUartAnalyzer
+    // showAnalyzer "ExternalName" sysbus.uart_name LoggingUartAnalyzer
     //
     [Transient]
     public class LoggingUartAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IExternal
@@ -60,6 +60,10 @@ namespace Antmicro.Renode.Analyzers
                 WriteChar(10); // this allows us to flush the last, unfinished line (e.g. the prompt) to the log
             }
             uart.CharReceived -= WriteChar;
+        }
+
+        public override void Clear()
+        {
         }
 
         public LogLevel LogLevel { get; set; }
@@ -167,4 +171,3 @@ namespace Antmicro.Renode.Analyzers
         }
     }
 }
-

@@ -1,30 +1,31 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
+
 using Antmicro.Migrant;
-using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities.Binding;
 
 namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
     [Transient]
     public abstract class BaseProfiler : IDisposable
     {
-        public BaseProfiler(TranslationCPU cpu, string filename, bool flushInstantly)
+        public BaseProfiler(TranslationCPU cpu, bool flushInstantly, int? maximumNestedContexts)
         {
             this.cpu = cpu;
             this.flushInstantly = flushInstantly;
+
+            if(maximumNestedContexts <= 0)
+            {
+                throw new ConstructionException("Optional maximumNestedContexts parameter must be a non-zero, positive integer.");
+            }
+            this.maximumNestedContexts = maximumNestedContexts;
 
             isFirstFrame = true;
             bufferLock = new Object();
@@ -32,19 +33,31 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             wholeExecution.Add(currentContextId, new ProfilerContext());
         }
 
+        public virtual string GetCurrentStack()
+        {
+            throw new RecoverableException($"Functionality is not supported by the currently selected profiler");
+        }
+
         public virtual void Dispose()
         {
             FlushBuffer();
-            currentStack.Clear();
-            currentContext.Clear();
+            CurrentStack.Clear();
+            CurrentContext.Clear();
             wholeExecution.Clear();
         }
 
         public abstract void StackFrameAdd(ulong currentAddress, ulong returnAddress, ulong instructionsCount);
+
         public abstract void StackFramePop(ulong currentAddress, ulong returnAddress, ulong instructionsCount);
+
         public abstract void OnContextChange(ulong newContextId);
+
+        public abstract void OnStackPointerChange(ulong address, ulong oldSPValue, ulong newSPValue, ulong instructionsCount);
+
         public abstract void InterruptEnter(ulong interruptIndex);
+
         public abstract void InterruptExit(ulong interruptIndex);
+
         public abstract void FlushBuffer();
 
         protected string GetSymbolName(ulong address)
@@ -57,16 +70,31 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             return name;
         }
 
+        protected void PushCurrentContextSafe()
+        {
+            if(maximumNestedContexts.HasValue && CurrentContext.Count >= maximumNestedContexts)
+            {
+                cpu.Log(LogLevel.Warning, "Profiler: maximum nested contexts exceeded, disabling profiler");
+                cpu.DisableProfiler();
+                return;
+            }
+            CurrentContext.PushCurrentStack();
+        }
+
+        protected ProfilerContext CurrentContext => wholeExecution[currentContextId];
+
+        protected Stack<string> CurrentStack => CurrentContext.CurrentStack;
+
+        protected bool isFirstFrame;
+        protected ulong currentContextId;
+
         protected readonly TranslationCPU cpu;
         protected readonly bool flushInstantly;
         protected readonly Object bufferLock;
         // Keeps track of all of the created contexts. Key is the id of the thread
         protected readonly Dictionary<ulong, ProfilerContext> wholeExecution;
 
-        protected ProfilerContext currentContext => wholeExecution[currentContextId];
-        protected Stack<string> currentStack => currentContext.CurrentStack;
-        protected bool isFirstFrame;
-        protected ulong currentContextId;
+        private readonly int? maximumNestedContexts;
 
         protected class ProfilerContext
         {
@@ -100,11 +128,13 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             }
 
             public int Count => context.Count;
+
             public Stack<string> CurrentStack => currentStack;
+
+            private Stack<string> currentStack;
 
             // We need to keep a stack of stacks as each context has its main execution and (potentially nested) interrupts
             private readonly Stack<Stack<string>> context;
-            private Stack<string> currentStack;
         }
     }
 }

@@ -5,18 +5,23 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.UserInterface.Tokenizer;
-using AntShell.Commands;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.UserInterface.Tokenizer;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class LogLevelCommand : AutoLoadCommand
     {
+        public LogLevelCommand(Monitor monitor) : base(monitor, "logLevel", "sets logging level for backends.")
+        {
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -223,7 +228,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             foreach(var backend in Logger.GetBackends().Where(b => b.Value.IsControllable))
             {
                 writer.WriteLine(string.Format("{0,-18}: {1,-36}: {2}", backend.Key, string.Empty, backend.Value.GetLogLevel()));
-                foreach (var custom in backend.Value.GetCustomLogLevels())
+                foreach(var custom in backend.Value.GetCustomLogLevels())
                 {
                     EmulationManager.Instance.CurrentEmulation.CurrentLogger.TryGetName(custom.Key, out objectName, out machineName);
                     writer.WriteLine(string.Format("{0,-18}: {1,-36}: {2}", string.Empty, string.Format("{0}:{1}", machineName, objectName), custom.Value));
@@ -231,10 +236,5 @@ namespace Antmicro.Renode.UserInterface.Commands
                 writer.WriteLine("-----------------------------------------------------------------");
             }
         }
-
-        public LogLevelCommand(Monitor monitor) : base(monitor, "logLevel", "sets logging level for backends.")
-        {
-        }
     }
 }
-

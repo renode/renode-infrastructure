@@ -7,19 +7,20 @@
 
 using System;
 using System.IO;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.HostInterfaces.Camera;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.HostInterfaces.Camera;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public class ArduCAMMini2MPPlus: ISPIPeripheral, II2CPeripheral, IGPIOReceiver, IProvidesRegisterCollection<ByteRegisterCollection>, ISensor
+    public class ArduCAMMini2MPPlus : ISPIPeripheral, II2CPeripheral, IGPIOReceiver, IProvidesRegisterCollection<ByteRegisterCollection>, ISensor
     {
         public ArduCAMMini2MPPlus()
         {
@@ -27,6 +28,24 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             RegistersCollection = new ByteRegisterCollection(this);
             DefineRegisters();
+        }
+
+        public void AttachToExternalCamera(HostCamera camera)
+        {
+#if PLATFORM_LINUX
+            externalCamera = camera;
+#else
+            throw new RecoverableException("The external camera integration is currently available on Linux only!");
+#endif
+        }
+
+        public void DetachFromExternalCamera()
+        {
+#if PLATFORM_LINUX
+            externalCamera = null;
+#else
+            throw new RecoverableException("The external camera integration is currently available on Linux only!");
+#endif
         }
 
         #region SPI_Interface
@@ -37,32 +56,32 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             switch(state)
             {
-                case State.Idle:
-                {
-                    selectedRegister = (Register)BitHelper.GetValue(data, 0, 7);
-                    var isWrite = BitHelper.IsBitSet(data, 7);
+            case State.Idle:
+            {
+                selectedRegister = (Register)BitHelper.GetValue(data, 0, 7);
+                var isWrite = BitHelper.IsBitSet(data, 7);
 
-                    this.NoisyLog("Decoded register {0} (0x{0:X}) and isWrite bit as {1}", selectedRegister, isWrite);
-                    state = isWrite
-                        ? State.Writing
-                        : State.Reading;
+                this.NoisyLog("Decoded register {0} (0x{0:X}) and isWrite bit as {1}", selectedRegister, isWrite);
+                state = isWrite
+                    ? State.Writing
+                    : State.Reading;
 
-                    break;
-                }
+                break;
+            }
 
-                case State.Reading:
-                    this.NoisyLog("Reading register {0} (0x{0:X})", selectedRegister);
-                    result = RegistersCollection.Read((long)selectedRegister);
-                    break;
+            case State.Reading:
+                this.NoisyLog("Reading register {0} (0x{0:X})", selectedRegister);
+                result = RegistersCollection.Read((long)selectedRegister);
+                break;
 
-                case State.Writing:
-                    this.NoisyLog("Writing 0x{0:X} to register {1} (0x{1:X})", data, selectedRegister);
-                    RegistersCollection.Write((long)selectedRegister, data);
-                    break;
+            case State.Writing:
+                this.NoisyLog("Writing 0x{0:X} to register {1} (0x{1:X})", data, selectedRegister);
+                RegistersCollection.Write((long)selectedRegister, data);
+                break;
 
-                default:
-                    this.Log(LogLevel.Error, "Received byte in an unexpected state: {0}", state);
-                    break;
+            default:
+                this.Log(LogLevel.Error, "Received byte in an unexpected state: {0}", state);
+                break;
             }
 
             this.NoisyLog("Received byte 0x{0:X}, returning 0x{1:X}", data, result);
@@ -124,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public ByteRegisterCollection RegistersCollection { get; }
 
-        public string ImageSource 
+        public string ImageSource
         {
             get
             {
@@ -152,24 +171,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     throw new RecoverableException($"Could not load image {value}: {(e.Message)}");
                 }
             }
-        }
-
-        public void AttachToExternalCamera(HostCamera camera)
-        {
-#if PLATFORM_LINUX
-            externalCamera = camera;
-#else
-            throw new RecoverableException("The external camera integration is currently available on Linux only!");
-#endif
-        }
-
-        public void DetachFromExternalCamera()
-        {
-#if PLATFORM_LINUX
-            externalCamera = null;
-#else
-            throw new RecoverableException("The external camera integration is currently available on Linux only!");
-#endif
         }
 
         private void DefineRegisters()
@@ -205,7 +206,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 #else
                     if(preloadedImageData != null)
 #endif
-                    { 
+                    {
                         imageData = preloadedImageData;
                     }
                     else
@@ -256,6 +257,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             ;
         }
 
+#if PLATFORM_LINUX
+        private HostCamera externalCamera;
+#endif
+
         private bool chipSelected;
         private Register selectedRegister;
         private State state;
@@ -268,10 +273,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField fifoDone;
 
         private readonly OV2640 sensor;
-
-#if PLATFORM_LINUX
-        private HostCamera externalCamera;
-#endif
 
         private enum State
         {

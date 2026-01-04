@@ -8,7 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core.USB;
@@ -272,7 +272,6 @@ namespace Antmicro.Renode.Peripherals.USB
             this.Log(LogLevel.Noisy, "Enqueuing chunk of additional data from master of size {0}", chunk.Length);
             EnqueueDataFromMaster(chunk);
         }
-
 
         private void EnqueueDataFromMaster(IEnumerable<byte> data)
         {

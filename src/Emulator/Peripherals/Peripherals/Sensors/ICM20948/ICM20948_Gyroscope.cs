@@ -1,14 +1,15 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities.RESD;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -68,12 +69,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         public decimal AngularRateX => angularRateX ?? DefaultAngularRateX;
+
         public decimal AngularRateY => angularRateY ?? DefaultAngularRateY;
+
         public decimal AngularRateZ => angularRateZ ?? DefaultAngularRateZ;
 
         [OnRESDSample(SampleType.AngularRate)]
         [BeforeRESDSample(SampleType.AngularRate)]
-        private void HandleAngularRateSample(AngularRateSample sample, TimeInterval timestamp)
+        private void HandleAngularRateSample(AngularRateSample sample, TimeInterval _)
         {
             if(sample != null)
             {
@@ -92,6 +95,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         [AfterRESDSample(SampleType.AngularRate)]
         private void HandleAngularRateSampleEnded(AngularRateSample sample, TimeInterval timestamp)
         {
+            HandleAngularRateSample(sample, timestamp);
             gyroFeederThread.Stop();
             gyroFeederThread = null;
         }
@@ -100,24 +104,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             return Math.Abs(value) <= GyroFullScaleRangeDPS;
         }
-
-        private ushort RawAngularRateX => ConvertMeasurement(AngularRateX, value => value * GyroSensitivityScaleFactor);
-        private ushort RawAngularRateY => ConvertMeasurement(AngularRateY, value => value * GyroSensitivityScaleFactor);
-        private ushort RawAngularRateZ => ConvertMeasurement(AngularRateZ, value => value * GyroSensitivityScaleFactor);
-
-        private decimal? angularRateX;
-        private decimal? angularRateY;
-        private decimal? angularRateZ;
-        private decimal defaultAngularRateX;
-        private decimal defaultAngularRateY;
-        private decimal defaultAngularRateZ;
-
-        private RESDStream<AngularRateSample> gyroResdStream;
-        private IManagedThread gyroFeederThread;
-
-        private const decimal RadiansToDegrees = 180m / (decimal)Math.PI;
-        private const decimal GyroMaxOutputDataRateHz = 9000;
-        private const decimal GyroOffsetCancellationStepSizeDPS = 0.0305m;
 
         private decimal GyroOutputDataRateHz
         {
@@ -137,16 +123,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 switch(gyroFullScaleRange.Value)
                 {
-                    case GyroFullScaleRangeSelection.Mode0_250DPS:
-                        return 250;
-                    case GyroFullScaleRangeSelection.Mode1_500DPS:
-                        return 500;
-                    case GyroFullScaleRangeSelection.Mode2_1000DPS:
-                        return 1000;
-                    case GyroFullScaleRangeSelection.Mode3_2000DPS:
-                        return 2000;
-                    default:
-                        throw new Exception("Wrong gyroscope full scale range selection");
+                case GyroFullScaleRangeSelection.Mode0_250DPS:
+                    return 250;
+                case GyroFullScaleRangeSelection.Mode1_500DPS:
+                    return 500;
+                case GyroFullScaleRangeSelection.Mode2_1000DPS:
+                    return 1000;
+                case GyroFullScaleRangeSelection.Mode3_2000DPS:
+                    return 2000;
+                default:
+                    throw new Exception("Wrong gyroscope full scale range selection");
                 }
             }
         }
@@ -157,21 +143,41 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 switch(gyroFullScaleRange.Value)
                 {
-                    case GyroFullScaleRangeSelection.Mode0_250DPS:
-                        return 131m;
-                    case GyroFullScaleRangeSelection.Mode1_500DPS:
-                        return 65.5m;
-                    case GyroFullScaleRangeSelection.Mode2_1000DPS:
-                        return 32.8m;
-                    case GyroFullScaleRangeSelection.Mode3_2000DPS:
-                        return 16.4m;
-                    default:
-                        throw new Exception("Wrong gyroscope full scale range selection");
+                case GyroFullScaleRangeSelection.Mode0_250DPS:
+                    return 131m;
+                case GyroFullScaleRangeSelection.Mode1_500DPS:
+                    return 65.5m;
+                case GyroFullScaleRangeSelection.Mode2_1000DPS:
+                    return 32.8m;
+                case GyroFullScaleRangeSelection.Mode3_2000DPS:
+                    return 16.4m;
+                default:
+                    throw new Exception("Wrong gyroscope full scale range selection");
                 }
             }
         }
 
         private int GyroAveragedSamples => (int)Math.Pow(2, gyroAveragingFilterExponent.Value);
+
+        private ushort RawAngularRateX => ConvertMeasurement(AngularRateX, value => value * GyroSensitivityScaleFactor);
+
+        private ushort RawAngularRateY => ConvertMeasurement(AngularRateY, value => value * GyroSensitivityScaleFactor);
+
+        private ushort RawAngularRateZ => ConvertMeasurement(AngularRateZ, value => value * GyroSensitivityScaleFactor);
+
+        private decimal? angularRateX;
+        private decimal? angularRateY;
+        private decimal? angularRateZ;
+        private decimal defaultAngularRateX;
+        private decimal defaultAngularRateY;
+        private decimal defaultAngularRateZ;
+
+        private RESDStream<AngularRateSample> gyroResdStream;
+        private IManagedThread gyroFeederThread;
+
+        private const decimal RadiansToDegrees = 180m / (decimal)Math.PI;
+        private const decimal GyroMaxOutputDataRateHz = 9000;
+        private const decimal GyroOffsetCancellationStepSizeDPS = 0.0305m;
 
         private enum GyroFullScaleRangeSelection : byte
         {

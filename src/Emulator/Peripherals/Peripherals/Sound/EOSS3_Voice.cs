@@ -1,15 +1,15 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sound
@@ -40,47 +40,41 @@ namespace Antmicro.Renode.Peripherals.Sound
         {
             switch(channel)
             {
-                case Channel.Left:
-                    {
-                        if(decoderLeft == null)
-                        {
-                            decoderLeft = new PCMDecoder(16, 16000, 1, false, this);
-                        }
+            case Channel.Left:
+            {
+                if(decoderLeft == null)
+                {
+                    decoderLeft = new PCMDecoder(16, 16000, 1, false, this);
+                }
 
-                        for(var i = 0; i < repeat; i++)
-                        {
-                            decoderLeft.LoadFile(fileName);
-                        }
-                        inputFileLeft = fileName;
-                    }
-                    break;
+                for(var i = 0; i < repeat; i++)
+                {
+                    decoderLeft.LoadFile(fileName);
+                }
+                inputFileLeft = fileName;
+            }
+            break;
 
-                case Channel.Right:
-                    {
-                        if(decoderRight == null)
-                        {
-                            decoderRight = new PCMDecoder(16, 16000, 1, false, this);
-                        }
+            case Channel.Right:
+            {
+                if(decoderRight == null)
+                {
+                    decoderRight = new PCMDecoder(16, 16000, 1, false, this);
+                }
 
-                        for(var i = 0; i < repeat; i++)
-                        {
-                            decoderRight.LoadFile(fileName);
-                        }
-                        inputFileRight = fileName;
-                    }
-                    break;
+                for(var i = 0; i < repeat; i++)
+                {
+                    decoderRight.LoadFile(fileName);
+                }
+                inputFileRight = fileName;
+            }
+            break;
             }
         }
 
         public GPIO IRQ { get; }
 
         public long Size => 0x1000;
-
-        public enum Channel
-        {
-            Left = 0,
-            Right = 1,
-        }
 
         private void Start()
         {
@@ -130,53 +124,53 @@ namespace Antmicro.Renode.Peripherals.Sound
 
             switch(numberOfChannels)
             {
-                case 1:
-                    var samples = decoderLeft.GetSamplesByCount(samplesCount);
+            case 1:
+                var samples = decoderLeft.GetSamplesByCount(samplesCount);
 
-                    var index = 1u;
-                    ushort prev = 0;
+                var index = 1u;
+                ushort prev = 0;
 
-                    foreach(ushort sample in samples)
+                foreach(ushort sample in samples)
+                {
+                    if(index % 2 != 0)
                     {
-                        if(index % 2 != 0)
-                        {
-                            prev = sample;
-                        }
-                        else
-                        {
-                            // Assuming input file format of s16le
-                            preparedDoubleWords[(index / 2) - 1] = (uint)((Misc.SwapBytesUShort(sample) << 16) | Misc.SwapBytesUShort(prev));
-                        }
-                        index++;
+                        prev = sample;
                     }
-
-                    if(index % 2 == 0)
+                    else
                     {
-                        // One sample left
-                        preparedDoubleWords[(index / 2) - 1] = prev;
+                        // Assuming input file format of s16le
+                        preparedDoubleWords[(index / 2) - 1] = (uint)((Misc.SwapBytesUShort(sample) << 16) | Misc.SwapBytesUShort(prev));
                     }
+                    index++;
+                }
 
-                    break;
-                case 2:
-                    var samplesLeft = decoderLeft.GetSamplesByCount(samplesCount / 2).ToArray();
-                    var samplesRight = decoderRight.GetSamplesByCount(samplesCount / 2).ToArray();
+                if(index % 2 == 0)
+                {
+                    // One sample left
+                    preparedDoubleWords[(index / 2) - 1] = prev;
+                }
 
-                    if(samplesLeft.Length != samplesRight.Length)
-                    {
-                        // Make sure arrays have equal size
-                        var neededSize = Math.Max(samplesLeft.Length, samplesRight.Length);
-                        Array.Resize(ref samplesLeft, neededSize);
-                        Array.Resize(ref samplesRight, neededSize);
-                    }
+                break;
+            case 2:
+                var samplesLeft = decoderLeft.GetSamplesByCount(samplesCount / 2).ToArray();
+                var samplesRight = decoderRight.GetSamplesByCount(samplesCount / 2).ToArray();
 
-                    for(var i = 0; i < samplesLeft.Length; i++)
-                    {
-                        var right = (uint)Misc.SwapBytesUShort((ushort)samplesRight[i]);
-                        var left = (uint)Misc.SwapBytesUShort((ushort)samplesLeft[i]);
+                if(samplesLeft.Length != samplesRight.Length)
+                {
+                    // Make sure arrays have equal size
+                    var neededSize = Math.Max(samplesLeft.Length, samplesRight.Length);
+                    Array.Resize(ref samplesLeft, neededSize);
+                    Array.Resize(ref samplesRight, neededSize);
+                }
 
-                        preparedDoubleWords[i] = (right << 16) | left;
-                    }
-                    break;
+                for(var i = 0; i < samplesLeft.Length; i++)
+                {
+                    var right = (uint)Misc.SwapBytesUShort((ushort)samplesRight[i]);
+                    var left = (uint)Misc.SwapBytesUShort((ushort)samplesLeft[i]);
+
+                    preparedDoubleWords[i] = (right << 16) | left;
+                }
+                break;
             }
 
             var data = new byte[preparedDoubleWords.Length * 4];
@@ -344,6 +338,12 @@ namespace Antmicro.Renode.Peripherals.Sound
         private IValueRegisterField blockTransferLength;
         private IValueRegisterField bufferTransferLength;
         private IValueRegisterField dmac0DestAddr;
+
+        public enum Channel
+        {
+            Left = 0,
+            Right = 1,
+        }
 
         private enum Registers : long
         {

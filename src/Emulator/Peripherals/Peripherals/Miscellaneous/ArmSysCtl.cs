@@ -6,10 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System.Threading;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Threading;
 using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -23,15 +24,141 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Reset();
         }
 
-        public ArmSysCtl(IMachine machine,uint procId)
+        public ArmSysCtl(IMachine machine, uint procId)
         {
             this.machine = machine;
-            this.ProcId=procId;
+            this.ProcId = procId;
             Reset();
         }
-        
-        public uint ReadDoubleWord (long offset)
-        {   
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            switch((CTL)offset)
+            {
+            case CTL.Led:
+                Leds = value;
+                break;
+            case CTL.OSC0:
+                break;
+            case CTL.OSC1:
+                break;
+            case CTL.OSC2:
+                break;
+            case CTL.OSC3:
+                break;
+            case CTL.OSC4:
+                break;
+            case CTL.Lock:
+                if(value == LOCK_VALUE)
+                {
+                    LockVal = (ushort)value;
+                }
+                else
+                {
+                    LockVal = (ushort)(value & 0x7fff);
+                }
+                break;
+            case CTL.CfgData1:
+                CfgData1 = value;
+                break;
+            case CTL.CfgData2:
+                CfgData2 = value;
+                break;
+            case CTL.Flags:
+                Flags |= value;
+                break;
+            case CTL.FlagsClr:
+                Flags &= ~value;
+                break;
+            case CTL.NvFlags:
+                NvFlags |= value;
+                break;
+            case CTL.NvFlagsClr:
+                NvFlags &= ~value;
+                break;
+            case CTL.ResetCtl:
+                if(LockVal == LOCK_VALUE)
+                {
+                    ResetLevel = value;
+                    if(ResetLevel == 0x105)
+                    {
+                        this.Log(LogLevel.Info, "System reset triggered.");
+                        new Thread(() => machine.Reset()) { IsBackground = true }.Start();
+                    }
+                }
+                break;
+            case CTL.PCICtl:
+                break;
+            case CTL.Flash:
+                break;
+            case CTL.Clcd:
+                break;
+            case CTL.ClcdSer:
+                break;
+            case CTL.Dmapsr0:
+                break;
+            case CTL.Dmapsr1:
+                break;
+            case CTL.Dmapsr2:
+                break;
+            case CTL.IOSel:
+                break;
+            case CTL.PldCtl:
+                break;
+            case CTL.BusId:
+                break;
+            case CTL.ProcId0:
+                break;
+            case CTL.ProcId1:
+                break;
+            case CTL.CFGDATA:
+                CfgData = value;
+                break;
+            case CTL.CFGCTRL:
+                if(value == MachineReset)
+                {
+                    this.Log(LogLevel.Info, "System reset triggered.");
+                    new Thread(() => machine.Reset()) { IsBackground = true }.Start();
+                }
+                if(value == MachineShutdown)
+                {
+                    this.Log(LogLevel.Info, "System shutdown triggered.");
+                    /* Put shutdown code here */
+                }
+                CfgCtrl = (uint)(value & (uint)(~(3u << 18)));
+                CfgStat = 1;
+                break;
+            case CTL.CFGSTAT:
+                CfgStat = value & 3;
+                break;
+            case CTL.OSCRESET0:
+                break;
+            case CTL.OSCRESET1:
+                break;
+            case CTL.OSCRESET2:
+                break;
+            case CTL.OSCRESET3:
+                break;
+            case CTL.OSCRESET4:
+                break;
+            default:
+                this.LogUnhandledWrite(offset, value);
+                return;
+            }
+        }
+
+        public void Reset()
+        {
+            Leds = 0;
+            LockVal = 0;
+            CfgData1 = 0;
+            CfgData2 = 0;
+            Flags = 0;
+            ResetLevel = 0;
+        }
+
+        public uint ReadDoubleWord(long offset)
+        {
             switch((CTL)offset)
             {
             case CTL.Id:
@@ -129,151 +256,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return 0;
             }
         }
-        
-        private const int LOCK_VALUE = 0xa05f;
-        
-        public void WriteDoubleWord (long offset, uint value)
-        {
-            switch((CTL)offset)
-            {
-            case CTL.Led:
-                Leds = value;
-                break;
-            case CTL.OSC0:
-                break;
-            case CTL.OSC1:
-                break;
-            case CTL.OSC2:
-                break;
-            case CTL.OSC3:
-                break;
-            case CTL.OSC4:
-                break;
-            case CTL.Lock:
-                if(value == LOCK_VALUE)
-                {
-                    LockVal = (ushort) value;
-                }
-                else
-                {
-                    LockVal = (ushort)(value & 0x7fff);
-                }
-                break;
-            case CTL.CfgData1:
-                CfgData1 = value;
-                break;
-            case CTL.CfgData2:
-                CfgData2 = value;
-                break;
-            case CTL.Flags:
-                Flags |= value;
-                break;
-            case CTL.FlagsClr:
-                Flags &= ~value;
-                break;
-            case CTL.NvFlags:
-                NvFlags |= value;
-                break;
-            case CTL.NvFlagsClr:
-                NvFlags &= ~value;
-                break;
-            case CTL.ResetCtl:
-                if(LockVal == LOCK_VALUE)
-                {
-                    ResetLevel = value;
-                    if (ResetLevel == 0x105) 
-                    {
-                        this.Log(LogLevel.Info, "System reset triggered.");
-                        new Thread(() => machine.Reset()) { IsBackground = true }.Start();
-                    }
-                }
-                break;
-            case CTL.PCICtl:
-                break;
-            case CTL.Flash:
-                break;
-            case CTL.Clcd:
-                break;
-            case CTL.ClcdSer:
-                break;
-            case CTL.Dmapsr0:
-                break;
-            case CTL.Dmapsr1:
-                break;
-            case CTL.Dmapsr2:
-                break;
-            case CTL.IOSel:
-                break;
-            case CTL.PldCtl:
-                break;
-            case CTL.BusId:
-                break;
-            case CTL.ProcId0:
-                break;
-            case CTL.ProcId1:
-                break;
-            case CTL.CFGDATA:
-                CfgData =value;
-            break;
-            case CTL.CFGCTRL:
-                if(value == MachineReset)
-                {
-                    this.Log(LogLevel.Info, "System reset triggered.");
-                    new Thread(() => machine.Reset()) { IsBackground = true }.Start();
-                }
-                if(value == MachineShutdown)
-                {
-                    this.Log(LogLevel.Info, "System shutdown triggered.");
-                    /* Put shutdown code here */
-                }
-                CfgCtrl = (uint)(value & (uint)(~(3u << 18)));
-                CfgStat=1;
-                break;
-            case CTL.CFGSTAT:
-                CfgStat=value& 3;
-                break;
-            case CTL.OSCRESET0:
-                break;
-            case CTL.OSCRESET1:
-                break;
-            case CTL.OSCRESET2:
-                break;
-            case CTL.OSCRESET3:
-                break;
-            case CTL.OSCRESET4:
-                break;
-            default:
-                this.LogUnhandledWrite(offset, value);
-                return;
-            }
-        }
 
-        public void Reset ()
-        {
-            Leds = 0;
-            LockVal = 0;
-            CfgData1 = 0;
-            CfgData2 = 0;
-            Flags = 0;
-            ResetLevel = 0;
-        }
-        
-        private uint SysId = 0x41007004;
-        private uint Leds;
-        private ushort LockVal;
-        private uint CfgData1;
-        private uint CfgData2;
-        private uint Flags;
-        private uint NvFlags;
-        private uint ResetLevel;
-        private uint CfgData;
-        private uint CfgCtrl;
         private uint CfgStat;
-        private uint ProcId = 0x02000000;
-        private uint MachineReset = 0xC0900000;
-        private uint MachineShutdown = 0xC0800000;
+        private uint CfgCtrl;
+        private uint CfgData;
+        private uint ResetLevel;
+        private uint NvFlags;
+        private uint Flags;
+        private uint CfgData2;
+        private uint CfgData1;
+        private ushort LockVal;
+        private uint Leds;
+        private readonly uint MachineReset = 0xC0900000;
+        private readonly uint ProcId = 0x02000000;
+
+        private readonly uint SysId = 0x41007004;
+        private readonly uint MachineShutdown = 0xC0800000;
         private readonly IMachine machine;
-        
+
+        private const int LOCK_VALUE = 0xa05f;
+
         private enum CTL : uint
         {
             Id = 0x00,
@@ -283,7 +285,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             OSC1 = 0x10,
             OSC2 = 0x14,
             OSC3 = 0x18,
-            OSC4 = 0x1c,            
+            OSC4 = 0x1c,
             Lock = 0x20,
             MHz100 = 0x24,
             CfgData1 = 0x28,
@@ -321,8 +323,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             SYS_TEST_OSC1 = 0xc4,
             SYS_TEST_OSC2 = 0xc8,
             SYS_TEST_OSC3 = 0xcc,
-            SYS_TEST_OSC4 = 0xd0            
+            SYS_TEST_OSC4 = 0xd0
         }
     }
 }
-

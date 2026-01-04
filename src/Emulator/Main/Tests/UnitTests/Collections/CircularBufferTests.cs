@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Utilities.Collections;
+
 using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests.Collections
@@ -136,7 +137,7 @@ namespace Antmicro.Renode.UnitTests.Collections
             buffer.Enqueue(1);
             buffer.Enqueue(2);
             buffer.Enqueue(3);
-            CollectionAssert.AreEquivalent(new [] { 1, 2, 3 }, buffer);
+            CollectionAssert.AreEquivalent(new[] { 1, 2, 3 }, buffer);
         }
 
         [Test]
@@ -162,7 +163,7 @@ namespace Antmicro.Renode.UnitTests.Collections
             {
                 buffer.Enqueue(i);
             }
-            Assert.AreEqual(buffer, new [] { 2, 3, 4, 5 });
+            Assert.AreEqual(buffer, new[] { 2, 3, 4, 5 });
         }
 
         // This tests that the IEnumerator implementation works correctly
@@ -175,7 +176,7 @@ namespace Antmicro.Renode.UnitTests.Collections
             {
                 buffer.Enqueue(i);
             }
-            Assert.AreEqual(new [] { 0, 1, 2, 3 }, buffer);
+            Assert.AreEqual(new[] { 0, 1, 2, 3 }, buffer);
         }
 
         [Test]
@@ -216,4 +217,3 @@ namespace Antmicro.Renode.UnitTests.Collections
         }
     }
 }
-

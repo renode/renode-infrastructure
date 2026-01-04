@@ -1,21 +1,23 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Text;
-using Antmicro.Renode.Utilities.Collections;
 using System.Collections.Generic;
-using AntShell.Terminal;
-using System.Threading.Tasks;
-using Antmicro.Migrant;
+using System.Text;
 using System.Threading;
-using Antmicro.Renode.Time;
-using Antmicro.Renode.Core;
+using System.Threading.Tasks;
+
+using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities.Collections;
+
+using AntShell.Terminal;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -27,16 +29,32 @@ namespace Antmicro.Renode.Peripherals.UART
             actionsDictionary = new Dictionary<IOProvider, Action<byte>>();
         }
 
+        public void RepeatHistory(Action beforeRepeatingHistory = null)
+        {
+            lock(lockObject)
+            {
+                if(beforeRepeatingHistory != null)
+                {
+                    beforeRepeatingHistory();
+                }
+
+                foreach(var b in history)
+                {
+                    io.Write(b);
+                }
+            }
+        }
+
         public void Attach(IUART uart)
         {
             UART = uart;
-            UART.CharReceived += b =>
-            {
-                lock(lockObject)
-                {
-                    history.Enqueue(b);
-                }
-            };
+            UART.CharReceived += EnqueueHistory;
+        }
+
+        public void Detach()
+        {
+            UART.CharReceived -= EnqueueHistory;
+            UART = null;
         }
 
         public void BindAnalyzer(IOProvider io)
@@ -92,11 +110,23 @@ namespace Antmicro.Renode.Peripherals.UART
                         }
                         limit--;
                     }
-                    
+
                     result.Append((char)b);
                 }
             }
             return result.ToString();
+        }
+
+        public IUART UART { get; private set; }
+
+        public IAnalyzable AnalyzableElement { get { return UART; } }
+
+        private void EnqueueHistory(byte b)
+        {
+            lock(lockObject)
+            {
+                history.Enqueue(b);
+            }
         }
 
         private void ByteRead(int b)
@@ -110,26 +140,6 @@ namespace Antmicro.Renode.Peripherals.UART
             UART.GetMachine().HandleTimeDomainEvent(UART.WriteChar, (byte)b, vts);
         }
 
-        public IUART UART { get; private set; }
-
-        public IAnalyzable AnalyzableElement { get { return UART; } }
-
-        public void RepeatHistory(Action beforeRepeatingHistory = null)
-        {
-            lock(lockObject)
-            {
-                if(beforeRepeatingHistory != null)
-                {
-                    beforeRepeatingHistory();
-                }
-
-                foreach(var b in history)
-                {
-                    io.Write(b);
-                }
-            }
-        }
-
         [PostDeserializationAttribute]
         private void ReAttach()
         {
@@ -141,12 +151,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         [Transient]
         private IOProvider io;
+        private readonly object lockObject = new object();
         [Constructor]
-        private Dictionary<IOProvider, Action<byte>> actionsDictionary;
+        private readonly Dictionary<IOProvider, Action<byte>> actionsDictionary;
         private readonly CircularBuffer<byte> history;
-        private object lockObject = new object();
 
         private const int BUFFER_SIZE = 100000;
     }
 }
-

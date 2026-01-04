@@ -89,6 +89,7 @@
     <Compile Include="Mocks\MockPeripheralWithStringAttribute.cs" />
     <Compile Include="Mocks\MockPeripheralWithRangeAttribute.cs" />
     <Compile Include="Mocks\MockPeripheralWithObjectAttribute.cs" />
+    <Compile Include="Mocks\MockPeripheralWithCollectionAttributes.cs" />
     <Compile Include="Mocks\MockPeripheralWithBoolAttribute.cs" />
     <Compile Include="Mocks\MockPeripheralUsingReferenceAttribute.cs" />
     <Compile Include="ByteArrayWithAccessTrackingTests.cs"/>
@@ -102,6 +103,9 @@
     <Compile Include="BitHelperTests.cs" />
     <Compile Include="CRCTests.cs" />
     <Compile Include="PacketTests.cs" />
+    <Compile Include="AccessConditionParserTests.cs" />
+    <Compile Include="DmaEngineTests.cs" />
+    <Compile Include="DataStorageTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />

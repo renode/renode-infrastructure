@@ -6,12 +6,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
@@ -38,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             thisLock = new Object();
 
             portStatusControl = new PortStatusAndControlRegister[numberOfPorts]; //port status control
-            for(int i = 0; i< portStatusControl.Length; i++)
+            for(int i = 0; i < portStatusControl.Length; i++)
             {
                 portStatusControl[i] = new PortStatusAndControlRegister();
             }
@@ -50,6 +51,284 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             periodic_qh = new QueueHead(sysbus);
             async_qh = new QueueHead(sysbus);
+        }
+
+        public virtual uint ReadDoubleWord(long address)
+        {
+            long shift;
+            if(address.InRange(ehciBaseAddress, capabilitiesLength, out shift))
+            {
+                switch((CapabilityRegisters)shift)
+                {
+                case CapabilityRegisters.CapabilityRegistersLength:
+                    return (HciVersion & EhciHciVersionMask) << EhciHciVersionOffset | (capabilitiesLength & EhciCapabilityRegistersLengthMask);
+                case CapabilityRegisters.StructuralParameters:
+                    return ((uint)(portStatusControl.Length) & HcsParamsNPortsMask);
+                }
+            }
+            else if(address.InRange(ehciBaseAddress + capabilitiesLength, EhciPortStatusControlRegisterOffset + numberOfPorts * EhciPortStatusControlRegisterWidth, out shift))
+            {
+                switch((OperationalRegisters)shift)
+                {
+                case OperationalRegisters.UsbCommand:
+                    return usbCommand & (~0x04u);
+                case OperationalRegisters.UsbStatus:
+                    //TODO: check locking
+                    lock(thisLock)
+                    {
+                        return usbStatus;
+                    }
+                case OperationalRegisters.UsbInterruptEnable:
+                    return interruptEnableRegister.Value;
+                case OperationalRegisters.UsbFrameIndex:
+                    usbFrameIndex = usbFrameIndex + 4;
+                    usbFrameIndex &= 0x1f;
+                    return usbFrameIndex & ~0x7u;
+                case OperationalRegisters.PeriodicListBaseAddress:
+                    return periodicAddress;
+                case OperationalRegisters.AsyncListAddress:
+                    return asyncAddress;
+                case OperationalRegisters.ConfiguredFlag:
+                    return configFlag;
+                default:
+                    if(shift >= EhciPortStatusControlRegisterOffset)
+                    {
+                        var portNumber = (shift - EhciPortStatusControlRegisterOffset) / EhciPortStatusControlRegisterWidth;
+                        return portStatusControl[portNumber].GetValue();
+                    }
+                    break;
+                }
+            }
+
+            switch((OtherRegisters)address)
+            {
+            case OtherRegisters.UsbMode:
+                return (uint)mode;
+            case OtherRegisters.UsbDCCParams:
+                return EhciNumberOfEndpoints;
+            default:
+                if(ulpiChip != null && address == ulpiChip.BaseAddress)
+                {
+                    return (uint)(ulpiChip.LastReadValue << UlpiDataReadOffset) | UlpiSyncStateMask;
+                }
+                break;
+            }
+
+            this.LogUnhandledRead(address);
+            return 0;
+        }
+
+        public virtual void WriteDoubleWord(long address, uint value)
+        {
+            long shift;
+            if(address.InRange(ehciBaseAddress + capabilitiesLength, EhciPortStatusControlRegisterOffset + numberOfPorts * EhciPortStatusControlRegisterWidth, out shift))
+            {
+                switch((OperationalRegisters)shift)
+                {
+                case OperationalRegisters.UsbCommand:
+                    lock(thisLock)
+                    {
+                        usbCommand = value;
+                        if((value & (uint)EhciUsbCommandMask.HostControllerReset) != 0)
+                        {
+                            usbCommand &= ~(uint)EhciUsbCommandMask.HostControllerReset; // clear reset bit
+                            SoftReset();
+                            return;
+                        }
+                    }
+                    if((value & (uint)EhciUsbCommandMask.AsynchronousScheduleEnable) == 0) //if disable async schedule
+                    {
+                        if((usbStatus & (uint)EhciUsbStatusMask.AsynchronousScheduleStatus) != 0)
+                        {
+                            lock(thisLock)
+                            {
+                                usbStatus &= ~(uint)EhciUsbStatusMask.AsynchronousScheduleStatus;
+                            }
+                            asyncThread.Stop();
+                        }
+                    }
+                    else
+                    {
+                        lock(thisLock)
+                        {
+                            usbStatus |= (uint)EhciUsbStatusMask.Reclamation; //raise reclamation
+                        }
+                        if((usbStatus & (uint)EhciUsbStatusMask.AsynchronousScheduleStatus) == 0)
+                        {
+                            lock(thisLock)
+                            {
+                                usbStatus |= (uint)EhciUsbStatusMask.AsynchronousScheduleStatus; //confirm async schedule enable
+                            }
+                            asyncThread.Start();
+                        }
+                    }
+                    if((value & (uint)EhciUsbCommandMask.PeriodicScheduleEnable) != 0)
+                    {
+                        lock(thisLock)
+                        {
+                            usbStatus |= (uint)EhciUsbStatusMask.PeriodicScheduleStatus;
+                        }
+                        periodicThread.Start();
+                    }
+                    else
+                    {
+                        periodicThread.Stop();
+                        lock(thisLock)
+                        {
+                            usbStatus &= ~(uint)EhciUsbStatusMask.PeriodicScheduleStatus;
+                        }
+                    }
+                    if((value & (uint)EhciUsbCommandMask.RunStop) != 0)
+                    {
+                        lock(thisLock)
+                        {
+                            usbStatus &= ~(uint)EhciUsbStatusMask.HCHalted; //clear HCHalted bit in USB status reg
+                        }
+                        foreach(var port in portStatusControl)
+                        {
+                            port.Enable();
+                        }
+                    }
+                    else
+                    {
+                        lock(thisLock)
+                        {
+                            usbStatus |= (uint)EhciUsbStatusMask.HCHalted; //set HCHalted bit in USB status reg
+                        }
+                    }
+                    if((value & (uint)EhciUsbCommandMask.InterruptOnAsyncAdvanceDoorbell) != 0)
+                    {
+                        lock(thisLock)
+                        {
+                            usbCommand &= ~(uint)EhciUsbCommandMask.InterruptOnAsyncAdvanceDoorbell;
+                            usbStatus |= (uint)EhciUsbStatusMask.InterruptOnAsyncAdvance;
+                        }
+                    }
+                    return;
+                case OperationalRegisters.AsyncListAddress:
+                    lock(thisLock)
+                    {
+                        asyncAddress = value;
+                    }
+                    return;
+                case OperationalRegisters.PeriodicListBaseAddress:
+                    lock(thisLock)
+                    {
+                        periodicAddress = value;
+                    }
+                    return;
+                case OperationalRegisters.UsbInterruptEnable:
+                    interruptEnableRegister.OnAsyncAdvanceEnable = ((value & (uint)InterruptMask.InterruptOnAsyncAdvance) != 0);
+                    interruptEnableRegister.HostSystemErrorEnable = ((value & (uint)InterruptMask.HostSystemError) != 0);
+                    interruptEnableRegister.FrameListRolloverEnable = ((value & (uint)InterruptMask.FrameListRollover) != 0);
+                    interruptEnableRegister.PortChangeEnable = ((value & (uint)InterruptMask.PortChange) != 0);
+                    interruptEnableRegister.USBErrorEnable = ((value & (uint)InterruptMask.USBError) != 0);
+                    interruptEnableRegister.Enable = ((value & (uint)InterruptMask.USBInterrupt) != 0);
+
+                    if(interruptEnableRegister.Enable && interruptEnableRegister.PortChangeEnable)
+                    {
+                        foreach(var register in portStatusControl)
+                        {
+                            if((register.GetValue() & PortStatusAndControlRegister.ConnectStatusChange) != 0)
+                            {
+                                IRQ.Set(false);
+                                lock(thisLock)
+                                {
+                                    usbStatus |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.PortChange;
+                                }
+                                IRQ.Set(true);
+                                return;
+                            }
+                        }
+                    }
+                    return;
+                case OperationalRegisters.UsbStatus:
+                    lock(thisLock)
+                    {
+                        usbStatus &= ~value;
+                        if((usbStatus & (uint)InterruptMask.USBInterrupt) == 0)
+                        {
+                            IRQ.Set(false);
+                        }
+                    }
+                    return;
+                case OperationalRegisters.ConfiguredFlag:
+                    configFlag = value;
+                    return;
+                default:
+                    if(shift >= EhciPortStatusControlRegisterOffset)
+                    {
+                        var portNumber = (shift - EhciPortStatusControlRegisterOffset) / EhciPortStatusControlRegisterWidth;
+
+                        PortStatusAndControlRegisterChanges change;
+                        portStatusControl[portNumber].SetValue(portStatusControl[portNumber].GetValue() & (~(value & 0x0000002a)));
+                        portStatusControl[portNumber].SetValue(portStatusControl[portNumber].GetValue() & ((value) | (~(1u << 2))));
+
+                        value &= 0x007011c0;
+
+                        change = portStatusControl[portNumber].SetValue(value & (~(1u << 2)));
+                        if((portStatusControl[portNumber].GetValue() & (1u << 8)) != 0 && (value & (1u << 8)) == 0)
+                        {
+                            portStatusControl[portNumber].SetValue((portStatusControl[portNumber].GetValue() & (~(1u << 1))));
+                            value |= 1 << 2;
+                            change = portStatusControl[portNumber].SetValue((portStatusControl[portNumber].GetValue() & 0x007011c0) | value);
+                        }
+
+                        if(change.ConnectChange)
+                        {
+                            lock(thisLock)
+                            {
+                                usbStatus |= (uint)InterruptMask.PortChange;
+                            }
+                        }
+
+                        if((interruptEnableRegister.Enable) && (interruptEnableRegister.PortChangeEnable))
+                        {
+                            lock(thisLock)
+                            {
+                                usbStatus |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.PortChange;
+                            }
+                            IRQ.Set(true);
+                        }
+                        return;
+                    }
+                    break;
+                }
+            }
+
+            switch((OtherRegisters)address)
+            {
+            case OtherRegisters.UsbMode:
+                mode = (ControllerMode)(value & 0x3);
+                break;
+            default:
+                if(ulpiChip != null && address == ulpiChip.BaseAddress)
+                {
+                    var isReadOperation = (value & UlpiRdWrMask) == 0;
+                    var ulpiRegister = (byte)((value & UlpiRegAddrMask) >> UlpiRegAddrOffset);
+                    if(isReadOperation)
+                    {
+                        // we don't need read value here, as it will be stored in `LastReadValue` property of `ulpiChip`
+                        ulpiChip.Read(ulpiRegister);
+                    }
+                    else
+                    {
+                        var valueToWrite = (byte)(value & UlpiDataWriteMask);
+                        ulpiChip.Write(ulpiRegister, valueToWrite);
+                    }
+                }
+                else
+                {
+                    this.LogUnhandledWrite(address, value);
+                }
+                break;
+            }
+        }
+
+        public virtual void Reset()
+        {
+            SoftReset();
+            activeDevice = defaultDevice; // TODO: why ?
         }
 
         public void Dispose()
@@ -142,291 +421,13 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             }
         }
 
-        public virtual uint ReadDoubleWord(long address)
-        {
-            long shift;
-            if(address.InRange(ehciBaseAddress, capabilitiesLength, out shift))
-            {
-                switch((CapabilityRegisters)shift)
-                {
-                case CapabilityRegisters.CapabilityRegistersLength:
-                    return (hciVersion & EhciHciVersionMask) << EhciHciVersionOffset | (capabilitiesLength & EhciCapabilityRegistersLengthMask);
-                case CapabilityRegisters.StructuralParameters:
-                    return ((uint)(portStatusControl.Length) & hcsparamsNPortsMask);
-                }
-            }
-            else if(address.InRange(ehciBaseAddress + capabilitiesLength, EhciPortStatusControlRegisterOffset + numberOfPorts * EhciPortStatusControlRegisterWidth, out shift))
-            {
-                switch((OperationalRegisters)shift)
-                {
-                case OperationalRegisters.UsbCommand:
-                    return usbCommand & (~0x04u);
-                case OperationalRegisters.UsbStatus:
-                    //TODO: check locking
-                    lock(thisLock)
-                    {
-                        return usbStatus;
-                    }
-                case OperationalRegisters.UsbInterruptEnable:
-                    return interruptEnableRegister.Value;
-                case OperationalRegisters.UsbFrameIndex:
-                    usbFrameIndex = usbFrameIndex + 4;
-                    usbFrameIndex &= 0x1f;
-                    return usbFrameIndex & ~0x7u;
-                case OperationalRegisters.PeriodicListBaseAddress:
-                    return periodicAddress;
-                case OperationalRegisters.AsyncListAddress:
-                    return asyncAddress;
-                case OperationalRegisters.ConfiguredFlag:
-                    return configFlag;
-                default:
-                    if(shift >= EhciPortStatusControlRegisterOffset)
-                    {
-                        var portNumber = (shift - EhciPortStatusControlRegisterOffset) / EhciPortStatusControlRegisterWidth;
-                        return portStatusControl[portNumber].getValue();
-                    }
-                    break;
-                }
-            }
-
-            switch((OtherRegisters)address)
-            {
-            case OtherRegisters.UsbMode:
-                return (uint)mode;
-            case OtherRegisters.UsbDCCParams:
-                return EhciNumberOfEndpoints;
-            default:
-                if(ulpiChip != null && address == ulpiChip.BaseAddress)
-                {
-                    return (uint)(ulpiChip.LastReadValue << UlpiDataReadOffset) | UlpiSyncStateMask;
-                }
-                break;
-            }
-
-            this.LogUnhandledRead(address);
-            return 0;
-        }
-
-        public virtual void WriteDoubleWord(long address, uint value)
-        {
-            long shift;
-            if(address.InRange(ehciBaseAddress + capabilitiesLength, EhciPortStatusControlRegisterOffset + numberOfPorts * EhciPortStatusControlRegisterWidth, out shift))
-            {
-                switch((OperationalRegisters)shift)
-                {
-                case OperationalRegisters.UsbCommand:
-                    lock(thisLock)
-                    {
-                        usbCommand = value;
-                        if((value & (uint)EhciUsbCommandMask.HostControllerReset) != 0)
-                        {
-                            usbCommand &= ~(uint)EhciUsbCommandMask.HostControllerReset; // clear reset bit
-                            SoftReset();
-                            return;
-                        }
-                    }
-                    if((value & (uint)EhciUsbCommandMask.AsynchronousScheduleEnable) == 0) //if disable async schedule
-                    {
-                        if ((usbStatus & (uint)EhciUsbStatusMask.AsynchronousScheduleStatus) != 0)
-                        {
-                            lock(thisLock)
-                            {
-                                usbStatus &= ~(uint)EhciUsbStatusMask.AsynchronousScheduleStatus;
-                            }
-                            asyncThread.Stop();
-                        }
-                    }
-                    else
-                    {
-                        lock(thisLock)
-                        {
-                            usbStatus |= (uint)EhciUsbStatusMask.Reclamation; //raise reclamation
-                        }
-                        if((usbStatus & (uint)EhciUsbStatusMask.AsynchronousScheduleStatus) == 0)
-                        {
-                            lock(thisLock)
-                            {
-                                usbStatus |= (uint)EhciUsbStatusMask.AsynchronousScheduleStatus; //confirm async schedule enable
-                            }
-                            asyncThread.Start();
-                        }
-                    }
-                    if((value & (uint)EhciUsbCommandMask.PeriodicScheduleEnable) != 0)
-                    {
-                        lock(thisLock)
-                        {
-                            usbStatus |= (uint)EhciUsbStatusMask.PeriodicScheduleStatus;
-                        }
-                        periodicThread.Start();
-                    }
-                    else
-                    {
-                        periodicThread.Stop();
-                        lock(thisLock)
-                        {
-                            usbStatus &= ~(uint)EhciUsbStatusMask.PeriodicScheduleStatus;
-                        }
-                    }
-                    if((value & (uint)EhciUsbCommandMask.RunStop) != 0)
-                    {
-                        lock(thisLock)
-                        {
-                            usbStatus &= ~(uint)EhciUsbStatusMask.HCHalted; //clear HCHalted bit in USB status reg
-                        }
-                        foreach(var port in portStatusControl)
-                        {
-                            port.Enable();
-                        }
-                    }
-                    else
-                    {
-                        lock(thisLock)
-                        {
-                            usbStatus |= (uint)EhciUsbStatusMask.HCHalted; //set HCHalted bit in USB status reg
-                        }
-                    }
-                    if((value & (uint)EhciUsbCommandMask.InterruptOnAsyncAdvanceDoorbell) != 0)
-                    {
-                        lock(thisLock)
-                        {
-                            usbCommand &= ~(uint)EhciUsbCommandMask.InterruptOnAsyncAdvanceDoorbell;
-                            usbStatus |= (uint)EhciUsbStatusMask.InterruptOnAsyncAdvance;
-                        }
-                    }
-                    return;
-                case OperationalRegisters.AsyncListAddress:
-                    lock(thisLock)
-                    {
-                        asyncAddress = value;
-                    }
-                    return;
-                case OperationalRegisters.PeriodicListBaseAddress:
-                    lock(thisLock)
-                    {
-                        periodicAddress = value;
-                    }
-                    return;
-                case OperationalRegisters.UsbInterruptEnable:
-                    interruptEnableRegister.OnAsyncAdvanceEnable = ((value & (uint)InterruptMask.InterruptOnAsyncAdvance) != 0);
-                    interruptEnableRegister.HostSystemErrorEnable = ((value & (uint)InterruptMask.HostSystemError) != 0);
-                    interruptEnableRegister.FrameListRolloverEnable = ((value & (uint)InterruptMask.FrameListRollover) != 0);
-                    interruptEnableRegister.PortChangeEnable = ((value & (uint)InterruptMask.PortChange) != 0);
-                    interruptEnableRegister.USBErrorEnable = ((value & (uint)InterruptMask.USBError) != 0);
-                    interruptEnableRegister.Enable = ((value & (uint)InterruptMask.USBInterrupt) != 0);
-
-                    if(interruptEnableRegister.Enable && interruptEnableRegister.PortChangeEnable)
-                    {
-                        foreach(var register in portStatusControl)
-                        {
-                            if((register.getValue() & PortStatusAndControlRegister.ConnectStatusChange) != 0)
-                            {
-                                IRQ.Set(false);
-                                lock(thisLock)
-                                {
-                                    usbStatus |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.PortChange;
-                                }
-                                IRQ.Set(true);
-                                return;
-                            }
-                        }
-                    }
-                    return;
-                case OperationalRegisters.UsbStatus:
-                    lock(thisLock)
-                    {
-                        usbStatus &= ~value;
-                        if((usbStatus & (uint)InterruptMask.USBInterrupt) == 0)
-                        {
-                            IRQ.Set(false);
-                        }
-                    }
-                    return;
-                case OperationalRegisters.ConfiguredFlag:
-                    configFlag = value;
-                    return;
-                default:
-                    if(shift >= EhciPortStatusControlRegisterOffset)
-                    {
-                        var portNumber = (shift - EhciPortStatusControlRegisterOffset) / EhciPortStatusControlRegisterWidth;
-
-                        PortStatusAndControlRegisterChanges change;
-                        portStatusControl[portNumber].setValue(portStatusControl[portNumber].getValue() & (~(value & 0x0000002a)));
-                        portStatusControl[portNumber].setValue(portStatusControl[portNumber].getValue() & ((value) | (~(1u << 2))));
-
-                        value &= 0x007011c0;
-
-                        change = portStatusControl[portNumber].setValue(value & (~(1u << 2)));
-                        if((portStatusControl[portNumber].getValue() & (1u << 8)) != 0 && (value & (1u << 8)) == 0)
-                        {
-                            portStatusControl[portNumber].setValue((portStatusControl[portNumber].getValue() & (~(1u << 1))));
-                            value |= 1 << 2;
-                            change = portStatusControl[portNumber].setValue((portStatusControl[portNumber].getValue() & 0x007011c0) | value);
-                        }
-
-                        if(change.ConnectChange)
-                        {
-                            lock(thisLock)
-                            {
-                                usbStatus |= (uint)InterruptMask.PortChange;
-                            }
-                        }
-
-                        if((interruptEnableRegister.Enable) && (interruptEnableRegister.PortChangeEnable))
-                        {
-                            lock(thisLock)
-                            {
-                                usbStatus |= (uint)InterruptMask.USBInterrupt | (uint)InterruptMask.PortChange;
-                            }
-                            IRQ.Set(true);
-                        }
-                        return;
-                    }
-                    break;
-                }
-            }
-
-            switch((OtherRegisters)address)
-            {
-            case OtherRegisters.UsbMode:
-                mode = (ControllerMode)(value & 0x3);
-                break;
-            default:
-                if(ulpiChip != null && address == ulpiChip.BaseAddress)
-                {
-                    var isReadOperation = (value & UlpiRdWrMask) == 0;
-                    var ulpiRegister = (byte)((value & UlpiRegAddrMask) >> UlpiRegAddrOffset);
-                    if(isReadOperation)
-                    {
-                        // we don't need read value here, as it will be stored in `LastReadValue` property of `ulpiChip`
-                        ulpiChip.Read(ulpiRegister);
-                    }
-                    else
-                    {
-                        var valueToWrite = (byte)(value & UlpiDataWriteMask);
-                        ulpiChip.Write(ulpiRegister, valueToWrite);
-                    }
-                }
-                else
-                {
-                    this.LogUnhandledWrite(address, value);
-                }
-                break;
-            }
-        }
-
-        public virtual void Reset()
-        {
-            SoftReset();
-            activeDevice = defaultDevice; // TODO: why ?
-        }
-
         private void SoftReset()
         {
             addressedDevices.Clear();
             foreach(var port in portStatusControl)
             {
-                port.setValue(0x00001000);
-                port.powerUp();
+                port.SetValue(0x00001000);
+                port.PowerUp();
             }
 
             asyncThread.Stop();
@@ -550,9 +551,9 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     return;
                 }
                 USBPacket packet;
-                packet.bytesToTransfer = qh.Overlay.TotalBytesToTransfer;
-                packet.ep = qh.EndpointNumber;
-                packet.data = null;
+                packet.BytesToTransfer = qh.Overlay.TotalBytesToTransfer;
+                packet.Ep = qh.EndpointNumber;
+                packet.Data = null;
                 uint dataAmount;
                 switch(qh.Overlay.PID)
                 {
@@ -606,17 +607,17 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     this.NoisyLog("[async] Device {0:d} [{1}]", qh.DeviceAddress, targetDevice);
 
                     setupData = new USBSetupPacket();
-                    setupData.requestType = sysbus.ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset);
-                    setupData.request = sysbus.ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 1);
-                    setupData.value = sysbus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 2);
-                    setupData.index = sysbus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 4);
-                    setupData.length = sysbus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 6);
+                    setupData.RequestType = sysbus.ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset);
+                    setupData.Request = sysbus.ReadByte(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 1);
+                    setupData.Value = sysbus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 2);
+                    setupData.Index = sysbus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 4);
+                    setupData.Length = sysbus.ReadWord(qh.Overlay.BufferPointer[0] | qh.Overlay.CurrentOffset + 6);
 
-                    if(((setupData.requestType & 0x80u) >> 7) == (uint)DataDirection.DeviceToHost)//if device to host transfer
+                    if(((setupData.RequestType & 0x80u) >> 7) == (uint)DataDirection.DeviceToHost)//if device to host transfer
                     {
-                        if(((setupData.requestType & 0x60u) >> 5) == (uint)USBRequestType.Standard)
+                        if(((setupData.RequestType & 0x60u) >> 5) == (uint)USBRequestType.Standard)
                         {
-                            switch((DeviceRequestType)setupData.request)
+                            switch((DeviceRequestType)setupData.Request)
                             {
                             case DeviceRequestType.GetDescriptor:
                                 targetDevice.GetDescriptor(packet, setupData);
@@ -636,23 +637,23 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                                 break;
                             }//end of switch request
                         }
-                        else if(((setupData.requestType & 0x60u) >> 5) == (uint)USBRequestType.Class)
+                        else if(((setupData.RequestType & 0x60u) >> 5) == (uint)USBRequestType.Class)
                         {
                             targetDevice.ProcessClassGet(packet, setupData);
                         }
-                        else if(((setupData.requestType & 0x60u) >> 5) == (uint)USBRequestType.Vendor)
+                        else if(((setupData.RequestType & 0x60u) >> 5) == (uint)USBRequestType.Vendor)
                         {
                             targetDevice.ProcessVendorGet(packet, setupData);
                         }
                     }
                     else//if host to device transfer
-                        if(((setupData.requestType & 0x60) >> 5) == (uint)USBRequestType.Standard)
+                        if(((setupData.RequestType & 0x60) >> 5) == (uint)USBRequestType.Standard)
                     {
-                        switch((DeviceRequestType)setupData.request)
+                        switch((DeviceRequestType)setupData.Request)
                         {
                         case DeviceRequestType.SetAddress:
-                            targetDevice.SetAddress(setupData.value);
-                            AddressDevice(targetDevice, (byte)setupData.value);
+                            targetDevice.SetAddress(setupData.Value);
+                            AddressDevice(targetDevice, (byte)setupData.Value);
                             break;
                         case DeviceRequestType.SetDescriptor:
                             targetDevice.GetDescriptor(packet, setupData);
@@ -667,15 +668,15 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                             targetDevice.SetConfiguration(packet, setupData);
                             break;
                         default:
-                            this.Log(LogLevel.Warning, "[async] Unsupported device request [ {0:X} ]", setupData.request);
+                            this.Log(LogLevel.Warning, "[async] Unsupported device request [ {0:X} ]", setupData.Request);
                             break;
                         }//end of switch request
                     }//end of request type.standard
-                    else if((setupData.requestType >> 5) == (uint)USBRequestType.Class)
+                    else if((setupData.RequestType >> 5) == (uint)USBRequestType.Class)
                     {
                         targetDevice.ProcessClassSet(packet, setupData);
                     }
-                    else if((setupData.requestType >> 5) == (uint)USBRequestType.Vendor)
+                    else if((setupData.RequestType >> 5) == (uint)USBRequestType.Vendor)
                     {
                         targetDevice.ProcessVendorSet(packet, setupData);
                     }
@@ -711,14 +712,14 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
                         if(bytesTransferred > 0)
                         {
-                            packet.data = data;
+                            packet.Data = data;
                             if(qh.EndpointNumber == 0)
                             {
-                                if(((setupData.requestType & 0x80u) >> 7) == (uint)DataDirection.DeviceToHost)//if device to host transfer
+                                if(((setupData.RequestType & 0x80u) >> 7) == (uint)DataDirection.DeviceToHost)//if device to host transfer
                                 {
-                                    if(((setupData.requestType & 0x60u) >> 5) == (uint)USBRequestType.Standard)
+                                    if(((setupData.RequestType & 0x60u) >> 5) == (uint)USBRequestType.Standard)
                                     {
-                                        switch((DeviceRequestType)setupData.request)
+                                        switch((DeviceRequestType)setupData.Request)
                                         {
                                         case DeviceRequestType.GetDescriptor:
                                             targetDevice.GetDescriptor(packet, setupData);
@@ -738,23 +739,23 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                                             break;
                                         }//end of switch request
                                     }
-                                    else if(((setupData.requestType & 0x60u) >> 5) == (uint)USBRequestType.Class)
+                                    else if(((setupData.RequestType & 0x60u) >> 5) == (uint)USBRequestType.Class)
                                     {
                                         targetDevice.ProcessClassGet(packet, setupData);
                                     }
-                                    else if(((setupData.requestType & 0x60u) >> 5) == (uint)USBRequestType.Vendor)
+                                    else if(((setupData.RequestType & 0x60u) >> 5) == (uint)USBRequestType.Vendor)
                                     {
                                         targetDevice.ProcessVendorGet(packet, setupData);
                                     }
                                 }
                                 else//if host to device transfer
-                                    if(((setupData.requestType & 0x60) >> 5) == (uint)USBRequestType.Standard)
+                                    if(((setupData.RequestType & 0x60) >> 5) == (uint)USBRequestType.Standard)
                                 {
-                                    switch((DeviceRequestType)setupData.request)
+                                    switch((DeviceRequestType)setupData.Request)
                                     {
                                     case DeviceRequestType.SetAddress:
-                                        targetDevice.SetAddress(setupData.value);
-                                        AddressDevice(targetDevice, (byte)setupData.value);
+                                        targetDevice.SetAddress(setupData.Value);
+                                        AddressDevice(targetDevice, (byte)setupData.Value);
                                         break;
                                     case DeviceRequestType.SetDescriptor:
                                         targetDevice.GetDescriptor(packet, setupData);
@@ -769,15 +770,15 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                                         targetDevice.SetConfiguration(packet, setupData);
                                         break;
                                     default:
-                                        this.Log(LogLevel.Warning, "[process_{0}_list] Unsupported device request [ {1:X} ]", async ? "async" : "periodic", setupData.request);
+                                        this.Log(LogLevel.Warning, "[process_{0}_list] Unsupported device request [ {1:X} ]", async ? "async" : "periodic", setupData.Request);
                                         break;
                                     }//end of switch request
                                 }//end of request type.standard
-                                else if((setupData.requestType >> 5) == (uint)USBRequestType.Class)
+                                else if((setupData.RequestType >> 5) == (uint)USBRequestType.Class)
                                 {
                                     targetDevice.ProcessClassSet(packet, setupData);
                                 }
-                                else if((setupData.requestType >> 5) == (uint)USBRequestType.Vendor)
+                                else if((setupData.RequestType >> 5) == (uint)USBRequestType.Vendor)
                                 {
                                     targetDevice.ProcessVendorSet(packet, setupData);
                                 }
@@ -841,6 +842,27 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 : addressedDevices[deviceAddress];
         }
 
+        private ControllerMode mode;
+
+        private IUSBPeripheral activeDevice;
+        private IUSBPeripheral defaultDevice;
+
+        private USBSetupPacket setupData;
+        private QueueHead periodic_qh;
+        private QueueHead async_qh;
+
+        private uint usbCommand;
+        private uint usbStatus;
+        private uint usbFrameIndex;
+        private uint periodicAddress;
+        private uint asyncAddress;
+        private uint configFlag;
+        private readonly uint ehciBaseAddress;
+        private readonly Ulpi ulpiChip;
+
+        private readonly uint capabilitiesLength;
+        private readonly uint numberOfPorts;
+
         private readonly Dictionary<byte,IUSBPeripheral> registeredDevices;
         private readonly ReusableIdentifiedList<IUSBHub> registeredHubs;
         private readonly Dictionary<byte,IUSBPeripheral> addressedDevices;
@@ -852,27 +874,6 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         private readonly IMachine machine;
         private readonly IBusController sysbus;
 
-        private uint usbCommand;
-        private uint usbStatus;
-        private uint usbFrameIndex;
-        private uint periodicAddress;
-        private uint asyncAddress;
-        private uint configFlag;
-        private uint ehciBaseAddress;
-
-        private ControllerMode mode;
-        private Ulpi ulpiChip;
-
-        private IUSBPeripheral activeDevice;
-        private IUSBPeripheral defaultDevice;
-
-        private uint capabilitiesLength;
-        private uint numberOfPorts;
-
-        private USBSetupPacket setupData;
-        private QueueHead periodic_qh;
-        private QueueHead async_qh;
-
         private const int UlpiRdWrMask = (1 << 29);
         private const int UlpiRegAddrOffset = 16;
         private const int UlpiRegAddrMask = 0xFF << UlpiRegAddrOffset;
@@ -880,8 +881,8 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         private const int UlpiDataReadOffset = 8;
         private const int UlpiSyncStateMask = (1 << 27);
         private const uint StatusActive = 1u << 7;
-        private const uint hcsparamsNPortsMask = 0xf;
-        private const uint hciVersion = 0x0100; //hci version (16 bit BCD)
+        private const uint HcsParamsNPortsMask = 0xf;
+        private const uint HciVersion = 0x0100; //hci version (16 bit BCD)
 
         private const int EhciHciVersionMask = 0xffff;
         private const int EhciHciVersionOffset = 16;
@@ -891,7 +892,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         private const uint EhciNumberOfEndpoints = 0x10;
 
-        private class ReusableIdentifiedList<T> where T: class
+        private class ReusableIdentifiedList<T> where T : class
         {
             public ReusableIdentifiedList()
             {
@@ -1031,25 +1032,40 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             }
 
             public uint PhysAlternativeNext { get; private set; }
+
             public byte ErrorCount { get; private set; }
+
             public byte Status { get; private set; }
+
             public uint CurrentOffset { get; private set; }
+
             public uint PhysNext { get; private set; }
+
             public bool AlternativeNextTerminate { get; private set; }
+
             public uint AlternativeNext { get; private set; }
+
             public bool NextTerminate { get; private set; }
+
             public uint Token { get; private set; }
+
             public uint Next { get; private set; }
+
             public bool DataToggle { get; private set; }
+
             public bool InterruptOnComplete { get; private set; }
+
             public byte CurrentPage { get; private set; }
+
             public PIDCode PID { get; private set; }
+
             public uint[] Buffer { get; private set; }
 
             public uint TotalBytesToTransfer { get; set; }
 
-            private IBusController systemBus;
             private ulong memoryAddress;
+
+            private readonly IBusController systemBus;
         }
 
         private class InterruptEnable
@@ -1065,10 +1081,15 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             }
 
             public bool OnAsyncAdvanceEnable { get; set; }
+
             public bool HostSystemErrorEnable { get; set; }
+
             public bool FrameListRolloverEnable { get; set; }
+
             public bool PortChangeEnable { get; set; }
+
             public bool USBErrorEnable { get; set; }
+
             public bool Enable { get; set; }
 
             public uint Value
@@ -1196,13 +1217,14 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
             public uint CurrentTransferDescriptor { get; private set; }
 
-            private readonly IBusController systemBus;
             private uint linkPointer;
             private byte type;
             private bool terminate;
             private uint link;
             private uint staticEndpointState1;
             private uint staticEndpointState2;
+
+            private readonly IBusController systemBus;
         }
 
         private class QueueHeadOverlay
@@ -1269,24 +1291,35 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             }
 
             public uint NextPointer { get; private set; }
+
             public bool NextPointerTerminate { get; private set; }
+
             public uint AlternateNextPointer { get; private set; }
+
             public bool AlternateNextPointerTerminate { get; private set; }
+
             public uint TotalBytesToTransfer { get; set; }
+
             public bool InterruptOnComplete { get; private set; }
+
             public byte CurrentPage { get; private set; }
+
             public PIDCode PID { get; private set; }
+
             public byte Status { get; private set; }
+
             public uint[] BufferPointer { get; private set; }
+
             public uint CurrentOffset { get; private set; }
 
-            private readonly IBusController systemBus;
             private ulong memoryAddress;
             private bool dataToggle;
             private byte errorCount;
             private uint physNext;
             private uint physAlternatNext;
             private uint token;
+
+            private readonly IBusController systemBus;
         }
 
         private enum EndpointSpeed

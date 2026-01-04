@@ -9,13 +9,26 @@ using System;
 
 namespace Antmicro.Renode.Core.Structure
 {
-    public sealed class AttachedRegistrationPoint : ITheOnlyPossibleRegistrationPoint
+    public sealed class AttachedRegistrationPoint : ITheOnlyPossibleRegistrationPoint, IJsonSerializable
     {
-        public static AttachedRegistrationPoint Instance { get; private set; }
-
         static AttachedRegistrationPoint()
         {
             Instance = new AttachedRegistrationPoint();
+        }
+
+        public static AttachedRegistrationPoint Instance { get; private set; }
+
+        public override string ToString()
+        {
+            return PrettyString;
+        }
+
+        public Object SerializeJson()
+        {
+            return new
+            {
+                Type = "Attached"
+            };
         }
 
         public string PrettyString
@@ -26,14 +39,8 @@ namespace Antmicro.Renode.Core.Structure
             }
         }
 
-        public override string ToString()
-        {
-            return PrettyString;
-        }
-
         private AttachedRegistrationPoint()
         {
         }
     }
 }
-

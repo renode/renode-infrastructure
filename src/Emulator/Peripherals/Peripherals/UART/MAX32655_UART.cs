@@ -7,8 +7,8 @@
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public uint ReadDoubleWord(long offset)
         {
-           return RegistersCollection.Read(offset);
+            return RegistersCollection.Read(offset);
         }
 
         public void WriteDoubleWord(long offset, uint value)
@@ -52,7 +52,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
-            receiveFifoThresholdInterrupt.Value |= Count >= (int)receiveFifoThreshold.Value;
             UpdateInterrupts();
         }
 
@@ -82,10 +81,10 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("stopbits", 12)
                 .WithTaggedFlag("hfc_en", 13)
                 .WithTaggedFlag("rtsdc", 14)
-                .WithTaggedFlag("bclken", 15)
+                .WithFlag(15, out baudClockReady, name: "bclken")
                 .WithTag("bclksrc", 16, 2)
                 .WithTaggedFlag("dpfe_en", 18)
-                .WithTaggedFlag("bclkrdy", 19)
+                .WithFlag(19, FieldMode.Read, valueProviderCallback: _ => baudClockReady.Value, name: "bclkrdy")
                 .WithTaggedFlag("ucagm", 20)
                 .WithTaggedFlag("fdm", 21)
                 .WithTaggedFlag("desm", 22)
@@ -112,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("rx_ov", 3)
                 .WithFlag(4, out receiveFifoThresholdInterruptEnable, name: "rx_thd")
                 .WithReservedBits(5, 1)
-                .WithTaggedFlag("tx_he", 6)
+                .WithFlag(6, out transmitFifoHalfEmptyInteruptEnable, name: "tx_he")
                 .WithReservedBits(7, 25)
                 .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
@@ -124,7 +123,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("rx_ov", 3)
                 .WithFlag(4, out receiveFifoThresholdInterrupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "rx_thd")
                 .WithReservedBits(5, 1)
-                .WithTaggedFlag("tx_he", 6)
+                .WithFlag(6, out transmitFifoHalfEmptyInterupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "tx_he")
                 .WithReservedBits(7, 25)
                 .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
@@ -153,7 +152,12 @@ namespace Antmicro.Renode.Peripherals.UART
             Registers.FifoData.Define(this)
                 .WithValueField(0, 8, name: "data",
                     valueProviderCallback: _ => TryGetCharacter(out var value) ? (ulong)value : 0,
-                    writeCallback: (_, value) => TransmitCharacter((byte)value)
+                    writeCallback: (_, value) =>
+                    {
+                        TransmitCharacter((byte)value);
+                        transmitFifoHalfEmptyInterupt.Value |= true;
+                        UpdateInterrupts();
+                    }
                 )
                 .WithTaggedFlag("rx_par", 8)
                 .WithReservedBits(9, 23)
@@ -184,8 +188,10 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
+            receiveFifoThresholdInterrupt.Value |= Count >= (int)receiveFifoThreshold.Value;
             var state = false;
             state |= receiveFifoThresholdInterrupt.Value && receiveFifoThresholdInterruptEnable.Value;
+            state |= transmitFifoHalfEmptyInterupt.Value && transmitFifoHalfEmptyInteruptEnable.Value;
             IRQ.Set(state);
             this.NoisyLog("IRQ {0}", state ? "set" : "unset");
         }
@@ -193,6 +199,9 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField receiveFifoThreshold;
         private IFlagRegisterField receiveFifoThresholdInterruptEnable;
         private IFlagRegisterField receiveFifoThresholdInterrupt;
+        private IFlagRegisterField transmitFifoHalfEmptyInteruptEnable;
+        private IFlagRegisterField transmitFifoHalfEmptyInterupt;
+        private IFlagRegisterField baudClockReady;
 
         private const int TransmitFifoDepth = 8;
         private const int ReceiveFifoDepth = 8;

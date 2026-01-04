@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 namespace Antmicro.Renode.Exceptions
 {
     public class ConfigurationException : System.Exception

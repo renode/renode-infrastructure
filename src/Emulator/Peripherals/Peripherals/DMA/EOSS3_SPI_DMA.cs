@@ -1,16 +1,17 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.SPI;
-using Antmicro.Renode.Peripherals.GPIOPort;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.GPIOPort;
+using Antmicro.Renode.Peripherals.SPI;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -67,20 +68,20 @@ namespace Antmicro.Renode.Peripherals.DMA
                     var bytesToHandle = 0u;
                     switch(spi.FrameSize)
                     {
-                        case DesignWare_SPI.TransferSize.SingleByte:
-                        {
-                            bytesToHandle = 1;
-                            break;
-                        }
+                    case DesignWare_SPI.TransferSize.SingleByte:
+                    {
+                        bytesToHandle = 1;
+                        break;
+                    }
 
-                        case DesignWare_SPI.TransferSize.DoubleByte:
-                        {
-                            bytesToHandle = 2;
-                            break;
-                        }
+                    case DesignWare_SPI.TransferSize.DoubleByte:
+                    {
+                        bytesToHandle = 2;
+                        break;
+                    }
 
-                        default:
-                            throw new ArgumentException($"Unexpected transfer size {spi.FrameSize}");
+                    default:
+                        throw new ArgumentException($"Unexpected transfer size {spi.FrameSize}");
                     }
 
                     if(bytesToHandle > transferCount.Value)
@@ -92,19 +93,19 @@ namespace Antmicro.Renode.Peripherals.DMA
                     // now we must check if there is one or two bytes again
                     switch(bytesToHandle)
                     {
-                        case 1:
-                        {
-                            this.Log(LogLevel.Noisy, "DMA transfer: writing byte 0x{0:X} at offset 0x{1:X}", data, destinationAddress.Value);
-                            sysbus.WriteByte(destinationAddress.Value, (byte)data);
-                            break;
-                        }
+                    case 1:
+                    {
+                        this.Log(LogLevel.Noisy, "DMA transfer: writing byte 0x{0:X} at offset 0x{1:X}", data, destinationAddress.Value);
+                        sysbus.WriteByte(destinationAddress.Value, (byte)data);
+                        break;
+                    }
 
-                        case 2:
-                        {
-                            this.Log(LogLevel.Noisy, "DMA transfer: writing ushort 0x{0:X} at offset 0x{1:X}", data, destinationAddress.Value);
-                            sysbus.WriteWord(destinationAddress.Value, data);
-                            break;
-                        }
+                    case 2:
+                    {
+                        this.Log(LogLevel.Noisy, "DMA transfer: writing ushort 0x{0:X} at offset 0x{1:X}", data, destinationAddress.Value);
+                        sysbus.WriteWord(destinationAddress.Value, data);
+                        break;
+                    }
                     }
 
                     // transferCount is in bytes
@@ -124,6 +125,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
 
         public long Size => 0x100;
+
         public GPIO IRQ { get; } = new GPIO();
 
         public DoubleWordRegisterCollection RegistersCollection { get; private set; }

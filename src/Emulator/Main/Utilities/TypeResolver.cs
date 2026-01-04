@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Utilities
         public static Type ResolveType(string name)
         {
             var isNullable = false;
-            if (name.StartsWith("System.Nullable`1<"))
+            if(name.StartsWith("System.Nullable`1<"))
             {
                 isNullable = true;
                 name = name.Substring(18);
@@ -23,13 +23,12 @@ namespace Antmicro.Renode.Utilities
             }
 
             Type result;
-            if (!typesMap.TryGetValue(name, out result))
+            if(!typesMap.TryGetValue(name, out result))
             {
                 return null;
             }
 
             return isNullable ? typeof(Nullable<>).MakeGenericType(result) : result;
-
         }
 
         private static readonly Dictionary<string, Type> typesMap = new Dictionary<string, Type>()
@@ -38,4 +37,3 @@ namespace Antmicro.Renode.Utilities
         };
     }
 }
-

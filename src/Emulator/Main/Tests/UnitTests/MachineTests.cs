@@ -6,16 +6,17 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using NUnit.Framework;
+
 using Antmicro.Renode.Core;
-using Moq;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure;
-using System.Threading;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.UserInterface;
+
+using Moq;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -27,7 +28,7 @@ namespace Antmicro.Renode.UnitTests
             var machine = new Machine();
             var peripheral1 = new Mock<IDoubleWordPeripheral>().Object;
             var peripheral2 = new Mock<IDoubleWordPeripheral>().Object;
-            machine.SystemBus.Register(peripheral1,  0.By(10));
+            machine.SystemBus.Register(peripheral1, 0.By(10));
             machine.SystemBus.Register(peripheral2, 10.By(10));
             machine.SetLocalName(peripheral1, "name");
 
@@ -51,7 +52,7 @@ namespace Antmicro.Renode.UnitTests
             var machine = new Machine();
             var peripheral1 = new Mock<IDoubleWordPeripheral>().Object;
             var peripheral2 = new Mock<IDoubleWordPeripheral>().Object;
-            machine.SystemBus.Register(peripheral1,  0.By(10));
+            machine.SystemBus.Register(peripheral1, 0.By(10));
             machine.SystemBus.Register(peripheral2, 10.By(10));
             machine.SetLocalName(peripheral1, "first");
             machine.SetLocalName(peripheral2, "second");
@@ -136,16 +137,13 @@ namespace Antmicro.Renode.UnitTests
 
             public void WriteDoubleWord(long offset, uint value)
             {
-
             }
 
             public void Reset()
             {
-
             }
 
             private readonly IMachine machine;
         }
     }
 }
-

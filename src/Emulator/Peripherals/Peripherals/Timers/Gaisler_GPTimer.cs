@@ -4,6 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -11,9 +15,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
+
 using static Antmicro.Renode.Peripherals.Bus.GaislerAPBPlugAndPlayRecord;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -129,9 +131,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                             timers[timerIndex].Value = timers[timerIndex].Limit;
                         }
                     })
-                .WithFlag(3, out timers[timerIndex].interruptEnable, name: "interruptEnable",
+                .WithFlag(3, out timers[timerIndex].InterruptEnable, name: "interruptEnable",
                     changeCallback: (_, __) => UpdateInterrupt(timerIndex))
-                .WithFlag(4, out timers[timerIndex].interruptPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "interruptPending",
+                .WithFlag(4, out timers[timerIndex].InterruptPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "interruptPending",
                     changeCallback: (_, __) => UpdateInterrupt(timerIndex)) // Cleared by writing '1' as in the newer hardware revision
                 .WithTaggedFlag("chain", 5)
                 .WithTaggedFlag("debugHalt", 6)
@@ -151,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             if(!separateInterrupts)
             {
                 var timer = timers[index];
-                var state = timer.interruptEnable.Value && timer.interruptPending.Value;
+                var state = timer.InterruptEnable.Value && timer.InterruptPending.Value;
                 if(state)
                 {
                     this.NoisyLog("Signaling IRQ");
@@ -160,7 +162,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return;
             }
 
-            if(timers[index].interruptEnable.Value && timers[index].interruptPending.Value)
+            if(timers[index].InterruptEnable.Value && timers[index].InterruptPending.Value)
             {
                 this.NoisyLog("Signaling IRQ {0}", index);
                 Connections[index].Blink();
@@ -174,6 +176,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 // All timers share the same scaler so we just take the first one here
                 return timers[0].Divider;
             }
+
             set
             {
                 foreach(var timer in timers)
@@ -249,17 +252,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                 set => timer.Mode = value ? WorkMode.Periodic : WorkMode.OneShot;
             }
 
+            public IFlagRegisterField InterruptEnable;
+            public IFlagRegisterField InterruptPending;
+
             private void OnLimitReached()
             {
-                if(interruptEnable.Value)
+                if(InterruptEnable.Value)
                 {
-                    interruptPending.Value = true;
+                    InterruptPending.Value = true;
                     parent.UpdateInterrupt(index);
                 }
             }
-
-            public IFlagRegisterField interruptEnable;
-            public IFlagRegisterField interruptPending;
 
             private readonly Gaisler_GPTimer parent;
             private readonly LimitTimer timer;

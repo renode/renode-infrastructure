@@ -5,11 +5,13 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-﻿using System;
-using Xwt;
+using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.UserInterface;
+
+using Xwt;
 
 namespace Antmicro.Renode.UI
 {
@@ -22,17 +24,17 @@ namespace Antmicro.Renode.UI
             {
                 throw new ArgumentException("Wrong analyzer provided, expected object of type 'IHasGUIWidget'");
             }
-            
+
             var window = new Window();
             window.Title = name;
             window.Height = 600;
             window.Width = 800;
-            
+
             window.Content = guiWidget.Widget;
-            
+
             openedWindows.Add(analyzer, window);
             window.Closed += (sender, e) => openedWindows.Remove(analyzer);
-            
+
             window.Show();
         }
 
@@ -43,7 +45,7 @@ namespace Antmicro.Renode.UI
             {
                 throw new ArgumentException("Wrong analyzer provided, expected object of type 'IHasGUIWidget'");
             }
-            
+
             Window win;
             if(openedWindows.TryGetValue(analyzer, out win))
             {
@@ -51,8 +53,7 @@ namespace Antmicro.Renode.UI
                 openedWindows.Remove(analyzer);
             }
         }
-        
+
         private readonly Dictionary<IAnalyzableBackendAnalyzer, Window> openedWindows = new Dictionary<IAnalyzableBackendAnalyzer, Window>();
     }
 }
-

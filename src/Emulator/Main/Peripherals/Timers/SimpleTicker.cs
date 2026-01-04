@@ -6,11 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Threading;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Logging;
-using System.Threading;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -44,4 +45,3 @@ namespace Antmicro.Renode.Peripherals.Timers
         private int counter;
     }
 }
-

@@ -1,16 +1,17 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using NUnit.Framework;
-using Antmicro.Renode.Core.Structure.Registers;
 using System.Collections.Generic;
+
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -170,6 +171,34 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldWriteToClear()
+        {
+            flagWTCField.Value = true;
+            Assert.AreEqual(1u << 31 | RegisterResetValue, register.Read());
+            register.Write(0, 1u << 31);
+            Assert.IsFalse(flagWTCField.Value);
+
+            flagWTCField.Value = true;
+            register.Write(0, 0);
+            Assert.IsFalse(flagWTCField.Value);
+        }
+
+        [Test]
+        public void ShouldWriteToSet()
+        {
+            register.Reset();
+            Assert.AreEqual(RegisterResetValue, register.Read());
+
+            flagWTSField.Value = false;
+            register.Write(0, 1ul << 32);
+            Assert.IsTrue(flagWTSField.Value);
+
+            flagWTSField.Value = false;
+            register.Write(0, 0);
+            Assert.IsTrue(flagWTSField.Value);
+        }
+
+        [Test]
         public void ShouldReadToClear()
         {
             flagWRTCField.Value = true;
@@ -243,7 +272,7 @@ namespace Antmicro.Renode.UnitTests
         {
             enableValueProviders = true;
             register.Write(0, 3 << 0x16 | 1 << 0x19);
-            Assert.AreEqual(4 << 0x16 | 1 << 0x1A, register.Read());
+            Assert.AreEqual(4 << 0x16 | 1 << 0x1A, register.Read() & readMask);
         }
 
         [Test]
@@ -354,6 +383,8 @@ namespace Antmicro.Renode.UnitTests
             flagWZTSField = register.DefineFlagField(28, FieldMode.WriteZeroToSet);
             flagWZTTField = register.DefineFlagField(29, FieldMode.WriteZeroToToggle);
             flagRTSField = register.DefineFlagField(30, FieldMode.ReadToSet);
+            flagWTCField = register.DefineFlagField(31, FieldMode.Read | FieldMode.WriteToClear);
+            flagWTSField = register.DefineFlagField(32, FieldMode.Read | FieldMode.WriteToSet);
 
             register.WithReadCallback(GlobalCallback).WithWriteCallback(GlobalCallback).WithChangeCallback(GlobalCallback);
 
@@ -478,6 +509,10 @@ namespace Antmicro.Renode.UnitTests
           1D      |   Bool wztt
           --------------------
           1E      |   Bool rts
+          --------------------
+          1F      |   Bool wtc
+          --------------------
+          20      |   Bool wts
         */
         private QuadWordRegister register;
 
@@ -511,11 +546,13 @@ namespace Antmicro.Renode.UnitTests
         private IFlagRegisterField flagWZTSField;
         private IFlagRegisterField flagWZTTField;
         private IFlagRegisterField flagRTSField;
+        private IFlagRegisterField flagWTCField;
+        private IFlagRegisterField flagWTSField;
 
         // Bits that store written value
-        private ulong writeMask = 0b0000_1111_1101_1000__0111_1111_1111_1111;
+        private readonly ulong writeMask = 0b0000_1111_1101_1000__0111_1111_1111_1111;
         // Bits that provide stored value
-        private ulong readMask =  0b0000_1111_1110_0111__1111_1111_1111_1111;
+        private readonly ulong readMask =  0b0000_1111_1110_0111__1111_1111_1111_1111;
         private const ulong RegisterResetValue = 0x3780u;
 
         private enum TwoBitEnum

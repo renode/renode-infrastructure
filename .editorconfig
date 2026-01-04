@@ -1,3 +1,0 @@
-# Exclude files from formatting
-[src/Emulator/Extensions/Config/SimpleJson.cs]
-generated_code = true

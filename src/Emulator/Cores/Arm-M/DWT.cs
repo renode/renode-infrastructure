@@ -4,19 +4,17 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class DWT: BasicDoubleWordPeripheral, IKnownSize
+    public class DWT : BasicDoubleWordPeripheral, IKnownSize
     {
-        public DWT(IMachine machine, uint frequency): base(machine)
+        public DWT(IMachine machine, uint frequency) : base(machine)
         {
             CreateRegisters();
             cycleCounter = new LimitTimer(machine.ClockSource, frequency, this, "CycleCounter", direction: Direction.Ascending);
@@ -28,10 +26,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             cycleCounter.Reset();
         }
 
+        public long Size => 0x1000;
+
         private void CreateRegisters()
         {
             Registers.Control.Define(this)
-                .WithFlag(0, writeCallback: (_, val) => 
+                .WithFlag(0, writeCallback: (_, val) =>
                     {
                         cycleCounter.Enabled = val;
                         this.Log(LogLevel.Debug, "{0}", val ? "Enabled" : "Disabled");
@@ -52,22 +52,29 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(23, 5)
                 .WithTag("NUMCOMP", 28, 4);
             Registers.CycleCounter.Define(this)
-                .WithValueField(0, 32, writeCallback: (_, val) => { cycleCounter.Value = val; }, 
-                    valueProviderCallback: _ => (uint)cycleCounter.Value, name: "CYCCNT");
+                .WithValueField(0, 32, writeCallback: (_, val) => { cycleCounter.Value = val; },
+                    valueProviderCallback: _ =>
+                    {
+                        if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+                        {
+                            cpu.SyncTime();
+                        }
+                        return (uint)cycleCounter.Value;
+                    }, name: "CYCCNT");
             Registers.Count.Define(this)
-                .WithTag("CPICNT", 0, 8) 
+                .WithTag("CPICNT", 0, 8)
                 .WithReservedBits(8, 24);
             Registers.ExceptionOverheadCounter.Define(this)
-                .WithTag("EXCCNT", 0, 8) 
+                .WithTag("EXCCNT", 0, 8)
                 .WithReservedBits(8, 24);
             Registers.SleepCounter.Define(this)
-                .WithTag("SLEEPCNT", 0, 8) 
+                .WithTag("SLEEPCNT", 0, 8)
                 .WithReservedBits(8, 24);
             Registers.LoadStoreUnitCounter.Define(this)
-                .WithTag("LSUCNT", 0, 8) 
+                .WithTag("LSUCNT", 0, 8)
                 .WithReservedBits(8, 24);
             Registers.FoldCounter.Define(this)
-                .WithTag("FOLDCNT", 0, 8) 
+                .WithTag("FOLDCNT", 0, 8)
                 .WithReservedBits(8, 24);
             Registers.ProgramCounterSample.Define(this)
                 .WithTag("EIASAMPLE", 0, 32);
@@ -173,8 +180,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTag("CID", 0, 32);
         }
 
-        public long Size => 0x1000;
-
         private readonly LimitTimer cycleCounter;
 
         private enum Registers
@@ -214,4 +219,3 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
     }
 }
-

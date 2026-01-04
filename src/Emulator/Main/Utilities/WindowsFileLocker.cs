@@ -43,14 +43,6 @@ namespace Antmicro.Renode.Utilities
         public void Dispose()
         {
             file.Close();
-            try
-            {
-                File.Delete(path);
-            }
-            catch(IOException)
-            {
-                // ignore exception
-            }
         }
 
         private readonly FileStream file;

@@ -1,36 +1,39 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.CPU;
+
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Memory
 {
-    public class ArrayMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IMemory, IMultibyteWritePeripheral, IQuadWordPeripheral, ICanLoadFiles, IEndiannessAware
+    public class ArrayMemory : IMemory, ICanLoadFiles, IEndiannessAware
     {
         public ArrayMemory(byte[] source)
         {
             array = source;
         }
 
-        public ArrayMemory(ulong size)
+        public ArrayMemory(ulong size, byte initialValue = 0x00)
         {
             if(size > MaxSize)
             {
                 throw new ConstructionException($"Memory size cannot be larger than 0x{MaxSize:X}, requested: 0x{size:X}");
             }
             array = new byte[size];
+            if(initialValue != 0x00)
+            {
+                Fill(initialValue);
+            }
         }
 
         public virtual ulong ReadQuadWord(long offset)
@@ -122,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             array[intOffset] = value;
         }
 
-        public byte[] ReadBytes(long offset, int count, ICPU context = null)
+        public byte[] ReadBytes(long offset, int count, IPeripheral context = null)
         {
             if(!IsCorrectOffset(offset, count))
             {
@@ -133,7 +136,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             return result;
         }
 
-        public void WriteBytes(long offset, byte[] bytes, int startingIndex, int count, ICPU context = null)
+        public void WriteBytes(long offset, byte[] bytes, int startingIndex, int count, IPeripheral context = null)
         {
             if(!IsCorrectOffset(offset, count))
             {
@@ -142,9 +145,19 @@ namespace Antmicro.Renode.Peripherals.Memory
             Array.Copy(bytes, startingIndex, array, offset, count);
         }
 
-        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
+        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, IPeripheral cpu)
         {
             this.LoadFileChunks(chunks, cpu);
+        }
+
+        public void Fill(byte value)
+        {
+            array.Fill(value);
+        }
+
+        public void FillRegion(byte value, int startIndex, int count)
+        {
+            array.Fill(value, startIndex, count);
         }
 
         public long Size

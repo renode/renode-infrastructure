@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,28 +7,1205 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Linq;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
-using System.IO;
-using Dynamitey;
-using System.Text;
-using System.Runtime.InteropServices;
-using System.Drawing;
-using Antmicro.Renode.Network;
 using System.Diagnostics;
-using Antmicro.Renode.Core.Structure.Registers;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
-using Antmicro.Renode.Peripherals.CPU;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Profiling;
+using Antmicro.Renode.Network;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.CPU;
+
+using Dynamitey;
 
 namespace Antmicro.Renode.Utilities
 {
     public static class Misc
     {
+        public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> @this, TKey key)
+        {
+            return @this.GetOrDefault(key, default(TValue));
+        }
+
+        public static bool TryParseBitPattern(string pattern, out ulong value, out ulong mask)
+        {
+            value = 0uL;
+            mask = 0uL;
+
+            if(pattern.Length > 64)
+            {
+                return false;
+            }
+
+            var currentBit = pattern.Length - 1;
+
+            foreach(var p in pattern)
+            {
+                switch(p)
+                {
+                case '0':
+                    mask |= (1uL << currentBit);
+                    break;
+
+                case '1':
+                    mask |= (1uL << currentBit);
+                    value |= (1uL << currentBit);
+                    break;
+
+                default:
+                    // all characters other than '0' or '1' are treated as 'any-value'
+                    break;
+                }
+
+                currentBit--;
+            }
+
+            return true;
+        }
+
+        // Allows to have static initialization of a two-element tuple list.
+        // To enable other arities of tuples, add more overloads.
+        public static void Add<T1, T2>(this IList<Tuple<T1, T2>> list,
+            T1 item1, T2 item2)
+        {
+            list.Add(Tuple.Create(item1, item2));
+        }
+
+        // allocate file of a given name
+        // if it already exists - rename it using pattern path.III (III being an integer)
+        // returns information if there was a rename and III of the last renamed file
+        public static bool AllocateFile(string path, out int counter)
+        {
+            counter = 0;
+            var renamed = false;
+            var dstName = $"{path}.{counter}";
+
+            while(!TryCreateEmptyFile(path))
+            {
+                while(File.Exists(dstName))
+                {
+                    counter++;
+                    dstName = $"{path}.{counter}";
+                }
+                File.Move(path, dstName);
+                renamed = true;
+            }
+            return renamed;
+        }
+
+        public static string SurroundWith(this string str, string surrounding)
+        {
+            return $"{surrounding}{str}{surrounding}";
+        }
+
+        public static string StripNonSafeCharacters(this string input)
+        {
+            return Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(input).Where(x => (x >= 32 && x <= 126) || (x == '\n')).ToArray());
+        }
+
+        public static bool TryCreateFrameOrLogWarning(IEmulationElement source, byte[] data, out EthernetFrame frame, bool addCrc)
+        {
+            if(EthernetFrame.TryCreateEthernetFrame(data, addCrc, out frame))
+            {
+                return true;
+            }
+            source.Log(LogLevel.Warning, "Insufficient data to create an ethernet frame, expected {0} bytes but got {1} bytes.",
+                    EthernetFrame.MinFrameSizeWithoutCRC + (addCrc ? 0 : EthernetFrame.CRCLength), data.Length);
+            return false;
+        }
+
+        public static IEnumerable<T> PopAll<T>(this Stack<T> @this)
+        {
+            return PopRange(@this, @this.Count);
+        }
+
+        public static IEnumerable<T> PopRange<T>(this Stack<T> @this, int limit)
+        {
+            while(@this.Count > 0 && limit > 0)
+            {
+                limit--;
+                yield return @this.Pop();
+            }
+        }
+
+        public static bool TryDequeue<T>(this Queue<T> @this, out T result)
+        {
+            if(@this.Count == 0)
+            {
+                result = default(T);
+                return false;
+            }
+            result = @this.Dequeue();
+            return true;
+        }
+
+        public static T[] DequeueAll<T>(this Queue<T> @this)
+        {
+            return DequeueRange(@this, @this.Count);
+        }
+
+        public static T[] DequeueRange<T>(this Queue<T> @this, int limit)
+        {
+            var result = new T[Math.Min(@this.Count, limit)];
+            for(var i = 0; i < result.Length; i++)
+            {
+                result[i] = @this.Dequeue();
+            }
+            return result;
+        }
+
+        public static int EnqueueRange<T>(this Queue<T> @this, IEnumerable<T> data, int? limit = null)
+        {
+            var counter = 0;
+            foreach(var e in data.Take(limit ?? int.MaxValue))
+            {
+                @this.Enqueue(e);
+                counter++;
+            }
+            return counter;
+        }
+
+        public static DateTime With(this DateTime @this, int? year = null, int? month = null, int? day = null, int? hour = null, int? minute = null, int? second = null, double? millisecond = null)
+        {
+            var dateTime = new DateTime(
+                year ?? @this.Year,
+                month ?? @this.Month,
+                day ?? @this.Day,
+                hour ?? @this.Hour,
+                minute ?? @this.Minute,
+                second ?? @this.Second);
+
+            if(millisecond != null)
+            {
+                dateTime = dateTime.AddMilliseconds(millisecond.Value);
+            }
+
+            return dateTime;
+        }
+
+        public static UInt32 ToUInt32Smart(this byte[] @this)
+        {
+            if(@this.Length > 4)
+            {
+                throw new ArgumentException($"Bytes array is tool long. Expected at most 4 bytes, but got {@this.Length}");
+            }
+            var result = 0u;
+            for(var i = 0; i < @this.Length; i++)
+            {
+                result |= ((uint)@this[i] << (8 * i));
+            }
+            return result;
+        }
+
+        public static LazyHexString<T> ToLazyHexString<T>(this IEnumerable<T> collection)
+        {
+            return new LazyHexString<T>(collection);
+        }
+
+        public static LazyString<T> ToLazyString<T>(this IEnumerable<T> collection)
+        {
+            return new LazyString<T>(collection);
+        }
+
+        public static string PrettyPrintCollectionHex<T>(IEnumerable<T> collection)
+        {
+            return PrettyPrintCollection(collection, x => "0x{0:X}".FormatWith(x));
+        }
+
+        public static string PrettyPrintCollection<T>(IEnumerable<T> collection, Func<T, string> formatter = null)
+        {
+            return collection == null || !collection.Any()
+                ? "[]"
+                : $"[{(string.Join(", ", collection.Select(x => formatter == null ? x.ToString() : formatter(x))))}]";
+        }
+
+        public static string ToDebugString(this object obj)
+        {
+            var t = obj.GetType();
+            return Misc.PrettyPrintCollection(t.GetProperties().Select(p => (MemberInfo)p).Concat(t.GetFields().Select(f => (MemberInfo)f)).Select(f =>
+                {
+                    var fi = f as FieldInfo;
+                    var pi = f as PropertyInfo;
+                    var type = fi?.FieldType ?? pi.PropertyType;
+                    var value = (fi != null) ? fi.GetValue(obj) : pi.GetValue(obj);
+                    var valueStr = (!type.IsPrimitive || value is bool || value as int? <= 9 || value as ulong? <= 9) ? (value?.ToString() ?? "(null)") : $"0x{value:x}";
+                    return $"{f.Name} = {valueStr}";
+                }));
+        }
+
+        public static void FlipFlag<TEnum>(ref TEnum value, TEnum flag, bool state)
+        {
+            if(!typeof(TEnum).IsEnum)
+            {
+                throw new ArgumentException("TEnum must be an enumerated type.");
+            }
+            var intValue = (long)(object)value;
+            var intFlag = (long)(object)flag;
+            if(state)
+            {
+                intValue |= intFlag;
+            }
+            else
+            {
+                intValue &= ~intFlag;
+            }
+            value = (TEnum)(object)intValue;
+        }
+
+        public static void WaitWhile(this object @this, Func<bool> condition, string reason)
+        {
+            @this.Trace($"Waiting for '{reason}'...");
+            while(condition())
+            {
+                Monitor.Wait(@this);
+            }
+            @this.Trace($"Waiting for '{reason}' finished.");
+        }
+
+        public static void SetBytesFromValue(this byte[] array, ushort value, int startIndex)
+        {
+            for(var i = 0; i < sizeof(ushort); i++)
+            {
+                array[startIndex + i] = (byte)(value >> (i * 8));
+            }
+        }
+
+        public static void SetBytesFromValue(this byte[] array, uint value, int startIndex)
+        {
+            for(var i = 0; i < sizeof(uint); i++)
+            {
+                array[startIndex + i] = (byte)(value >> (i * 8));
+            }
+        }
+
+        public static void SetBytesFromValue(this byte[] array, ulong value, int startIndex)
+        {
+            for(var i = 0; i < sizeof(ulong); i++)
+            {
+                array[startIndex + i] = (byte)(value >> (i * 8));
+            }
+        }
+
+        public static ulong InMicroseconds(this TimeSpan ts)
+        {
+            return (ulong)(ts.Ticks / 10);
+        }
+
+        public static bool TryFindPreceedingEnumItem<T>(uint value, out T bestCandidate, out int offset) where T : IConvertible
+        {
+            var allValues = Enum.GetValues(typeof(T));
+            var maxIndex = allValues.Length - 1;
+
+            bestCandidate = default(T);
+            offset = 0;
+
+            if((int)allValues.GetValue(0) > value)
+            {
+                // there are no values preceeding given value
+                return false;
+            }
+
+            int currentValue = 0;
+            int lowBorder = 0;
+            int highBorder = maxIndex;
+
+            // binary search
+            while(highBorder != lowBorder)
+            {
+                var currentIndex = lowBorder + ((highBorder - lowBorder) / 2);
+                currentValue = (int)allValues.GetValue(currentIndex);
+
+                if(currentValue == value)
+                {
+                    break;
+                }
+                else if(currentValue < value)
+                {
+                    lowBorder = currentIndex + 1;
+                }
+                else
+                {
+                    highBorder = currentIndex;
+                }
+            }
+            bestCandidate = (T)Enum.ToObject(typeof(T), currentValue);
+            offset = (int)(value - currentValue);
+            return true;
+        }
+
+        public static T[] CopyAndResize<T>(this T[] source, int length)
+        {
+            if(source.Length == length)
+            {
+                return source.ToArray();
+            }
+            var data = new T[length];
+            Array.Copy(source, data, Math.Min(source.Length, length));
+            return data;
+        }
+
+        public static bool ReturnThenSet(ref bool variable, bool value = true) => ReturnThenAssign(ref variable, value);
+
+        public static T ReturnThenAssign<T>(ref T variable, T value)
+        {
+            var temp = variable;
+            variable = value;
+            return temp;
+        }
+
+        public static ulong LCM(ulong a, ulong b)
+        {
+            return a / GCD(a, b) * b;
+        }
+
+        public static ulong GCD(ulong a, ulong b)
+        {
+            while(a != 0 && b != 0)
+            {
+                if(a > b)
+                {
+                    a %= b;
+                }
+                else
+                {
+                    b %= a;
+                }
+            }
+            return a | b;
+        }
+
+        public static MpuAccess MemoryOperationToMpuAccess(MemoryOperation operation)
+        {
+            switch(operation)
+            {
+            case MemoryOperation.InsnFetch:
+                return MpuAccess.InstructionFetch;
+            case MemoryOperation.MemoryIOWrite:
+            case MemoryOperation.MemoryWrite:
+                return MpuAccess.Write;
+            case MemoryOperation.MemoryIORead:
+            case MemoryOperation.MemoryRead:
+                return MpuAccess.Read;
+            default:
+                throw new ArgumentException("Invalid conversion from MemoryOperation to MpuAccess");
+            }
+        }
+
+        public static bool IsStructType(Type type)
+        {
+            // According to docs, IsValueType return true for structs, enums and primitive types
+            return type.IsValueType && !type.IsPrimitive && !type.IsEnum;
+        }
+
+        public static void AddIf<T>(this ICollection<T> collection, bool condition, T item)
+        {
+            if(condition)
+            {
+                collection.Add(item);
+            }
+        }
+
+        public static IEnumerable<T> Prefix<T>(IEnumerable<T> enumerable, Func<T, T, T> function)
+        {
+            var enumerator = enumerable.GetEnumerator();
+            // Using `out var` here causes a compiler crash in Mono 6.8.0.105+dfsg-3.3 from Debian
+            if(!enumerator.TryGetNext(out T prefix))
+            {
+                yield break;
+            }
+            while(enumerator.MoveNext())
+            {
+                yield return prefix;
+                prefix = function(prefix, enumerator.Current);
+            }
+            yield return prefix;
+        }
+
+        public static ulong CastToULong(dynamic number)
+        {
+            if(new Type[] { typeof(byte), typeof(ushort), typeof(uint), typeof(ulong) }.Any((t) => number.GetType() == t))
+            {
+                return (ulong)number;
+            }
+            throw new ArgumentException($"Can't cast {number.GetType()} to ulong", "number");
+        }
+
+#if !NET
+        // Enumerable.TakeLast is in the standard library on .NET Core but isn't available on .NET Framework
+        public static IEnumerable<T> TakeLast<T>(this IEnumerable<T> @this, int count)
+        {
+            // This will enumerate the collection twice - it might be not optimal for performance sensitive operations
+            return @this.Skip(Math.Max(0, @this.Count() - count));
+        }
+
+        public static IEnumerable<T[]> Chunk<T>(this IEnumerable<T> @this, int size)
+        {
+            var buffer = new Queue<T>();
+            foreach(var item in @this)
+            {
+                buffer.Enqueue(item);
+                if(buffer.Count == size)
+                {
+                    yield return buffer.ToArray();
+                    buffer.Clear();
+                }
+            }
+
+            if(buffer.Count > 0)
+            {
+                yield return buffer.ToArray();
+            }
+        }
+
+        public static void Fill<T>(this T[] array, T value, int startIndex = 0, int? count = null)
+        {
+            if(startIndex >= array.Length || startIndex < 0)
+            {
+                throw new ArgumentException("has to be a legal index", nameof(startIndex));
+            }
+            count = count ?? array.Length - startIndex;
+            if(startIndex + count.Value > array.Length)
+            {
+                throw new ArgumentException("value out of bounds", nameof(count));
+            }
+            for(var i = 0; i < count.Value; ++i)
+            {
+                array[startIndex + i] = value;
+            }
+        }
+#else
+        public static void Fill<T>(this T[] array, T value, int startIndex = 0, int? count = null)
+        {
+            Array.Fill(array, value, startIndex, count ?? array.Length - startIndex);
+        }
+#endif
+
+        public static IEnumerable<T> Iterate<T>(Func<T> function)
+        {
+            while(true)
+            {
+                yield return function();
+            }
+        }
+
+        public static void WriteWithOffset<T>(this T @this, long register, int offset, byte value, bool msbFirst = false) where T : IRegisterCollection
+        {
+            int innerOffset;
+            uint previousValue;
+            Action<uint> writeFunction;
+            if(@this is ByteRegisterCollection)
+            {
+                ByteRegisterCollection byteRegisterCollection = @this as ByteRegisterCollection;
+                innerOffset = 0;
+                previousValue = (uint)byteRegisterCollection.Read(register);
+                writeFunction = (data) => byteRegisterCollection.Write(register, (byte)data);
+            }
+            else if(@this is WordRegisterCollection)
+            {
+                WordRegisterCollection wordRegisterCollection = @this as WordRegisterCollection;
+                innerOffset = offset % 2;
+                if(msbFirst)
+                {
+                    innerOffset = 1 - innerOffset;
+                }
+                previousValue = (uint)wordRegisterCollection.Read(register + offset / 2);
+                writeFunction = (data) => wordRegisterCollection.Write(register + offset / 2, (ushort)data);
+            }
+            else if(@this is DoubleWordRegisterCollection)
+            {
+                DoubleWordRegisterCollection doubleWordRegisterCollection = @this as DoubleWordRegisterCollection;
+                innerOffset = offset % 4;
+                if(msbFirst)
+                {
+                    innerOffset = 3 - innerOffset;
+                }
+                previousValue = (uint)doubleWordRegisterCollection.Read(register + offset / 4);
+                writeFunction = (data) => doubleWordRegisterCollection.Write(register + offset / 4, (uint)data);
+            }
+            else
+            {
+                throw new Exception("unreachable code");
+            }
+            var mask = 0xFFU << (innerOffset * 8);
+            var newValue = (previousValue & ~mask) | ((uint)value << (innerOffset * 8));
+            writeFunction((uint)newValue);
+        }
+
+        public static byte ReadWithOffset<T>(this T @this, long register, int offset, bool msbFirst = false) where T : IRegisterCollection
+        {
+            int innerOffset;
+            uint outputValue;
+            if(@this is ByteRegisterCollection)
+            {
+                ByteRegisterCollection byteRegisterCollection = @this as ByteRegisterCollection;
+                innerOffset = 0;
+                outputValue = (uint)byteRegisterCollection.Read(register);
+            }
+            else if(@this is WordRegisterCollection)
+            {
+                WordRegisterCollection wordRegisterCollection = @this as WordRegisterCollection;
+                innerOffset = offset % 2;
+                if(msbFirst)
+                {
+                    innerOffset = 1 - innerOffset;
+                }
+                outputValue = (uint)wordRegisterCollection.Read(register + offset / 2);
+            }
+            else if(@this is DoubleWordRegisterCollection)
+            {
+                DoubleWordRegisterCollection doubleWordRegisterCollection = @this as DoubleWordRegisterCollection;
+                innerOffset = offset % 4;
+                if(msbFirst)
+                {
+                    innerOffset = 3 - innerOffset;
+                }
+                outputValue = (uint)doubleWordRegisterCollection.Read(register + offset / 4);
+            }
+            else
+            {
+                throw new Exception("unreachable code");
+            }
+            var mask = 0xFFUL << (innerOffset * 8);
+            return (byte)((outputValue & mask) >> (innerOffset * 8));
+        }
+
+        public static bool TryGetNext<T>(this IEnumerator<T> @this, out T element)
+        {
+            element = default(T);
+            if(@this.MoveNext())
+            {
+                element = @this.Current;
+                return true;
+            }
+            return false;
+        }
+
+        public static T ToStruct<T>(this byte[] @this) where T : struct
+        {
+            var size = @this.Length;
+            var bufferPointer = Marshal.AllocHGlobal(size);
+            Marshal.Copy(@this, 0, bufferPointer, size);
+            var result = (T)Marshal.PtrToStructure(bufferPointer, typeof(T));
+            Marshal.FreeHGlobal(bufferPointer);
+            return result;
+        }
+
+        public static T ReadStruct<T>(this Stream @this) where T : struct
+        {
+            var structSize = Marshal.SizeOf(typeof(T));
+            return @this.ReadBytes(structSize).ToStruct<T>();
+        }
+
+        public static byte[] AsBytes(uint[] data)
+        {
+            var outLength = data.Length * sizeof(uint);
+            var dataAsBytes = new byte[outLength];
+            Buffer.BlockCopy(data, 0, dataAsBytes, 0, outLength);
+            return dataAsBytes;
+        }
+
+        // Remaps a number from [inMin; inMax] to [outMin; outMax].
+        // Supports "reversing the direction", like remapping [0; 10] to [1; -1].
+        // If the input is null or outside the input range, returns null.
+        public static decimal? RemapNumber(decimal? value, decimal inMin, decimal inMax, decimal outMin, decimal outMax)
+        {
+            if(value == null || value < inMin || value > inMax)
+            {
+                return null;
+            }
+
+            var inRangeLen = inMax - inMin;
+            var outRangeLen = outMax - outMin;
+            return (value - inMin) * outRangeLen / inRangeLen + outMin;
+        }
+
+        public static int CountTrailingZeroes(uint value)
+        {
+            int count = 0;
+            while((value & 0x1) == 0)
+            {
+                count += 1;
+                value >>= 1;
+                if(count == sizeof(uint) * 8)
+                {
+                    break;
+                }
+            }
+            return count;
+        }
+
+        public static void FillByteArrayWithArray(byte[] destinationArray, byte[] sourceArray)
+        {
+            var srcLength = sourceArray.Length;
+            var dstLength = destinationArray.Length;
+            if(srcLength >= dstLength)
+            {
+                Buffer.BlockCopy(sourceArray, 0, destinationArray, 0, dstLength);
+            }
+            else
+            {
+                var currentIndex = 0;
+                while((currentIndex + srcLength) < dstLength)
+                {
+                    Buffer.BlockCopy(sourceArray, 0, destinationArray, currentIndex, srcLength);
+                    currentIndex += srcLength;
+                }
+                var remindingElements = dstLength % srcLength;
+                Buffer.BlockCopy(sourceArray, 0, destinationArray, currentIndex, remindingElements);
+            }
+        }
+
+        public static bool ReturnThenClear(ref bool variable) => ReturnThenAssign(ref variable, false);
+
+        public static void SetBit(this IValueRegisterField field, byte index, bool value)
+        {
+            var val =  field.Value;
+            BitHelper.SetBit(ref val, index, value);
+            field.Value = val;
+        }
+
+        public static string[] Split(this string value, int size)
+        {
+            var ind = 0;
+            return value.GroupBy(x => ind++ / size).Select(x => string.Join("", x)).ToArray();
+        }
+
+        public static void Swap<T>(ref T a, ref T b)
+        {
+            T temporary = a;
+            a = b;
+            b = temporary;
+        }
+
+        public static string DumpPacket(EthernetFrame packet, bool isSend, IMachine machine)
+        {
+            var builder = new StringBuilder();
+            string machName;
+            if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineName(machine, out machName))
+            {
+                //probably the emulation is closing now, just return.
+                return string.Empty;
+            }
+            if(isSend)
+            {
+                builder.AppendLine(String.Format("Sending packet from {0}, length: {1}", machName, packet.Bytes.Length));
+            }
+            else
+            {
+                builder.AppendLine(String.Format("Receiving packet on {0}, length: {1}", machName, packet.Bytes.Length));
+            }
+            builder.Append(packet.ToString());
+            return builder.ToString();
+        }
+
+        //TODO: Support for ipv6
+        public static void FillPacketWithChecksums(IPeripheral source, byte[] packet, params TransportLayerProtocol[] interpretedProtocols)
+        {
+            if(packet.Length < MACLength)
+            {
+                source.Log(LogLevel.Error, String.Format("Expected packet of at least {0} bytes, got {1}.", MACLength, packet.Length));
+                return;
+            }
+            var packet_type = (PacketType) ((packet[12] << 8) | packet[13]);
+            if(packet_type == PacketType.ARP)
+            {
+                // ARP
+                return;
+            }
+            else if(packet_type != PacketType.IP)
+            {
+                source.Log(LogLevel.Error, String.Format("Unknown packet type: 0x{0:X}. Supported are: 0x800 (IP) and 0x806 (ARP).", (ushort)packet_type));
+                return;
+            }
+            if(packet.Length < (MACLength + 12))
+            {
+                source.Log(LogLevel.Error, "IP Packet is too short!");
+                return;
+            }
+            // IPvX
+            if((packet[MACLength] >> 4) != 0x04)
+            {
+                source.Log(LogLevel.Error, String.Format("Only IPv4 packets are supported. Got IPv{0}", (packet[MACLength] >> 4)));
+                return;
+            }
+            // IPv4
+            var ipLength = (packet[MACLength] & 0x0F) * 4;
+            if(ipLength != 0)
+            {
+                var ipChecksum = ComputeHeaderIpChecksum(packet, MACLength, ipLength);
+                packet[MACLength + 10] = (byte)(ipChecksum >> 8);
+                packet[MACLength + 11] = (byte)(ipChecksum & 0xFF);
+            }
+            else
+            {
+                source.Log(LogLevel.Error, "Something is wrong - IP packet of len 0");
+            }
+            if(interpretedProtocols != null && interpretedProtocols.Contains((TransportLayerProtocol)packet[MACLength + 9]))
+            {
+                var payloadStart = MACLength + ipLength;
+                var protocol = (TransportLayerProtocol)packet[MACLength + 9];
+                var checksum = GetPacketChecksum(packet, MACLength, payloadStart, protocol != TransportLayerProtocol.ICMP);
+                switch(protocol)
+                {
+                case TransportLayerProtocol.ICMP:
+                    packet[payloadStart + 2] = (byte)((checksum >> 8) & 0xFF);
+                    packet[payloadStart + 3] = (byte)((checksum) & 0xFF);
+                    break;
+                case TransportLayerProtocol.TCP:
+                    packet[payloadStart + 16] = (byte)((checksum >> 8) & 0xFF);
+                    packet[payloadStart + 17] = (byte)((checksum) & 0xFF);
+                    break;
+                case TransportLayerProtocol.UDP:
+                    packet[payloadStart + 6] = (byte)((checksum >> 8) & 0xFF);
+                    packet[payloadStart + 7] = (byte)((checksum) & 0xFF);
+                    break;
+                default:
+                    throw new NotImplementedException();
+                }
+            }
+        }
+
+        public static String FormatWith(this String @this, params object[] args)
+        {
+            if(@this == null)
+            {
+                throw new ArgumentNullException("this");
+            }
+            if(args == null)
+            {
+                throw new ArgumentNullException("args");
+            }
+            return String.Format(@this, args);
+        }
+
+        public static TimeSpan Multiply(this TimeSpan multiplicand, double multiplier)
+        {
+            return TimeSpan.FromTicks((long)(multiplicand.Ticks * multiplier));
+        }
+
+        public static TimeSpan Multiply(this TimeSpan multiplicand, int multiplier)
+        {
+            return TimeSpan.FromTicks(multiplicand.Ticks * multiplier);
+        }
+
+        public static bool TryGetRootDirectory(string baseDirectory, out string directory)
+        {
+            if(cachedRootDirectory != null)
+            {
+                directory = cachedRootDirectory;
+                return true;
+            }
+
+            directory = null;
+            if(baseDirectory.Length == 0)
+            {
+                return false;
+            }
+
+            var currentDirectory = new DirectoryInfo(baseDirectory);
+            while(currentDirectory != null)
+            {
+                var indicatorFiles = Directory.GetFiles(currentDirectory.FullName, ".renode-root");
+                if(indicatorFiles.Length == 1)
+                {
+                    var content = File.ReadAllLines(Path.Combine(currentDirectory.FullName, indicatorFiles[0]));
+                    if(content.Length == 1 && content[0] == "5344ec2a-1539-4017-9ae5-a27c279bd454")
+                    {
+                        directory = currentDirectory.FullName;
+                        cachedRootDirectory = directory;
+                        return true;
+                    }
+                }
+                currentDirectory = currentDirectory.Parent;
+            }
+            return false;
+        }
+
+        public static bool TryGetRootDirectory(out string directory)
+        {
+            if(TryGetRootDirectory(AppDomain.CurrentDomain.BaseDirectory, out directory))
+            {
+                // Firstly, try to resolve root directory starting from
+                // directory containing current assembly. This should
+                // work when Renode was run after being manually compiled from the source code.
+                return true;
+            }
+
+            // If we couldn't find root directory in previous step, try again
+            // starting from directory of main process' executable. This is fallback for
+            // when Renode was executed from self-contained binary.
+            var currentProcess = Process.GetCurrentProcess();
+            var currentModulePath = Path.GetFullPath(currentProcess.MainModule.FileName);
+            var rootDirectory = Path.GetDirectoryName(currentModulePath);
+            return TryGetRootDirectory(rootDirectory, out directory);
+        }
+
+        public static IEnumerable<T[]> Split<T>(this IEnumerable<T> values, int size)
+        {
+            var i = 0;
+            return values.GroupBy(_ => i++ / size).Select(chunk => chunk.ToArray());
+        }
+
+        public static string GetRootDirectory()
+        {
+            if(cachedRootDirectory != null)
+            {
+                return cachedRootDirectory;
+            }
+
+            if(TryGetRootDirectory(out var result))
+            {
+                return result;
+            }
+
+            // fall-back to the current working directory
+            var cwd = Directory.GetCurrentDirectory();
+            Logger.Log(LogLevel.Warning, "Could not find '.renode-root' - falling back to current working directory ({0}) - might cause problems.", cwd);
+            cachedRootDirectory = cwd;
+
+            return cwd;
+        }
+
+        public static void Copy(this Stream from, Stream to)
+        {
+            var buffer = new byte[4096];
+            int read;
+            do
+            {
+                read = from.Read(buffer, 0, buffer.Length);
+                if(read <= 0) // to workaround ionic zip's bug
+                {
+                    break;
+                }
+                to.Write(buffer, 0, read);
+            }
+            while(true);
+        }
+
+        public static string FromResourceToTemporaryFile(this Assembly assembly, string resourceName)
+        {
+            if(!TryFromResourceToTemporaryFile(assembly, resourceName, out var result))
+            {
+                throw new ArgumentException(string.Format("Cannot find library {0}", resourceName));
+            }
+            return result;
+        }
+
+        public static bool TryFromResourceToTemporaryFile(this Assembly assembly, string resourceName, out string outputFileFullPath, string nonstandardOutputFilename = null)
+        {
+            // `GetManifestResourceStream` is not supported by dynamic assemblies
+            Stream libraryStream = assembly.IsDynamic
+                ? null
+                : assembly.GetManifestResourceStream(resourceName);
+
+            if(libraryStream == null)
+            {
+                if(File.Exists(resourceName))
+                {
+                    libraryStream = new FileStream(resourceName, FileMode.Open, FileAccess.Read, FileShare.None);
+                }
+                if(libraryStream == null)
+                {
+                    outputFileFullPath = null;
+                    return false;
+                }
+            }
+
+            string libraryFile;
+            if(nonstandardOutputFilename != null)
+            {
+                if(!TemporaryFilesManager.Instance.TryCreateFile(nonstandardOutputFilename, out libraryFile))
+                {
+                    Logging.Logger.Log(Logging.LogLevel.Error, "Could not unpack resource {0} to {1}. This likely signifies an internal error.", resourceName, nonstandardOutputFilename);
+                    outputFileFullPath = null;
+                    return false;
+                }
+            }
+            else
+            {
+                libraryFile = TemporaryFilesManager.Instance.GetTemporaryFile(resourceName);
+
+                if(String.IsNullOrEmpty(libraryFile))
+                {
+                    outputFileFullPath = null;
+                    return false;
+                }
+            }
+            outputFileFullPath = CopyToFile(libraryStream, libraryFile);
+            return true;
+        }
+
+        public static ulong GrayToBinary(ulong grayEncoding)
+        {
+            ulong binaryEncoding = grayEncoding;
+            while(grayEncoding > 0)
+            {
+                grayEncoding >>= 1;
+                binaryEncoding ^= grayEncoding;
+            }
+            return binaryEncoding;
+        }
+
+        public static ulong BinaryToGray(ulong binaryEncoding)
+        {
+            return binaryEncoding ^ (binaryEncoding >> 1);
+        }
+
+        public static byte LoByte(this UInt16 value)
+        {
+            return (byte)(value & 0xFF);
+        }
+
+        public static byte HiByte(this UInt16 value)
+        {
+            return (byte)((value >> 8) & 0xFF);
+        }
+
+        public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> @this, TKey key, TValue defaultValue)
+        {
+            if(@this.TryGetValue(key, out var value))
+            {
+                return value;
+            }
+            return defaultValue;
+        }
+
+        public static void GetPixelFromPngImage(string fileName, int x, int y, out byte r, out byte g, out byte b)
+        {
+            Bitmap bitmap;
+            if(fileName == LastBitmapName)
+            {
+                bitmap = LastBitmap;
+            }
+            else
+            {
+                bitmap = new Bitmap(fileName);
+                LastBitmap = bitmap;
+                LastBitmapName = fileName;
+            }
+            var color = bitmap.GetPixel(x, y);
+            r = color.R;
+            g = color.G;
+            b = color.B;
+        }
+
+        public static uint SwapBytesUInt(uint value)
+        {
+            return (value & 0xFF000000) >> 24
+                 | (value & 0x00FF0000) >> 8
+                 | (value & 0x0000FF00) << 8
+                 | (value & 0x000000FF) << 24;
+        }
+
+        public static ushort SwapBytesUShort(ushort val)
+        {
+            return (ushort)((val << 8) | (val >> 8));
+        }
+
+        public static T SwapBytes<T>(T value)
+        {
+            var type = typeof(T);
+            if(type == typeof(uint))
+            {
+                return (T)(object)SwapBytesUInt((uint)(object)value);
+            }
+            else if(type == typeof(ushort))
+            {
+                return (T)(object)SwapBytesUShort((ushort)(object)value);
+            }
+            else if(type == typeof(byte))
+            {
+                return value;
+            }
+            else
+            {
+                throw new ArgumentException($"Unhandled type {type}");
+            }
+        }
+
+        public static void SwapElements<T>(T[] arr, int id1, int id2)
+        {
+            var tmp = arr[id1];
+            arr[id1] = arr[id2];
+            arr[id2] = tmp;
+        }
+
+        public static bool EndiannessSwapInPlace(byte[] input, int width, int offset = 0, int? length = null)
+        {
+            if(offset > input.Length)
+            {
+                return false;
+            }
+
+            var bytesFromOffset = input.Length - offset;
+            var len = length ?? bytesFromOffset;
+            if(len > bytesFromOffset || len % width != 0)
+            {
+                return false;
+            }
+
+            for(var i = offset; i < offset + len; i += width)
+            {
+                for(var j = 0; j < width / 2; j++)
+                {
+                    SwapElements(input, i + j, i + width - j - 1);
+                }
+            }
+
+            return true;
+        }
+
+        public static T Clamp<T>(this T @this, T min, T max) where T : IComparable
+        {
+            if(@this.CompareTo(min) < 0)
+            {
+                return min;
+            }
+            else if(@this.CompareTo(max) > 0)
+            {
+                return max;
+            }
+            return @this;
+        }
+
+        public static bool HasMatchingSignature(Type delegateType, MethodInfo mi)
+        {
+            var delegateMethodInfo = delegateType.GetMethod("Invoke");
+
+            return mi.ReturnType == delegateMethodInfo.ReturnType &&
+                mi.GetParameters().Select(x => x.ParameterType).SequenceEqual(delegateMethodInfo.GetParameters().Select(x => x.ParameterType));
+        }
+
+        public static bool TryGetMatchingSignature(IEnumerable<Type> signatures, MethodInfo mi, out Type matchingSignature)
+        {
+            matchingSignature = signatures.FirstOrDefault(x => HasMatchingSignature(x, mi));
+            return matchingSignature != null;
+        }
+
+        public static uint EndiannessSwap(uint value)
+        {
+            var temp = new byte[sizeof(uint)];
+            Misc.ByteArrayWrite(0, value, temp);
+            Misc.EndiannessSwapInPlace(temp, sizeof(uint));
+            return Misc.ByteArrayRead(0, temp);
+        }
+
+        public static bool CalculateUnitSuffix(double value, out double newValue, out string unit)
+        {
+            var units = new [] { "B", "KB", "MB", "GB", "TB" };
+
+            var v = value;
+            var i = 0;
+            while(i < units.Length - 1 && Math.Round(v / 1024) >= 1)
+            {
+                v /= 1024;
+                i++;
+            }
+
+            newValue = v;
+            unit = units[i];
+
+            return true;
+        }
+
+        public static string ToOrdinal(this int num)
+        {
+            if(num <= 0)
+            {
+                return num.ToString();
+            }
+            switch(num % 100)
+            {
+            case 11:
+            case 12:
+            case 13:
+                return num + "th";
+            }
+
+            switch(num % 10)
+            {
+            case 1:
+                return num + "st";
+            case 2:
+                return num + "nd";
+            case 3:
+                return num + "rd";
+            default:
+                return num + "th";
+            }
+        }
+
+        public static int DivCeil(this int dividend, int divisor)
+        {
+            return (dividend + divisor - 1) / divisor;
+        }
+
+        public static uint DivCeil(this uint dividend, uint divisor)
+        {
+            return (dividend + divisor - 1) / divisor;
+        }
+
+        public static int AlignUpToMultipleOf(this int value, int unit)
+        {
+            return value.DivCeil(unit) * unit;
+        }
+
+        public static uint AlignUpToMultipleOf(this uint value, uint unit)
+        {
+            return value.DivCeil(unit) * unit;
+        }
+
+        public static string PrettyPrintFlagsEnum(Enum enumeration)
+        {
+            var values = new List<string>();
+            foreach(Enum value in Enum.GetValues(enumeration.GetType()))
+            {
+                if((Convert.ToUInt64(enumeration) & Convert.ToUInt64(value)) != 0)
+                {
+                    values.Add(value.ToString());
+                }
+            }
+            return values.Count == 0 ? "-" : values.Aggregate((x, y) => x + ", " + y);
+        }
+
+        public static ulong SwapBytesULong(ulong value)
+        {
+            return (value & 0xFF00000000000000) >> 56
+                 | (value & 0x00FF000000000000) >> 40
+                 | (value & 0x0000FF0000000000) >> 24
+                 | (value & 0x000000FF00000000) >> 8
+                 | (value & 0x00000000FF000000) << 8
+                 | (value & 0x0000000000FF0000) << 24
+                 | (value & 0x000000000000FF00) << 40
+                 | (value & 0x00000000000000FF) << 56;
+        }
+
+        public static bool IsCommandAvaialble(string command)
+        {
+            var verifyProc = new Process();
+            verifyProc.StartInfo.UseShellExecute = false;
+            verifyProc.StartInfo.RedirectStandardError = true;
+            verifyProc.StartInfo.RedirectStandardInput = true;
+            verifyProc.StartInfo.RedirectStandardOutput = true;
+            verifyProc.EnableRaisingEvents = false;
+            verifyProc.StartInfo.FileName = "which";
+            verifyProc.StartInfo.Arguments = command;
+
+            verifyProc.Start();
+
+            verifyProc.WaitForExit();
+            return verifyProc.ExitCode == 0;
+        }
+
         //TODO: isn't it obsolete?
         //TODO: what if memory_size should be long?
         public static List<UInt32> CreateAtags(string bootargs, uint memorySize)
@@ -55,7 +1232,7 @@ namespace Antmicro.Renode.Utilities
             int i;
             if((bootargs.Length % 4) != 0)
             {
-                for(i = 0; i < (4 - (bootargs.Length%4)); i++)
+                for(i = 0; i < (4 - (bootargs.Length % 4)); i++)
                 {
                     bootargsByte.Add(0); // pad with zeros
                 }
@@ -182,12 +1359,12 @@ namespace Antmicro.Renode.Utilities
         {
             return 1024 * value.KB();
         }
-        
+
         public static ulong GB(this int value)
         {
             return 1024 * (ulong)value.MB();
         }
-        
+
         public static ulong TB(this int value)
         {
             return 1024 * value.GB();
@@ -278,7 +1455,8 @@ namespace Antmicro.Renode.Utilities
             {
                 index = 0;
                 power = 3 * (1 + ZeroPrefixPosition - SIPrefixes.Length);
-            } else if(index >= SIPrefixes.Length)
+            }
+            else if(index >= SIPrefixes.Length)
             {
                 index = SIPrefixes.Length - 1;
                 power = 3 * (SIPrefixes.Length - ZeroPrefixPosition - 1);
@@ -314,6 +1492,13 @@ namespace Antmicro.Renode.Utilities
             value |= value >> 16;
             value++;
             return value;
+        }
+
+        public static int RotateLeft(int value, int positions)
+        {
+            positions &= 0x1F;
+            var number = (uint)value;
+            return (int)((number << positions) | (number >> (32 - positions)));
         }
 
         public static void Times(this int times, Action<int> action)
@@ -364,7 +1549,7 @@ namespace Antmicro.Renode.Utilities
 
         public static Boolean StartsWith(this String source, char value)
         {
-            if (source.Length > 0)
+            if(source.Length > 0)
             {
                 return source[0] == value;
             }
@@ -373,7 +1558,7 @@ namespace Antmicro.Renode.Utilities
 
         public static Boolean EndsWith(this String source, char value)
         {
-            if (source.Length > 0)
+            if(source.Length > 0)
             {
                 return source[source.Length - 1] == value;
             }
@@ -382,7 +1567,7 @@ namespace Antmicro.Renode.Utilities
 
         public static String Trim(this String value, String toCut)
         {
-            if (!value.StartsWith(toCut))
+            if(!value.StartsWith(toCut))
             {
                 return value;
             }
@@ -392,9 +1577,9 @@ namespace Antmicro.Renode.Utilities
         public static int IndexOf<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
         {
             var i = 0;
-            foreach (var element in source)
+            foreach(var element in source)
             {
-                if (predicate(element))
+                if(predicate(element))
                     return i;
 
                 i++;
@@ -406,9 +1591,9 @@ namespace Antmicro.Renode.Utilities
         {
             var revSource = source.Reverse();
             var i = revSource.Count() - 1;
-            foreach (var element in revSource)
+            foreach(var element in revSource)
             {
-                if (predicate(element))
+                if(predicate(element))
                     return i;
 
                 i--;
@@ -438,8 +1623,13 @@ namespace Antmicro.Renode.Utilities
             return String.Empty;
         }
 
-        public static byte[] HexStringToByteArray(string hexString, bool reverse = false)
+        public static byte[] HexStringToByteArray(string hexString, bool reverse = false, bool ignoreWhitespace = false)
         {
+            if(ignoreWhitespace)
+            {
+                hexString = Regex.Replace(hexString, @"\s+", "");
+            }
+
             if(hexString.Length % 2 != 0)
             {
                 throw new FormatException($"The length of hex string ({hexString.Length}) is not a multiple of 2.");
@@ -456,7 +1646,7 @@ namespace Antmicro.Renode.Utilities
 
         // Can't use the `sizeof` in the generic code unless it is restricted to unmanaged types, and that's possible only in C#7.0 and newer.
         // Hence the `elementSize` argument - otherwise it would be replaced with a `sizeof(T)`
-        public static bool TryParseHexString<T>(string hexString, out T[] outArray, int elementSize, bool endiannessSwap=false)
+        public static bool TryParseHexString<T>(string hexString, out T[] outArray, int elementSize, bool endiannessSwap = false)
         {
             var byteArray = HexStringToByteArray(hexString);
             var byteLength = byteArray.Length;
@@ -472,6 +1662,22 @@ namespace Antmicro.Renode.Utilities
             }
             Buffer.BlockCopy(byteArray, 0, outArray, 0, byteLength);
             return true;
+        }
+
+        public static string ToHexString(this byte[] data)
+        {
+            var lookup = hexStringLookup.Value;
+            var builder = new StringBuilder(data.Length * 2);
+            for(var i = 0; i < data.Length; ++i)
+            {
+                builder.Append(lookup[data[i]]);
+            }
+            return builder.ToString();
+        }
+
+        public static string ToHex(this byte value)
+        {
+            return hexStringLookup.Value[value];
         }
 
         public static IEnumerable<int> ConcatRangeFromTo(this IEnumerable<int> enumerable, int start, int stopIncluded)
@@ -493,9 +1699,9 @@ namespace Antmicro.Renode.Utilities
                 throw new ArgumentNullException("keySelector");
             }
             var knownKeys = new HashSet<TKey>(comparer);
-            foreach (var element in source)
+            foreach(var element in source)
             {
-                if (knownKeys.Add(keySelector(element)))
+                if(knownKeys.Add(keySelector(element)))
                 {
                     yield return element;
                 }
@@ -528,253 +1734,41 @@ namespace Antmicro.Renode.Utilities
             return ConcatIterator(head, tail, true);
         }
 
-        private static IEnumerable<T> ConcatIterator<T>(T[] extraElements,
-            IEnumerable<T> source, bool insertAtStart)
+        public static bool IsOnOsX
         {
-            if(insertAtStart)
+            get
             {
-                foreach(var e in extraElements)
+                if(Environment.OSVersion.Platform == PlatformID.MacOSX)
                 {
-                    yield return e;
+                    return true;
                 }
-            }
-            foreach(var e in source)
-            {
-                yield return e;
-            }
-            if(!insertAtStart)
-            {
-                foreach(var e in extraElements)
-                {
-                    yield return e;
-                }
+                return Directory.Exists("/Library") && Directory.Exists("/Applications");
             }
         }
 
-        public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> @this, TKey key)
+        /// <summary>
+        /// Checks if the current user is a root.
+        /// </summary>
+        /// <value><c>true</c> if is root; otherwise, <c>false</c>.</value>
+        public static bool IsRoot
         {
-            return @this.GetOrDefault(key, default(TValue));
+            get { return Environment.UserName == "root"; }
         }
 
-        public static TValue GetOrDefault<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> @this, TKey key, TValue defaultValue)
+        public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
+
+        private static bool TryCreateEmptyFile(string p)
         {
-            if(@this.TryGetValue(key, out var value))
+            try
             {
-                return value;
-            }
-            return defaultValue;
-        }
-
-        public static byte HiByte(this UInt16 value)
-        {
-            return (byte)((value >> 8) & 0xFF);
-        }
-
-        public static byte LoByte(this UInt16 value)
-        {
-            return (byte)(value & 0xFF);
-        }
-
-        public static ulong BinaryToGray(ulong binaryEncoding)
-        {
-            return binaryEncoding ^ (binaryEncoding >> 1);
-        }
-
-        public static ulong GrayToBinary(ulong grayEncoding)
-        {
-            ulong binaryEncoding = grayEncoding;
-            while(grayEncoding > 0)
-            {
-                grayEncoding >>= 1;
-                binaryEncoding ^= grayEncoding;
-            }
-            return binaryEncoding;
-        }
-
-        public static bool TryFromResourceToTemporaryFile(this Assembly assembly, string resourceName, out string outputFileFullPath, string nonstandardOutputFilename = null)
-        {
-            // `GetManifestResourceStream` is not supported by dynamic assemblies
-            Stream libraryStream = assembly.IsDynamic
-                ? null
-                : assembly.GetManifestResourceStream(resourceName);
-
-            if(libraryStream == null)
-            {
-                if(File.Exists(resourceName))
-                {
-                    libraryStream = new FileStream(resourceName, FileMode.Open, FileAccess.Read, FileShare.None);
-                }
-                if(libraryStream == null)
-                {
-                    outputFileFullPath = null;
-                    return false;
-                }
-            }
-
-            string libraryFile;
-            if(nonstandardOutputFilename != null)
-            {
-                if(!TemporaryFilesManager.Instance.TryCreateFile(nonstandardOutputFilename, out libraryFile))
-                {
-                    Logging.Logger.Log(Logging.LogLevel.Error, "Could not unpack resource {0} to {1}. This likely signifies an internal error.", resourceName, nonstandardOutputFilename);
-                    outputFileFullPath = null;
-                    return false;
-                }
-            }
-            else
-            {
-                libraryFile = TemporaryFilesManager.Instance.GetTemporaryFile(resourceName);
-
-                if(String.IsNullOrEmpty(libraryFile))
-                {
-                    outputFileFullPath = null;
-                    return false;
-                }
-            }
-            outputFileFullPath = CopyToFile(libraryStream, libraryFile);
-            return true;
-        }
-
-        public static string FromResourceToTemporaryFile(this Assembly assembly, string resourceName)
-        {
-            if(!TryFromResourceToTemporaryFile(assembly, resourceName, out var result))
-            {
-                throw new ArgumentException(string.Format("Cannot find library {0}", resourceName));
-            }
-            return result;
-        }
-
-        public static void Copy(this Stream from, Stream to)
-        {
-            var buffer = new byte[4096];
-            int read;
-            do
-            {
-                read = from.Read(buffer, 0, buffer.Length);
-                if(read <= 0) // to workaround ionic zip's bug
-                {
-                    break;
-                }
-                to.Write(buffer, 0, read);
-            }
-            while(true);
-        }
-
-        public static void GetPixelFromPngImage(string fileName, int x, int y, out byte r, out byte g, out byte b)
-        {
-            Bitmap bitmap;
-            if(fileName == LastBitmapName)
-            {
-                bitmap = LastBitmap;
-            }
-            else
-            {
-                bitmap = new Bitmap(fileName);
-                LastBitmap = bitmap;
-                LastBitmapName = fileName;
-            }
-            var color = bitmap.GetPixel(x, y);
-            r = color.R;
-            g = color.G;
-            b = color.B;
-        }
-
-        private static string cachedRootDirectory;
-
-        public static string GetRootDirectory()
-        {
-            if(cachedRootDirectory != null)
-            {
-                return cachedRootDirectory;
-            }
-
-            if(TryGetRootDirectory(out var result))
-            {
-                return result;
-            }
-
-            // fall-back to the current working directory
-            var cwd = Directory.GetCurrentDirectory();
-            Logger.Log(LogLevel.Warning, "Could not find '.renode-root' - falling back to current working directory ({0}) - might cause problems.", cwd);
-            cachedRootDirectory = cwd;
-
-            return cwd;
-        }
-
-        public static bool TryGetRootDirectory(out string directory)
-        {
-            if(TryGetRootDirectory(AppDomain.CurrentDomain.BaseDirectory, out directory))
-            {
-                // Firstly, try to resolve root directory starting from
-                // directory containing current assembly. This should
-                // work when Renode was run after being manually compiled from the source code.
+                File.Open(p, FileMode.CreateNew).Dispose();
                 return true;
             }
-
-            // If we couldn't find root directory in previous step, try again
-            // starting from directory of main process' executable. This is fallback for
-            // when Renode was executed from self-contained binary.
-            var currentProcess = Process.GetCurrentProcess();
-            var currentModulePath = Path.GetFullPath(currentProcess.MainModule.FileName);
-            var rootDirectory = Path.GetDirectoryName(currentModulePath);
-            return TryGetRootDirectory(rootDirectory, out directory);
-        }
-
-        public static bool TryGetRootDirectory(string baseDirectory, out string directory)
-        {
-            if(cachedRootDirectory != null)
+            catch(IOException)
             {
-                directory = cachedRootDirectory;
-                return true;
-            }
-
-            directory = null;
-            if(baseDirectory.Length == 0)
-            {
+                // this is expected - the file already exists
                 return false;
             }
-
-            var currentDirectory = new DirectoryInfo(baseDirectory);
-            while(currentDirectory != null)
-            {
-                var indicatorFiles = Directory.GetFiles(currentDirectory.FullName, ".renode-root");
-                if(indicatorFiles.Length == 1)
-                {
-                    var content = File.ReadAllLines(Path.Combine(currentDirectory.FullName, indicatorFiles[0]));
-                    if(content.Length == 1 && content[0] == "5344ec2a-1539-4017-9ae5-a27c279bd454")
-                    {
-                        directory = currentDirectory.FullName;
-                        cachedRootDirectory = directory;
-                        return true;
-                    }
-                }
-                currentDirectory = currentDirectory.Parent;
-            }
-            return false;
-        }
-
-        public static TimeSpan Multiply(this TimeSpan multiplicand, int multiplier)
-        {
-            return TimeSpan.FromTicks(multiplicand.Ticks * multiplier);
-        }
-
-        public static TimeSpan Multiply(this TimeSpan multiplicand, double multiplier)
-        {
-            return TimeSpan.FromTicks((long)(multiplicand.Ticks * multiplier));
-        }
-
-        public static String FormatWith(this String @this, params object[] args)
-        {
-            if(@this == null)
-            {
-                throw new ArgumentNullException("this");
-            }
-            if(args == null)
-            {
-                throw new ArgumentNullException("args");
-            }
-            return String.Format(@this, args);
-
         }
 
         private static string CopyToFile(Stream libraryStream, string libraryFile)
@@ -805,25 +1799,60 @@ namespace Antmicro.Renode.Utilities
         {
             ushort word16;
             var sum = 0L;
-            for (var i = start; i < (length + start); i+=2)
+            for(var i = start; i < (length + start); i += 2)
             {
                 if(i - start == 10)
                 {
                     //These are IP Checksum fields.
                     continue;
                 }
-                word16 = (ushort)(((header[i] << 8 ) & 0xFF00)
+                word16 = (ushort)(((header[i] << 8) & 0xFF00)
                     + (header[i + 1] & 0xFF));
                 sum += (long)word16;
             }
 
-            while ((sum >> 16) != 0)
+            while((sum >> 16) != 0)
             {
                 sum = (sum & 0xFFFF) + (sum >> 16);
             }
             sum = ~sum;
             return (ushort)sum;
         }
+
+        private static ushort Ntoh(UInt16 input)
+        {
+            int x = System.Net.IPAddress.NetworkToHostOrder(input);
+            return (ushort)(x >> 16);
+        }
+
+        private static IEnumerable<T> ConcatIterator<T>(T[] extraElements,
+            IEnumerable<T> source, bool insertAtStart)
+        {
+            if(insertAtStart)
+            {
+                foreach(var e in extraElements)
+                {
+                    yield return e;
+                }
+            }
+            foreach(var e in source)
+            {
+                yield return e;
+            }
+            if(!insertAtStart)
+            {
+                foreach(var e in extraElements)
+                {
+                    yield return e;
+                }
+            }
+        }
+
+        private static Bitmap LastBitmap;
+
+        private static string LastBitmapName = "";
+
+        private static string cachedRootDirectory;
 
         // Calculates the TCP checksum using the IP Header and TCP Header.
         // Ensure the TCPHeader contains an even number of bytes before passing to this method.
@@ -832,7 +1861,7 @@ namespace Antmicro.Renode.Utilities
         {
             var sum = 0u;
             // Protocol Header
-            for (var x = startOfPayload; x < packet.Length - 1; x += 2)
+            for(var x = startOfPayload; x < packet.Length - 1; x += 2)
             {
                 sum += Ntoh(BitConverter.ToUInt16(packet, x));
             }
@@ -862,11 +1891,11 @@ namespace Antmicro.Renode.Utilities
             return (ushort)~sum;
         }
 
-        private static ushort Ntoh(UInt16 input)
-        {
-            int x = System.Net.IPAddress.NetworkToHostOrder(input);
-            return (ushort) (x >> 16);
-        }
+        private const BindingFlags DefaultBindingFlags = BindingFlags.Public | BindingFlags.NonPublic |
+                BindingFlags.Instance | BindingFlags.DeclaredOnly;
+
+        private const int MACLength = 14;
+        private const int ZeroPrefixPosition = 4;
 
         public enum TransportLayerProtocol
         {
@@ -874,237 +1903,12 @@ namespace Antmicro.Renode.Utilities
             TCP = 0x6,
             UDP = 0x11
         }
+
         public enum PacketType
         {
             IP = 0x800,
             ARP = 0x806,
         }
-
-        //TODO: Support for ipv6
-        public static void FillPacketWithChecksums(IPeripheral source, byte[] packet, params TransportLayerProtocol[] interpretedProtocols)
-        {
-            if (packet.Length < MACLength) {
-                source.Log(LogLevel.Error, String.Format("Expected packet of at least {0} bytes, got {1}.", MACLength, packet.Length));
-                return;
-            }
-            var packet_type = (PacketType) ((packet[12] << 8) | packet[13]);
-            if (packet_type == PacketType.ARP) {
-                // ARP
-                return;
-            } else if (packet_type != PacketType.IP) {
-                source.Log(LogLevel.Error, String.Format("Unknown packet type: 0x{0:X}. Supported are: 0x800 (IP) and 0x806 (ARP).", (ushort)packet_type));
-                return;
-            }
-            if (packet.Length < (MACLength+12)) {
-                source.Log(LogLevel.Error, "IP Packet is too short!");
-                return;
-            }
-            // IPvX
-            if ((packet[MACLength] >> 4) != 0x04) {
-                source.Log(LogLevel.Error, String.Format("Only IPv4 packets are supported. Got IPv{0}", (packet[MACLength] >> 4)));
-                return;
-            }
-            // IPv4
-            var ipLength = (packet[MACLength] & 0x0F) * 4;
-            if(ipLength != 0)
-            {
-                var ipChecksum = ComputeHeaderIpChecksum(packet, MACLength, ipLength);
-                packet[MACLength + 10] = (byte)(ipChecksum >> 8);
-                packet[MACLength + 11] = (byte)(ipChecksum & 0xFF);
-            } else {
-                source.Log(LogLevel.Error, "Something is wrong - IP packet of len 0");
-            }
-            if(interpretedProtocols != null && interpretedProtocols.Contains((TransportLayerProtocol)packet[MACLength + 9]))
-            {
-                var payloadStart = MACLength + ipLength;
-                var protocol = (TransportLayerProtocol)packet[MACLength + 9];
-                var checksum = GetPacketChecksum(packet, MACLength, payloadStart, protocol != TransportLayerProtocol.ICMP);
-                switch(protocol)
-                {
-                case TransportLayerProtocol.ICMP:
-                    packet[payloadStart + 2] = (byte)((checksum >> 8) & 0xFF);
-                    packet[payloadStart + 3] = (byte)((checksum ) & 0xFF);
-                    break;
-                case TransportLayerProtocol.TCP:
-                    packet[payloadStart + 16] = (byte)((checksum >> 8) & 0xFF);
-                    packet[payloadStart + 17] = (byte)((checksum ) & 0xFF);
-                    break;
-                case TransportLayerProtocol.UDP:
-                    packet[payloadStart + 6] = (byte)((checksum >> 8) & 0xFF);
-                    packet[payloadStart + 7] = (byte)((checksum ) & 0xFF);
-                    break;
-                default:
-                    throw new NotImplementedException();
-                }
-            }
-        }
-
-        public static string DumpPacket(EthernetFrame packet, bool isSend, IMachine machine)
-        {
-            var builder = new StringBuilder();
-            string machName;
-            if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineName(machine, out machName))
-            {
-                //probably the emulation is closing now, just return.
-                return string.Empty;
-            }
-            if(isSend)
-            {
-                builder.AppendLine(String.Format("Sending packet from {0}, length: {1}", machName, packet.Bytes.Length));
-            }
-            else
-            {
-                builder.AppendLine(String.Format("Receiving packet on {0}, length: {1}", machName, packet.Bytes.Length));
-            }
-            builder.Append(packet.ToString());
-            return builder.ToString();
-        }
-
-        public static void Swap<T>(ref T a, ref T b)
-        {
-            T temporary = a;
-            a = b;
-            b = temporary;
-        }
-
-        public static ushort SwapBytesUShort(ushort val)
-        {
-            return (ushort)((val << 8) | (val >> 8));
-        }
-
-        public static uint SwapBytesUInt(uint value)
-        {
-            return (value & 0xFF000000) >> 24
-                 | (value & 0x00FF0000) >> 8
-                 | (value & 0x0000FF00) << 8
-                 | (value & 0x000000FF) << 24;
-        }
-
-        public static ulong SwapBytesULong(ulong value)
-        {
-            return (value & 0xFF00000000000000) >> 56
-                 | (value & 0x00FF000000000000) >> 40
-                 | (value & 0x0000FF0000000000) >> 24
-                 | (value & 0x000000FF00000000) >> 8
-                 | (value & 0x00000000FF000000) << 8
-                 | (value & 0x0000000000FF0000) << 24
-                 | (value & 0x000000000000FF00) << 40
-                 | (value & 0x00000000000000FF) << 56;
-        }
-
-        public static T SwapBytes<T>(T value)
-        {
-            var type = typeof(T);
-            if(type == typeof(uint))
-            {
-                return (T)(object)SwapBytesUInt((uint)(object)value);
-            }
-            else if(type == typeof(ushort))
-            {
-                return (T)(object)SwapBytesUShort((ushort)(object)value);
-            }
-            else if(type == typeof(byte))
-            {
-                return value;
-            }
-            else
-            {
-                throw new ArgumentException($"Unhandled type {type}");
-            }
-        }
-
-        public static void SwapElements<T>(T[] arr, int id1, int id2)
-        {
-            var tmp = arr[id1];
-            arr[id1] = arr[id2];
-            arr[id2] = tmp;
-        }
-
-        public static bool EndiannessSwapInPlace(byte[] input, int width, int offset = 0, int? length = null)
-        {
-            if(offset > input.Length)
-            {
-                return false;
-            }
-
-            var bytesFromOffset = input.Length - offset;
-            var len = length ?? bytesFromOffset;
-            if(len > bytesFromOffset || len % width != 0)
-            {
-                return false;
-            }
-
-            for(var i = offset; i < offset + len; i += width)
-            {
-                for(var j = 0; j < width / 2; j++)
-                {
-                    SwapElements(input, i + j, i + width - j - 1);
-                }
-            }
-
-            return true;
-        }
-
-        public static uint EndiannessSwap(uint value)
-        {
-            var temp = new byte[sizeof(uint)];
-            Misc.ByteArrayWrite(0, value, temp);
-            Misc.EndiannessSwapInPlace(temp, sizeof(uint));
-            return Misc.ByteArrayRead(0, temp);
-        }
-
-        public static bool CalculateUnitSuffix(double value, out double newValue, out string unit)
-        {
-            var units = new [] { "B", "KB", "MB", "GB", "TB" };
-
-            var v = value;
-            var i = 0;
-            while(i < units.Length - 1 && Math.Round(v / 1024) >= 1)
-            {
-                v /= 1024;
-                i++;
-            }
-
-            newValue = v;
-            unit = units[i];
-
-            return true;
-        }
-
-        public static string ToOrdinal(this int num)
-        {
-            if(num <= 0)
-            {
-                return num.ToString();
-            }
-            switch(num % 100)
-            {
-            case 11:
-            case 12:
-            case 13:
-                return num + "th";
-            }
-
-            switch(num % 10)
-            {
-            case 1:
-                return num + "st";
-            case 2:
-                return num + "nd";
-            case 3:
-                return num + "rd";
-            default:
-                return num + "th";
-            }
-        }
-
-        private const int MACLength = 14;
-
-        private static string LastBitmapName = "";
-        private static Bitmap LastBitmap;
-
-        private const BindingFlags DefaultBindingFlags = BindingFlags.Public | BindingFlags.NonPublic |
-                BindingFlags.Instance | BindingFlags.DeclaredOnly;
 
         private static readonly string[] SIPrefixes = {
                 "p",
@@ -1117,6 +1921,7 @@ namespace Antmicro.Renode.Utilities
                 "G",
                 "T"
             };
+
         private static readonly string[] BytePrefixes = {
                 "",
                 "Ki",
@@ -1124,698 +1929,22 @@ namespace Antmicro.Renode.Utilities
                 "Gi",
                 "Ti"
             };
-        private const int ZeroPrefixPosition = 4;
+
         private static readonly int[] MultiplyDeBruijnBitPosition2 =
          {
            0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
            31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
          };
 
-        /// <summary>
-        /// Checks if the current user is a root.
-        /// </summary>
-        /// <value><c>true</c> if is root; otherwise, <c>false</c>.</value>
-        public static bool IsRoot
+        private static readonly Lazy<string[]> hexStringLookup = new Lazy<string[]>(() =>
         {
-            get { return Environment.UserName == "root"; }
-        }
-
-        public static bool IsOnOsX
-        {
-            get
+            var lookup = new string[0x100];
+            for(var i = 0; i < lookup.Length; ++i)
             {
-                if(Environment.OSVersion.Platform == PlatformID.MacOSX)
-                {
-                    return true;
-                }
-                return Directory.Exists("/Library") && Directory.Exists("/Applications");
+                lookup[i] = $"{i:X02}";
             }
-        }
-
-        public static bool IsCommandAvaialble(string command)
-        {
-            var verifyProc = new Process();
-            verifyProc.StartInfo.UseShellExecute = false;
-            verifyProc.StartInfo.RedirectStandardError = true;
-            verifyProc.StartInfo.RedirectStandardInput = true;
-            verifyProc.StartInfo.RedirectStandardOutput = true;
-            verifyProc.EnableRaisingEvents = false;
-            verifyProc.StartInfo.FileName = "which";
-            verifyProc.StartInfo.Arguments = command;
-
-            verifyProc.Start();
-
-            verifyProc.WaitForExit();
-            return verifyProc.ExitCode == 0;
-        }
-
-        public static string PrettyPrintFlagsEnum(Enum enumeration)
-        {
-            var values = new List<string>();
-            foreach(Enum value in Enum.GetValues(enumeration.GetType()))
-            {
-                if((Convert.ToUInt64(enumeration) & Convert.ToUInt64(value)) != 0)
-                {
-                    values.Add(value.ToString());
-                }
-            }
-            return values.Count == 0 ? "-" : values.Aggregate((x, y) => x + ", " + y);
-        }
-
-        public static bool TryGetMatchingSignature(IEnumerable<Type> signatures, MethodInfo mi, out Type matchingSignature)
-        {
-            matchingSignature = signatures.FirstOrDefault(x => HasMatchingSignature(x, mi));
-            return matchingSignature != null;
-        }
-
-        public static bool HasMatchingSignature(Type delegateType, MethodInfo mi)
-        {
-            var delegateMethodInfo = delegateType.GetMethod("Invoke");
-
-            return mi.ReturnType == delegateMethodInfo.ReturnType &&
-                mi.GetParameters().Select(x => x.ParameterType).SequenceEqual(delegateMethodInfo.GetParameters().Select(x => x.ParameterType));
-        }
-
-        public static T Clamp<T>(this T @this, T min, T max) where T : IComparable
-        {
-            if(@this.CompareTo(min) < 0)
-            {
-                return min;
-            }
-            else if(@this.CompareTo(max) > 0)
-            {
-                return max;
-            }
-            return @this;
-        }
-
-        public static string[] Split(this string value, int size)
-        {
-            var ind = 0;
-            return value.GroupBy(x => ind++ / size).Select(x => string.Join("", x)).ToArray();
-        }
-
-        public static IEnumerable<T[]> Split<T>(this IEnumerable<T> values, int size)
-        {
-            var i = 0;
-            return values.GroupBy(_ => i++ / size).Select(chunk => chunk.ToArray());
-        }
-
-        public static void SetBit(this IValueRegisterField field, byte index, bool value)
-        {
-            var val =  field.Value;
-            BitHelper.SetBit(ref val, index, value);
-            field.Value = val;
-        }
-
-        public static ulong InMicroseconds(this TimeSpan ts)
-        {
-            return (ulong)(ts.Ticks / 10);
-        }
-
-        public static void WaitWhile(this object @this, Func<bool> condition, string reason)
-        {
-            @this.Trace($"Waiting for '{reason}'...");
-            while(condition())
-            {
-                Monitor.Wait(@this);
-            }
-            @this.Trace($"Waiting for '{reason}' finished.");
-        }
-
-        public static void FlipFlag<TEnum>(ref TEnum value, TEnum flag, bool state)
-        {
-            if(!typeof(TEnum).IsEnum)
-            {
-                throw new ArgumentException("TEnum must be an enumerated type.");
-            }
-            var intValue = (long)(object)value;
-            var intFlag = (long)(object)flag;
-            if(state)
-            {
-                intValue |= intFlag;
-            }
-            else
-            {
-                intValue &= ~intFlag;
-            }
-            value = (TEnum)(object)intValue;
-        }
-
-        public static string PrettyPrintCollection<T>(IEnumerable<T> collection, Func<T, string> formatter = null)
-        {
-            return collection == null || !collection.Any()
-                ? "[]"
-                : $"[{(string.Join(", ", collection.Select(x => formatter == null ? x.ToString() : formatter(x))))}]";
-        }
-
-        public static string PrettyPrintCollectionHex<T>(IEnumerable<T> collection)
-        {
-            return PrettyPrintCollection(collection, x => "0x{0:X}".FormatWith(x));
-        }
-
-        public static LazyHexString<T> ToLazyHexString<T>(this IEnumerable<T> collection)
-        {
-            return new LazyHexString<T>(collection);
-        }
-
-        public static UInt32 ToUInt32Smart(this byte[] @this)
-        {
-            if(@this.Length > 4)
-            {
-                throw new ArgumentException($"Bytes array is tool long. Expected at most 4 bytes, but got {@this.Length}");
-            }
-            var result = 0u;
-            for(var i = 0; i < @this.Length; i++)
-            {
-                result |= ((uint)@this[i] << (8 * i));
-            }
-            return result;
-        }
-
-        public static DateTime With(this DateTime @this, int? year = null, int? month = null, int? day = null, int? hour = null, int? minute = null, int? second = null, double? millisecond = null)
-        {
-            var dateTime = new DateTime(
-                year ?? @this.Year,
-                month ?? @this.Month,
-                day ?? @this.Day,
-                hour ?? @this.Hour,
-                minute ?? @this.Minute,
-                second ?? @this.Second);
-
-            if(millisecond != null)
-            {
-                dateTime = dateTime.AddMilliseconds(millisecond.Value);
-            }
-
-            return dateTime;
-        }
-
-        public static int EnqueueRange<T>(this Queue<T> @this, IEnumerable<T> data, int? limit = null)
-        {
-            var counter = 0;
-            foreach(var e in data.Take(limit ?? int.MaxValue))
-            {
-                @this.Enqueue(e);
-                counter++;
-            }
-            return counter;
-        }
-
-        public static T[] DequeueRange<T>(this Queue<T> @this, int limit)
-        {
-            var result = new T[Math.Min(@this.Count, limit)];
-            for(var i = 0; i < result.Length; i++)
-            {
-                result[i] = @this.Dequeue();
-            }
-            return result;
-        }
-
-        public static T[] DequeueAll<T>(this Queue<T> @this)
-        {
-            return DequeueRange(@this, @this.Count);
-        }
-
-        public static bool TryDequeue<T>(this Queue<T> @this, out T result)
-        {
-            if(@this.Count == 0)
-            {
-                result = default(T);
-                return false;
-            }
-            result = @this.Dequeue();
-            return true;
-        }
-
-        public static IEnumerable<T> PopRange<T>(this Stack<T> @this, int limit)
-        {
-            while(@this.Count > 0 && limit > 0)
-            {
-                limit--;
-                yield return @this.Pop();
-            }
-        }
-
-        public static IEnumerable<T> PopAll<T>(this Stack<T> @this)
-        {
-            return PopRange(@this, @this.Count);
-        }
-
-        public static bool TryCreateFrameOrLogWarning(IEmulationElement source, byte[] data, out EthernetFrame frame, bool addCrc)
-        {
-            if(EthernetFrame.TryCreateEthernetFrame(data, addCrc, out frame))
-            {
-                return true;
-            }
-            source.Log(LogLevel.Warning, "Insufficient data to create an ethernet frame, expected {0} bytes but got {1} bytes.",
-                    EthernetFrame.MinFrameSizeWithoutCRC + (addCrc ? 0 : EthernetFrame.CRCLength), data.Length);
-            return false;
-        }
-
-        public static string StripNonSafeCharacters(this string input)
-        {
-            return Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(input).Where(x => (x >= 32 && x <= 126) || (x == '\n')).ToArray());
-        }
-
-        public static string SurroundWith(this string str, string surrounding)
-        {
-            return $"{surrounding}{str}{surrounding}";
-        }
-
-        // allocate file of a given name
-        // if it already exists - rename it using pattern path.III (III being an integer)
-        // returns information if there was a rename and III of the last renamed file
-        public static bool AllocateFile(string path, out int counter)
-        {
-            counter = 0;
-            var renamed = false;
-            var dstName = $"{path}.{counter}";
-
-            while(!TryCreateEmptyFile(path))
-            {
-                while(File.Exists(dstName))
-                {
-                    counter++;
-                    dstName = $"{path}.{counter}";
-                }
-                File.Move(path, dstName);
-                renamed = true;
-            }
-            return renamed;
-        }
-
-        // Allows to have static initialization of a two-element tuple list.
-        // To enable other arities of tuples, add more overloads.
-        public static void Add<T1, T2>(this IList<Tuple<T1, T2>> list,
-            T1 item1, T2 item2)
-        {
-            list.Add(Tuple.Create(item1, item2));
-        }
-
-        private static bool TryCreateEmptyFile(string p)
-        {
-            try
-            {
-                File.Open(p, FileMode.CreateNew).Dispose();
-                return true;
-            }
-            catch(IOException)
-            {
-                // this is expected - the file already exists
-                return false;
-            }
-        }
-
-        public static bool TryParseBitPattern(string pattern, out ulong value, out ulong mask)
-        {
-            value = 0uL;
-            mask = 0uL;
-
-            if(pattern.Length > 64)
-            {
-                return false;
-            }
-
-            var currentBit = pattern.Length - 1;
-
-            foreach(var p in pattern)
-            {
-                switch(p)
-                {
-                    case '0':
-                        mask |= (1uL << currentBit);
-                        break;
-
-                    case '1':
-                        mask |= (1uL << currentBit);
-                        value |= (1uL << currentBit);
-                        break;
-
-                    default:
-                        // all characters other than '0' or '1' are treated as 'any-value'
-                        break;
-                }
-
-                currentBit--;
-            }
-
-            return true;
-        }
-
-        public static void SetBytesFromValue(this byte[] array, uint value, int startIndex)
-        {
-            foreach(var b in BitConverter.GetBytes(value))
-            {
-                array[startIndex++] = b;
-            }
-        }
-
-        public static bool TryFindPreceedingEnumItem<T>(uint value, out T bestCandidate, out int offset) where T: IConvertible
-        {
-            var allValues = Enum.GetValues(typeof(T));
-            var maxIndex = allValues.Length - 1;
-
-            bestCandidate = default(T);
-            offset = 0;
-
-            if((int)allValues.GetValue(0) > value)
-            {
-                // there are no values preceeding given value
-                return false;
-            }
-
-            int currentValue = 0;
-            int lowBorder = 0;
-            int highBorder = maxIndex;
-
-            // binary search
-            while(highBorder != lowBorder)
-            {
-                var currentIndex = lowBorder + ((highBorder - lowBorder) / 2);
-                currentValue = (int)allValues.GetValue(currentIndex);
-
-                if(currentValue == value)
-                {
-                    break;
-                }
-                else if(currentValue < value)
-                {
-                    lowBorder = currentIndex + 1;
-                }
-                else
-                {
-                    highBorder = currentIndex;
-                }
-            }
-            bestCandidate = (T)Enum.ToObject(typeof(T), currentValue);
-            offset = (int)(value - currentValue);
-            return true;
-        }
-
-        public static void FillByteArrayWithArray(byte[] destinationArray, byte[] sourceArray)
-        {
-            var srcLength = sourceArray.Length;
-            var dstLength = destinationArray.Length;
-            if(srcLength >= dstLength)
-            {
-                Buffer.BlockCopy(sourceArray, 0, destinationArray, 0, dstLength);
-            }
-            else
-            {
-                var currentIndex = 0;
-                while((currentIndex + srcLength) < dstLength)
-                {
-                    Buffer.BlockCopy(sourceArray, 0, destinationArray, currentIndex, srcLength);
-                    currentIndex += srcLength;
-                }
-                var remindingElements = dstLength % srcLength;
-                Buffer.BlockCopy(sourceArray, 0, destinationArray, currentIndex, remindingElements);
-            }
-        }
-
-        public static T[] CopyAndResize<T>(this T[] source, int length)
-        {
-            if(source.Length == length)
-            {
-                return source.ToArray();
-            }
-            var data = new T[length];
-            Array.Copy(source, data, Math.Min(source.Length, length));
-            return data;
-        }
-
-        public static int CountTrailingZeroes(uint value)
-        {
-            int count = 0;
-            while((value & 0x1) == 0)
-            {
-                count += 1;
-                value >>= 1;
-                if(count == sizeof(uint) * 8)
-                {
-                    break;
-                }
-            }
-            return count;
-        }
-
-        // Remaps a number from [inMin; inMax] to [outMin; outMax].
-        // Supports "reversing the direction", like remapping [0; 10] to [1; -1].
-        // If the input is null or outside the input range, returns null.
-        public static decimal? RemapNumber(decimal? value, decimal inMin, decimal inMax, decimal outMin, decimal outMax)
-        {
-            if(value == null || value < inMin || value > inMax)
-            {
-                return null;
-            }
-
-            var inRangeLen = inMax - inMin;
-            var outRangeLen = outMax - outMin;
-            return (value - inMin) * outRangeLen / inRangeLen + outMin;
-        }
-
-        public static byte[] AsBytes(uint[] data)
-        {
-            var outLength = data.Length * sizeof(uint);
-            var dataAsBytes = new byte[outLength];
-            Buffer.BlockCopy(data, 0, dataAsBytes, 0, outLength);
-            return dataAsBytes;
-        }
-
-        public static T ReadStruct<T>(this Stream @this) where T : struct
-        {
-            var structSize = Marshal.SizeOf(typeof(T));
-            return @this.ReadBytes(structSize).ToStruct<T>();
-        }
-
-        public static T ToStruct<T>(this byte[] @this) where T : struct
-        {
-            var size = @this.Length;
-            var bufferPointer = Marshal.AllocHGlobal(size);
-            Marshal.Copy(@this, 0, bufferPointer, size);
-            var result = (T)Marshal.PtrToStructure(bufferPointer, typeof(T));
-            Marshal.FreeHGlobal(bufferPointer);
-            return result;
-        }
-
-        public static bool TryGetNext<T>(this IEnumerator<T> @this, out T element)
-        {
-            element = default(T);
-            if(@this.MoveNext())
-            {
-                element = @this.Current;
-                return true;
-            }
-            return false;
-        }
-
-        public static byte ReadWithOffset<T>(this T @this, long register, int offset, bool msbFirst = false) where T : IRegisterCollection
-        {
-            int innerOffset;
-            uint outputValue;
-            if(@this is ByteRegisterCollection)
-            {
-                ByteRegisterCollection byteRegisterCollection = @this as ByteRegisterCollection;
-                innerOffset = 0;
-                outputValue = (uint)byteRegisterCollection.Read(register);
-            }
-            else if(@this is WordRegisterCollection)
-            {
-                WordRegisterCollection wordRegisterCollection = @this as WordRegisterCollection;
-                innerOffset = offset % 2;
-                if(msbFirst)
-                {
-                    innerOffset = 1 - innerOffset;
-                }
-                outputValue = (uint)wordRegisterCollection.Read(register + offset / 2);
-            }
-            else if(@this is DoubleWordRegisterCollection)
-            {
-                DoubleWordRegisterCollection doubleWordRegisterCollection = @this as DoubleWordRegisterCollection;
-                innerOffset = offset % 4;
-                if(msbFirst)
-                {
-                    innerOffset = 3 - innerOffset;
-                }
-                outputValue = (uint)doubleWordRegisterCollection.Read(register + offset / 4);
-            }
-            else
-            {
-                throw new Exception("unreachable code");
-            }
-            var mask = 0xFFUL << (innerOffset * 8);
-            return (byte)((outputValue & mask) >> (innerOffset * 8));
-        }
-
-        public static void WriteWithOffset<T>(this T @this, long register, int offset, byte value, bool msbFirst = false) where T : IRegisterCollection
-        {
-            int innerOffset;
-            uint previousValue;
-            Action<uint> writeFunction;
-            if(@this is ByteRegisterCollection)
-            {
-                ByteRegisterCollection byteRegisterCollection = @this as ByteRegisterCollection;
-                innerOffset = 0;
-                previousValue = (uint)byteRegisterCollection.Read(register);
-                writeFunction = (data) => byteRegisterCollection.Write(register, (byte)data);
-            }
-            else if(@this is WordRegisterCollection)
-            {
-                WordRegisterCollection wordRegisterCollection = @this as WordRegisterCollection;
-                innerOffset = offset % 2;
-                if(msbFirst)
-                {
-                    innerOffset = 1 - innerOffset;
-                }
-                previousValue = (uint)wordRegisterCollection.Read(register + offset / 2);
-                writeFunction = (data) => wordRegisterCollection.Write(register + offset / 2, (ushort)data);
-            }
-            else if(@this is DoubleWordRegisterCollection)
-            {
-                DoubleWordRegisterCollection doubleWordRegisterCollection = @this as DoubleWordRegisterCollection;
-                innerOffset = offset % 4;
-                if(msbFirst)
-                {
-                    innerOffset = 3 - innerOffset;
-                }
-                previousValue = (uint)doubleWordRegisterCollection.Read(register + offset / 4);
-                writeFunction = (data) => doubleWordRegisterCollection.Write(register + offset / 4, (uint)data);
-            }
-            else
-            {
-                throw new Exception("unreachable code");
-            }
-            var mask = 0xFFU << (innerOffset * 8);
-            var newValue = (previousValue & ~mask) | ((uint)value << (innerOffset * 8));
-            writeFunction((uint)newValue);
-        }
-
-        public static IEnumerable<T> Iterate<T>(Func<T> function)
-        {
-            while(true)
-            {
-                yield return function();
-            }
-        }
-
-#if !NET
-        // Enumerable.TakeLast is in the standard library on .NET Core but isn't available on .NET Framework
-        public static IEnumerable<T> TakeLast<T>(this IEnumerable<T> @this, int count)
-        {
-            // This will enumerate the collection twice - it might be not optimal for performance sensitive operations
-            return @this.Skip(Math.Max(0, @this.Count() - count));
-        }
-
-        public static IEnumerable<T[]> Chunk<T>(this IEnumerable<T> @this, int size)
-        {
-            var buffer = new Queue<T>();
-            foreach(var item in @this)
-            {
-                buffer.Enqueue(item);
-                if(buffer.Count == size)
-                {
-                    yield return buffer.ToArray();
-                    buffer.Clear();
-                }
-            }
-
-            if(buffer.Count > 0)
-            {
-                yield return buffer.ToArray();
-            }
-        }
-#endif
-
-        public static ulong CastToULong(dynamic number)
-        {
-            if(new Type[] { typeof(byte), typeof(ushort), typeof(uint), typeof(ulong)}.Any((t) => number.GetType() == t))
-            {
-                return (ulong)number;
-            }
-            throw new ArgumentException($"Can't cast {number.GetType()} to ulong", "number");
-        }
-
-        public static IEnumerable<T> Prefix<T>(IEnumerable<T> enumerable, Func<T, T, T> function)
-        {
-            var enumerator = enumerable.GetEnumerator();
-            // Using `out var` here causes a compiler crash in Mono 6.8.0.105+dfsg-3.3 from Debian
-            if(!enumerator.TryGetNext(out T prefix))
-            {
-                yield break;
-            }
-            while(enumerator.MoveNext())
-            {
-                yield return prefix;
-                prefix = function(prefix, enumerator.Current);
-            }
-            yield return prefix;
-        }
-
-        public static void AddIf<T>(this ICollection<T> collection, bool condition, T item)
-        {
-            if(condition)
-            {
-                collection.Add(item);
-            }
-        }
-
-        public static bool IsStructType(Type type)
-        {
-            // According to docs, IsValueType return true for structs, enums and primitive types
-            return type.IsValueType && !type.IsPrimitive && !type.IsEnum;
-        }
-
-        public static MpuAccess MemoryOperationToMpuAccess(MemoryOperation operation)
-        {
-            switch(operation)
-            {
-                case MemoryOperation.InsnFetch:
-                    return MpuAccess.InstructionFetch;
-                case MemoryOperation.MemoryIOWrite:
-                case MemoryOperation.MemoryWrite:
-                    return MpuAccess.Write;
-                case MemoryOperation.MemoryIORead:
-                case MemoryOperation.MemoryRead:
-                    return MpuAccess.Read;
-                default:
-                    throw new ArgumentException("Invalid conversion from MemoryOperation to MpuAccess");
-            }
-        }
-
-        public static ulong GCD(ulong a, ulong b)
-        {
-            while(a != 0 && b != 0)
-            {
-                if(a > b)
-                {
-                    a %= b;
-                }
-                else
-                {
-                    b %= a;
-                }
-            }
-            return a | b;
-        }
-
-        public static ulong LCM(ulong a, ulong b)
-        {
-            return a / GCD(a, b) * b;
-        }
-
-        public static T ReturnThenAssign<T>(ref T variable, T value)
-        {
-            var temp = variable;
-            variable = value;
-            return temp;
-        }
-
-        public static bool ReturnThenSet(ref bool variable, bool value = true) => ReturnThenAssign(ref variable, value);
-
-        public static bool ReturnThenClear(ref bool variable) => ReturnThenAssign(ref variable, false);
-
-        public static DateTime UnixEpoch = new DateTime(1970, 1, 1);
+            return lookup;
+        }, isThreadSafe: true);
     }
 
     public class MethodWithAttribute<T> where T : Attribute
@@ -1827,6 +1956,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         public MethodInfo Method { get; }
+
         public T Attribute { get; }
     }
 
@@ -1844,5 +1974,19 @@ namespace Antmicro.Renode.Utilities
 
         private readonly IEnumerable<T> collection;
     }
-}
 
+    public class LazyString<T>
+    {
+        public LazyString(IEnumerable<T> collection)
+        {
+            this.collection = collection;
+        }
+
+        public override string ToString()
+        {
+            return Misc.PrettyPrintCollection(collection);
+        }
+
+        private readonly IEnumerable<T> collection;
+    }
+}

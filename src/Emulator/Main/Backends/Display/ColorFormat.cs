@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -40,7 +40,8 @@ namespace Antmicro.Renode.Backends.Display
         BGRX8888,
         RGBX8888,
         XRGB8888,
-        XBGR8888
+        XBGR8888,
+        NV12, // First planar format
     }
 
     public enum ColorType
@@ -63,12 +64,13 @@ namespace Antmicro.Renode.Backends.Display
             {
                 // here we check if pixel format enum value has proper value
                 // i.e. calculated from the position in enum (not set explicitly)
-                var value = (int)values.GetValue(i);
+                var fmt = (PixelFormat)values.GetValue(i);
+                var value = (int)fmt;
                 if(value != i)
                 {
-                    throw new ArgumentException(string.Format("Unexpected pixel format value: {0}", (PixelFormat)value));
+                    throw new ArgumentException(string.Format("Unexpected pixel format value: {0}", fmt));
                 }
-                depths[value] = GetColorsLengths((PixelFormat)value).Sum(x => x.Value) / 8;
+                depths[value] = fmt.IsPlanar() ? 1 : GetColorsLengths(fmt).Sum(x => x.Value) / 8;
             }
         }
 
@@ -98,7 +100,7 @@ namespace Antmicro.Renode.Backends.Display
             var formatAsCharArray = format.ToString().ToCharArray();
             var firstNumberPosition = formatAsCharArray.Length / 2;
 
-            while (offset < firstNumberPosition)
+            while(offset < firstNumberPosition)
             {
                 ColorType colorType;
                 if(!Enum.TryParse(formatAsCharArray[offset].ToString(), out colorType))
@@ -113,7 +115,15 @@ namespace Antmicro.Renode.Backends.Display
             return bits;
         }
 
-        private static int[] depths;
+        private static readonly int[] depths;
+
+        /// <summary>
+        /// Checks whether or not the specified format is planar.
+        /// </summary>
+        /// <param name="format">Color format</param>
+        public static bool IsPlanar(this PixelFormat format)
+        {
+            return format >= PixelFormat.NV12;
+        }
     }
 }
-

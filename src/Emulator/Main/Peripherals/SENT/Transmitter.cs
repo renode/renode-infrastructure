@@ -8,6 +8,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
@@ -21,10 +22,6 @@ namespace Antmicro.Renode.Peripherals.SENT
             this.machine = machine;
             this.tickPeriod = tickPeriod;
         }
-
-        public event Func<FastMessage> ProvideFastMessage;
-        public event Func<SlowMessage> ProvideSlowMessage;
-        public event Action<SENTEdge> Edge;
 
         public bool Transmitting
         {
@@ -42,11 +39,17 @@ namespace Antmicro.Renode.Peripherals.SENT
                 if(value)
                 {
                     var coroutine = TransmitterThread().GetEnumerator();
-                    sendThread = machine.ObtainManagedThread(delegate{}, tickPeriod, "SENT Transmitter", stopCondition: () => !coroutine.MoveNext());
+                    sendThread = machine.ObtainManagedThread(delegate { }, tickPeriod, "SENT Transmitter", stopCondition: () => !coroutine.MoveNext());
                     sendThread.Start();
                 }
             }
         }
+
+        public event Func<FastMessage> ProvideFastMessage;
+
+        public event Func<SlowMessage> ProvideSlowMessage;
+
+        public event Action<SENTEdge> Edge;
 
         private IEnumerable TransmitterThread()
         {

@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
@@ -23,6 +24,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 throw new ConstructionException("Size of the underlying memory must be in range 32MB - 128MB");
             }
+
+            SFDPSignature = DefaultSFDPSignature();
         }
 
         protected override byte GetCapacityCode()
@@ -32,75 +35,29 @@ namespace Antmicro.Renode.Peripherals.SPI
             return (byte)BitHelper.GetMostSignificantSetBitIndex((ulong)this.UnderlyingMemory.Size);
         }
 
-        protected override byte[] GetSFDPSignature()
-        {
-            byte[] patchedSFDPSignature = DefaultSFDPSignature;
-            byte capacity = GetCapacityCode();
-
-            // Some values in parameters differ between flash size variants.
-            // Outer dictionary uses capacity code as a key to select offset-value
-            // pairs applied to default SFDP signature.
-
-            // Patched DWORDs:
-            // - Basic Flash Parameter DWORD-2 (0x107), DWORD-11 (0x12B)
-            // - Sector Map Parameter DWORD-10 Config-0 Region-2 (0x1EF)
-            // - Sector Map Parameter DWORD-12 Config-3 Region-0 (0x1F7)
-            // - Sector Map Parameter DWORD-18 Config-1 Region-2 (0x20F)
-            // - Sector Map Parameter DWORD-22 Config-4 Region-0 (0x21F)
-            var patchtable = new Dictionary<byte, Dictionary<ulong, byte>>() {
-                {0x19, new Dictionary<ulong, byte>() {
-                    {0x107, 0x0F},
-                    {0x12B, 0xE1},
-                    {0x1EF, 0x01},
-                    {0x1F7, 0x01},
-                    {0x20F, 0x01},
-                    {0x21F, 0x01}
-                }},
-                {0x1a, new Dictionary<ulong, byte>() {
-                    {0x107, 0x1F},
-                    {0x12B, 0xE3},
-                    {0x1EF, 0x03},
-                    {0x1F7, 0x03},
-                    {0x20F, 0x03},
-                    {0x21F, 0x03}
-                }},
-                {0x1b, new Dictionary<ulong, byte>() {
-                    {0x107, 0x3F},
-                    {0x12B, 0xE6},
-                    {0x1EF, 0x07},
-                    {0x1F7, 0x07},
-                    {0x20F, 0x07},
-                    {0x21F, 0x07}
-                }}
-            };
-
-            foreach(var patch in patchtable[capacity])
-            {
-                patchedSFDPSignature[patch.Key] = patch.Value;
-            }
-
-            return patchedSFDPSignature;
-        }
-
         protected override int GetDummyBytes(Commands command)
         {
             switch(command)
             {
-                case Commands.ReadSerialFlashDiscoveryParameter:
-                    return 1;
-                default:
-                    return base.GetDummyBytes(command);
+            case Commands.ReadSerialFlashDiscoveryParameter:
+                return 1;
+            default:
+                return base.GetDummyBytes(command);
             }
         }
 
-        private const byte ManufacturerId = 0x34;
-        private const byte MemoryType = 0x2B; // HS-T: 0x2B, HL-T: 0x2A
-        private const byte RemainingIDBytes = 0x0F;
-        private const byte ExtendedDeviceID = 0x03;
-        private const byte DeviceConfiguration = 0x90;
-        private const int SectorSizeKB = 256;
+        private byte[] DefaultSFDPSignature()
+        {
+            var capacity = GetCapacityCode();
+            foreach(var patch in sfdpPatches[capacity])
+            {
+                sfdpSignature[patch.Key] = patch.Value;
+            }
 
-        private readonly byte[] DefaultSFDPSignature = new byte[]
+            return sfdpSignature;
+        }
+
+        private readonly byte[] sfdpSignature = new byte[]
         {
             // SFDP Rev D header table
             0x53, 0x46, 0x44, 0x50, 0x08, 0x01, 0x03, 0xff, 0x00, 0x00,
@@ -162,6 +119,50 @@ namespace Antmicro.Renode.Peripherals.SPI
             0xF7, 0x03, 0xF8, 0xFF, 0x02, 0x00, 0xF1, 0xFF, 0x00, 0x00, //0x20F: 0x01/03/07
             0xFF, 0x04, 0x00, 0xFF, 0xF8, 0xFF, 0xFF, 0x03              //0x21F: 0x01/03/07
         };
+
+        // Some values in parameters differ between flash size variants.
+        // Outer dictionary uses capacity code as a key to select offset-value
+        // pairs applied to default SFDP signature.
+        // Patched DWORDs:
+        // - Basic Flash Parameter DWORD-2 (0x107), DWORD-11 (0x12B)
+        // - Sector Map Parameter DWORD-10 Config-0 Region-2 (0x1EF)
+        // - Sector Map Parameter DWORD-12 Config-3 Region-0 (0x1F7)
+        // - Sector Map Parameter DWORD-18 Config-1 Region-2 (0x20F)
+        // - Sector Map Parameter DWORD-22 Config-4 Region-0 (0x21F)
+        private readonly IReadOnlyDictionary<byte, IReadOnlyDictionary<ulong, byte>> sfdpPatches = new Dictionary<byte, IReadOnlyDictionary<ulong, byte>>
+        {
+            {0x19, new Dictionary<ulong, byte>() {
+                {0x107, 0x0F},
+                {0x12B, 0xE1},
+                {0x1EF, 0x01},
+                {0x1F7, 0x01},
+                {0x20F, 0x01},
+                {0x21F, 0x01}
+            }},
+            {0x1a, new Dictionary<ulong, byte>() {
+                {0x107, 0x1F},
+                {0x12B, 0xE3},
+                {0x1EF, 0x03},
+                {0x1F7, 0x03},
+                {0x20F, 0x03},
+                {0x21F, 0x03}
+            }},
+            {0x1b, new Dictionary<ulong, byte>() {
+                {0x107, 0x3F},
+                {0x12B, 0xE6},
+                {0x1EF, 0x07},
+                {0x1F7, 0x07},
+                {0x20F, 0x07},
+                {0x21F, 0x07}
+            }}
+        };
+
+        private const byte ManufacturerId = 0x34;
+        private const byte MemoryType = 0x2B; // HS-T: 0x2B, HL-T: 0x2A
+        private const byte RemainingIDBytes = 0x0F;
+        private const byte ExtendedDeviceID = 0x03;
+        private const byte DeviceConfiguration = 0x90;
+        private const int SectorSizeKB = 256;
 
         public enum S25HxFamily : byte
         {

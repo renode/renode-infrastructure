@@ -52,4 +52,3 @@ namespace Antmicro.Renode.Utilities
         private readonly SocketServerProvider server;
     }
 }
-

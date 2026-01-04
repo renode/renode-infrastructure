@@ -1,10 +1,9 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -24,11 +23,11 @@ namespace Antmicro.Renode.Core.USB.MSC
         {
             switch(packet.Type)
             {
-                case PacketType.Class:
-                    return HandleClassRequest(packet);
-                default:
-                    device.Log(LogLevel.Warning, "Unsupported packet type: 0x{0:X}", packet.Type);
-                    return BitStream.Empty;
+            case PacketType.Class:
+                return HandleClassRequest(packet);
+            default:
+                device.Log(LogLevel.Warning, "Unsupported packet type: 0x{0:X}", packet.Type);
+                return BitStream.Empty;
             }
         }
 
@@ -36,12 +35,12 @@ namespace Antmicro.Renode.Core.USB.MSC
         {
             switch((ClassRequests)packet.Request)
             {
-                case ClassRequests.GetMaxLUN:
-                    // If no LUN is associated with the device, the value returned shall be 0.
-                    return new BitStream().Append((byte)0);
-                default:
-                    device.Log(LogLevel.Warning, "Unsupported class request: 0x{0:X}", packet.Request);
-                    return BitStream.Empty;
+            case ClassRequests.GetMaxLUN:
+                // If no LUN is associated with the device, the value returned shall be 0.
+                return new BitStream().Append((byte)0);
+            default:
+                device.Log(LogLevel.Warning, "Unsupported class request: 0x{0:X}", packet.Request);
+                return BitStream.Empty;
             }
         }
 

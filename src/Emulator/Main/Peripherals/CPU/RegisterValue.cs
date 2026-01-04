@@ -1,20 +1,22 @@
 ﻿//
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Linq;
+
 using ELFSharp.ELF;
-using Microsoft.Scripting.Utils;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public struct RegisterValue
     {
         public ulong RawValue { get; private set; }
+
         public byte[] ByteArrayValue { get; private set; }
+
         public uint Bits { get; private set; }
 
         // this is not the perfect solution,
@@ -36,22 +38,22 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return ByteArrayValue;
             }
 
-            switch (Bits)
+            switch(Bits)
             {
-                case 8:
-                    bytes = new[] { (byte)RawValue };
-                    break;
-                case 16:
-                    bytes = BitConverter.GetBytes((ushort)RawValue);
-                    break;
-                case 32:
-                    bytes = BitConverter.GetBytes((uint)RawValue);
-                    break;
-                case 64:
-                    bytes = BitConverter.GetBytes(RawValue);
-                    break;
-                default:
-                    throw new ArgumentException($"Unexpected bits count: {Bits}");
+            case 8:
+                bytes = new[] { (byte)RawValue };
+                break;
+            case 16:
+                bytes = BitConverter.GetBytes((ushort)RawValue);
+                break;
+            case 32:
+                bytes = BitConverter.GetBytes((uint)RawValue);
+                break;
+            case 64:
+                bytes = BitConverter.GetBytes(RawValue);
+                break;
+            default:
+                throw new ArgumentException($"Unexpected bits count: {Bits}");
             }
 
             return needsByteSwap ? bytes.Reverse().ToArray() : bytes;

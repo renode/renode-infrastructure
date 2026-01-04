@@ -6,9 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.UART;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -120,53 +120,6 @@ namespace Antmicro.Renode.Peripherals.UART
             throw new NotImplementedException();
         }
 
-        private uint recvControl;
-        private uint control;
-        private uint lineControl;
-        private uint interrupt;
-        private uint status;
-        private uint transControl;
-
-        private uint Status
-        {
-            get
-            {
-                return status;
-            }
-            set
-            {
-                status = value & (0xF << 20 & 1 << 18 & 1 << 17 & 1 << 16);
-            }
-        }
-
-        private enum Register
-        {
-            RecvCtrl = 0x00,
-            RecvCtrlSet = 0x04,
-            RecvCtrlClr = 0x08,
-            RecvCtrlTog = 0x0C,
-            TransCtrl = 0x10,
-            TransCtrlSet = 0x14,
-            TransCtrlClr = 0x18,
-            TransCtrlTog = 0x1C,
-            Control = 0x20,
-            ControlSet = 0x24,
-            ControlClr = 0x28,
-            ControlTog = 0x2C,
-            LineCtrl = 0x30,
-            LineCtrlSet = 0x34,
-            LineCtrlClr = 0x38,
-            LineCtrlTog = 0x3C,
-            InterruptReg = 0x50,
-            InterruptRegSet = 0x54,
-            InterruptRegClr = 0x58,
-            InterruptRegTohg = 0x5C,
-            StatusReg = 0x70,
-            StatusRegSet = 0x74,
-            StatusRegClr = 0x78,
-            StatusRegTog = 0x7C
-        }
-
         public uint BaudRate
         {
             get
@@ -206,8 +159,55 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        private uint Status
+        {
+            get
+            {
+                return status;
+            }
+
+            set
+            {
+                status = value & (0xF << 20 & 1 << 18 & 1 << 17 & 1 << 16);
+            }
+        }
+
+        private uint recvControl;
+        private uint control;
+        private uint lineControl;
+        private uint interrupt;
+        private uint status;
+        private uint transControl;
+
         private const uint UARTClockFrequency = 24000000;
+
+        private enum Register
+        {
+            RecvCtrl = 0x00,
+            RecvCtrlSet = 0x04,
+            RecvCtrlClr = 0x08,
+            RecvCtrlTog = 0x0C,
+            TransCtrl = 0x10,
+            TransCtrlSet = 0x14,
+            TransCtrlClr = 0x18,
+            TransCtrlTog = 0x1C,
+            Control = 0x20,
+            ControlSet = 0x24,
+            ControlClr = 0x28,
+            ControlTog = 0x2C,
+            LineCtrl = 0x30,
+            LineCtrlSet = 0x34,
+            LineCtrlClr = 0x38,
+            LineCtrlTog = 0x3C,
+            InterruptReg = 0x50,
+            InterruptRegSet = 0x54,
+            InterruptRegClr = 0x58,
+            InterruptRegTohg = 0x5C,
+            StatusReg = 0x70,
+            StatusRegSet = 0x74,
+            StatusRegClr = 0x78,
+            StatusRegTog = 0x7C
+        }
         // 24 Mhz
     }
 }
-

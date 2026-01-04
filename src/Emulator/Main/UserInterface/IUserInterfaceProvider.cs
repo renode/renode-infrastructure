@@ -12,7 +12,7 @@ namespace Antmicro.Renode.UserInterface
     public interface IUserInterfaceProvider
     {
         void ShowAnalyser(IAnalyzableBackendAnalyzer analyzer, string name);
+
         void HideAnalyser(IAnalyzableBackendAnalyzer analyzer);
     }
 }
-

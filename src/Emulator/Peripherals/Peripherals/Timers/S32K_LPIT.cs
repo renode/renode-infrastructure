@@ -83,8 +83,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         public long Size => 0x1000;
 
         public GPIO TimerOutput0 { get; }
+
         public GPIO TimerOutput1 { get; }
+
         public GPIO TimerOutput2 { get; }
+
         public GPIO TimerOutput3 { get; }
 
         private void DefineChannelRegisters(int channel, Registers valueRegister, Registers currentValueRegister, Registers controlRegister)
@@ -176,14 +179,14 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             switch(channel)
             {
-                case 0:
-                    return TimerOutput0;
-                case 1:
-                    return TimerOutput1;
-                case 2:
-                    return TimerOutput2;
-                case 3:
-                    return TimerOutput3;
+            case 0:
+                return TimerOutput0;
+            case 1:
+                return TimerOutput1;
+            case 2:
+                return TimerOutput2;
+            case 3:
+                return TimerOutput3;
             }
             throw new System.ArgumentException($"No such channel: {channel}! LPIT has only {ChannelCount} channels!");
         }
@@ -192,18 +195,18 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             switch((Registers)register)
             {
-                case Registers.ModuleStatus:
-                case Registers.SetTimerEnable:
-                case Registers.ClearTimerEnable:
-                case Registers.TimerValue0:
-                case Registers.TimerValue1:
-                case Registers.TimerValue2:
-                case Registers.TimerValue3:
-                case Registers.TimerControl0:
-                case Registers.TimerControl1:
-                case Registers.TimerControl2:
-                case Registers.TimerControl3:
-                    return moduleEnabled.Value;
+            case Registers.ModuleStatus:
+            case Registers.SetTimerEnable:
+            case Registers.ClearTimerEnable:
+            case Registers.TimerValue0:
+            case Registers.TimerValue1:
+            case Registers.TimerValue2:
+            case Registers.TimerValue3:
+            case Registers.TimerControl0:
+            case Registers.TimerControl1:
+            case Registers.TimerControl2:
+            case Registers.TimerControl3:
+                return moduleEnabled.Value;
             }
             return true;
         }
@@ -279,11 +282,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                     DebugLog("Setting Operation Mode: {0}", value);
                     switch(value)
                     {
-                        case OperationModes.DualPeriodicCounter:
-                        case OperationModes.TriggerAccumulator:
-                        case OperationModes.TriggerInputCapture:
-                            Log(LogLevel.Error, "{0}: The {1} mode isn't currently supported, still operating as {2}!", name, value);
-                            return;
+                    case OperationModes.DualPeriodicCounter:
+                    case OperationModes.TriggerAccumulator:
+                    case OperationModes.TriggerInputCapture:
+                        Log(LogLevel.Error, "{0}: The {1} mode isn't currently supported, still operating as {2}!", name, value);
+                        return;
                     }
                     operationMode = value;
                 }
@@ -350,10 +353,11 @@ namespace Antmicro.Renode.Peripherals.Timers
                 lpit.Log(level, $"{name}: {message}", args);
             }
 
-            private readonly S32K_LPIT lpit;
-            private readonly string name;
             private OperationModes operationMode;
             private uint valueSet;
+
+            private readonly S32K_LPIT lpit;
+            private readonly string name;
         }
 
         private enum OperationModes

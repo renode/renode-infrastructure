@@ -5,12 +5,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-using NUnit.Framework;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Utilities;
+
+using NUnit.Framework;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -20,13 +19,13 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldReadWriteMemoryBiggerThan2GB()
         {
-            const uint MemorySize = 3u * 1024 * 1024 * 1024;
+            const uint memorySize = 3u * 1024 * 1024 * 1024;
             var machine = new Machine();
-            var memory = new MappedMemory(machine, MemorySize);
+            var memory = new MappedMemory(machine, memorySize);
             var start = (ulong)100.MB();
             machine.SystemBus.Register(memory, start);
             var offset1 = start + 16;
-            var offset2 = start + MemorySize - 16;
+            var offset2 = start + memorySize - 16;
             machine.SystemBus.WriteByte(offset1, 0x1);
             machine.SystemBus.WriteByte(offset2, 0x2);
 
@@ -35,4 +34,3 @@ namespace Antmicro.Renode.UnitTests
         }
     }
 }
-

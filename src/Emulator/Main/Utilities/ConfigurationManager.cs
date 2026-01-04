@@ -1,17 +1,19 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Nini.Config;
-using System.IO;
 using System;
-using Antmicro.Renode.Logging;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+
+using Nini.Config;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -22,17 +24,12 @@ namespace Antmicro.Renode.Utilities
             Initialize(Path.Combine(Emulator.UserDirectoryPath, "config"));
         }
 
-        public static ConfigurationManager Instance { get; private set; }
-
         public static void Initialize(string configFile)
         {
             Instance = new ConfigurationManager(configFile);
         }
 
-        private ConfigurationManager(string configFile)
-        {
-            Config = new ConfigSource(configFile);
-        }
+        public static ConfigurationManager Instance { get; private set; }
 
         public T Get<T>(string group, string name, T defaultValue, Func<T, bool> validation = null)
         {
@@ -82,6 +79,20 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
+        public bool TryGet<T>(string group, string name, out T result)
+        {
+            var config = Config.Source.Configs[group];
+            if(config == null || !config.Contains(name))
+            {
+                result = default(T);
+                return false;
+            }
+
+            // value for this variable already exists so default value will not be used
+            result = Get<T>(group, name, default(T));
+            return true;
+        }
+
         public void SetNonPersistent<T>(string group, string name, T value)
         {
             AddToCache(group, name, value);
@@ -96,15 +107,20 @@ namespace Antmicro.Renode.Utilities
 
         public string FilePath => Config.FileName;
 
+        private ConfigurationManager(string configFile)
+        {
+            Config = new ConfigSource(configFile);
+        }
+
         private IConfig VerifyValue(string group, string name, object defaultValue)
         {
-            if(defaultValue == null)
-            {
-                throw new ArgumentException("Default value cannot be null", "defaultValue");
-            }
             var config = VerifyGroup(group);
             if(!config.Contains(name))
             {
+                if(defaultValue == null)
+                {
+                    throw new ArgumentException("Default value cannot be null", "defaultValue");
+                }
                 config.Set(name, defaultValue);
             }
             return config;
@@ -174,7 +190,6 @@ namespace Antmicro.Renode.Utilities
                 source.AutoSave = !Emulator.InCIMode;
                 return source;
             }
-
         }
 
         public string FileName { get; private set; }
@@ -184,4 +199,3 @@ namespace Antmicro.Renode.Utilities
         private const string ConfigurationLockSuffix = ".lock";
     }
 }
-

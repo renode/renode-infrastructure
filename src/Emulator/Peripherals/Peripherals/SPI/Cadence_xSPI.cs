@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,14 +7,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.Helpers;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Helpers;
 using Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -58,37 +59,37 @@ namespace Antmicro.Renode.Peripherals.SPI
         // There is no information in the Linux driver about handling offset for a DMA access
         // The comment above applies to all Write*ToDMA and Read*FromDMA methods
         [ConnectionRegion("dma")]
-        public void WriteByteUsingDMA(long offset, byte value)
+        public void WriteByteUsingDMA(long _, byte value)
         {
             WriteUsingDMA(new byte[] { value });
         }
 
         [ConnectionRegion("dma")]
-        public void WriteWordUsingDMA(long offset, ushort value)
+        public void WriteWordUsingDMA(long _, ushort value)
         {
             WriteUsingDMA(BitHelper.GetBytesFromValue(value, 2));
         }
 
         [ConnectionRegion("dma")]
-        public void WriteDoubleWordUsingDMA(long offset, uint value)
+        public void WriteDoubleWordUsingDMA(long _, uint value)
         {
             WriteUsingDMA(BitHelper.GetBytesFromValue(value, 4));
         }
 
         [ConnectionRegion("dma")]
-        public byte ReadByteUsingDMA(long offset)
+        public byte ReadByteUsingDMA(long _)
         {
             return ReadUsingDMA(1).First();
         }
 
         [ConnectionRegion("dma")]
-        public ushort ReadWordUsingDMA(long offset)
+        public ushort ReadWordUsingDMA(long _)
         {
             return BitHelper.ToUInt16(ReadUsingDMA(2).ToArray(), 0, false);
         }
 
         [ConnectionRegion("dma")]
-        public uint ReadDoubleWordUsingDMA(long offset)
+        public uint ReadDoubleWordUsingDMA(long _)
         {
             return BitHelper.ToUInt32(ReadUsingDMA(4).ToArray(), 0, 4, false);
         }
@@ -127,9 +128,14 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 commandIgnored.SetSticky(true);
             }
-            else if(previousCommand != null && previousCommand.ChipSelect != currentCommand.ChipSelect && !previousCommand.TransmissionFinished)
+            else if(previousCommand != null && !previousCommand.TransmissionFinished && previousCommand.ChipSelect != currentCommand.ChipSelect)
             {
                 this.Log(LogLevel.Error, "Triggering command with chip select different than previous one, when the previous transaction isn't finished.");
+                previousCommand.FinishTransmission();
+            }
+            else if(previousCommand != null && !previousCommand.TransmissionFinished && previousCommand.Mode != currentCommand.Mode)
+            {
+                this.Log(LogLevel.Error, "Finishing transmission due to mode change: {0} -> {1}", previousCommand.Mode, currentCommand.Mode);
                 previousCommand.FinishTransmission();
             }
 
@@ -229,7 +235,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                     )
                 },
                 {(long)Registers.CommandStatus, new DoubleWordRegister(this)
-                    .WithReservedBits(16, 16)
+                    .WithValueField(16,16, name: "dataFromDev",
+                        valueProviderCallback: _ => (currentCommand as DataSequenceCommand)?.ShortOutput ?? 0
+                    )
                     .WithFlag(15, FieldMode.Read, name: "commandCompleted",
                         valueProviderCallback: _ => currentCommand?.Completed ?? false
                     )
@@ -359,6 +367,21 @@ namespace Antmicro.Renode.Peripherals.SPI
                     )
                     .WithReservedBits(0, 8)
                 },
+                {(long)Registers.DiscoveryControl, new DoubleWordRegister(this, resetValue: 0b100)
+                    .WithTaggedFlag("REQ",0)
+                    .WithTaggedFlag("REQ_TYP",1)
+                    .WithTaggedFlag("PASS",2)
+                    .WithTag("FAIL",3,2)
+                    .WithTaggedFlag("INHIBIT",5)
+                    .WithTaggedFlag("OE_VAL",6)
+                    .WithTaggedFlag("OE_EN",7)
+                    .WithTag("CMD_TYP",8,2)
+                    .WithTaggedFlag("DMY_CNT",10)
+                    .WithTaggedFlag("ABNUM",11)
+                    .WithTag("NUM_LINES",12,3)
+                    .WithTag("BNK",16,3)
+                    .WithReservedBits(19,13)
+                },
                 {(long)Registers.ControllerVersion, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Read, name: "hardwareRevision",
                         valueProviderCallback: _ => HardwareRevision
@@ -421,7 +444,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField interruptsEnabled;
         private IEnumRegisterField<ControllerMode> controllerMode;
 
-        // Command registers have different fields at same offset depending on the command type 
+        // Command registers have different fields at same offset depending on the command type
         // The commandPayload array contains all command registers values
         // It's passed to the Command class constructor and decoded
         private readonly uint[] commandPayload = new uint[6];
@@ -463,16 +486,42 @@ namespace Antmicro.Renode.Peripherals.SPI
             Command5 = 0x0014,
             CommandStatusPointer = 0x0040,
             CommandStatus = 0x0044,
-            ControllerStatus = 0x0100,
-            AutoCommandStatus = 0x0104,
+            ControllerStatus = 0x0100, // GSTAT (General Controller Status)
+            AutoCommandStatus = 0x0104, // Auto Command Engine Thread Status Register
             InterruptStatus = 0x0110,
             InterruptEnable = 0x0114,
             AutoCommandCompleteInterruptStatus = 0x0120,
             AutoCommandErrorInterruptStatus = 0x0130,
             AutoCommandErrorInterruptEnable = 0x0134,
-            ControllerConfig = 0x0230,
+            DMAErrorAddressLow = 0x0150,
+            DMAErrorAddressHigh = 0x0154,
+            BootStatus = 0x0158,
+            LongPollingCount = 0x0208,
+            ShortPollingCount = 0x0208,
+            ControllerConfig = 0x0230, // Device Control Register
+            DMAInterfaceControl = 0x023C,
             DMASize = 0x0240,
             DMAStatus = 0x0244,
+            DMABufferAddress0 = 0x024C,
+            DMABufferAddress1 = 0x0250,
+            DiscoveryControl = 0x0260,
+            XIPConfiguration = 0x0388,
+            SequenceConfiguration0 = 0x0390,
+            SequenceConfiguration1 = 0x0394,
+            DACConfiguration = 0x0398,
+            DACAddressRemapping0 = 0x039C,
+            DACAddressRemapping1 = 0x03A0,
+            ResetSequenceConfiguration0 = 0x0400,
+            ResetSequenceConfiguration1 = 0x0404,
+            EraseSequenceConfiguration0 = 0x0410,
+            EraseSequenceConfiguration1 = 0x0414,
+            EraseSequenceConfiguration2 = 0x0418,
+            ProgramSequenceConfiguration0 = 0x0420,
+            ProgramSequenceConfiguration1 = 0x0424,
+            ProgramSequenceConfiguration2 = 0x0428,
+            ReadSequenceConfiguration0 = 0x430,
+            ReadSequenceConfiguration1 = 0x434,
+            ReadSequenceConfiguration2 = 0x428,
             ControllerVersion = 0x0f00,
             ControllerFeatures = 0x0f04,
             DLLControl = 0x1034,

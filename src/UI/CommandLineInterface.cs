@@ -1,29 +1,26 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Diagnostics;
+using System.IO;
+
+using Antmicro.Renode.Analyzers;
+using Antmicro.Renode.Backends.Video;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Extensions.Analyzers.Video;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Backends;
-using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.UserInterface;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using Antmicro.Renode.Backends.Terminals;
+using Antmicro.Renode.Utilities;
+
 using AntShell;
 using AntShell.Terminal;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Peripherals.UART;
-using System.Linq;
-using Antmicro.OptionsParser;
-using System.IO;
-using System.Diagnostics;
-using Antmicro.Renode.Analyzers;
-using Antmicro.Renode.Extensions.Analyzers.Video;
-using Antmicro.Renode.Backends.Video;
 
 namespace Antmicro.Renode.UI
 {
@@ -48,11 +45,14 @@ namespace Antmicro.Renode.UI
                     ConsoleBackend.Instance.PlainMode = true;
                 }
             }
-            else
+#if NET
+            if(options.ServerMode)
             {
-                Logger.AddBackend(new DummyLoggerBackend(), "dummy");
+                // This is only http endoint - 29170 is used for backward compatibility with ws proxy
+                // it does not create new socket
+                Logger.AddBackend(new WebSocketNetworkBackend("/telnet/29170", false), "network");
             }
-
+#endif
             Logger.AddBackend(new MemoryBackend(), "memory");
             Emulator.ShowAnalyzers = !options.HideAnalyzers;
             XwtProvider xwt = null;
@@ -67,7 +67,7 @@ namespace Antmicro.Renode.UI
                 xwt = XwtProvider.Create(new WindowedUserInterfaceProvider());
             }
 
-            if(xwt == null && options.RobotFrameworkRemoteServerPort == -1 && !options.Console)
+            if(xwt == null && options.RobotFrameworkRemoteServerPort == -1 && !options.Console && !options.ServerMode)
             {
                 if(options.Port == -1)
                 {
@@ -92,8 +92,21 @@ namespace Antmicro.Renode.UI
 
                 EmulationManager.Instance.ProgressMonitor.Handler = new CLIProgressMonitor();
 
-                var uartAnalyzerType = (xwt == null || options.RobotDebug) ? typeof(LoggingUartAnalyzer) : typeof(ConsoleWindowBackendAnalyzer);
-                var videoAnalyzerType = (xwt == null || options.RobotDebug) ? typeof(DummyVideoAnalyzer) : typeof(VideoAnalyzer);
+                Type uartAnalyzerType = typeof(ConsoleWindowBackendAnalyzer);
+                Type videoAnalyzerType = typeof(VideoAnalyzer);
+
+                if(options.ServerMode)
+                {
+#if NET
+                    uartAnalyzerType = typeof(WebSocketUartAnalyzer);
+                    videoAnalyzerType = typeof(DummyVideoAnalyzer);
+#endif
+                }
+                else if(xwt == null || options.RobotDebug)
+                {
+                    uartAnalyzerType = typeof(LoggingUartAnalyzer);
+                    videoAnalyzerType = typeof(DummyVideoAnalyzer);
+                }
 
                 EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), uartAnalyzerType);
                 EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(VideoBackend), videoAnalyzerType);
@@ -179,6 +192,18 @@ namespace Antmicro.Renode.UI
 
                 Logger.Log(LogLevel.Info, "Monitor available in telnet mode on port {0}", options.Port);
             }
+#if NET
+            else if(options.ServerMode)
+            {
+                var io = new IOProvider()
+                {
+                    // Same as in logger - 29169 is only text in http request
+                    Backend = new WebSocketIOSource("/telnet/29169")
+                };
+                shell = ShellProvider.GenerateShell(monitor, true);
+                shell.Terminal = new NavigableTerminalEmulator(io, true);
+            }
+#endif
             else
             {
                 ConsoleWindowBackendAnalyzer terminal = null;
@@ -227,13 +252,13 @@ namespace Antmicro.Renode.UI
                 String commandToInject;
                 switch(Path.GetExtension(filePath))
                 {
-                    case ".save":
-                    case ".gz":
-                        commandToInject = string.Format("Load {0}\n", filePath);
-                        break;
-                    default:
-                        commandToInject = string.Format("i {0}\n", filePath);
-                        break;
+                case ".save":
+                case ".gz":
+                    commandToInject = string.Format("Load {0}\n", filePath);
+                    break;
+                default:
+                    commandToInject = string.Format("i {0}\n", filePath);
+                    break;
                 }
                 shell.Started += s => s.InjectInput(commandToInject);
             }

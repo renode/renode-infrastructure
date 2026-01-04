@@ -73,424 +73,425 @@ namespace Antmicro.Renode.Peripherals.Storage
 #pragma warning disable 649, 169
     public struct BasicUPIUHeader
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
         public byte LogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 4)]
         public byte InitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 4), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 4), Width(bits: 4)]
         public byte CommandSetType;
-        [PacketField, Offset(doubleWords: 1, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 8), Width(bits: 8)]
         public byte Function;
-        [PacketField, Offset(doubleWords: 1, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 8)]
         public byte Response;
-        [PacketField, Offset(doubleWords: 1, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 24), Width(bits: 8)]
         public byte Status;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 8), Width(bits: 8)]
         public byte DeviceInformation;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
     }
 
     public struct CommandUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
         public byte LogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 4)]
         public byte InitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 4), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 4), Width(bits: 4)]
         public byte CommandSetType;
-        [PacketField, Offset(doubleWords: 1, bits: 24), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 24), Width(bits: 4)]
         public byte NexusInitiatorID;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
-        [PacketField, Offset(doubleWords: 3, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
         public uint ExpectedDataTransferLength;
-        [PacketField, Width(16)]
+        [PacketField, Width(bytes: 16)]
         public byte[] CommandDescriptorBlock;
     }
 
     public struct CommandUPIUFlags
     {
-        [PacketField, Offset(bytes: 0, bits: 0), Width(2)]
+        [PacketField, Offset(bytes: 0, bits: 0), Width(bits: 2)]
         public TaskAttribute TaskAttribute;
-        [PacketField, Offset(bytes: 0, bits: 2), Width(1)]
+        [PacketField, Offset(bytes: 0, bits: 2), Width(bits: 1)]
         public bool CommandPriority;
-        [PacketField, Offset(bytes: 0, bits: 5), Width(1)]
+        [PacketField, Offset(bytes: 0, bits: 5), Width(bits: 1)]
         public bool Write;
-        [PacketField, Offset(bytes: 0, bits: 6), Width(1)]
+        [PacketField, Offset(bytes: 0, bits: 6), Width(bits: 1)]
         public bool Read;
     }
+
     public struct DataInUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
         public byte LogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 4)]
         public byte InitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 8), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 8), Width(bits: 4)]
         public byte NexusInitiatorID;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
-        [PacketField, Offset(doubleWords: 3, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
         public uint DataBufferOffset;
-        [PacketField, Offset(doubleWords: 4, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 4, bits: 0), Width(bits: 32)]
         public uint DataTransferCount;
-        [PacketField, Offset(doubleWords: 5, bits: 4), Width(4)]
+        [PacketField, Offset(doubleWords: 5, bits: 4), Width(bits: 4)]
         public byte HintControl;
-        [PacketField, Offset(doubleWords: 5, bits: 8), Width(4)]
+        [PacketField, Offset(doubleWords: 5, bits: 8), Width(bits: 4)]
         public byte HintNexusInitiatorID;
-        [PacketField, Offset(doubleWords: 5, bits: 12), Width(4)]
+        [PacketField, Offset(doubleWords: 5, bits: 12), Width(bits: 4)]
         public byte HintInitiatorID;
-        [PacketField, Offset(doubleWords: 5, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 5, bits: 16), Width(bits: 8)]
         public byte HintLogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 5, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 5, bits: 24), Width(bits: 8)]
         public byte HintTaskTag;
-        [PacketField, Offset(doubleWords: 6, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 6, bits: 0), Width(bits: 32)]
         public uint HintDataBufferOffset;
-        [PacketField, Offset(doubleWords: 7, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 7, bits: 0), Width(bits: 32)]
         public uint HintDataCount;
     }
 
     public struct DataOutUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
         public byte LogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 4)]
         public byte InitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 24), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 24), Width(bits: 4)]
         public byte NexusInitiatorID;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
-        [PacketField, Offset(doubleWords: 3, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
         public uint DataBufferOffset;
-        [PacketField, Offset(doubleWords: 4, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 4, bits: 0), Width(bits: 32)]
         public uint DataTransferCount;
     }
 
     public struct NopInUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 8)]
         public byte Response;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 8), Width(bits: 8)]
         public byte DeviceInformation;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
     }
 
     public struct NopOutUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
     }
 
     public struct QueryRequestUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 8), Width(bits: 8)]
         public QueryFunction QueryFunction;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
-        [PacketField, Width(16)]
+        [PacketField, Width(bytes: 16)]
         public byte[] TransactionSpecificFields;
     }
 
     public struct QueryResponseUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 8), Width(bits: 8)]
         public QueryFunction QueryFunction;
-        [PacketField, Offset(doubleWords: 1, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 8)]
         public QueryResponseCode QueryResponse;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 8), Width(bits: 8)]
         public byte DeviceInformation;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
-        [PacketField, Width(16)]
+        [PacketField, Width(bytes: 16)]
         public byte[] TransactionSpecficFields;
     }
 
     public struct ReadyToTransferUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
         public byte LogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 4)]
         public byte InitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 8), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 8), Width(bits: 4)]
         public byte NexusInitiatorID;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
-        [PacketField, Offset(doubleWords: 3, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
         public uint DataBufferOffset;
-        [PacketField, Offset(doubleWords: 4, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 4, bits: 0), Width(bits: 32)]
         public uint DataTransferCount;
-        [PacketField, Offset(doubleWords: 5, bits: 4), Width(4)]
+        [PacketField, Offset(doubleWords: 5, bits: 4), Width(bits: 4)]
         public byte HintControl;
-        [PacketField, Offset(doubleWords: 5, bits: 8), Width(4)]
+        [PacketField, Offset(doubleWords: 5, bits: 8), Width(bits: 4)]
         public byte HintNexusInitiatorID;
-        [PacketField, Offset(doubleWords: 5, bits: 12), Width(4)]
+        [PacketField, Offset(doubleWords: 5, bits: 12), Width(bits: 4)]
         public byte HintInitiatorID;
-        [PacketField, Offset(doubleWords: 5, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 5, bits: 16), Width(bits: 8)]
         public byte HintLogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 5, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 5, bits: 24), Width(bits: 8)]
         public byte HintTaskTag;
-        [PacketField, Offset(doubleWords: 6, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 6, bits: 0), Width(bits: 32)]
         public uint HintDataBufferOffset;
-        [PacketField, Offset(doubleWords: 7, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 7, bits: 0), Width(bits: 32)]
         public uint HintDataCount;
     }
 
     public struct RejectUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
         public byte LogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 4)]
         public byte InitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 8), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 8), Width(bits: 4)]
         public byte NexusInitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 8)]
         public byte Response;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 8), Width(bits: 8)]
         public byte DeviceInformation;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
-        [PacketField, Offset(doubleWords: 3, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 8)]
         public byte BasicHeaderStatus;
-        [PacketField, Offset(doubleWords: 3, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 3, bits: 16), Width(bits: 8)]
         public byte E2EStatus;
     }
 
     public struct ResponseUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
         public byte LogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 4)]
         public byte InitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 4), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 4), Width(bits: 4)]
         public byte CommandSetType;
-        [PacketField, Offset(doubleWords: 1, bits: 8), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 8), Width(bits: 4)]
         public byte NexusInitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 8)]
         public byte Response;
-        [PacketField, Offset(doubleWords: 1, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 24), Width(bits: 8)]
         public byte Status;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 8), Width(bits: 8)]
         public byte DeviceInformation;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
-        [PacketField, Offset(doubleWords: 3, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
         public uint ResidualTransferCount;
     }
 
     public struct ResponseUPIUFlags
     {
-        [PacketField, Offset(bytes: 0, bits: 4), Width(1)]
+        [PacketField, Offset(bytes: 0, bits: 4), Width(bits: 1)]
         public bool DataOutMismatch;
-        [PacketField, Offset(bytes: 0, bits: 5), Width(1)]
+        [PacketField, Offset(bytes: 0, bits: 5), Width(bits: 1)]
         public bool DataUnderflow;
-        [PacketField, Offset(bytes: 0, bits: 6), Width(1)]
+        [PacketField, Offset(bytes: 0, bits: 6), Width(bits: 1)]
         public bool DataOverflow;
     }
 
     public struct TaskManagementRequestUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
         public byte LogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 4)]
         public byte InitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 8), Width(bits: 8)]
         public byte TaskManagementFunction;
-        [PacketField, Offset(doubleWords: 1, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 8)]
         public byte Response;
-        [PacketField, Offset(doubleWords: 1, bits: 24), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 24), Width(bits: 4)]
         public byte NexusInitiatorID;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
-        [PacketField, Offset(doubleWords: 3, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
         public uint InputParameter1;
-        [PacketField, Offset(doubleWords: 4, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 4, bits: 0), Width(bits: 32)]
         public uint InputParameter2;
-        [PacketField, Offset(doubleWords: 5, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 5, bits: 0), Width(bits: 32)]
         public uint InputParameter3;
     }
 
     public struct TaskManagementResponseUPIU
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(6)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 6)]
         public byte TransactionCode;
-        [PacketField, Offset(doubleWords: 0, bits: 6), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 6), Width(bits: 1)]
         public bool DataSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 7), Width(1)]
+        [PacketField, Offset(doubleWords: 0, bits: 7), Width(bits: 1)]
         public bool HeaderSegmentsCRC;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte Flags;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 8)]
         public byte LogicalUnitNumber;
-        [PacketField, Offset(doubleWords: 0, bits: 24), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 24), Width(bits: 8)]
         public byte TaskTag;
-        [PacketField, Offset(doubleWords: 1, bits: 0), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 4)]
         public byte InitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 8), Width(4)]
+        [PacketField, Offset(doubleWords: 1, bits: 8), Width(bits: 4)]
         public byte NexusInitiatorID;
-        [PacketField, Offset(doubleWords: 1, bits: 16), Width(8)]
+        [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 8)]
         public byte Response;
-        [PacketField, Offset(doubleWords: 2, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 8)]
         public byte TotalEHSLength;
-        [PacketField, Offset(doubleWords: 2, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 2, bits: 16), Width(bits: 16)]
         public ushort DataSegmentLength;
-        [PacketField, Offset(doubleWords: 3, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
         public uint OutputParameter1;
-        [PacketField, Offset(doubleWords: 4, bits: 0), Width(32)]
+        [PacketField, Offset(doubleWords: 4, bits: 0), Width(bits: 32)]
         public uint OutputParameter2;
     }
 
     public struct EHSEntry
     {
-        [PacketField, Offset(doubleWords: 0, bits: 0), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 8)]
         public byte Length;
-        [PacketField, Offset(doubleWords: 0, bits: 8), Width(8)]
+        [PacketField, Offset(doubleWords: 0, bits: 8), Width(bits: 8)]
         public byte EHSType;
-        [PacketField, Offset(doubleWords: 0, bits: 16), Width(16)]
+        [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits: 16)]
         public ushort EHSSubType;
         // EHS data
     }

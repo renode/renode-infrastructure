@@ -1,12 +1,10 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.IO;
-using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
@@ -17,7 +15,7 @@ namespace Antmicro.Renode.Utilities.RESD
             this.reader = reader;
             this.currentSample = new T();
 
-            currentSample.TryReadMetadata(reader);
+            currentSample.ReadMetadata(reader);
 
             SampleDataOffset = reader.BaseStream.Position;
         }
@@ -26,8 +24,13 @@ namespace Antmicro.Renode.Utilities.RESD
         {
             if(!sampleReady)
             {
-                sampleReady = currentSample.TryReadFromStream(reader);
+                if(reader.EOF)
+                {
+                    return null;
+                }
+                ReadCurrentSample();
             }
+            sampleReady = true;
             return currentSample;
         }
 
@@ -40,36 +43,66 @@ namespace Antmicro.Renode.Utilities.RESD
                 return sampleReady || !reader.EOF;
             }
 
-            if(reader.EOF)
-            {
-                return false;
-            }
-
             if(count < 0)
             {
                 // although technically possible, we assume it's not supported
                 return false;
             }
 
-            if(count > 0)
+            if(reader.EOF)
             {
-                // as GetCurrentSample lazily reads next sample, we have to
-                // take it under account when skipping samples
-                if(!currentSample.Skip(reader, count - (sampleReady ? 1 : 0)))
+                if(sampleReady)
                 {
-                    reader.SeekToEnd();
-                    return false;
+                    sampleReady = false;
+                    lastSample = currentSample;
                 }
+                return false;
+            }
+
+            // as GetCurrentSample lazily reads next sample, we have to
+            // take it under account when skipping samples
+            if(sampleReady)
+            {
+                count -= 1;
                 sampleReady = false;
             }
 
-            return !reader.EOF;
+            for(; count > 0; --count)
+            {
+                var previousPosition = reader.BaseStream.Position;
+                if(!currentSample.Skip(reader, 1))
+                {
+                    throw new RESDException("Malformed RESD stream block, failed to skip sample, but data block has not ended");
+                }
+
+                if(reader.EOF)
+                {
+                    reader.BaseStream.Seek(previousPosition, SeekOrigin.Begin);
+                    ReadCurrentSample();
+                    lastSample = currentSample;
+                    return false;
+                }
+            }
+
+            return true;
         }
+
+        public T LastSample => lastSample;
 
         public long SampleDataOffset { get; }
 
+        private void ReadCurrentSample()
+        {
+            if(!currentSample.TryReadFromStream(reader))
+            {
+                throw new RESDException("Malformed RESD stream block, failed to read sample, but data block has not ended");
+            }
+        }
+
+        private T lastSample;
+
         private bool sampleReady;
-        private T currentSample;
+        private readonly T currentSample;
         private readonly SafeBinaryReader reader;
     }
 }

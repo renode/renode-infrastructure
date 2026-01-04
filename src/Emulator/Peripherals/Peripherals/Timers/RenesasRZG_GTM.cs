@@ -5,10 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -107,14 +108,14 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                         switch(newMode)
                         {
-                            case OperatingMode.Interval:
-                                timer.Direction = Direction.Descending;
-                                break;
-                            case OperatingMode.FreeRunning:
-                                timer.Direction = Direction.Ascending;
-                                break;
-                            default:
-                                throw new Exception("Unreachable");
+                        case OperatingMode.Interval:
+                            timer.Direction = Direction.Descending;
+                            break;
+                        case OperatingMode.FreeRunning:
+                            timer.Direction = Direction.Ascending;
+                            break;
+                        default:
+                            throw new Exception("Unreachable");
                         }
                     })
                 .WithReservedBits(2, 30);
@@ -144,28 +145,28 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             switch(operatingMode.Value)
             {
-                case OperatingMode.Interval:
-                    SetTimerLimit(newTimerLimit.Value);
-                    break;
-                case OperatingMode.FreeRunning:
+            case OperatingMode.Interval:
+                SetTimerLimit(newTimerLimit.Value);
+                break;
+            case OperatingMode.FreeRunning:
+            {
+                var currentValue = timer.Value;
+                // Handle roll-over
+                if(currentValue == FreeRunLimit)
                 {
-                    var currentValue = timer.Value;
-                    // Handle roll-over
-                    if(currentValue == FreeRunLimit)
-                    {
-                        SetTimerLimit(newTimerLimit.Value);
-                        return;
-                    }
-                    else
-                    {
-                        SetTimerLimit(FreeRunLimit);
-                        timer.Value = currentValue;
-                        // fallthrough to trigger IRQ
-                    }
-                    break;
+                    SetTimerLimit(newTimerLimit.Value);
+                    return;
                 }
-                default:
-                    throw new Exception("Unreachable");
+                else
+                {
+                    SetTimerLimit(FreeRunLimit);
+                    timer.Value = currentValue;
+                    // fallthrough to trigger IRQ
+                }
+                break;
+            }
+            default:
+                throw new Exception("Unreachable");
             }
             UpdateInterrupts();
         }

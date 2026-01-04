@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,11 +8,11 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
-
     public class Tokenizer
     {
         public static Tokenizer CreateTokenizer()
@@ -66,6 +66,9 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             // boolean ignore case
             tokenizer.AddToken(new Regex(@"^(?i)(true|false)"), x => new BooleanToken(x));
 
+            // "null"
+            tokenizer.AddToken(new Regex(@"^null"), x => new NullToken(x));
+
             // "="
             tokenizer.AddToken(new Regex(@"^="), x => new EqualityToken(x));
 
@@ -75,17 +78,15 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             // ";" or new line
             tokenizer.AddToken(new Regex(@"^\;"), x => new CommandSplit(x));
 
+            // ","
+            tokenizer.AddToken(new Regex(@"^,"), x => new CommaToken(x));
+
             // literal
             tokenizer.AddToken(new Regex(@"^[\w\.\-\?]+"), x => new LiteralToken(x));
 
             // whitespace
             tokenizer.AddToken(new Regex(@"^\s+"), x => null);
             return tokenizer;
-        }
-
-        private Tokenizer()
-        {
-            tokens = new List<InternalToken>();
         }
 
         public TokenizationResult Tokenize(string input)
@@ -135,6 +136,11 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             tokens.Add(new InternalToken(applicabilityCondition, factory));
         }
 
+        private Tokenizer()
+        {
+            tokens = new List<InternalToken>();
+        }
+
         private readonly List<InternalToken> tokens;
 
         private class InternalToken
@@ -146,6 +152,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             }
 
             public Regex ApplicabilityCondition { get; private set; }
+
             public Func<string, Token> Factory { get; private set; }
         }
     }

@@ -6,98 +6,29 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using System.Linq;
+using System.Runtime.InteropServices;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.IRQControllers;
-using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Peripherals.CFU;
-using Antmicro.Renode.Time;
+using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Peripherals.Miscellaneous;
+using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
-using Antmicro.Migrant;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
+    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, IPeripheralRegister<ExternalPMPBase, NullRegistrationPoint>, ICPUWithPostOpcodeExecutionHooks, ICPUWithPreOpcodeExecutionHooks, ICPUWithPostGprAccessHooks, ICPUWithNMI
     {
-        protected BaseRiscV(
-            IRiscVTimeProvider timeProvider,
-            uint hartId,
-            string cpuType,
-            IMachine machine,
-            PrivilegedArchitecture privilegedArchitecture,
-            Endianess endianness,
-            CpuBitness bitness,
-            ulong? nmiVectorAddress = null,
-            uint? nmiVectorLength = null,
-            bool allowUnalignedAccesses = false,
-            InterruptMode interruptMode = InterruptMode.Auto,
-            uint minimalPmpNapotInBytes = 8,
-            uint pmpNumberOfAddrBits = 32,
-            PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineSupervisorUser
-        )
-            : base(hartId, cpuType, machine, endianness, bitness)
-        {
-            HartId = hartId;
-            this.timeProvider = timeProvider;
-            this.privilegedArchitecture = privilegedArchitecture;
-            shouldEnterDebugMode = true;
-            nonstandardCSR = new Dictionary<ulong, NonstandardCSR>();
-            customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
-            indirectCsrPeripherals = new Dictionary<BusRangeRegistration, IIndirectCSRPeripheral>();
-            this.nmiVectorLength = nmiVectorLength;
-            this.nmiVectorAddress = nmiVectorAddress;
-
-            UserState = new Dictionary<string, object>();
-
-            ChildCollection = new Dictionary<int, ICFU>();
-
-            customOpcodes = new List<Tuple<string, ulong, ulong>>();
-            postOpcodeExecutionHooks = new List<Action<ulong>>();
-            postGprAccessHooks = new Action<bool>[NumberOfGeneralPurposeRegisters];
-
-            architectureDecoder = new ArchitectureDecoder(machine, this, cpuType, privilegeLevels);
-            EnableArchitectureVariants();
-
-            UpdateNMIVector();
-
-            AllowUnalignedAccesses = allowUnalignedAccesses;
-
-            try
-            {
-                this.interruptMode = interruptMode;
-                TlibSetInterruptMode((int)interruptMode);
-            }
-            catch(CpuAbortException)
-            {
-                throw new ConstructionException(string.Format("Unsupported interrupt mode: 0x{0:X}", interruptMode));
-            }
-
-            TlibSetPmpaddrBits(pmpNumberOfAddrBits);
-            TlibSetNapotGrain(minimalPmpNapotInBytes);
-
-            RegisterCSR((ulong)StandardCSR.Miselect, () => miselectValue, s => miselectValue = (uint)s, "miselect");
-            for(uint i = 0; i < 6; ++i)
-            {
-                var j = i;
-                RegisterCSR((ulong)StandardCSR.Mireg + i, () => ReadIndirectCSR(miselectValue, j), v => WriteIndirectCSR(miselectValue, j, (uint)v), $"mireg{i + 1}");
-            }
-
-            RegisterCSR((ulong)StandardCSR.Siselect, () => siselectValue, s => siselectValue = (uint)s, "siselect");
-            for(uint i = 0; i < 6; ++i)
-            {
-                var j = i;
-                RegisterCSR((ulong)StandardCSR.Sireg + i, () => ReadIndirectCSR(siselectValue, j), v => WriteIndirectCSR(siselectValue, j, (uint)v), $"sireg{i + 1}");
-            }
-        }
-
         public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
         {
             var isRegistered = ChildCollection.Where(x => x.Value.Equals(cfu)).Select(x => x.Key).ToList();
@@ -113,6 +44,189 @@ namespace Antmicro.Renode.Peripherals.CPU
             ChildCollection.Add(registrationPoint.Address, cfu);
             machine.RegisterAsAChildOf(this, cfu, registrationPoint);
             cfu.ConnectedCpu = this;
+        }
+
+        public void RaiseInterrupt(uint interruptId)
+        {
+            TlibRaiseInterrupt(interruptId);
+        }
+
+        public void ClicPresentInterrupt(int index, bool vectored, int level, PrivilegeLevel mode)
+        {
+            TlibSetClicInterruptState(index, vectored ? 1u : 0, (uint)level, (uint)mode);
+        }
+
+        public void RegisterLocalInterruptController(CoreLocalInterruptController clic)
+        {
+            if(this.clic != null)
+            {
+                throw new ArgumentException($"{nameof(CoreLocalInterruptController)} is already registered");
+            }
+            this.clic = clic;
+        }
+
+        public void SetPMPAddress(uint index, ulong start_address, ulong end_address)
+        {
+            TlibSetPmpaddr(index, start_address, end_address);
+        }
+
+        public void EnablePreStackAccessHook(bool value)
+        {
+            TlibEnablePreStackAccessHook(value);
+        }
+
+        public void InstallPostGprAccessHookOn(uint registerIndex, Action<bool> callback, uint value)
+        {
+            postGprAccessHooks[registerIndex] = callback;
+            TlibEnablePostGprAccessHookOn(registerIndex, value);
+        }
+
+        public void EnablePostGprAccessHooks(uint value)
+        {
+            TlibEnablePostGprAccessHooks(value != 0 ? 1u : 0u);
+        }
+
+        public void EnablePostOpcodeExecutionHooks(uint value)
+        {
+            TlibEnablePostOpcodeExecutionHooks(value != 0 ? 1u : 0u);
+        }
+
+        public void EnablePreOpcodeExecutionHooks(uint value)
+        {
+            TlibEnablePreOpcodeExecutionHooks(value != 0 ? 1u : 0u);
+        }
+
+        public ulong Vector(uint registerNumber, uint elementIndex, ulong? value = null)
+        {
+            AssertVectorExtension();
+            if(value.HasValue)
+            {
+                TlibSetVector(registerNumber, elementIndex, value.Value);
+            }
+            return TlibGetVector(registerNumber, elementIndex);
+        }
+
+        public void EnableCustomOpcodesCounting()
+        {
+            foreach(var opc in customOpcodes)
+            {
+                InstallOpcodeCounterPattern(opc.Item1, opc.Item2, opc.Item3);
+            }
+
+            EnableOpcodesCounting = true;
+        }
+
+        public bool InstallCustomInstruction(string pattern, Action<UInt64> handler, string name = null)
+        {
+            if(pattern == null)
+            {
+                throw new ArgumentException("Pattern cannot be null");
+            }
+            if(handler == null)
+            {
+                throw new ArgumentException("Handler cannot be null");
+            }
+
+            if(pattern.Length != 64 && pattern.Length != 32 && pattern.Length != 16)
+            {
+                throw new RecoverableException($"Unsupported custom instruction length: {pattern.Length}. Supported values are: 16, 32, 64 bits");
+            }
+
+            // we know that the size is correct so the below method will alwyas succeed
+            Misc.TryParseBitPattern(pattern, out var bitPattern, out var bitMask);
+
+            CheckCustomInstructionLengthPattern(bitPattern, pattern.Length);
+
+            var length = (ulong)pattern.Length / 8;
+            var id = TlibInstallCustomInstruction(bitMask, bitPattern, length);
+            if(id == 0)
+            {
+                throw new ConstructionException($"Could not install custom instruction handler for length {length}, mask 0x{bitMask:X} and pattern 0x{bitPattern:X}");
+            }
+
+            customOpcodes.Add(Tuple.Create(name ?? pattern, bitPattern, bitMask));
+            customInstructionsMapping[id] = handler;
+            return true;
+        }
+
+        public void SilenceUnsupportedInstructionSet(InstructionSet set, bool silent = true)
+        {
+            TlibMarkFeatureSilent((uint)set, silent ? 1 : 0u);
+        }
+
+        public void RegisterCustomInternalInterrupt(ulong id, bool mipTriggered = false, bool sipTriggered = false)
+        {
+            if(TlibInstallCustomInterrupt(id, mipTriggered, sipTriggered) == -1)
+            {
+                throw new ConstructionException($"Failed to install custom internal interrupt because it clashes with a standard interrupt. Id {id}");
+            }
+        }
+
+        public void AddPostOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong, ulong> action)
+        {
+            var index = TlibInstallPostOpcodeExecutionHook(mask, value);
+            if(index == UInt32.MaxValue)
+            {
+                throw new RecoverableException("Unable to register opcode hook. Maximum number of hooks already installed");
+            }
+            // Assert that the list index will match the one returned from the core
+            if(index != postOpcodeExecutionHooks.Count)
+            {
+                throw new ApplicationException("Mismatch in the post-execution opcode hooks on the C# and C side." +
+                                                " One of them miss at least one element");
+            }
+            postOpcodeExecutionHooks.Add(action);
+        }
+
+        public void AddPreOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong, ulong> action)
+        {
+            var index = TlibInstallPreOpcodeExecutionHook(mask, value);
+            if(index == UInt32.MaxValue)
+            {
+                throw new RecoverableException("Unable to register opcode hook. Maximum number of hooks already installed");
+            }
+            // Assert that the list index will match the one returned from the core
+            if(index != preOpcodeExecutionHooks.Count)
+            {
+                throw new ApplicationException("Mismatch in the pre-execution opcode hooks on the C# and C side." +
+                                                " One of them miss at least one element");
+            }
+            preOpcodeExecutionHooks.Add(action);
+        }
+
+        public void RegisterCustomCSR(string name, ushort number, PrivilegeLevel mode)
+        {
+            var customCSR = new SimpleCSR(name, number, mode);
+            if(simpleCSRs.Keys.Any(x => x.Number == customCSR.Number))
+            {
+                throw new ConstructionException($"Cannot register CSR {customCSR.Name}, because its number 0x{customCSR.Number:X} is already registered");
+            }
+            simpleCSRs.Add(customCSR, 0);
+            RegisterCSR(customCSR.Number, () => simpleCSRs[customCSR], value => simpleCSRs[customCSR] = value, name);
+        }
+
+        public void RegisterCSR(ushort csr, Func<ulong> readOperation, Action<ulong> writeOperation, string name = null)
+        {
+            nonstandardCSR.Add(csr, new NonstandardCSR(readOperation, writeOperation, name));
+            if(TlibInstallCustomCSR(csr) == -1)
+            {
+                throw new ConstructionException($"CSR limit exceeded. Cannot register CSR 0x{csr:X}");
+            }
+        }
+
+        public void RegisterCSRStub(IConvertible csr, string name, ulong returnValue = 0)
+        {
+            var csrEncoding = Convert.ToUInt16(csr);
+            RegisterCSR(csrEncoding, name: name,
+                readOperation: () =>
+                {
+                    this.WarningLog("Tried to read from an unimplemented {0} CSR (0x{1:X}), returning 0x{2:X}", name, csrEncoding, returnValue);
+                    return returnValue;
+                },
+                writeOperation: value =>
+                {
+                    this.WarningLog("Tried to write 0x{0:X} to an unimplemented {1} CSR (0x{2:X}), write ignored", value, name, csrEncoding);
+                });
         }
 
         public void Unregister(ICFU cfu)
@@ -131,18 +245,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             return ChildCollection.Keys.Select(x => new NumberRegistrationPoint<int>(x));
         }
 
-        public IEnumerable<IRegistered<ICFU, NumberRegistrationPoint<int>>> Children
-        {
-            get
-            {
-                return ChildCollection.Select(x => Registered.Create(x.Value, new NumberRegistrationPoint<int>(x.Key)));
-            }
-        }
-
         public void Register(IIndirectCSRPeripheral peripheral, BusRangeRegistration registrationPoint)
         {
             machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
             indirectCsrPeripherals.Add(registrationPoint, peripheral);
+        }
+
+        public IEnumerable<BusRangeRegistration> GetRegistrationPoints(IIndirectCSRPeripheral peripheral)
+        {
+            return indirectCsrPeripherals.Where(p => p.Value == peripheral).Select(p => p.Key);
         }
 
         public void Unregister(IIndirectCSRPeripheral peripheral)
@@ -152,19 +263,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                 indirectCsrPeripherals.Remove(point);
             }
             machine.UnregisterAsAChildOf(this, peripheral);
-        }
-
-        public IEnumerable<BusRangeRegistration> GetRegistrationPoints(IIndirectCSRPeripheral peripheral)
-        {
-            return indirectCsrPeripherals.Where(p => p.Value == peripheral).Select(p => p.Key);
-        }
-
-        IEnumerable<IRegistered<IIndirectCSRPeripheral, BusRangeRegistration>> IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>.Children
-        {
-            get
-            {
-                return indirectCsrPeripherals.Select(x => Registered.Create(x.Value, x.Key));
-            }
         }
 
         public virtual void OnNMI(int number, bool value, ulong? mcause = null)
@@ -182,7 +280,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override void OnGPIO(int number, bool value)
         {
-
             // we don't log warning when value is false to handle gpio initial reset
             if(privilegedArchitecture >= PrivilegedArchitecture.Priv1_10 && IsValidInterruptOnlyInV1_09(number) && value)
             {
@@ -221,199 +318,28 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             UserState.Clear();
             SetPCFromResetVector();
+            TlibSetPmpaddrBits(PMPNumberOfAddrBits);
+            TlibSetNapotGrain(MinimalPMPNapotInBytes);
         }
 
-        public void RegisterCustomCSR(string name, uint number, PrivilegeLevel mode)
+        public void Register(ExternalPMPBase externalPMP, NullRegistrationPoint registrationPoint)
         {
-            var customCSR = new SimpleCSR(name, number, mode);
-            if(simpleCSRs.Keys.Any(x => x.Number == customCSR.Number))
+            if(this.externalPMP != null)
             {
-                throw new ConstructionException($"Cannot register CSR {customCSR.Name}, because its number 0x{customCSR.Number:X} is already registered");
+                throw new RegistrationException($"{nameof(ExternalPMPBase)} is already registered");
             }
-            simpleCSRs.Add(customCSR, 0);
-            RegisterCSR(customCSR.Number, () => simpleCSRs[customCSR], value => simpleCSRs[customCSR] = value, name);
+            machine.RegisterAsAChildOf(this, externalPMP, registrationPoint);
+            this.InfoLog("Enabling External PMP");
+            this.externalPMP = externalPMP;
+            externalPMP.RegisterCPU(this);
+            TlibEnableExternalPmp(true);
         }
 
-        public void RegisterCSR(ulong csr, Func<ulong> readOperation, Action<ulong> writeOperation, string name = null)
+        public void Unregister(ExternalPMPBase peripheral)
         {
-            nonstandardCSR.Add(csr, new NonstandardCSR(readOperation, writeOperation, name));
-            if(TlibInstallCustomCSR(csr) == -1)
-            {
-                throw new ConstructionException($"CSR limit exceeded. Cannot register CSR 0x{csr:X}");
-            }
-        }
-
-        public void SilenceUnsupportedInstructionSet(InstructionSet set, bool silent = true)
-        {
-            TlibMarkFeatureSilent((uint)set, silent ? 1 : 0u);
-        }
-
-        public bool InstallCustomInstruction(string pattern, Action<UInt64> handler, string name = null)
-        {
-            if(pattern == null)
-            {
-                throw new ArgumentException("Pattern cannot be null");
-            }
-            if(handler == null)
-            {
-                throw new ArgumentException("Handler cannot be null");
-            }
-
-            if(pattern.Length != 64 && pattern.Length != 32 && pattern.Length != 16)
-            {
-                throw new RecoverableException($"Unsupported custom instruction length: {pattern.Length}. Supported values are: 16, 32, 64 bits");
-            }
-
-            // we know that the size is correct so the below method will alwyas succeed
-            Misc.TryParseBitPattern(pattern, out var bitPattern, out var bitMask);
-
-            CheckCustomInstructionLengthPattern(bitPattern, pattern.Length);
-
-            var length = (ulong)pattern.Length / 8;
-            var id = TlibInstallCustomInstruction(bitMask, bitPattern, length);
-            if(id == 0)
-            {
-                throw new ConstructionException($"Could not install custom instruction handler for length {length}, mask 0x{bitMask:X} and pattern 0x{bitPattern:X}");
-            }
-
-            customOpcodes.Add(Tuple.Create(name ?? pattern, bitPattern, bitMask));
-            customInstructionsMapping[id] = handler;
-            return true;
-        }
-
-        public void EnableCustomOpcodesCounting()
-        {
-            foreach(var opc in customOpcodes)
-            {
-                InstallOpcodeCounterPattern(opc.Item1, opc.Item2, opc.Item3);
-            }
-
-            EnableOpcodesCounting = true;
-        }
-
-        public ulong Vector(uint registerNumber, uint elementIndex, ulong? value = null)
-        {
-            AssertVectorExtension();
-            if(value.HasValue)
-            {
-                TlibSetVector(registerNumber, elementIndex, value.Value);
-            }
-            return TlibGetVector(registerNumber, elementIndex);
-        }
-
-        public void EnablePostOpcodeExecutionHooks(uint value)
-        {
-            TlibEnablePostOpcodeExecutionHooks(value != 0 ? 1u : 0u);
-        }
-
-        public void AddPostOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong> action)
-        {
-            var index = TlibInstallPostOpcodeExecutionHook(mask, value);
-            if(index == UInt32.MaxValue)
-            {
-                throw new RecoverableException("Unable to register opcode hook. Maximum number of hooks already installed");
-            }
-            // Assert that the list index will match the one returned from the core
-            if(index != postOpcodeExecutionHooks.Count)
-            {
-                throw new ApplicationException("Mismatch in the post-execution opcode hooks on the C# and C side." +
-                                                " One of them miss at least one element");
-            }
-            postOpcodeExecutionHooks.Add(action);
-        }
-
-        public void EnablePostGprAccessHooks(uint value)
-        {
-            TlibEnablePostGprAccessHooks(value != 0 ? 1u : 0u);
-        }
-
-        public void InstallPostGprAccessHookOn(uint registerIndex, Action<bool> callback,  uint value)
-        {
-            postGprAccessHooks[registerIndex] = callback;
-            TlibEnablePostGprAccessHookOn(registerIndex, value);
-        }
-
-        public void RegisterLocalInterruptController(CoreLocalInterruptController clic)
-        {
-            if(this.clic != null)
-            {
-                throw new ArgumentException($"{nameof(CoreLocalInterruptController)} is already registered");
-            }
-            this.clic = clic;
-        }
-
-        public void ClicPresentInterrupt(int index, bool vectored, int level, PrivilegeLevel mode)
-        {
-            TlibSetClicInterruptState(index, vectored ? 1u : 0, (uint)level, (uint)mode);
-        }
-
-        public CSRValidationLevel CSRValidation
-        {
-            get => (CSRValidationLevel)TlibGetCsrValidationLevel();
-
-            set
-            {
-                TlibSetCsrValidationLevel((uint)value);
-            }
-        }
-
-        public uint HartId
-        {
-            get
-            {
-                return TlibGetHartId();
-            }
-
-            set
-            {
-                TlibSetHartId(value);
-            }
-        }
-
-        public ulong ResetVector
-        {
-            get => resetVector;
-            set
-            {
-                resetVector = value;
-                SetPCFromResetVector();
-            }
-        }
-
-        private void SetPCFromResetVector()
-        {
-            // Prevents overwriting PC if it's been set already (e.g. by LoadELF).
-            // The pcWrittenFlag is automatically set when setting PC so let's unset it.
-            // Otherwise, only the first ResetVector change would be propagated to PC.
-            if(!pcWrittenFlag)
-            {
-                PC = ResetVector;
-                pcWrittenFlag = false;
-            }
-        }
-
-        public bool WfiAsNop
-        {
-            get => neverWaitForInterrupt;
-            set
-            {
-                neverWaitForInterrupt = value;
-            }
-        }
-
-        public uint VectorRegisterLength
-        {
-            set
-            {
-                if(!SupportsInstructionSet(InstructionSet.V))
-                {
-                    throw new RecoverableException("Attempted to set Vector Register Length (VLEN), but V extention is not enabled");
-                }
-                if(TlibSetVlen(value) != 0)
-                {
-                    throw new RecoverableException($"Attempted to set Vector Register Length (VLEN), but {value} is not a valid value");
-                }
-            }
+            this.externalPMP = null;
+            TlibEnableExternalPmp(false);
+            machine.UnregisterAsAChildOf(this, peripheral);
         }
 
         public uint VectorElementMaxWidth
@@ -431,18 +357,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public ulong? NMIVectorAddress
+        public bool AllowUnalignedAccesses
         {
-            get
-            {
-                return nmiVectorAddress;
-            }
-
-            set
-            {
-                nmiVectorAddress = value;
-                UpdateNMIVector();
-            }
+            set => TlibAllowUnalignedAccesses(value ? 1 : 0);
         }
 
         public uint? NMIVectorLength
@@ -459,9 +376,79 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public event Action<ulong> MipChanged;
+        public ulong? NMIVectorAddress
+        {
+            get
+            {
+                return nmiVectorAddress;
+            }
+
+            set
+            {
+                nmiVectorAddress = value;
+                UpdateNMIVector();
+            }
+        }
 
         public Dictionary<string, object> UserState { get; }
+
+        public uint VectorRegisterLength
+        {
+            set
+            {
+                if(!SupportsInstructionSet(InstructionSet.V))
+                {
+                    throw new RecoverableException("Attempted to set Vector Register Length (VLEN), but V extention is not enabled");
+                }
+                if(TlibSetVlen(value) != 0)
+                {
+                    throw new RecoverableException($"Attempted to set Vector Register Length (VLEN), but {value} is not a valid value");
+                }
+            }
+        }
+
+        public CSRValidationLevel CSRValidation
+        {
+            get => (CSRValidationLevel)TlibGetCsrValidationLevel();
+
+            set
+            {
+                TlibSetCsrValidationLevel((uint)value);
+            }
+        }
+
+        public ulong ResetVector
+        {
+            get => resetVector;
+            set
+            {
+                resetVector = value;
+                SetPCFromResetVector();
+            }
+        }
+
+        public PrivilegeLevel CurrentPrivilegeLevel => (PrivilegeLevel)TlibGetCurrentPriv();
+
+        public uint HartId
+        {
+            get
+            {
+                return TlibGetHartId();
+            }
+
+            set
+            {
+                TlibSetHartId(value);
+            }
+        }
+
+        public IEnumerable<IRegistered<ICFU, NumberRegistrationPoint<int>>> Children
+        {
+            get
+            {
+                return ChildCollection.Select(x => Registered.Create(x.Value, new NumberRegistrationPoint<int>(x.Key)));
+            }
+        }
 
         public override List<GDBFeatureDescriptor> GDBFeatures
         {
@@ -487,23 +474,199 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public IEnumerable<InstructionSet> ArchitectureSets => architectureDecoder.InstructionSets;
-
-        public bool AllowUnalignedAccesses
+        public bool WfiAsNop
         {
-            set => TlibAllowUnalignedAccesses(value ? 1 : 0);
+            get => neverWaitForInterrupt;
+            set
+            {
+                neverWaitForInterrupt = value;
+            }
         }
 
+        public uint MinimalPMPNapotInBytes { get; private set; }
+
+        public uint PMPNumberOfAddrBits { get; private set; }
+
+        public IEnumerable<InstructionSet> ArchitectureSets => architectureDecoder.InstructionSets;
+
         public abstract RegisterValue VLEN { get; }
+
+        // FFLAGS and FRM are accessible standalone as CSR1 and CSR2, but they can also be accessed at once via FCSR (CSR3).
+        // Only FFLAGS and FRM registers are mapped in tlib, so we emulate FCSR in C# as non-mapped register.
+        public abstract RegisterValue FFLAGSField { get; set; }
+
+        public abstract RegisterValue FRMField { get; set; }
+
+        // Needs to be abstract because it uses MTVEC defined in RiscVxxRegisters.cs.
+        public abstract bool InClicMode { get; }
+
+        public event Action<ulong> MipChanged;
+
+        public event Action<ulong, uint, bool> PreStackAccess;
+
+        public readonly Dictionary<int, ICFU> ChildCollection;
+
+        protected BaseRiscV(
+            IRiscVTimeProvider timeProvider,
+            uint hartId,
+            string cpuType,
+            IMachine machine,
+            PrivilegedArchitecture privilegedArchitecture,
+            Endianess endianness,
+            CpuBitness bitness,
+            ulong? nmiVectorAddress = null,
+            uint? nmiVectorLength = null,
+            bool allowUnalignedAccesses = false,
+            InterruptMode interruptMode = InterruptMode.Auto,
+            uint minimalPmpNapotInBytes = 8,
+            uint pmpNumberOfAddrBits = 32,
+            PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineSupervisorUser,
+            bool useMachineAtomicState = true
+        )
+            : base(hartId, cpuType, machine, endianness, bitness, useMachineAtomicState)
+        {
+            HartId = hartId;
+            this.timeProvider = timeProvider;
+            this.privilegedArchitecture = privilegedArchitecture;
+            shouldEnterDebugMode = true;
+            nonstandardCSR = new Dictionary<ulong, NonstandardCSR>();
+            customInstructionsMapping = new Dictionary<ulong, Action<UInt64>>();
+            indirectCsrPeripherals = new Dictionary<BusRangeRegistration, IIndirectCSRPeripheral>();
+            this.nmiVectorLength = nmiVectorLength;
+            this.nmiVectorAddress = nmiVectorAddress;
+
+            UserState = new Dictionary<string, object>();
+
+            ChildCollection = new Dictionary<int, ICFU>();
+
+            customOpcodes = new List<Tuple<string, ulong, ulong>>();
+            postOpcodeExecutionHooks = new List<Action<ulong, ulong>>();
+            preOpcodeExecutionHooks = new List<Action<ulong, ulong>>();
+            postGprAccessHooks = new Action<bool>[NumberOfGeneralPurposeRegisters];
+
+            architectureDecoder = new ArchitectureDecoder(machine, this, cpuType, privilegeLevels);
+            EnableArchitectureVariants();
+
+            UpdateNMIVector();
+
+            AllowUnalignedAccesses = allowUnalignedAccesses;
+
+            try
+            {
+                this.interruptMode = interruptMode;
+                TlibSetInterruptMode((int)interruptMode);
+            }
+            catch(CpuAbortException)
+            {
+                // Free unmanaged resources allocated by the base class constructor
+                Dispose();
+                throw new ConstructionException(string.Format("Unsupported interrupt mode: 0x{0:X}", interruptMode));
+            }
+            PMPNumberOfAddrBits = pmpNumberOfAddrBits;
+            TlibSetPmpaddrBits(pmpNumberOfAddrBits);
+            MinimalPMPNapotInBytes = minimalPmpNapotInBytes;
+            TlibSetNapotGrain(minimalPmpNapotInBytes);
+
+            RegisterCSR((ushort)StandardCSR.Miselect, () => miselectValue, s => miselectValue = (uint)s, "miselect");
+            for(ushort i = 0; i < 6; ++i)
+            {
+                var j = i;
+                RegisterCSR((ushort)(StandardCSR.Mireg + i), () => ReadIndirectCSR(miselectValue, j), v => WriteIndirectCSR(miselectValue, j, (uint)v), $"mireg{i + 1}");
+            }
+
+            RegisterCSR((ushort)StandardCSR.Siselect, () => siselectValue, s => siselectValue = (uint)s, "siselect");
+            for(ushort i = 0; i < 6; ++i)
+            {
+                var j = i;
+                RegisterCSR((ushort)(StandardCSR.Sireg + i), () => ReadIndirectCSR(siselectValue, j), v => WriteIndirectCSR(siselectValue, j, (uint)v), $"sireg{i + 1}");
+            }
+        }
+
+        IEnumerable<IRegistered<IIndirectCSRPeripheral, BusRangeRegistration>> IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>.Children
+        {
+            get
+            {
+                return indirectCsrPeripherals.Select(x => Registered.Create(x.Value, x.Key));
+            }
+        }
+
+        /// <remarks>
+        /// Modifies value read using STVEC property, see Riscv(32|64)Registers for details.
+        /// </remarks>
+        protected RegisterValue AfterSTVECRead(RegisterValue value)
+        {
+            // Based on tlib/arch/riscv/op_helper.c:csr_read_helper:
+            //   case CSR_STVEC:
+            //       return env->stvec | (cpu_in_clic_mode(env) ? MTVEC_MODE_CLIC : 0);
+            return value.RawValue | (InClicMode ? 3u : 0u);
+        }
+
+        protected RegisterValue BeforeSTVECWrite(RegisterValue value)
+        {
+            return HandleMTVEC_STVECWrite(value, "STVEC");
+        }
+
+        protected RegisterValue BeforeMTVECWrite(RegisterValue value)
+        {
+            return HandleMTVEC_STVECWrite(value, "MTVEC");
+        }
+
+        protected RegisterValue BeforeVectorExtensionRegisterWrite(RegisterValue value)
+        {
+            AssertVectorExtension();
+            return value;
+        }
+
+        protected void BeforeVectorExtensionRegisterRead()
+        {
+            AssertVectorExtension();
+        }
+
+        protected IEnumerable<CPURegister> GetCustomCSRs()
+        {
+            return nonstandardCSR.Keys.Select(index => new CPURegister((int)index, MostSignificantBit + 1, false, false));
+        }
+
+        protected IEnumerable<CPURegister> GetNonMappedRegisters()
+        {
+            var registers = GetCustomCSRs();
+            if(SupportsInstructionSet(InstructionSet.V))
+            {
+                var vlen = VLEN;
+                registers = registers.Concat(Enumerable.Range((int)RiscVRegisterDescription.StartOfVRegisters, (int)RiscVRegisterDescription.NumberOfVRegisters)
+                    .Select(index => new CPURegister(index, vlen, false, false)));
+            }
+            if(SupportsInstructionSet(InstructionSet.F))
+            {
+                registers = registers.Append(new CPURegister((int)RiscVRegisterDescription.IndexOfFcsrRegister, 32, false, false));
+            }
+            return registers;
+        }
+
+        protected bool TrySetCustomCSR(int register, RegisterValue value)
+        {
+            if(!nonstandardCSR.ContainsKey((ulong)register))
+            {
+                return false;
+            }
+            WriteCSR((ulong)register, value);
+            return true;
+        }
 
         protected override Interrupt DecodeInterrupt(int number)
         {
             return Interrupt.Hard;
         }
 
-        protected void PCWritten()
+        protected bool TryGetCustomCSR(int register, out RegisterValue value)
         {
-            pcWrittenFlag = true;
+            value = default(RegisterValue);
+            if(!nonstandardCSR.ContainsKey((ulong)register))
+            {
+                return false;
+            }
+            value = ReadCSR((ulong)register);
+            return true;
         }
 
         protected override string GetExceptionDescription(ulong exceptionIndex)
@@ -520,11 +683,41 @@ namespace Antmicro.Renode.Peripherals.CPU
             return base.GetExceptionDescription(exceptionIndex);
         }
 
+        protected virtual ulong ReadCSRInner(ulong csr)
+        {
+            var readMethod = nonstandardCSR[csr].ReadOperation;
+            if(readMethod == null)
+            {
+                this.Log(LogLevel.Warning, "Read method is not implemented for CSR=0x{0:X}", csr);
+                return 0;
+            }
+            return readMethod();
+        }
+
+        protected virtual void WriteCSRInner(ulong csr, ulong value)
+        {
+            var writeMethod = nonstandardCSR[csr].WriteOperation;
+            if(writeMethod == null)
+            {
+                this.Log(LogLevel.Warning, "Write method is not implemented for CSR=0x{0:X}", csr);
+            }
+            else
+            {
+                writeMethod(value);
+            }
+        }
+
         protected bool TrySetNonMappedRegister(int register, RegisterValue value)
         {
             if(SupportsInstructionSet(InstructionSet.V) && IsVectorRegisterNumber(register))
             {
                 return TrySetVectorRegister((uint)register - RiscVRegisterDescription.StartOfVRegisters, value);
+            }
+            else if(SupportsInstructionSet(InstructionSet.F) && register == (int)RiscVRegisterDescription.IndexOfFcsrRegister)
+            {
+                FFLAGSField = BitHelper.GetValue(value, 0, 5);
+                FRMField = BitHelper.GetValue(value, 5, 3);
+                return true;
             }
             return TrySetCustomCSR(register, value);
         }
@@ -535,58 +728,35 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return TryGetVectorRegister((uint)register - RiscVRegisterDescription.StartOfVRegisters, out value);
             }
+            else if(SupportsInstructionSet(InstructionSet.F) && register == (int)RiscVRegisterDescription.IndexOfFcsrRegister)
+            {
+                var fflagsMasked = BitHelper.GetMaskedValue(FFLAGSField, 0, 5);
+                var frmMasked = BitHelper.GetMaskedValue(FRMField, 0, 3);
+                value = frmMasked << 5 | fflagsMasked;
+                return true;
+            }
             return TryGetCustomCSR(register, out value);
         }
 
-        protected bool TrySetCustomCSR(int register, RegisterValue value)
+        protected void PCWritten()
         {
-            if(!nonstandardCSR.ContainsKey((ulong)register))
-            {
-                return false;
-            }
-            WriteCSR((ulong)register, value);
-            return true;
+            pcWrittenFlag = true;
         }
 
-        protected bool TryGetCustomCSR(int register, out RegisterValue value)
+        protected virtual void PreStackAccessHook(ulong address, uint width, bool isWrite)
         {
-            value = default(RegisterValue);
-            if(!nonstandardCSR.ContainsKey((ulong)register))
-            {
-                return false;
-            }
-            value = ReadCSR((ulong)register);
-            return true;
+            PreStackAccess?.Invoke(address, width, isWrite);
         }
 
-        protected IEnumerable<CPURegister> GetNonMappedRegisters()
-        {
-            var registers = GetCustomCSRs();
-            if(SupportsInstructionSet(InstructionSet.V))
-            {
-                var vlen = VLEN;
-                registers = registers.Concat(Enumerable.Range((int)RiscVRegisterDescription.StartOfVRegisters, (int)RiscVRegisterDescription.NumberOfVRegisters)
-                    .Select(index => new CPURegister(index, vlen, false, false)));
-            }
-            return registers;
-        }
-
-        protected IEnumerable<CPURegister> GetCustomCSRs()
-        {
-            return nonstandardCSR.Keys.Select(index => new CPURegister((int)index, MostSignificantBit + 1, false, false));
-        }
-
-        private bool IsInterrupt(ulong exceptionIndex)
+        protected bool IsInterrupt(ulong exceptionIndex)
         {
             return BitHelper.IsBitSet(exceptionIndex, MostSignificantBit);
         }
 
         protected abstract byte MostSignificantBit { get; }
 
-        private static void ReportInvalidCustomInstructionFormat(ulong pattern, int bitsLength, string format)
-        {
-            throw new RecoverableException($"Pattern 0x{pattern:X} is invalid for {bitsLength} bits long instruction. Expected instruction in format: {format}");
-        }
+        [Import]
+        protected Action<uint, uint> TlibSetMipBit;
 
         // These patterns are defined in RISC-V User-Level ISA V2.2, section 1.2 Instruction Length Encoding
         // there are more, but we support only 16, 32 and 64 bit long custom instructions
@@ -606,6 +776,102 @@ namespace Antmicro.Renode.Peripherals.CPU
             else if(bitLength == 64 && ((pattern & 0b1111111) != 0b0111111))
             {
                 ReportInvalidCustomInstructionFormat(pattern, bitLength, "0111111".PadLeft(bitLength, 'x'));
+            }
+        }
+
+        private static void ReportInvalidCustomInstructionFormat(ulong pattern, int bitsLength, string format)
+        {
+            throw new RecoverableException($"Pattern 0x{pattern:X} is invalid for {bitsLength} bits long instruction. Expected instruction in format: {format}");
+        }
+
+        /* Since Priv 1.10 all hypervisor interrupts descriptions were changed to 'Reserved'
+         * Current state can be found in Table 3.6 of the specification (pg. 37 in version 1.11)
+         */
+        private static bool IsValidInterruptOnlyInV1_09(int irq)
+        {
+            return irq == (int)IrqType.HypervisorExternalInterrupt
+                || irq == (int)IrqType.HypervisorSoftwareInterrupt
+                || irq == (int)IrqType.HypervisorTimerInterrupt;
+        }
+
+        /* User-level interrupts support extension (N) is not implemented */
+        private static bool IsUnimplementedInterrupt(int irq)
+        {
+            return irq == (int)IrqType.UserExternalInterrupt
+                || irq == (int)IrqType.UserSoftwareInterrupt
+                || irq == (int)IrqType.UserTimerInterrupt;
+        }
+
+        [Export]
+        private void HandlePreStackAccessHook(ulong address, uint width, uint isWrite)
+        {
+            PreStackAccessHook(address, width, isWrite > 0);
+        }
+
+        // Similar logic to mtvec_stvec_write_handler from tlib/arch/riscv/op_helper.c
+        private RegisterValue HandleMTVEC_STVECWrite(RegisterValue value, string registerName)
+        {
+            var modifiedValue = value.RawValue;
+            var interruptModeBits = BitHelper.GetValue(value.RawValue, offset: 0, size: 2);
+
+            switch(interruptMode)
+            {
+            case InterruptMode.Auto:
+                if(interruptModeBits != 0x0)
+                {
+                    switch(privilegedArchitecture)
+                    {
+                    case PrivilegedArchitecture.PrivUnratified:
+                        break;
+                    case PrivilegedArchitecture.Priv1_09:
+                        BitHelper.ClearBits(ref modifiedValue, position: 0, width: 2);
+                        break;
+                    default:
+                        BitHelper.ClearBits(ref modifiedValue, position: 1, width: 1);
+                        break;
+                    }
+                }
+                break;
+            case InterruptMode.Direct:
+                if(interruptModeBits != 0x0)
+                {
+                    BitHelper.ClearBits(ref modifiedValue, position: 0, width: 2);
+                }
+                break;
+            case InterruptMode.Vectored:
+                if(interruptModeBits != 0x1)
+                {
+                    modifiedValue = BitHelper.ReplaceBits(value.RawValue, 0x1, width: 2);
+                }
+                break;
+            }
+
+            if(modifiedValue != value.RawValue)
+            {
+                this.Log(LogLevel.Warning, "CPU is configured in the {3} interrupt mode, modifying {2} to 0x{0:X} (tried to set 0x{1:X})",
+                        modifiedValue, value.RawValue, registerName, interruptMode);
+                value = RegisterValue.Create(modifiedValue, value.Bits);
+            }
+            return value;
+        }
+
+        private void AssertVectorExtension()
+        {
+            if(!SupportsInstructionSet(InstructionSet.V))
+            {
+                throw new RegisterValueUnavailableException("Vector extention is not supported by this CPU");
+            }
+        }
+
+        private void SetPCFromResetVector()
+        {
+            // Prevents overwriting PC if it's been set already (e.g. by LoadELF).
+            // The pcWrittenFlag is automatically set when setting PC so let's unset it.
+            // Otherwise, only the first ResetVector change would be propagated to PC.
+            if(!pcWrittenFlag)
+            {
+                PC = ResetVector;
+                pcWrittenFlag = false;
             }
         }
 
@@ -746,32 +1012,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private ulong ReadCSR(ulong csr)
-        {
-            var readMethod = nonstandardCSR[csr].ReadOperation;
-            if(readMethod == null)
-            {
-                this.Log(LogLevel.Warning, "Read method is not implemented for CSR=0x{0:X}", csr);
-                return 0;
-            }
-            return readMethod();
-        }
-
-        [Export]
-        private void WriteCSR(ulong csr, ulong value)
-        {
-            var writeMethod = nonstandardCSR[csr].WriteOperation;
-            if(writeMethod == null)
-            {
-                this.Log(LogLevel.Warning, "Write method is not implemented for CSR=0x{0:X}", csr);
-            }
-            else
-            {
-                writeMethod(value);
-            }
-        }
-
-        [Export]
         private void TlibMipChanged(ulong value)
         {
             MipChanged?.Invoke(value);
@@ -791,16 +1031,30 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void HandlePostOpcodeExecutionHook(UInt32 id, UInt64 pc)
+        private void HandlePostOpcodeExecutionHook(UInt32 id, UInt64 pc, UInt64 opcode)
         {
-            this.NoisyLog($"Got opcode hook no {id} from PC {pc}");
+            this.NoisyLog($"Got post-opcode hook for opcode `0x{opcode:X}` with id {id} from PC {pc}");
             if(id < (uint)postOpcodeExecutionHooks.Count)
             {
-                postOpcodeExecutionHooks[(int)id].Invoke(pc);
+                postOpcodeExecutionHooks[(int)id].Invoke(pc, opcode);
             }
             else
             {
-                this.Log(LogLevel.Error, "Received opcode hook with non-existing id = {0}", id);
+                this.ErrorLog("Received post-opcode hook for opcode `0x{0:X}` with non-existing id = {1}", opcode, id);
+            }
+        }
+
+        [Export]
+        private void HandlePreOpcodeExecutionHook(UInt32 id, UInt64 pc, UInt64 opcode)
+        {
+            this.NoisyLog($"Got pre-opcode hook for opcode `0x{opcode:X}` with id {id} from PC {pc}");
+            if(id < (uint)preOpcodeExecutionHooks.Count)
+            {
+                preOpcodeExecutionHooks[(int)id].Invoke(pc, opcode);
+            }
+            else
+            {
+                this.ErrorLog("Received pre-opcode hook for opcode `0x{0:X}` with non-existing id = {1}", opcode, id);
             }
         }
 
@@ -842,7 +1096,104 @@ namespace Antmicro.Renode.Peripherals.CPU
             clic.AcknowledgeInterrupt();
         }
 
-        public readonly Dictionary<int, ICFU> ChildCollection;
+        [Export]
+        private void ExternalPMPConfigCSRWrite(uint registerIndex, ulong value)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to write ExternalPMP config register {0} but no external pmp is attached to the core, write ignored", registerIndex);
+                return;
+            }
+            externalPMP.ConfigCSRWrite(registerIndex, value);
+        }
+
+        [Export]
+        private ulong ExternalPMPConfigCSRRead(uint registerIndex)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to read ExternalPMP config register {0} but no external PMP is attached to the core, returning 0", registerIndex);
+                return 0;
+            }
+            return externalPMP.ConfigCSRRead(registerIndex);
+        }
+
+        [Export]
+        private void ExternalPMPAddressCSRWrite(uint registerIndex, ulong value)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to write ExternalPMP address register {0} but no external PMP is attached to the core, write ignored", registerIndex);
+                return;
+            }
+            externalPMP.AddressCSRWrite(registerIndex, value);
+        }
+
+        [Export]
+        private ulong ExternalPMPAddressCSRRead(uint registerIndex)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to read ExternalPMP address register {0} but no external PMP is attached to the core, returning 0", registerIndex);
+                return 0;
+            }
+            return externalPMP.AddressCSRRead(registerIndex);
+        }
+
+        [Export]
+        private int ExternalPMPGetAccess(ulong address, ulong size, int access_type)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to get permissions for address 0x{0:X} from external PMP but no external PMP is attached to the core, returning 0", address);
+                return 0;
+            }
+            return externalPMP.GetAccess(address, size, (AccessType)access_type);
+        }
+
+        [Export]
+        private int ExternalPMPGetOverlappingRegion(ulong address, ulong size, int startingIndex)
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to get overlapping region for address 0x{0:X} from external PMP but no external PMP is attached to the core, returning -1", address);
+                return -1;
+            }
+            if(externalPMP.TryGetOverlappingRegion(address, size, (uint)startingIndex, out var overlappingIndex))
+            {
+                return (int)overlappingIndex;
+            }
+            else
+            {
+                return -1;
+            }
+        }
+
+        [Export]
+        private int ExternalPMPIsAnyRegionLocked()
+        {
+            if(externalPMP == null)
+            {
+                this.ErrorLog("Attempted to get if any region is locked from external PMP but no external PMP is attached to the core, returning false");
+                // Exported methods can't return bools
+                return 0;
+            }
+            return externalPMP.IsAnyRegionLocked() ? 1 : 0;
+        }
+
+        [Export]
+        private ulong ReadCSR(ulong csr)
+        {
+            return ReadCSRInner(csr);
+        }
+
+        [Export]
+        private void WriteCSR(ulong csr, ulong value)
+        {
+            WriteCSRInner(csr, value);
+        }
+
+        private List<GDBFeatureDescriptor> gdbFeatures = new List<GDBFeatureDescriptor>();
 
         private ulong? nmiVectorAddress;
         private uint? nmiVectorLength;
@@ -851,8 +1202,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private CoreLocalInterruptController clic;
 
+        private ExternalPMPBase externalPMP;
+
         private bool pcWrittenFlag;
         private ulong resetVector = DefaultResetVector;
+
+        private readonly InterruptMode interruptMode;
+
+        private readonly List<Tuple<string, ulong, ulong>> customOpcodes;
 
         private readonly IRiscVTimeProvider timeProvider;
 
@@ -864,14 +1221,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private readonly Dictionary<SimpleCSR, ulong> simpleCSRs = new Dictionary<SimpleCSR, ulong>();
 
-        private List<GDBFeatureDescriptor> gdbFeatures = new List<GDBFeatureDescriptor>();
-
         private readonly ArchitectureDecoder architectureDecoder;
 
         private readonly Dictionary<BusRangeRegistration, IIndirectCSRPeripheral> indirectCsrPeripherals;
 
         [Constructor]
-        private readonly List<Action<ulong>> postOpcodeExecutionHooks;
+        private readonly List<Action<ulong, ulong>> postOpcodeExecutionHooks;
+
+        [Constructor]
+        private readonly List<Action<ulong, ulong>> preOpcodeExecutionHooks;
 
         [Transient]
         private readonly Action<bool>[] postGprAccessHooks;
@@ -879,94 +1237,115 @@ namespace Antmicro.Renode.Peripherals.CPU
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
         [Import]
-        private Action<uint> TlibAllowFeature;
+        private readonly Action<uint> TlibAllowFeature;
 
         [Import]
-        private Action<uint> TlibAllowAdditionalFeature;
+        private readonly Action<uint> TlibAllowAdditionalFeature;
 
         [Import]
-        private Func<uint, uint> TlibIsFeatureEnabled;
+        private readonly Func<uint, uint> TlibIsFeatureEnabled;
 
         [Import]
-        private Func<uint, uint> TlibIsFeatureAllowed;
+        private readonly Func<uint, uint> TlibIsFeatureAllowed;
 
         [Import(Name="tlib_set_privilege_architecture")]
-        private Action<int> TlibSetPrivilegeArchitecture;
+        private readonly Action<int> TlibSetPrivilegeArchitecture;
 
         [Import]
-        private Action<uint, uint> TlibSetMipBit;
+        private readonly Action<uint> TlibSetHartId;
 
         [Import]
-        private Action<uint> TlibSetHartId;
+        private readonly Func<uint> TlibGetHartId;
 
         [Import]
-        private Func<uint> TlibGetHartId;
+        private readonly Func<uint> TlibGetCurrentPriv;
 
         [Import]
-        private Action<uint> TlibSetNapotGrain;
+        private readonly Action<uint> TlibSetNapotGrain;
 
         [Import]
-        private Action<uint> TlibSetPmpaddrBits;
+        private readonly Action<uint> TlibSetPmpaddrBits;
 
         [Import]
-        private Func<ulong, ulong, ulong, ulong> TlibInstallCustomInstruction;
+        private readonly Action<bool> TlibEnableExternalPmp;
+
+        [Import]
+        private readonly Action<uint, ulong, ulong> TlibSetPmpaddr;
+
+        [Import]
+        private readonly Func<ulong, ulong, ulong, ulong> TlibInstallCustomInstruction;
 
         [Import(Name="tlib_install_custom_csr")]
-        private Func<ulong, int> TlibInstallCustomCSR;
+        private readonly Func<ushort, int> TlibInstallCustomCSR;
 
         [Import]
-        private Action<uint, uint> TlibMarkFeatureSilent;
+        private readonly Func<ulong, bool, bool, int> TlibInstallCustomInterrupt;
 
         [Import]
-        private Action<ulong, uint> TlibSetNmiVector;
+        private readonly Action<uint> TlibRaiseInterrupt;
 
         [Import]
-        private Action<int, int, ulong> TlibSetNmi;
+        private readonly Action<uint, uint> TlibMarkFeatureSilent;
 
         [Import]
-        private Action<uint> TlibSetCsrValidationLevel;
+        private readonly Action<ulong, uint> TlibSetNmiVector;
 
         [Import]
-        private Func<uint> TlibGetCsrValidationLevel;
+        private readonly Action<int, int, ulong> TlibSetNmi;
 
         [Import]
-        private Action<int> TlibAllowUnalignedAccesses;
+        private readonly Action<uint> TlibSetCsrValidationLevel;
 
         [Import]
-        private Action<int> TlibSetInterruptMode;
+        private readonly Func<uint> TlibGetCsrValidationLevel;
 
         [Import]
-        private Func<uint, uint> TlibSetVlen;
+        private readonly Action<int> TlibAllowUnalignedAccesses;
 
         [Import]
-        private Func<uint, uint> TlibSetElen;
+        private readonly Action<int> TlibSetInterruptMode;
 
         [Import]
-        private Func<uint, uint, ulong> TlibGetVector;
+        private readonly Func<uint, uint> TlibSetVlen;
 
         [Import]
-        private Action<uint, uint, ulong> TlibSetVector;
+        private readonly Func<uint, uint> TlibSetElen;
 
         [Import]
-        private Func<uint, IntPtr, uint> TlibGetWholeVector;
+        private readonly Func<uint, uint, ulong> TlibGetVector;
 
         [Import]
-        private Func<uint, IntPtr, uint> TlibSetWholeVector;
+        private readonly Action<uint, uint, ulong> TlibSetVector;
 
         [Import]
-        private Action<uint> TlibEnablePostOpcodeExecutionHooks;
+        private readonly Func<uint, IntPtr, uint> TlibGetWholeVector;
 
         [Import]
-        private Func<ulong, ulong, uint> TlibInstallPostOpcodeExecutionHook;
+        private readonly Func<uint, IntPtr, uint> TlibSetWholeVector;
 
         [Import]
-        private Action<uint> TlibEnablePostGprAccessHooks;
+        private readonly Action<uint> TlibEnablePostOpcodeExecutionHooks;
 
         [Import]
-        private Action<uint, uint> TlibEnablePostGprAccessHookOn;
+        private readonly Func<ulong, ulong, uint> TlibInstallPostOpcodeExecutionHook;
 
         [Import]
-        private Action<int, uint, uint, uint> TlibSetClicInterruptState;
+        private readonly Action<uint> TlibEnablePreOpcodeExecutionHooks;
+
+        [Import]
+        private readonly Func<ulong, ulong, uint> TlibInstallPreOpcodeExecutionHook;
+
+        [Import]
+        private readonly Action<uint> TlibEnablePostGprAccessHooks;
+
+        [Import]
+        private readonly Action<uint, uint> TlibEnablePostGprAccessHookOn;
+
+        [Import]
+        private readonly Action<bool> TlibEnablePreStackAccessHook;
+
+        [Import]
+        private readonly Action<int, uint, uint, uint> TlibSetClicInterruptState;
 
 #pragma warning restore 649
 
@@ -997,6 +1376,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {13, "Load page fault"},
             {15, "Store page fault"}
         };
+
+        // In MISA register the extensions are encoded on bits [25:0] (see: https://five-embeddev.com/riscv-isa-manual/latest/machine.html),
+        // but because these additional features are not there RISCV_ADDITIONAL_FEATURE_OFFSET allows to show that they are unrelated to MISA.
+        private const int AdditionalExtensionOffset = 26;
+
+        private const ulong DefaultResetVector = 0x1000;
+        private const int NumberOfGeneralPurposeRegisters = 32;
 
         [NameAlias("PrivilegeArchitecture")]
         public enum PrivilegedArchitecture
@@ -1047,6 +1433,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             ZVE64X = 11,
             ZVE64F = 12,
             ZVE64D = 13,
+            ZACAS = 14,
+            SSCOFPMF = 15,
         }
 
         public enum InterruptMode
@@ -1065,25 +1453,47 @@ namespace Antmicro.Renode.Peripherals.CPU
             MachineSupervisorUser,
         }
 
-        protected void BeforeVectorExtensionRegisterRead()
+        public enum ExceptionCodes
         {
-            AssertVectorExtension();
+            InstructionAddressMisaligned = 0x0,
+            InstructionAccessFault = 0x1,
+            IllegalInstruction = 0x2,
+            Breakpoint = 0x3,
+            LoadAddressMisaligned = 0x4,
+            LoadAccessFault = 0x5,
+            StoreAddressMisaligned = 0x6,
+            StoreAccessFault = 0x7,
+            UModeEnvironmentCall = 0x8,
+            SModeEnvironmentCall = 0x9,
+            HModeEnvironmentCall = 0xA,
+            MModeEnvironmentCall = 0xB,
+            InstructionPageFault = 0xC,
+            LoadPageFault = 0xD,
+            StorePageFault = 0xF,
         }
 
-        protected RegisterValue BeforeVectorExtensionRegisterWrite(RegisterValue value)
+        protected enum IrqType
         {
-            AssertVectorExtension();
-            return value;
+            UserSoftwareInterrupt = 0x0,
+            SupervisorSoftwareInterrupt = 0x1,
+            HypervisorSoftwareInterrupt = 0x2,
+            MachineSoftwareInterrupt = 0x3,
+            UserTimerInterrupt = 0x4,
+            SupervisorTimerInterrupt = 0x5,
+            HypervisorTimerInterrupt = 0x6,
+            MachineTimerInterrupt = 0x7,
+            UserExternalInterrupt = 0x8,
+            SupervisorExternalInterrupt = 0x9,
+            HypervisorExternalInterrupt = 0xa,
+            MachineExternalInterrupt = 0xb
         }
 
-        protected RegisterValue BeforeMTVECWrite(RegisterValue value)
+        protected enum StandardCSR : ushort
         {
-            return HandleMTVEC_STVECWrite(value, "MTVEC");
-        }
-
-        protected RegisterValue BeforeSTVECWrite(RegisterValue value)
-        {
-            return HandleMTVEC_STVECWrite(value, "STVEC");
+            Siselect = 0x150,
+            Sireg = 0x151, // sireg, sireg2, ..., sireg6 (0x156)
+            Miselect = 0x350,
+            Mireg = 0x351, // mireg, mireg2, ..., mireg6 (0x356)
         }
 
         private class ArchitectureDecoder
@@ -1159,51 +1569,51 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 switch(isaChar)
                 {
-                    case 'I':
-                        if(instructionSets.Contains(InstructionSet.E))
-                        {
-                            throw new ConstructionException($"ISA string cannot contain both I and E base instruction sets at the same time.");
-                        }
-                        instructionSets.Add(InstructionSet.I);
-                        break;
-                    case 'E':
-                        if(instructionSets.Contains(InstructionSet.I))
-                        {
-                            throw new ConstructionException($"ISA string cannot contain both I and E base instruction sets at the same time.");
-                        }
-                        instructionSets.Add(InstructionSet.E);
-                        break;
-                    case 'M':
-                        instructionSets.Add(InstructionSet.M);
-                        break;
-                    case 'A':
-                        instructionSets.Add(InstructionSet.A);
-                        break;
-                    case 'F':
-                        instructionSets.Add(InstructionSet.F);
-                        break;
-                    case 'D':
-                        instructionSets.Add(InstructionSet.D);
-                        break;
-                    case 'C':
-                        instructionSets.Add(InstructionSet.C);
-                        break;
-                    case 'V':
-                        instructionSets.Add(InstructionSet.V);
-                        break;
-                    case 'B':
-                        instructionSets.Add(InstructionSet.B);
-                        break;
-                    case 'G':
-                        instructionSets.Add(InstructionSet.G);
-                        break;
-                    case 'U':
-                        parent.WarningLog("Enabling privilege level extension '{0}' using 'cpuType' is not supported. " +
-                            "Privilege levels should be specified using the 'privilegeLevels' constructor parameter. " +
-                            "Extension will not be enabled", isaChar);
-                        break;
-                    default:
-                        return false;
+                case 'I':
+                    if(instructionSets.Contains(InstructionSet.E))
+                    {
+                        throw new ConstructionException($"ISA string cannot contain both I and E base instruction sets at the same time.");
+                    }
+                    instructionSets.Add(InstructionSet.I);
+                    break;
+                case 'E':
+                    if(instructionSets.Contains(InstructionSet.I))
+                    {
+                        throw new ConstructionException($"ISA string cannot contain both I and E base instruction sets at the same time.");
+                    }
+                    instructionSets.Add(InstructionSet.E);
+                    break;
+                case 'M':
+                    instructionSets.Add(InstructionSet.M);
+                    break;
+                case 'A':
+                    instructionSets.Add(InstructionSet.A);
+                    break;
+                case 'F':
+                    instructionSets.Add(InstructionSet.F);
+                    break;
+                case 'D':
+                    instructionSets.Add(InstructionSet.D);
+                    break;
+                case 'C':
+                    instructionSets.Add(InstructionSet.C);
+                    break;
+                case 'V':
+                    instructionSets.Add(InstructionSet.V);
+                    break;
+                case 'B':
+                    instructionSets.Add(InstructionSet.B);
+                    break;
+                case 'G':
+                    instructionSets.Add(InstructionSet.G);
+                    break;
+                case 'U':
+                    parent.WarningLog("Enabling privilege level extension '{0}' using 'cpuType' is not supported. " +
+                        "Privilege levels should be specified using the 'privilegeLevels' constructor parameter. " +
+                        "Extension will not be enabled", isaChar);
+                    break;
+                default:
+                    return false;
                 }
                 ValidateInstructionSetForBaseE();
                 return true;
@@ -1213,28 +1623,30 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 switch(name)
                 {
-                    case "S":
-                        parent.WarningLog("Enabling privilege level extension '{0}' using 'cpuType' is not supported. " +
-                            "Privilege levels should be specified using the 'privilegeLevels' constructor parameter. " +
-                            "Extension will not be enabled", name);
-                        break;
-                    case "SMEPMP": standardExtensions.Add(StandardInstructionSetExtensions.SMEPMP); break;
-                    case "XANDES": Andes_AndeStarV5Extension.RegisterIn(machine, (RiscV32)parent); break;
-                    case "ZBA": standardExtensions.Add(StandardInstructionSetExtensions.BA); break;
-                    case "ZBB": standardExtensions.Add(StandardInstructionSetExtensions.BB); break;
-                    case "ZBC": standardExtensions.Add(StandardInstructionSetExtensions.BC); break;
-                    case "ZBS": standardExtensions.Add(StandardInstructionSetExtensions.BS); break;
-                    case "ZICSR": standardExtensions.Add(StandardInstructionSetExtensions.ICSR); break;
-                    case "ZIFENCEI": standardExtensions.Add(StandardInstructionSetExtensions.IFENCEI); break;
-                    case "ZFH": standardExtensions.Add(StandardInstructionSetExtensions.ZFH); break;
-                    case "ZVFH": standardExtensions.Add(StandardInstructionSetExtensions.ZVFH); break;
-                    case "ZVE32X": standardExtensions.Add(StandardInstructionSetExtensions.ZVE32X); break;
-                    case "ZVE32F": standardExtensions.Add(StandardInstructionSetExtensions.ZVE32F); break;
-                    case "ZVE64X": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64X); break;
-                    case "ZVE64F": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64F); break;
-                    case "ZVE64D": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64D); break;
-                    default:
-                        throw new ConstructionException($"Undefined instructions set extension: '{name}'");
+                case "S":
+                    parent.WarningLog("Enabling privilege level extension '{0}' using 'cpuType' is not supported. " +
+                        "Privilege levels should be specified using the 'privilegeLevels' constructor parameter. " +
+                        "Extension will not be enabled", name);
+                    break;
+                case "SMEPMP": standardExtensions.Add(StandardInstructionSetExtensions.SMEPMP); break;
+                case "SSCOFPMF": standardExtensions.Add(StandardInstructionSetExtensions.SSCOFPMF); break;
+                case "XANDES": Andes_AndeStarV5Extension.RegisterIn(machine, (RiscV32)parent); break;
+                case "ZBA": standardExtensions.Add(StandardInstructionSetExtensions.BA); break;
+                case "ZBB": standardExtensions.Add(StandardInstructionSetExtensions.BB); break;
+                case "ZBC": standardExtensions.Add(StandardInstructionSetExtensions.BC); break;
+                case "ZBS": standardExtensions.Add(StandardInstructionSetExtensions.BS); break;
+                case "ZICSR": standardExtensions.Add(StandardInstructionSetExtensions.ICSR); break;
+                case "ZIFENCEI": standardExtensions.Add(StandardInstructionSetExtensions.IFENCEI); break;
+                case "ZFH": standardExtensions.Add(StandardInstructionSetExtensions.ZFH); break;
+                case "ZVFH": standardExtensions.Add(StandardInstructionSetExtensions.ZVFH); break;
+                case "ZVE32X": standardExtensions.Add(StandardInstructionSetExtensions.ZVE32X); break;
+                case "ZVE32F": standardExtensions.Add(StandardInstructionSetExtensions.ZVE32F); break;
+                case "ZVE64X": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64X); break;
+                case "ZVE64F": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64F); break;
+                case "ZVE64D": standardExtensions.Add(StandardInstructionSetExtensions.ZVE64D); break;
+                case "ZACAS": standardExtensions.Add(StandardInstructionSetExtensions.ZACAS); break;
+                default:
+                    throw new ConstructionException($"Undefined instructions set extension: '{name}'");
                 }
             }
 
@@ -1242,24 +1654,24 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 switch(privilegeLevels)
                 {
-                    case PrivilegeLevels.Machine:
-                        break; // Nothing to do
-                    case PrivilegeLevels.MachineUser:
-                        instructionSets.Add(InstructionSet.U);
-                        break;
-                    case PrivilegeLevels.MachineSupervisorUser:
-                        instructionSets.Add(InstructionSet.S);
-                        instructionSets.Add(InstructionSet.U);
-                        break;
-                    default:
-                        throw new Exception("Unreachable");
+                case PrivilegeLevels.Machine:
+                    break; // Nothing to do
+                case PrivilegeLevels.MachineUser:
+                    instructionSets.Add(InstructionSet.U);
+                    break;
+                case PrivilegeLevels.MachineSupervisorUser:
+                    instructionSets.Add(InstructionSet.S);
+                    instructionSets.Add(InstructionSet.U);
+                    break;
+                default:
+                    throw new Exception("Unreachable");
                 }
             }
 
             private void ValidateInstructionSetForBaseE()
             {
-                if(instructionSets.Contains(InstructionSet.E) 
-                    && (instructionSets.Any(x => (x != InstructionSet.E) 
+                if(instructionSets.Contains(InstructionSet.E)
+                    && (instructionSets.Any(x => (x != InstructionSet.E)
                                                 && (x != InstructionSet.M)
                                                 && (x != InstructionSet.A)
                                                 && (x != InstructionSet.C))))
@@ -1272,93 +1684,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             private readonly IList<InstructionSet> instructionSets;
             private readonly BaseRiscV parent;
             private readonly IMachine machine;
-        }
-
-        private RegisterValue HandleMTVEC_STVECWrite(RegisterValue value, string registerName)
-        {
-            switch(interruptMode)
-            {
-                case InterruptMode.Direct:
-                    if((value.RawValue & 0x3) != 0x0)
-                    {
-                        var originalValue = value;
-                        value = RegisterValue.Create(BitHelper.ReplaceBits(value.RawValue, 0x0, width: 2), value.Bits);
-                        this.Log(LogLevel.Warning, "CPU is configured in the Direct interrupt mode, modifying {2} to 0x{0:X} (tried to set 0x{1:X})", value.RawValue, originalValue.RawValue, registerName);
-                    }
-                    break;
-
-                case InterruptMode.Vectored:
-                    if((value.RawValue & 0x3) != 0x1)
-                    {
-                        var originalValue = value;
-                        value = RegisterValue.Create(BitHelper.ReplaceBits(value.RawValue, 0x1, width: 2), value.Bits);
-                        this.Log(LogLevel.Warning, "CPU is configured in the Vectored interrupt mode, modifying {2}  to 0x{0:X} (tried to set 0x{1:X})", value.RawValue, originalValue.RawValue, registerName);
-                    }
-                    break;
-            }
-
-            return value;
-        }
-
-        private void AssertVectorExtension()
-        {
-            if(!SupportsInstructionSet(InstructionSet.V))
-            {
-                throw new RegisterValueUnavailableException("Vector extention is not supported by this CPU");
-            }
-        }
-
-        /* Since Priv 1.10 all hypervisor interrupts descriptions were changed to 'Reserved'
-         * Current state can be found in Table 3.6 of the specification (pg. 37 in version 1.11)
-         */
-        private static bool IsValidInterruptOnlyInV1_09(int irq)
-        {
-            return irq == (int)IrqType.HypervisorExternalInterrupt
-                || irq == (int)IrqType.HypervisorSoftwareInterrupt
-                || irq == (int)IrqType.HypervisorTimerInterrupt;
-        }
-
-        /* User-level interrupts support extension (N) is not implemented */
-        private static bool IsUnimplementedInterrupt(int irq)
-        {
-            return irq == (int)IrqType.UserExternalInterrupt
-                || irq == (int)IrqType.UserSoftwareInterrupt
-                || irq == (int)IrqType.UserTimerInterrupt;
-        }
-
-        private readonly InterruptMode interruptMode;
-
-        private readonly List<Tuple<string, ulong, ulong>> customOpcodes;
-
-        // In MISA register the extensions are encoded on bits [25:0] (see: https://five-embeddev.com/riscv-isa-manual/latest/machine.html),
-        // but because these additional features are not there RISCV_ADDITIONAL_FEATURE_OFFSET allows to show that they are unrelated to MISA.
-        private const int AdditionalExtensionOffset = 26;
-
-        private const ulong DefaultResetVector = 0x1000;
-        private const int NumberOfGeneralPurposeRegisters = 32;
-
-        protected enum IrqType
-        {
-            UserSoftwareInterrupt = 0x0,
-            SupervisorSoftwareInterrupt = 0x1,
-            HypervisorSoftwareInterrupt = 0x2,
-            MachineSoftwareInterrupt = 0x3,
-            UserTimerInterrupt = 0x4,
-            SupervisorTimerInterrupt = 0x5,
-            HypervisorTimerInterrupt = 0x6,
-            MachineTimerInterrupt = 0x7,
-            UserExternalInterrupt = 0x8,
-            SupervisorExternalInterrupt = 0x9,
-            HypervisorExternalInterrupt = 0xa,
-            MachineExternalInterrupt = 0xb
-        }
-
-        protected enum StandardCSR
-        {
-            Siselect = 0x150,
-            Sireg = 0x151, // sireg, sireg2, ..., sireg6 (0x156)
-            Miselect = 0x350,
-            Mireg = 0x351, // mireg, mireg2, ..., mireg6 (0x356)
         }
     }
 }

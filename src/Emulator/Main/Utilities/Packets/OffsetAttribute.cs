@@ -1,8 +1,8 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Linq;
@@ -12,7 +12,9 @@ namespace Antmicro.Renode.Utilities.Packets
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public sealed class OffsetAttribute : Attribute
     {
-        public OffsetAttribute(uint quadWords = 0, uint doubleWords = 0, uint words = 0, uint bytes = 0, uint bits = 0)
+#pragma warning disable IDE0060
+        public OffsetAttribute(object[] doNotUsePositionalArguments = null, uint bits = 0, uint bytes = 0, uint words = 0, uint doubleWords = 0, uint quadWords = 0)
+#pragma warning restore IDE0060
         {
             OffsetInBytes = new[]
             {
@@ -26,6 +28,7 @@ namespace Antmicro.Renode.Utilities.Packets
         }
 
         public uint OffsetInBytes { get; }
+
         public uint OffsetInBits { get; }
     }
 }

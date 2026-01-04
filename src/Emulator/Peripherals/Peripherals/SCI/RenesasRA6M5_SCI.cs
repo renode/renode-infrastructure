@@ -1,15 +1,17 @@
 //
 // Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -19,7 +21,6 @@ using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
-using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.SCI
 {
@@ -153,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.SCI
         IEnumerable<IRegistered<IUART, NullRegistrationPoint>> IPeripheralContainer<IUART, NullRegistrationPoint>.Children
         {
             get => registeredUartPeripheral != null ?
-                new [] { Registered.Create(registeredUartPeripheral, NullRegistrationPoint.Instance) } :
+                new[] { Registered.Create(registeredUartPeripheral, NullRegistrationPoint.Instance) } :
                 Enumerable.Empty<IRegistered<IUART, NullRegistrationPoint>>();
         }
 
@@ -231,14 +232,14 @@ namespace Antmicro.Renode.Peripherals.SCI
 
                 switch(iicDirection)
                 {
-                    case IICTransactionDirection.Write:
-                        FlushIICTransmitQueue();
-                        break;
-                    case IICTransactionDirection.Read:
-                        receiveQueue.Clear();
-                        break;
-                    default:
-                        throw new ArgumentException("Unknown IIC direction");
+                case IICTransactionDirection.Write:
+                    FlushIICTransmitQueue();
+                    break;
+                case IICTransactionDirection.Read:
+                    receiveQueue.Clear();
+                    break;
+                default:
+                    throw new ArgumentException("Unknown IIC direction");
                 }
                 selectedIICSlave.FinishTransmission();
             }
@@ -292,22 +293,22 @@ namespace Antmicro.Renode.Peripherals.SCI
 
             switch(nonSmartCommunicationMode.Value)
             {
-                case CommunicationMode.AsynchOrSimpleIIC:
-                    if(i2cContainer.ChildCollection.Count != 0)
-                    {
-                        peripheralMode = PeripheralMode.IIC;
-                        return;
-                    }
-                    break;
-                case CommunicationMode.SynchOrSimpleSPI:
-                    if(RegisteredPeripheral != null)
-                    {
-                       peripheralMode = PeripheralMode.SPI;
-                       return;
-                    }
-                    break;
-                default:
-                    break;
+            case CommunicationMode.AsynchOrSimpleIIC:
+                if(i2cContainer.ChildCollection.Count != 0)
+                {
+                    peripheralMode = PeripheralMode.IIC;
+                    return;
+                }
+                break;
+            case CommunicationMode.SynchOrSimpleSPI:
+                if(RegisteredPeripheral != null)
+                {
+                    peripheralMode = PeripheralMode.SPI;
+                    return;
+                }
+                break;
+            default:
+                break;
             }
             peripheralMode = PeripheralMode.UART;
         }
@@ -388,19 +389,20 @@ namespace Antmicro.Renode.Peripherals.SCI
                             this.Log(LogLevel.Warning, "Transmission is not enabled, ignoring byte 0x{0:X}", value);
                             return;
                         }
-                        switch(peripheralMode) {
-                            case PeripheralMode.UART:
-                                TransmitUARTData((byte)value);
-                                break;
-                            case PeripheralMode.IIC:
-                                TransmitIICData((byte)value);
-                                // No need to update the interrupts - in IIC mode we just blink the Tx interrupt
-                                return;
-                            case PeripheralMode.SPI:
-                                TransmitSPIData((byte)value);
-                                break;
-                            default:
-                                throw new Exception($"Unknown peripheral mode {peripheralMode}");
+                        switch(peripheralMode)
+                        {
+                        case PeripheralMode.UART:
+                            TransmitUARTData((byte)value);
+                            break;
+                        case PeripheralMode.IIC:
+                            TransmitIICData((byte)value);
+                            // No need to update the interrupts - in IIC mode we just blink the Tx interrupt
+                            return;
+                        case PeripheralMode.SPI:
+                            TransmitSPIData((byte)value);
+                            break;
+                        default:
+                            throw new Exception($"Unknown peripheral mode {peripheralMode}");
                         }
                         UpdateInterrupts();
                     })
@@ -430,7 +432,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                     .WithTaggedFlag("FER", 4)
                     .WithTaggedFlag("ORER", 5)
                     .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => IsReceiveFIFOFull, name: "RDF")
-                    .WithFlag(7, out transmitFIFOEmpty, FieldMode.Read | FieldMode.WriteZeroToClear,  name: "TDFE")
+                    .WithFlag(7, out transmitFIFOEmpty, FieldMode.Read | FieldMode.WriteZeroToClear, name: "TDFE")
                     .WithReservedBits(8, 8);
             }
 
@@ -518,7 +520,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                 .WithTag("IICINTM", 0, 1)
                 .WithTaggedFlag("IICCSC", 1)
                 .WithReservedBits(2, 3)
-                .WithFlag(5, writeCallback: (_, val) => { if(val) BlinkTxIRQ(); }, name:"IICACKT")
+                .WithFlag(5, writeCallback: (_, val) => { if(val) BlinkTxIRQ(); }, name: "IICACKT")
                 .WithReservedBits(6, 10);
 
             Registers.IICMode3.Define(this)
@@ -546,7 +548,7 @@ namespace Antmicro.Renode.Peripherals.SCI
                             EmulateIICStartStopCondition(IICCondition.Stop);
                         }
                     }, name: "IICSTPREQ")
-                .WithFlag(3, out conditionCompletedFlag, FieldMode.WriteZeroToClear,name: "IICSTIF")
+                .WithFlag(3, out conditionCompletedFlag, FieldMode.WriteZeroToClear, name: "IICSTIF")
                 .WithValueField(4, 2, name: "IICSDAS")
                 .WithValueField(6, 2, name: "IICSCLS")
                 .WithReservedBits(8, 8)
@@ -934,37 +936,37 @@ namespace Antmicro.Renode.Peripherals.SCI
             DebugHelper.Assert((iicState == IICState.Idle) || (iicDirection != IICTransactionDirection.Unset), $"Incorrect communication direction {iicDirection} in state {iicState}");
             switch(iicState)
             {
-                case IICState.Idle:
-                    // Addressing frame
-                    var rwBit = (value & 0x1);
-                    var slaveAddress = value >> 1;
-                    iicDirection = (rwBit == 1) ? IICTransactionDirection.Read : IICTransactionDirection.Write;
-                    if(!i2cContainer.TryGetByAddress((int)slaveAddress, out selectedIICSlave))
-                    {
-                        this.WarningLog("Selecting unconnected IIC slave address: 0x{0:X}", slaveAddress);
-                    }
-                    this.DebugLog("Selected slave address 0x{0:X} for {1}", slaveAddress, iicDirection);
-                    iicState = IICState.InTransaction;
-                    conditionCompletedFlag.Value = false;
+            case IICState.Idle:
+                // Addressing frame
+                var rwBit = (value & 0x1);
+                var slaveAddress = value >> 1;
+                iicDirection = (rwBit == 1) ? IICTransactionDirection.Read : IICTransactionDirection.Write;
+                if(!i2cContainer.TryGetByAddress((int)slaveAddress, out selectedIICSlave))
+                {
+                    this.WarningLog("Selecting unconnected IIC slave address: 0x{0:X}", slaveAddress);
+                }
+                this.DebugLog("Selected slave address 0x{0:X} for {1}", slaveAddress, iicDirection);
+                iicState = IICState.InTransaction;
+                conditionCompletedFlag.Value = false;
+                BlinkTxIRQ();
+                break;
+            case IICState.InTransaction:
+                if(iicDirection == IICTransactionDirection.Write)
+                {
+                    iicTransmitQueue.Enqueue(value);
                     BlinkTxIRQ();
-                    break;
-                case IICState.InTransaction:
-                    if(iicDirection == IICTransactionDirection.Write)
+                }
+                else
+                {
+                    if(value == DummyTransmitByte)
                     {
-                        iicTransmitQueue.Enqueue(value);
+                        this.DebugLog("Ignoring the dummy transmission");
                         BlinkTxIRQ();
                     }
-                    else
-                    {
-                        if(value == DummyTransmitByte)
-                        {
-                            this.DebugLog("Ignoring the dummy transmission");
-                            BlinkTxIRQ();
-                        }
-                    }
-                    break;
-                 default:
-                    throw new Exception("Unreachable");
+                }
+                break;
+            default:
+                throw new Exception("Unreachable");
             }
         }
 
@@ -978,41 +980,41 @@ namespace Antmicro.Renode.Peripherals.SCI
             receiveQueue.Enqueue(RegisteredPeripheral.Transmit((byte)value));
         }
 
+        private Parity parityBit = Parity.Even;
+        private IValueRegisterField clockSource;
+        private IValueRegisterField bitRate;
+        private IValueRegisterField receiveFIFOTriggerCount;
+        private IFlagRegisterField i2cMode;
+        private IFlagRegisterField conditionCompletedFlag;
+        private IFlagRegisterField transmitFIFOEmpty;
+        private IFlagRegisterField smartCardMode;
+        private IFlagRegisterField transmitInterruptEnabled;
+        private IFlagRegisterField receiveInterruptEnabled;
+        private IFlagRegisterField receiveEnabled;
+        private IEnumRegisterField<DataTransferDirection> dataTransferDirection;
+        private IFlagRegisterField transmitEnd;
+        private IFlagRegisterField parityEnabled;
+        private IFlagRegisterField hasTwoStopBits;
+
+        private IFlagRegisterField transmitEnabled;
+        private PeripheralMode peripheralMode;
+        private IICTransactionDirection iicDirection;
+        private II2CPeripheral selectedIICSlave;
+        private IICState iicState;
+        private bool fifoMode;
+
+        private bool manchesterMode;
+
+        private IUART registeredUartPeripheral;
+        private IFlagRegisterField transmitEndInterruptEnabled;
+        private IEnumRegisterField<CommunicationMode> nonSmartCommunicationMode;
+
         // This peripheral might work in a 9-bit mode,
         private readonly Queue<ushort> receiveQueue;
         private readonly Queue<byte> iicTransmitQueue;
         private readonly ulong frequency;
         private readonly IMachine machine;
         private readonly SimpleContainerHelper<II2CPeripheral> i2cContainer;
-        private Parity parityBit = Parity.Even;
-
-        private IUART registeredUartPeripheral;
-
-        private bool manchesterMode;
-        private bool fifoMode;
-        private IICState iicState;
-        private II2CPeripheral selectedIICSlave;
-        private IICTransactionDirection iicDirection;
-        private PeripheralMode peripheralMode;
-
-        private IFlagRegisterField transmitEnabled;
-        private IFlagRegisterField hasTwoStopBits;
-        private IFlagRegisterField parityEnabled;
-        private IFlagRegisterField transmitEndInterruptEnabled;
-        private IFlagRegisterField transmitEnd;
-        private IFlagRegisterField receiveEnabled;
-        private IFlagRegisterField receiveInterruptEnabled;
-        private IFlagRegisterField transmitInterruptEnabled;
-        private IFlagRegisterField smartCardMode;
-        private IFlagRegisterField transmitFIFOEmpty;
-        private IFlagRegisterField conditionCompletedFlag;
-        private IFlagRegisterField i2cMode;
-        private IValueRegisterField receiveFIFOTriggerCount;
-        private IValueRegisterField bitRate;
-        private IValueRegisterField clockSource;
-        private IEnumRegisterField<DataTransferDirection> dataTransferDirection;
-        private IEnumRegisterField<CommunicationMode> nonSmartCommunicationMode;
-
 
         private const ulong MaxFIFOSize = 16;
         private const int InterruptDelay = 1;

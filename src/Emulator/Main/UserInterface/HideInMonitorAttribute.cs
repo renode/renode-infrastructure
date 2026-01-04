@@ -17,4 +17,3 @@ namespace Antmicro.Renode.UserInterface
         }
     }
 }
-

@@ -5,8 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public struct PortStatusAndControlRegisterChanges
@@ -15,4 +13,3 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         public bool EnableChange;
     }
 }
-

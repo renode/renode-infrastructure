@@ -1,11 +1,12 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -42,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     compareReached[j].Value = true;
                     if(compareEventEnabled[j].Value)
                     {
-                       EventTriggered?.Invoke((uint)Register.Compare0EventPending + j * 4);
+                        EventTriggered?.Invoke((uint)Register.Compare0EventPending + j * 4);
                     }
                     UpdateInterrupts();
                 };
@@ -250,8 +251,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 var thisEventSet = compareInterruptEnabled[i].Value && compareReached[i].Value;
                 if(thisEventSet)
                 {
-                   this.Log(LogLevel.Noisy, "Interrupt set by CC{0} interruptEnable={1} compareSet={2} compareEventEnable={3}",
-                         i, compareInterruptEnabled[i].Value, compareReached[i].Value, compareEventEnabled[i].Value);
+                    this.Log(LogLevel.Noisy, "Interrupt set by CC{0} interruptEnable={1} compareSet={2} compareEventEnable={3}",
+                          i, compareInterruptEnabled[i].Value, compareReached[i].Value, compareEventEnabled[i].Value);
                 }
                 flag |= thisEventSet;
             }
@@ -260,13 +261,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(flag);
         }
 
-        private DoubleWordRegisterCollection registers;
-        private IFlagRegisterField[] compareEventEnabled;
-        private IFlagRegisterField[] compareReached;
         private IFlagRegisterField[] compareInterruptEnabled;
         private IValueRegisterField prescaler;
         private IFlagRegisterField tickInterruptEnabled;
         private IFlagRegisterField tickEvent;
+
+        private DoubleWordRegisterCollection registers;
+        private IFlagRegisterField[] compareEventEnabled;
+        private readonly IFlagRegisterField[] compareReached;
 
         private readonly LimitTimer tickTimer;
         private readonly ComparingTimer[] innerTimers;

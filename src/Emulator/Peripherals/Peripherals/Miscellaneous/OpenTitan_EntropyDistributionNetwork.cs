@@ -1,15 +1,17 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+#pragma warning disable IDE0005
 using Antmicro.Renode.Utilities;
+#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -47,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.Log(LogLevel.Debug, "BOOT_REQ_MODE is on. Issueing a new request.");
                 SendCsrngCommand((uint)bootGenerateCommand.Value);
             }
-            
+
             if(!dataLeft && autoRequestModeOn)
             {
                 this.Log(LogLevel.Debug, "AUTO_REQ_MODE is on. Issueing a new request.");
@@ -84,6 +86,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             base.Reset();
         }
 
+        public GPIO CommandRequestDone { get; }
+
+        public GPIO FatalError { get; }
+
+        public GPIO RecoverableAlert { get; }
+
+        public GPIO FatalAlert { get; }
+
         public long Size => 0x1000;
 
         private void DefineRegisters()
@@ -116,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(1, 31);
 
             Registers.Control.Define(this, 0x9999)
-                .WithEnumField(0, 4, out ednEnable, writeCallback: (_, val) => 
+                .WithEnumField(0, 4, out ednEnable, writeCallback: (_, val) =>
                 {
                     if(!allControlsRegisterWriteEnable.Value)
                     {
@@ -131,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         return;
                     }
                 }, name: "EDN_ENABLE")
-                .WithEnumField(4, 4, out bootRequestMode, writeCallback: (_, val) => 
+                .WithEnumField(4, 4, out bootRequestMode, writeCallback: (_, val) =>
                 {
                     if(!allControlsRegisterWriteEnable.Value)
                     {
@@ -146,7 +156,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         return;
                     }
                 }, name: "BOOT_REQ_MODE")
-                .WithEnumField(8, 4, out autoRequestMode, writeCallback: (_, val) => 
+                .WithEnumField(8, 4, out autoRequestMode, writeCallback: (_, val) =>
                 {
                     if(!allControlsRegisterWriteEnable.Value)
                     {
@@ -166,7 +176,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         autoRequestModeOn = false;
                     }
                 }, name: "AUTO_REQ_MODE")
-                .WithEnumField(12, 4, out commandFifoReset, writeCallback: (_, val) => 
+                .WithEnumField(12, 4, out commandFifoReset, writeCallback: (_, val) =>
                 {
                     if(!allControlsRegisterWriteEnable.Value)
                     {
@@ -190,7 +200,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(16, 16);
 
             Registers.BootInstantiateCommand.Define(this, 0x901)
-                .WithValueField(0, 32, out bootInstantiateCommand, writeCallback: (_, val) => 
+                .WithValueField(0, 32, out bootInstantiateCommand, writeCallback: (_, val) =>
                 {
                     if(bootRequestMode.Value != MultiBitBool4.True)
                     {
@@ -202,7 +212,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }, name: "BOOT_INST_CMD");
 
             Registers.BootGenerateCommand.Define(this, 0xfff003)
-                .WithValueField(0, 32, out bootGenerateCommand, writeCallback: (_, val) => 
+                .WithValueField(0, 32, out bootGenerateCommand, writeCallback: (_, val) =>
                 {
                     if(bootRequestMode.Value != MultiBitBool4.True)
                     {
@@ -211,10 +221,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     }
 
                     SendCsrngCommand((uint)val);
-                }, name: "BOOT_GEN_CMD"); 
+                }, name: "BOOT_GEN_CMD");
 
             Registers.CsrngSoftwareCommandRequest.Define(this)
-                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) => 
+                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) =>
                 {
                     if(autoRequestModeOn)
                     {
@@ -228,7 +238,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     }
 
                     SendCsrngCommand((uint)val);
-                } 
+                }
                 , name: "SW_CMD_REQ");
 
             Registers.CommandStatus.Define(this)
@@ -237,7 +247,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(2, 30);
 
             Registers.CsrngReseedCommand.Define(this)
-                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) => 
+                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) =>
                 {
                     if(reseedCommands.Count >= ReseedCommandFifoCapacity)
                     {
@@ -253,7 +263,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }, name: "RESEED_CMD");
 
             Registers.CsrngGenerateCommand.Define(this)
-                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) => 
+                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) =>
                 {
                     if(generateCommands.Count >= GenerateCommandFifoCapacity)
                     {
@@ -266,7 +276,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         return;
                     }
                     generateCommands.Enqueue((uint)val);
-                }, name: "GENERATE_CMD"); 
+                }, name: "GENERATE_CMD");
 
             Registers.MaximumNumberOfRequestsBetweenReseeds.Define(this)
                 .WithValueField(0, 32, out requestsBetweenReseeds, writeCallback: (_, val) => maxNumberOfRequestsBetweenReseeds = (uint)val, name: "MAX_NUM_REQS_BETWEEN_RESEEDS");
@@ -295,55 +305,55 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(31, 1);
 
             Registers.TestErrorConditions.Define(this)
-                .WithValueField(0, 5, writeCallback: (_, val) => 
+                .WithValueField(0, 5, writeCallback: (_, val) =>
                 {
                     // val = bit number of ErrorCode register to be set
                     switch(val)
                     {
-                        case 0:
-                            reseedCommandsError.Value = true;
-                            break;
-                        case 1:
-                            generateCommandsError.Value = true;
-                            break;
-                        case 2:
-                            outputFifoError.Value = true;
-                            break;
-                        case 20:
-                            ednAckStageIllegalStateError.Value = true;
-                            break;
-                        case 21:
-                            ednMainStageIllegalStateError.Value = true;
-                            break;
-                        case 22:
-                            hardenedCounterError.Value = true;
-                            break;
-                        case 28:
-                            fifoWriteError.Value = true;
-                            break;
-                        case 29:
-                            fifoReadError.Value = true;
-                            break;
-                        case 30:    
-                            fifoStateError.Value = true;
-                            break;
-                        default:
-                            break;
+                    case 0:
+                        reseedCommandsError.Value = true;
+                        break;
+                    case 1:
+                        generateCommandsError.Value = true;
+                        break;
+                    case 2:
+                        outputFifoError.Value = true;
+                        break;
+                    case 20:
+                        ednAckStageIllegalStateError.Value = true;
+                        break;
+                    case 21:
+                        ednMainStageIllegalStateError.Value = true;
+                        break;
+                    case 22:
+                        hardenedCounterError.Value = true;
+                        break;
+                    case 28:
+                        fifoWriteError.Value = true;
+                        break;
+                    case 29:
+                        fifoReadError.Value = true;
+                        break;
+                    case 30:
+                        fifoStateError.Value = true;
+                        break;
+                    default:
+                        break;
                     }
 
-                    switch (val)
+                    switch(val)
                     {
-                        case 0:
-                        case 1:
-                        case 2:
-                        case 20:
-                        case 21:
-                        case 22:
-                            fatalErrorInterruptState.Value = true;
-                            UpdateInterrupts();
-                            break;
-                        default:
-                            break;
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 20:
+                    case 21:
+                    case 22:
+                        fatalErrorInterruptState.Value = true;
+                        UpdateInterrupts();
+                        break;
+                    default:
+                        break;
                     }
                 }, name: "ERR_CODE_TEST")
                 .WithReservedBits(5, 27);
@@ -363,13 +373,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             csrng.EdnSoftwareCommandRequestWrite(command);
             commandRequestDoneInterruptState.Value = true;
-            UpdateInterrupts();            
+            UpdateInterrupts();
         }
 
-        public GPIO CommandRequestDone { get; }
-        public GPIO FatalError { get; }
-        public GPIO RecoverableAlert { get; }
-        public GPIO FatalAlert { get; }
+        private bool autoRequestModeOn;
+        private uint maxNumberOfRequestsBetweenReseeds;
 
         private IFlagRegisterField commandRequestDoneInterruptState;
         private IFlagRegisterField fatalErrorInterruptState;
@@ -401,35 +409,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly Queue<uint> generateCommands;
         private readonly OpenTitan_CSRNG csrng;
 
-        private bool autoRequestModeOn;
-        private uint maxNumberOfRequestsBetweenReseeds;
-
         private const int ReseedCommandFifoCapacity = 13;
         private const int GenerateCommandFifoCapacity = 13;
-
-        // https://github.com/lowRISC/opentitan/blob/master/hw/ip/edn/rtl/edn_pkg.sv
-        private enum StateMachine
-        {
-            Idle              = 0b110000101, // idle                                                                                        
-            BootLoadIns       = 0b110110111, // boot: load the instantiate command                                                          
-            BootLoadGen       = 0b000000011, // boot: load the generate command                                                             
-            BootInsAckWait    = 0b011010010, // boot: wait for instantiate command ack                                                      
-            BootCaptGenCnt    = 0b010111010, // boot: capture the gen fifo count                                                            
-            BootSendGenCmd    = 0b011100100, // boot: send the generate command                                                             
-            BootGenAckWait    = 0b101101100, // boot: wait for generate command ack                                                         
-            BootPulse         = 0b100001010, // boot: signal a done pulse                                                                   
-            BootDone          = 0b011011111, // boot: stay in done state until reset                                                        
-            AutoLoadIns       = 0b001110000, // auto: load the instantiate command                                                          
-            AutoFirstAckWait  = 0b001001101, // auto: wait for first instantiate command ack                                                
-            AutoAckWait       = 0b101100011, // auto: wait for instantiate command ack                                                      
-            AutoDispatch      = 0b110101110, // auto: determine next command to be sent                                                     
-            AutoCaptGenCnt    = 0b000110101, // auto: capture the gen fifo count                                                            
-            AutoSendGenCmd    = 0b111111000, // auto: send the generate command                                                             
-            AutoCaptReseedCnt = 0b000100110, // auto: capture the reseed fifo count                                                         
-            AutoSendReseedCmd = 0b101010110, // auto: send the reseed command                                                               
-            SWPortMode        = 0b100111001, // swport: no hw request mode                                                                  
-            Error             = 0b010010001  // illegal state reached and hang  
-        }
 
         public enum Registers
         {
@@ -450,6 +431,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ErrorCode = 0x38,
             TestErrorConditions = 0x3c,
             MainStateMachineStateDebug = 0x40,
+        }
+
+        // https://github.com/lowRISC/opentitan/blob/master/hw/ip/edn/rtl/edn_pkg.sv
+        private enum StateMachine
+        {
+            Idle              = 0b110000101, // idle
+            BootLoadIns       = 0b110110111, // boot: load the instantiate command
+            BootLoadGen       = 0b000000011, // boot: load the generate command
+            BootInsAckWait    = 0b011010010, // boot: wait for instantiate command ack
+            BootCaptGenCnt    = 0b010111010, // boot: capture the gen fifo count
+            BootSendGenCmd    = 0b011100100, // boot: send the generate command
+            BootGenAckWait    = 0b101101100, // boot: wait for generate command ack
+            BootPulse         = 0b100001010, // boot: signal a done pulse
+            BootDone          = 0b011011111, // boot: stay in done state until reset
+            AutoLoadIns       = 0b001110000, // auto: load the instantiate command
+            AutoFirstAckWait  = 0b001001101, // auto: wait for first instantiate command ack
+            AutoAckWait       = 0b101100011, // auto: wait for instantiate command ack
+            AutoDispatch      = 0b110101110, // auto: determine next command to be sent
+            AutoCaptGenCnt    = 0b000110101, // auto: capture the gen fifo count
+            AutoSendGenCmd    = 0b111111000, // auto: send the generate command
+            AutoCaptReseedCnt = 0b000100110, // auto: capture the reseed fifo count
+            AutoSendReseedCmd = 0b101010110, // auto: send the reseed command
+            SWPortMode        = 0b100111001, // swport: no hw request mode
+            Error             = 0b010010001  // illegal state reached and hang
         }
     }
 }

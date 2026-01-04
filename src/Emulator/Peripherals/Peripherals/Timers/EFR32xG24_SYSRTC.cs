@@ -1,13 +1,14 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -22,18 +23,66 @@ namespace Antmicro.Renode.Peripherals.Timers
             limitTimer.LimitReached += () => interruptManager.SetInterrupt(Interrupt.Overflow);
 
             compare0Timer = new ComparingTimer(machine.ClockSource, frequency, this, "compare0Timer",
-                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic, eventEnabled: true);
-            compare0Timer.CompareReached += HandleCompare0TimerCompareReached;
+                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic);
+            compare0Timer.CompareReached += () => interruptManager.SetInterrupt(Interrupt.Compare0Match);
 
             compare1Timer = new ComparingTimer(machine.ClockSource, frequency, this, "compare1Timer",
-                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic, eventEnabled: true);
-            compare1Timer.CompareReached += HandleCompare1TimerCompareReached;
+                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic);
+            compare1Timer.CompareReached += () => interruptManager.SetInterrupt(Interrupt.Compare1Match);
 
             capture0Timer = new ComparingTimer(machine.ClockSource, frequency, this, "capture0Timer",
-                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic, eventEnabled: true);
-            capture0Timer.CompareReached += HandleCapture0TimerCompareReached;
+                limit: uint.MaxValue, compare: uint.MaxValue, workMode: WorkMode.Periodic);
+            capture0Timer.CompareReached += () => interruptManager.SetInterrupt(Interrupt.Capture0);
 
             DefineRegisters();
+        }
+
+        public override uint ReadDoubleWord(long offset)
+        {
+            var region = offset / RegionSize;
+            if(region >= NumOfRegions)
+            {
+                this.LogUnhandledRead(offset);
+                return 0;
+            }
+
+            return base.ReadDoubleWord(offset % RegionSize);
+        }
+
+        public override void WriteDoubleWord(long offset, uint value)
+        {
+            var region = (Region)(offset / RegionSize);
+            var regOffset = offset % RegionSize;
+
+            if(region == Region.Normal)
+            {
+                base.WriteDoubleWord(offset, value);
+                return;
+            }
+
+            if(!RegistersCollection.TryRead(regOffset, out var oldValue))
+            {
+                this.LogUnhandledWrite(offset, value);
+                return;
+            }
+
+            switch(region)
+            {
+            case Region.Set:
+                value = oldValue | value;
+                break;
+            case Region.Clear:
+                value = oldValue & ~value;
+                break;
+            case Region.Toggle:
+                value = oldValue ^ value;
+                break;
+            default:
+                this.LogUnhandledWrite(offset, value);
+                return;
+            }
+
+            base.WriteDoubleWord(regOffset, value);
         }
 
         public override void Reset()
@@ -49,6 +98,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x4000;
 
+        [IrqProvider]
         public GPIO AppIRQ { get; }
 
         private void DefineRegisters()
@@ -101,14 +151,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Register.Status.Define(this)
                 .WithFlag(0, FieldMode.Read,
-                    valueProviderCallback: _ => compare0Timer.Enabled,
+                    valueProviderCallback: _ => limitTimer.Enabled,
                     name: "RUNNING")
                 .WithTaggedFlag("LOCKSTATUS", 1)
                 .WithReservedBits(2, 30);
 
             Register.Counter.Define(this)
                 .WithValueField(0, 32,
-                    valueProviderCallback: _ =>  compare0Timer.Value,
+                    valueProviderCallback: _ => limitTimer.Value,
                     writeCallback: (_, value) =>
                     {
                         limitTimer.Value = value;
@@ -138,10 +188,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(11, 21)
                 .WithChangeCallback((_, __) =>
                 {
-                    compare0Timer.Enabled = group0Compare0Enable.Value;
-                    compare1Timer.Enabled = group0Compare1Enable.Value;
-                    capture0Timer.Enabled = group0Capture0Enable.Value;
-                    limitTimer.Enabled = compare0Timer.Enabled | compare1Timer.Enabled | capture0Timer.Enabled;
+                    compare0Timer.EventEnabled = group0Compare0Enable.Value;
+                    compare1Timer.EventEnabled = group0Compare1Enable.Value;
+                    capture0Timer.EventEnabled = group0Capture0Enable.Value;
                 });
 
             Register.Group0Compare0.Define(this)
@@ -170,43 +219,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 writeCallback: (irq, _, newValue) => interruptManager.SetInterrupt(irq, newValue)));
 
             RegistersCollection.AddRegister((long)Register.Group0InterruptEnable, interruptManager.GetInterruptEnableRegister<DoubleWordRegister>());
-
-            RegistersCollection.AddRegister((long)Register.Group0InterruptEnable_Set, interruptManager.GetInterruptEnableSetRegister<DoubleWordRegister>());
-
-            RegistersCollection.AddRegister((long)Register.Group0InterruptFlags_Clear, interruptManager.GetInterruptClearRegister<DoubleWordRegister>());
-
-            RegistersCollection.AddRegister((long)Register.Group0InterruptEnable_Clear, interruptManager.GetInterruptEnableClearRegister<DoubleWordRegister>());
         }
-
-        private void HandleCompare0TimerCompareReached()
-        {
-            if(group0Compare0Enable.Value)
-            {
-                interruptManager.SetInterrupt(Interrupt.Compare0Match);
-            }
-        }
-
-        private void HandleCompare1TimerCompareReached()
-        {
-            if(group0Compare1Enable.Value)
-            {
-                interruptManager.SetInterrupt(Interrupt.Compare1Match);
-            }
-        }
-
-        private void HandleCapture0TimerCompareReached()
-        {
-            if(group0Capture0Enable.Value)
-            {
-                interruptManager.SetInterrupt(Interrupt.Capture0);
-            }
-        }
-
-        private readonly InterruptManager<Interrupt> interruptManager;
-        private readonly LimitTimer limitTimer;
-        private readonly ComparingTimer compare0Timer;
-        private readonly ComparingTimer compare1Timer;
-        private readonly ComparingTimer capture0Timer;
 
         private IFlagRegisterField group0Compare0Enable;
         private IFlagRegisterField group0Compare1Enable;
@@ -215,12 +228,29 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IValueRegisterField group0Compare1Value;
         private IValueRegisterField group0Capture0Value;
 
+        private readonly InterruptManager<Interrupt> interruptManager;
+        private readonly LimitTimer limitTimer;
+        private readonly ComparingTimer compare0Timer;
+        private readonly ComparingTimer compare1Timer;
+        private readonly ComparingTimer capture0Timer;
+
+        private const long RegionSize = 0x1000;
+        private const long NumOfRegions = 4;
+
         private enum Interrupt
         {
             Overflow,
             Compare0Match,
             Compare1Match,
             Capture0
+        }
+
+        private enum Region
+        {
+            Normal                          = 0,
+            Set                             = 1,
+            Clear                           = 2,
+            Toggle                          = 3
         }
 
         private enum Register
@@ -240,58 +270,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Group0Compare0                  = 0x004C,
             Group0Compare1                  = 0x0050,
             Group0Capture0                  = 0x0054,
-            Group0SyncBusy                  = 0x0058,
-
-            IpVersion_Set                   = 0x1000,
-            Enable_Set                      = 0x1004,
-            SoftwareReset_Set               = 0x1008,
-            Config_Set                      = 0x100C,
-            Command_Set                     = 0x1010,
-            Status_Set                      = 0x1014,
-            Counter_Set                     = 0x1018,
-            SyncBusy_Set                    = 0x101C,
-            Lock_Set                        = 0x1020,
-            Group0InterruptFlags_Set        = 0x1040,
-            Group0InterruptEnable_Set       = 0x1044,
-            Group0Control_Set               = 0x1048,
-            Group0Compare0_Set              = 0x104C,
-            Group0Compare1_Set              = 0x1050,
-            Group0Capture0_Set              = 0x1054,
-            Group0SyncBusy_Set              = 0x1058,
-
-            IpVersion_Clear                 = 0x2000,
-            Enable_Clear                    = 0x2004,
-            SoftwareReset_Clear             = 0x2008,
-            Config_Clear                    = 0x200C,
-            Command_Clear                   = 0x2010,
-            Status_Clear                    = 0x2014,
-            Counter_Clear                   = 0x2018,
-            SyncBusy_Clear                  = 0x201C,
-            Lock_Clear                      = 0x2020,
-            Group0InterruptFlags_Clear      = 0x2040,
-            Group0InterruptEnable_Clear     = 0x2044,
-            Group0Control_Clear             = 0x2048,
-            Group0Compare0_Clear            = 0x204C,
-            Group0Compare1_Clear            = 0x2050,
-            Group0Capture0_Clear            = 0x2054,
-            Group0SyncBusy_Clear            = 0x2058,
-
-            IpVersion_Toggle                = 0x3000,
-            Enable_Toggle                   = 0x3004,
-            SoftwareReset_Toggle            = 0x3008,
-            Config_Toggle                   = 0x300C,
-            Command_Toggle                  = 0x3010,
-            Status_Toggle                   = 0x3014,
-            Counter_Toggle                  = 0x3018,
-            SyncBusy_Toggle                 = 0x301C,
-            Lock_Toggle                     = 0x3020,
-            Group0InterruptFlags_Toggle     = 0x3040,
-            Group0InterruptEnable_Toggle    = 0x3044,
-            Group0Control_Toggle            = 0x3048,
-            Group0Compare0_Toggle           = 0x304C,
-            Group0Compare1_Toggle           = 0x3050,
-            Group0Capture0_Toggle           = 0x3054,
-            Group0SyncBusy_Toggle           = 0x3058,
+            Group0SyncBusy                  = 0x0058
         }
     }
 }

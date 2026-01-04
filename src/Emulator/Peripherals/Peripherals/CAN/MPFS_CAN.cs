@@ -1,12 +1,13 @@
-﻿﻿//
-// Copyright (c) 2010-2023 Antmicro
+﻿//
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -115,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
                 // TX buffer registers
                 registersMap.Add(
-                    (long)ControllerRegisters.TransmitMessageControlCommand + shiftBetweenTxRegisters * index,
+                    (long)ControllerRegisters.TransmitMessageControlCommand + ShiftBetweenTxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithFlag(0,
                             writeCallback: (_, val) =>
@@ -133,14 +134,22 @@ namespace Antmicro.Renode.Peripherals.CAN
                             valueProviderCallback: _ => txMessageBuffers[index].InterruptEnable,
                             name: "TxIntEbl")
                         .WithTag("WPN", 3, 1)
+                        .WithReservedBits(4, 12)
                         .WithValueField(16, 4,
                             writeCallback: (_, val) => txMessageBuffers[index].DataLengthCode = (uint)val,
                             valueProviderCallback: _ => txMessageBuffers[index].DataLengthCode,
                             name: "DLC")
-                        .WithTag("IDE", 20, 1)
-                        .WithTag("RTR", 21, 1)
+                        .WithFlag(20,
+                            writeCallback: (_, val) => txMessageBuffers[index].ExtendedIdentifier = val,
+                            valueProviderCallback: _ => txMessageBuffers[index].ExtendedIdentifier,
+                            name: "IDE")
+                        .WithFlag(21,
+                            writeCallback: (_, val) => txMessageBuffers[index].RemoteTransmitRequest = val,
+                            valueProviderCallback: _ => txMessageBuffers[index].RemoteTransmitRequest,
+                            name: "RTR")
                         .WithReservedBits(22, 1)
                         .WithTag("WPN", 23, 1)
+                        .WithReservedBits(24, 8)
                         .WithWriteCallback((_, val) =>
                         {
                             if(txMessageBuffers[index].IsRequestPending)
@@ -150,22 +159,23 @@ namespace Antmicro.Renode.Peripherals.CAN
                         })
                 );
                 registersMap.Add(
-                    (long)ControllerRegisters.TransmitMessageID + shiftBetweenTxRegisters * index,
+                    (long)ControllerRegisters.TransmitMessageID + ShiftBetweenTxRegisters * index,
                     new DoubleWordRegister(this)
+                        .WithReservedBits(0, 3)
                         .WithValueField(3, 29,
                             writeCallback: (_, val) => txMessageBuffers[index].MessageId = (uint)val,
                             valueProviderCallback: _ => txMessageBuffers[index].MessageId,
                             name: "ID")
                 );
                 registersMap.Add(
-                    (long)ControllerRegisters.TransmitMessageDataHigh + shiftBetweenTxRegisters * index,
+                    (long)ControllerRegisters.TransmitMessageDataHigh + ShiftBetweenTxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, FieldMode.Write,
                             writeCallback: (_, val) => txMessageBuffers[index].SetData((uint)val, Offset.High),
                             name: $"TX_MSG{index}_DATA_HIGH")
                 );
                 registersMap.Add(
-                    (long)ControllerRegisters.TransmitMessageDataLow + shiftBetweenTxRegisters * index,
+                    (long)ControllerRegisters.TransmitMessageDataLow + ShiftBetweenTxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, FieldMode.Write,
                             writeCallback: (_, val) => txMessageBuffers[index].SetData((uint)val, Offset.Low),
@@ -174,7 +184,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
                 // RX buffer registers
                 registersMap.Add(
-                    (long)ControllerRegisters.ReceiveMessageControlCommand + shiftBetweenRxRegisters * index,
+                    (long)ControllerRegisters.ReceiveMessageControlCommand + ShiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithFlag(0, FieldMode.WriteOneToClear | FieldMode.Read,
                             changeCallback: (_, __) => rxMessageBuffers[index].IsMessageAvailable = false,
@@ -199,38 +209,48 @@ namespace Antmicro.Renode.Peripherals.CAN
                             valueProviderCallback: _ => rxMessageBuffers[index].IsLinked,
                             name: "LF")
                         .WithFlag(7, name: "WPNL")
-                        .WithValueField(16, 4, FieldMode.Read,
+                        .WithReservedBits(8, 8)
+                        .WithValueField(16, 4,
                             writeCallback: (_, val) => rxMessageBuffers[index].DataLengthCode = (uint)val,
                             valueProviderCallback: _ => rxMessageBuffers[index].DataLengthCode,
                             name: "DLC")
-                        .WithTag("IDE", 20, 1)
-                        .WithTag("RTR", 21, 1)
+                        .WithFlag(20,
+                            writeCallback: (_, val) => rxMessageBuffers[index].ExtendedIdentifier = val,
+                            valueProviderCallback: _ => rxMessageBuffers[index].ExtendedIdentifier,
+                            name: "IDE")
+                        .WithFlag(21,
+                            writeCallback: (_, val) => rxMessageBuffers[index].RemoteTransmitRequest = val,
+                            valueProviderCallback: _ => rxMessageBuffers[index].RemoteTransmitRequest,
+                            name: "RTR")
+                        .WithReservedBits(22, 1)
                         .WithFlag(23, name: "WPNH")
+                        .WithReservedBits(24, 8)
                 );
                 registersMap.Add(
-                    (long)ControllerRegisters.ReceiveMessageID + shiftBetweenRxRegisters * index,
+                    (long)ControllerRegisters.ReceiveMessageID + ShiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
+                        .WithReservedBits(0, 3)
                         .WithValueField(3, 29,
                             writeCallback: (_, val) => rxMessageBuffers[index].MessageId = (uint)val,
                             valueProviderCallback: _ => rxMessageBuffers[index].MessageId,
                             name: "ID")
                 );
                 registersMap.Add(
-                    (long)ControllerRegisters.ReceiveMessageDataHigh + shiftBetweenRxRegisters * index,
+                    (long)ControllerRegisters.ReceiveMessageDataHigh + ShiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, FieldMode.Read,
                             valueProviderCallback: _ => rxMessageBuffers[index].GetData(swapEndian.Value, Offset.High),
                             name: $"RX_MSG{index}_DATA_HIGH")
                 );
                 registersMap.Add(
-                    (long)ControllerRegisters.ReceiveMessageDataLow + shiftBetweenRxRegisters * index,
+                    (long)ControllerRegisters.ReceiveMessageDataLow + ShiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, FieldMode.Read,
                             valueProviderCallback: _ => rxMessageBuffers[index].GetData(swapEndian.Value, Offset.Low),
                             name: $"RX_MSG{index}_DATA_LOW")
                 );
                 registersMap.Add(
-                    (long)ControllerRegisters.ReceiveMessageAcceptanceMaskRegister + shiftBetweenRxRegisters * index,
+                    (long)ControllerRegisters.ReceiveMessageAcceptanceMaskRegister + ShiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithReservedBits(0, 1)
                         .WithTag("RTR", 1, 1)
@@ -241,7 +261,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                             name: "Identifier")
                 );
                 registersMap.Add(
-                    (long)ControllerRegisters.ReceiveMessageAcceptanceCodeRegister + shiftBetweenRxRegisters * index,
+                    (long)ControllerRegisters.ReceiveMessageAcceptanceCodeRegister + ShiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithReservedBits(0, 1)
                         .WithTag("RTR", 1, 1)
@@ -252,7 +272,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                             name: "Identifier")
                 );
                 registersMap.Add(
-                    (long)ControllerRegisters.ReceiveMessageAcceptanceMaskRegisterData + shiftBetweenRxRegisters * index,
+                    (long)ControllerRegisters.ReceiveMessageAcceptanceMaskRegisterData + ShiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                     .WithValueField(0, 16,
                         writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceMaskData = (uint)val,
@@ -260,7 +280,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                         name: $"RX_MSG{index}_AMR_DATA")
                 );
                 registersMap.Add(
-                    (long)ControllerRegisters.ReceiveMessageAcceptanceCodeRegisterData + shiftBetweenRxRegisters * index,
+                    (long)ControllerRegisters.ReceiveMessageAcceptanceCodeRegisterData + ShiftBetweenRxRegisters * index,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 16,
                             writeCallback: (_, val) => rxMessageBuffers[index].AcceptanceCodeData = (uint)val,
@@ -326,7 +346,9 @@ namespace Antmicro.Renode.Peripherals.CAN
         }
 
         public long Size => 0x1000;
+
         public GPIO IRQ { get; private set; }
+
         public event Action<CANMessageFrame> FrameSent;
 
         private void InitializeBuffers()
@@ -358,7 +380,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 this.Log(LogLevel.Warning, "FrameSent is not initialized. Am I connected to medium?");
             }
-            
+
             this.Log(LogLevel.Info, "Message sent: {0}.", message);
             txMessageInterruptsStatus.Value = true;
             UpdateInterrupts();
@@ -378,57 +400,20 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private TxMessageBuffer[] txMessageBuffers;
         private RxMessageBuffer[] rxMessageBuffers;
-        private IFlagRegisterField interruptsEnabled;
-        private IFlagRegisterField rxMessageLossEnabled;
-        private IFlagRegisterField txInterruptsEnabled;
-        private IFlagRegisterField rxInterruptsEnabled;
-        private IFlagRegisterField rxMessageLossStatus;
-        private IFlagRegisterField txMessageInterruptsStatus;
-        private IFlagRegisterField rxMessageInterruptsStatus;
-        private IFlagRegisterField swapEndian;
-        
+        private readonly IFlagRegisterField interruptsEnabled;
+        private readonly IFlagRegisterField rxMessageLossEnabled;
+        private readonly IFlagRegisterField txInterruptsEnabled;
+        private readonly IFlagRegisterField rxInterruptsEnabled;
+        private readonly IFlagRegisterField rxMessageLossStatus;
+        private readonly IFlagRegisterField txMessageInterruptsStatus;
+        private readonly IFlagRegisterField rxMessageInterruptsStatus;
+        private readonly IFlagRegisterField swapEndian;
+
         private readonly DoubleWordRegisterCollection registers;
-        
+
         private const int BufferCount = 32;
-        private const int shiftBetweenRxRegisters = 0x20;
-        private const int shiftBetweenTxRegisters = 0x10;
-
-        private abstract class MessageBuffer
-        {
-            protected MessageBuffer(MPFS_CAN parent, uint id)
-            {
-                this.parent = parent;
-                BufferId = id;
-            }
-
-            public uint BufferId { get; private set; }
-            public uint MessageId { get; set; }
-            public bool InterruptEnable { get; set; }
-            public uint DataLengthCode
-            {
-                get
-                {
-                    return dataLengthCode;
-                }
-                set
-                {
-                    if(value > MaxDataLength)
-                    {
-                        parent.Log(LogLevel.Warning, "Tried to set data length code to {0}, but it was truncated to {1}.", value, MaxDataLength);
-                        dataLengthCode = MaxDataLength;
-                    }
-                    else
-                    {
-                        dataLengthCode = value;
-                    }
-                }
-            }
-
-            protected readonly MPFS_CAN parent;
-            protected const int MaxDataLength = 8;
-
-            private uint dataLengthCode;
-        }
+        private const int ShiftBetweenRxRegisters = 0x20;
+        private const int ShiftBetweenTxRegisters = 0x10;
 
         private class TxMessageBuffer : MessageBuffer
         {
@@ -448,7 +433,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     : data.Reverse().Take((int)DataLengthCode).ToArray();
                 IsRequestPending = false;
                 HasValidData = false;
-                return new CANMessageFrame(MessageId, messageData);
+                return CANMessageFrame.CreateWithExtendedId(MessageId, messageData, ExtendedIdentifier, RemoteTransmitRequest);
             }
 
             public void SetData(uint registerValue, Offset offset)
@@ -465,6 +450,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
 
             public bool IsRequestPending { get; set; }
+
             public bool HasValidData { get; set; }
 
             private readonly byte[] data;
@@ -503,12 +489,14 @@ namespace Antmicro.Renode.Peripherals.CAN
                     parent.Log(LogLevel.Warning, "Mailbox #{1} already contains a message: {0}", Message.ToString(), BufferId);
                     return false;
                 }
-                
+
                 // http://www.seanano.org/projects/canport/27241003.pdf, p.28:
                 // "When the 82527 receives a message, the entire message identifier, the data length code (DLC)
                 // and the Direction bit are stored into the corresponding message object."
                 DataLengthCode = (uint)message.Data.Length;
-                MessageId = message.Id;
+                MessageId = message.ExtendedId;
+                ExtendedIdentifier = message.ExtendedFormat;
+                RemoteTransmitRequest = message.RemoteFrame;
                 Message = message;
                 parent.Log(LogLevel.Info, "Received message {0} in mailbox #{1}", message, BufferId);
 
@@ -526,14 +514,67 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
 
             public bool Enabled { get; set; }
+
             public bool IsLinked { get; set; }
+
             public uint AcceptanceMaskData { get; set; }
+
             public uint AcceptanceCodeData { get; set; }
+
             public uint AcceptanceMask { get; set; }
+
             public uint AcceptanceCode { get; set; }
+
             public bool IsAutoreplyEnabled { get; set; }
+
             public bool IsMessageAvailable { get; set; }
+
             public CANMessageFrame Message { get; private set; }
+        }
+
+        private abstract class MessageBuffer
+        {
+            public uint BufferId { get; private set; }
+
+            public uint MessageId { get; set; }
+
+            public bool InterruptEnable { get; set; }
+
+            public uint DataLengthCode
+            {
+                get
+                {
+                    return dataLengthCode;
+                }
+
+                set
+                {
+                    if(value > MaxDataLength)
+                    {
+                        parent.Log(LogLevel.Warning, "Tried to set data length code to {0}, but it was truncated to {1}.", value, MaxDataLength);
+                        dataLengthCode = MaxDataLength;
+                    }
+                    else
+                    {
+                        dataLengthCode = value;
+                    }
+                }
+            }
+
+            public bool ExtendedIdentifier { get; set; }
+
+            public bool RemoteTransmitRequest { get; set; }
+
+            protected MessageBuffer(MPFS_CAN parent, uint id)
+            {
+                this.parent = parent;
+                BufferId = id;
+            }
+
+            protected readonly MPFS_CAN parent;
+            protected const int MaxDataLength = 8;
+
+            private uint dataLengthCode;
         }
 
         private enum Offset

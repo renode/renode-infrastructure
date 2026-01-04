@@ -7,24 +7,25 @@
 //
 #if PLATFORM_LINUX
 using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
+using System.Threading;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Peripherals.Network;
-using System.Net.NetworkInformation;
-using System.Linq;
-using Antmicro.Renode.TAPHelper;
-using Antmicro.Renode.Peripherals;
-using System.Threading;
-using Antmicro.Migrant.Hooks;
-using System.IO;
-using Antmicro.Renode.Logging;
-using System.Runtime.InteropServices;
-using System.Diagnostics;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Exceptions;
-using Mono.Unix;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
-using Antmicro.Migrant;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.TAPHelper;
+using Antmicro.Renode.Utilities;
+
+using Mono.Unix;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
@@ -119,9 +120,6 @@ namespace Antmicro.Renode.HostInterfaces.Network
             Resume();
         }
 
-        public string InterfaceName { get; private set; }
-        public event Action<EthernetFrame> FrameReady;
-
         public bool IsPaused { get; private set; } = true;
 
         public MACAddress MAC
@@ -130,11 +128,16 @@ namespace Antmicro.Renode.HostInterfaces.Network
             {
                 return mac;
             }
+
             set
             {
                 throw new NotSupportedException("Cannot change the MAC of the host machine.");
             }
         }
+
+        public string InterfaceName { get; private set; }
+
+        public event Action<EthernetFrame> FrameReady;
 
         [PostDeserialization]
         private void Init()
@@ -168,11 +171,11 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 {
                     var process = new Process();
                     var output = string.Empty;
-                #if NET
+#if NET
                     process.StartInfo.FileName = "dotnet";
-                #else
+#else
                     process.StartInfo.FileName = "mono";
-                #endif
+#endif
                     process.StartInfo.Arguments = string.Format("{0} {1} true", DynamicModuleSpawner.GetTAPHelper(), deviceName);
 
                     try
@@ -260,10 +263,6 @@ namespace Antmicro.Renode.HostInterfaces.Network
             }
         }
 
-        private const int DeviceNameBufferSize = 8192;
-        private const int MTU = 1522;
-        private const int ReadTimeout = 100; // in milliseconds
-
         [Transient]
         private bool active;
         [Transient]
@@ -271,15 +270,19 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private MACAddress backupMAC;
         [Transient]
         private CancellationTokenSource cts;
-        private readonly string deviceName;
-        private readonly object lockObject = new object();
-        private readonly bool persistent;
         [Transient]
         private UnixStream stream;
         [Transient]
         private int tapFileDescriptor;
         [Transient]
         private Thread thread;
+        private readonly string deviceName;
+        private readonly object lockObject = new object();
+        private readonly bool persistent;
+
+        private const int DeviceNameBufferSize = 8192;
+        private const int MTU = 1522;
+        private const int ReadTimeout = 100; // in milliseconds
     }
 }
 #endif

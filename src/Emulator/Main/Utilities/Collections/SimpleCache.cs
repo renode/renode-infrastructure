@@ -1,8 +1,8 @@
 ﻿//
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Utilities.Collections
             {
                 throw new ArgumentNullException(nameof(generator));
             }
-            var obj = new CacheObject<T1, Object, Func<T1, R>>(generator, parameter);
+            var obj = new CacheObject<T1, Object, Object, Func<T1, R>>(generator, parameter);
             if(simpleCache.TryGetValue(obj, out var result))
             {
                 this.CacheHits = this.CacheHits + 1;
@@ -34,9 +34,9 @@ namespace Antmicro.Renode.Utilities.Collections
         {
             if(generator == null)
             {
-               throw new ArgumentNullException(nameof(generator));
+                throw new ArgumentNullException(nameof(generator));
             }
-            var obj = new CacheObject<T1, T2, Func<T1, T2, R>>(generator, parameterT1, parameterT2);
+            var obj = new CacheObject<T1, T2, Object, Func<T1, T2, R>>(generator, parameterT1, parameterT2);
             if(simpleCache.TryGetValue(obj, out var result))
             {
                 this.CacheHits = this.CacheHits + 1;
@@ -44,6 +44,24 @@ namespace Antmicro.Renode.Utilities.Collections
             }
             this.CacheMisses = this.CacheMisses + 1;
             var generated = generator(parameterT1, parameterT2);
+            simpleCache[obj] = generated;
+            return generated;
+        }
+
+        public R Get<T1, T2, T3, R>(T1 parameterT1, T2 parameterT2, T3 parameterT3, Func<T1, T2, T3, R> generator)
+        {
+            if(generator == null)
+            {
+                throw new ArgumentNullException(nameof(generator));
+            }
+            var obj = new CacheObject<T1, T2, T3, Func<T1, T2, T3, R>>(generator, parameterT1, parameterT2, parameterT3);
+            if(simpleCache.TryGetValue(obj, out var result))
+            {
+                this.CacheHits = this.CacheHits + 1;
+                return (R)result;
+            }
+            this.CacheMisses = this.CacheMisses + 1;
+            var generated = generator(parameterT1, parameterT2, parameterT3);
             simpleCache[obj] = generated;
             return generated;
         }
@@ -61,18 +79,21 @@ namespace Antmicro.Renode.Utilities.Collections
 
         public int CacheSize { get { return simpleCache.Count; } }
 
-        private struct CacheObject<T1, T2, R>
+        private readonly Dictionary<object, object> simpleCache = new Dictionary<object, object>();
+
+        private struct CacheObject<T1, T2, T3, R>
         {
-            public CacheObject(R z, T1 x = default(T1), T2 y = default(T2))
+            public CacheObject(R g, T1 x = default(T1), T2 y = default(T2), T3 z = default(T3))
             {
                 this.parameterT1 = x;
                 this.parameterT2 = y;
-                this.generator = z;
+                this.parameterT3 = z;
+                this.generator = g;
             }
 
             public override bool Equals(Object obj)
             {
-                if(!(obj is CacheObject<T1, T2, R> cacheObj))
+                if(!(obj is CacheObject<T1, T2, T3, R> cacheObj))
                 {
                     return false;
                 }
@@ -89,39 +110,32 @@ namespace Antmicro.Renode.Utilities.Collections
             {
                 var isDefaultT1 = EqualityComparer<T1>.Default.Equals(parameterT1, default(T1));
                 var isDefaultT2 = EqualityComparer<T2>.Default.Equals(parameterT2, default(T2));
+                var isDefaultT3 = EqualityComparer<T3>.Default.Equals(parameterT3, default(T3));
 
                 var hash = generator.GetHashCode();
 
                 if(!isDefaultT1)
                 {
-                    hash ^= ShiftAndWrap(parameterT1.GetHashCode(), 2);
+                    hash ^= Misc.RotateLeft(parameterT1.GetHashCode(), 2);
                 }
 
                 if(!isDefaultT2)
                 {
-                    hash ^= ShiftAndWrap(parameterT2.GetHashCode(), 4);
+                    hash ^= Misc.RotateLeft(parameterT2.GetHashCode(), 4);
+                }
+
+                if(!isDefaultT3)
+                {
+                    hash ^= Misc.RotateLeft(parameterT3.GetHashCode(), 6);
                 }
 
                 return hash;
             }
 
-            private int ShiftAndWrap(int value, int positions)
-            {
-                positions = positions & 0x1F;
-
-                // Save the existing bit pattern, but interpret it as an unsigned integer.
-                uint number = BitConverter.ToUInt32(BitConverter.GetBytes(value), 0);
-                // Preserve the bits to be discarded.
-                uint wrapped = number >> (32 - positions);
-                // Shift and wrap the discarded bits.
-                return BitConverter.ToInt32(BitConverter.GetBytes((number << positions) | wrapped), 0);
-            }
-
             private readonly T1 parameterT1;
             private readonly T2 parameterT2;
+            private readonly T3 parameterT3;
             private readonly R generator;
         }
-
-        private readonly Dictionary<object, object> simpleCache = new Dictionary<object, object>();
     }
 }

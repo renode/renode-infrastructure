@@ -6,11 +6,10 @@
 //
 
 using System;
-using System.Linq;
-using System.IO;
-using System.Threading;
-using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -121,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IManagedThread FeedSamplesInner(IMachine machine, IPeripheral owner, string name, TimeInterval startDelay, uint frequency, IEnumerable<T> samples, bool repeatMode = false, Action onFinish = null)
         {
             var samplesBuffer = new SamplesBuffer(samples, autoRewind: repeatMode);
-            
+
             owner.Log(LogLevel.Noisy, "{0}: {1} samples will be fed at {2} Hz starting at {3:c}", name, samplesBuffer.TotalSamplesCount, frequency, startDelay.ToTimeSpan());
 
             Action feedSample = () =>
@@ -219,7 +218,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     t.Start();
                 }
             }
-            
+
             public void StartDelayed(TimeInterval i)
             {
                 foreach(var t in threads)
@@ -227,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     t.StartDelayed(i);
                 }
             }
-            
+
             public void Stop()
             {
                 foreach(var t in threads)
@@ -251,7 +250,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             private readonly List<IManagedThread> threads = new List<IManagedThread>();
         }
-        
+
         private class SamplesBuffer
         {
             public SamplesBuffer(IEnumerable<T> samples, bool autoRewind)

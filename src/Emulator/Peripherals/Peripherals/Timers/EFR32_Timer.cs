@@ -9,7 +9,6 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
-using System;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -56,7 +55,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(15, 1)
                 .WithTag("CLKSEL", 16, 2)
                 .WithReservedBits(18, 6)
-                .WithValueField(24, 4, changeCallback: (_, value) => {
+                .WithValueField(24, 4, changeCallback: (_, value) =>
+                {
                     if(value <= 10)
                     {
                         innerTimer.Divider = 2 << (int)value;
@@ -110,7 +110,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             Registers.CounterValue.Define(this)
                 .WithValueField(0, (int)width, writeCallback: (_, value) => innerTimer.Value = value, valueProviderCallback: _ => (uint)innerTimer.Value, name: "CNT")
             ;
-
         }
 
         private void LimitReached()
@@ -136,10 +135,11 @@ namespace Antmicro.Renode.Peripherals.Timers
             innerTimer.Direction = mode == Mode.Up ? Direction.Ascending : Direction.Descending;
         }
 
-        private LimitTimer innerTimer;
         private Mode mode;
-        private TimerWidth width;
-        private InterruptManager<Interrupt> interruptManager;
+
+        private readonly LimitTimer innerTimer;
+        private readonly TimerWidth width;
+        private readonly InterruptManager<Interrupt> interruptManager;
 
         public enum TimerWidth
         {

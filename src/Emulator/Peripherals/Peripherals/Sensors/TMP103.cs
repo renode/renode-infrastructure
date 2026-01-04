@@ -4,21 +4,18 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
-using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core;
+
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.Sensor;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
     public class TMP103 : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor
     {
-        public TMP103(IMachine machine)
+        public TMP103()
         {
             RegistersCollection = new ByteRegisterCollection(this);
             DefineRegisters();
@@ -50,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             if(!registerAddress.HasValue)
             {
                 this.Log(LogLevel.Error, "Trying to read without setting address");
-                return new byte[] {};
+                return new byte[] { };
             }
 
             var result = new byte[count];
@@ -72,8 +69,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             registerAddress = null;
 
             currentTemperature = 0;
-            temperatureLowThreshold = defaultLowThreshold;
-            temperatureHighThreshold = defaultHighThreshold;
+            temperatureLowThreshold = DefaultLowThreshold;
+            temperatureHighThreshold = DefaultHighThreshold;
         }
 
         public ByteRegisterCollection RegistersCollection { get; }
@@ -164,8 +161,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField temperatureLowFlag;
         private IFlagRegisterField temperatureHighFlag;
 
-        private const sbyte defaultLowThreshold = -10;
-        private const sbyte defaultHighThreshold = 60;
+        private const sbyte DefaultLowThreshold = -10;
+        private const sbyte DefaultHighThreshold = 60;
 
         private enum Registers : byte
         {

@@ -1,21 +1,23 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using System.IO;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
-using Mono.Cecil;
-using System.Reflection;
-using System.Collections.Generic;
 using Antmicro.Renode.Plugins;
-using Antmicro.Renode.Exceptions;
+
+using Mono.Cecil;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -46,35 +48,9 @@ namespace Antmicro.Renode.Utilities
 
         public static TypeManager Instance { get; private set; }
 
-        private Action<Type> autoLoadedTypeEvent;
-        private readonly List<Type> autoLoadedTypes = new List<Type>();
-        //AutoLoadedType will fire for each type even if the event is attached after the loading.
-        private object autoLoadedTypeLocker = new object();
-        public event Action<Type> AutoLoadedType
+        public void Dispose()
         {
-            add
-            {
-                // this lock is needed because it happens that two 
-                // threads add the event simulataneously and an exception is rised
-                lock(autoLoadedTypeLocker)
-                {
-                    if(value != null)
-                    {
-                        foreach(var type in autoLoadedTypes)
-                        {
-                            value(type);
-                        }
-                        autoLoadedTypeEvent += value;
-                    }
-                }
-            }
-            remove
-            {
-                lock(autoLoadedTypeLocker)
-                {
-                    autoLoadedTypeEvent -= value;
-                }
-            }
+            PluginManager.Dispose();
         }
 
         public void Scan()
@@ -201,28 +177,153 @@ namespace Antmicro.Renode.Utilities
                 .Select(x => new TypeDescriptor(x));
         }
 
-        public void Dispose()
+        public IEnumerable<Type> GetConcreteSubclasses(Type t)
         {
-            PluginManager.Dispose();
+            if(!concreteSubclassTypeNamesFromTypeName.TryGetValue(t.FullName, out var subclassNames))
+            {
+                return Enumerable.Empty<Type>();
+            }
+            return subclassNames.Select(name => GetTypeByName(name));
         }
 
-        public Type[] AutoLoadedTypes { get { return autoLoadedTypes.ToArray(); } }
-        public IEnumerable<PluginDescriptor> AvailablePlugins { get { return foundPlugins.ToArray(); } }
         public PluginManager PluginManager { get; set; }
 
-        private bool ImplementsInterface(TypeDefinition type, Type @interface)
-        {
-            if(type.GetFullNameOfMember() == @interface.FullName)
-            {
-                return true;
-            }
+        public IEnumerable<PluginDescriptor> AvailablePlugins { get { return foundPlugins.ToArray(); } }
 
-        #if NET
-            return (type.BaseType != null && ImplementsInterface(ResolveInner(type.BaseType), @interface)) || type.Interfaces.Any(i => ImplementsInterface(ResolveInner(i.InterfaceType), @interface));
-        #else
-            return (type.BaseType != null && ImplementsInterface(ResolveInner(type.BaseType), @interface)) || type.Interfaces.Any(i => ImplementsInterface(ResolveInner(i), @interface));
-        #endif    
+        public Type[] AutoLoadedTypes { get { return autoLoadedTypes.ToArray(); } }
+
+        private static string GetMethodSignature(MethodInfo info)
+        {
+            return info.GetParameters().Select(x => GetSimpleFullTypeName(x.ParameterType)).Aggregate((x, y) => x + "," + y);
         }
+
+        private static bool IsReferenced(Assembly referencingAssembly, string checkedAssemblyName)
+        {
+            var alreadyVisited = new HashSet<Assembly>();
+            var queue = new Queue<Assembly>();
+            queue.Enqueue(referencingAssembly);
+            while(queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                if(current.FullName == checkedAssemblyName)
+                {
+                    return true;
+                }
+                if(alreadyVisited.Contains(current))
+                {
+                    continue;
+                }
+                alreadyVisited.Add(current);
+                foreach(var reference in current.GetReferencedAssemblies())
+                {
+                    try
+                    {
+                        queue.Enqueue(Assembly.Load(reference));
+                    }
+                    catch(FileNotFoundException)
+                    {
+                        // if we could not load references assembly, do nothing
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static string GetMethodSignature(MethodDefinition definition)
+        {
+            return definition.Parameters.Select(x => x.ParameterType.GetFullNameOfMember()).Aggregate((x, y) => x + "," + y);
+        }
+
+        private static string GetSimpleFullTypeName(Type type)
+        {
+            if(!type.IsGenericType)
+            {
+                if(type.IsGenericParameter)
+                {
+                    return type.ToString();
+                }
+                if(type.IsArray)
+                {
+                    return string.Format("{0}[]", GetSimpleFullTypeName(type.GetElementType()));
+                }
+                return type.FullName;
+            }
+            var result = string.Format("{0}<{1}>", type.GetGenericTypeDefinition().FullName,
+                                       type.GetGenericArguments().Select(x => GetSimpleFullTypeName(x)).Aggregate((x, y) => x + "," + y));
+            return result;
+        }
+
+        private static string ExtractSimpleName(string name)
+        {
+            return name.Split(',')[0];
+        }
+
+        private static readonly string[] interestingNamespacePrefixes = new []
+        {
+            "Antmicro.Renode",
+            "NetMQ",
+        };
+
+        // This list filters out assemblies that are known not to be interesting for TypeManager.
+        // It has to be manualy catered for, but it shaves about 400ms from the startup time on mono and 2s on NET.
+        private static readonly string[] assemblyBlacklist = new []
+        {
+            "AntShell.dll",
+            "AtkSharp.dll",
+            "BigGustave.dll",
+            "BitMiracle.LibJpeg.NET.dll",
+            "CairoSharp.dll",
+            "CookComputing.XmlRpcV2.dll",
+            "crypto.dll",
+            "CxxDemangler.dll",
+            "Dynamitey.dll",
+            "ELFSharp.dll",
+            "FdtSharp.dll",
+            "GdkSharp.dll",
+            "GioSharp.dll",
+            "GLibSharp.dll",
+            "GtkSharp.dll",
+            "IronPython.dll",
+            "IronPython.Modules.dll",
+            "IronPython.SQLite.dll",
+            "IronPython.StdLib.dll",
+            "IronPython.Wpf.dll",
+            "K4os.Compression.LZ4.dll",
+            "libtftp.dll",
+            "LZ4.dll",
+            "mcs.dll",
+            "Microsoft.Dynamic.dll",
+            "Microsoft.Scripting.dll",
+            "Microsoft.Scripting.Metadata.dll",
+            "Migrant.dll",
+            "Mono.Cecil.dll",
+            "Mono.Cecil.Mdb.dll",
+            "Mono.Cecil.Pdb.dll",
+            "Mono.Cecil.Rocks.dll",
+            "NaCl.dll",
+            "Newtonsoft.Json.dll",
+            "Nini.dll",
+            "NuGet.Frameworks.dll",
+            "nunit.engine.api.dll",
+            "nunit.engine.core.dll",
+            "nunit.engine.dll",
+            "nunit.framework.dll",
+            "NUnit3.TestAdapter.dll",
+            "OptionsParser.dll",
+            "PacketDotNet.dll",
+            "PangoSharp.dll",
+            "protobuf-net.dll",
+            "Sprache.dll",
+            "TermSharp.dll",
+            "testhost.dll",
+            "Xwt.dll",
+            "Xwt.Gtk.dll",
+            "Xwt.Gtk3.dll",
+            "Xwt.WPF.dll",
+            // Exclude from analysis all "Microsoft" and "System" assemblies.
+            "Microsoft.",
+            "System.",
+        };
 
         private TypeManager(bool isBundled)
         {
@@ -231,6 +332,7 @@ namespace Antmicro.Renode.Utilities
             assemblyFromAssemblyName = new Dictionary<string, AssemblyDescription>();
             extensionMethodsFromThisType = new Dictionary<Type, MethodInfo[]>();
             extensionMethodsTraceFromTypeFullName = new Dictionary<string, HashSet<MethodDescription>>();
+            concreteSubclassTypeNamesFromTypeName = new Dictionary<string, List<string>>();
             knownDirectories = new HashSet<string>();
             dictSync = new object();
             AppDomain.CurrentDomain.AssemblyResolve += ResolveAssembly;
@@ -242,64 +344,65 @@ namespace Antmicro.Renode.Utilities
             this.isBundled = isBundled;
         }
 
-        private Assembly ResolveAssembly(object sender, ResolveEventArgs args)
+        private TypeDefinition ResolveBaseType(TypeDefinition type)
+        {
+            return (type.BaseType == null)
+                ? null
+                : ResolveInner(type.BaseType);
+        }
+
+        private bool IsInterestingType(TypeReference type)
+        {
+            return interestingNamespacePrefixes.Any(x => type.Namespace.StartsWith(x));
+        }
+
+        private int GetTypeCount()
         {
             lock(dictSync)
             {
-                AssemblyDescription description;
-                var simpleName = ExtractSimpleName(args.Name);
-                if(assemblyFromAssemblyName.TryGetValue(simpleName, out description))
-                {
-                    if(args.Name == description.FullName)
-                    {
-                        Logger.LogAs(this, LogLevel.Noisy, "Assembly '{0}' resolved by exact match from '{1}'.", args.Name, description.Path);
-                    }
-                    else
-                    {
-                        Logger.LogAs(this, LogLevel.Noisy, "Assembly '{0}' resolved by simple name '{1}' from '{2}'.", args.Name, simpleName, description.Path);
-                    }
-                    return Assembly.LoadFrom(description.Path);
-
-                }
-                return null;
+                return assembliesFromTypeName.Count + assemblyFromTypeName.Count;
             }
         }
 
-        private void ScanInner(string path, bool recursive)
+        private void ClearExtensionMethodsCache()
         {
-            // TODO: case insensitive
-            foreach(var assembly in Directory.GetFiles(path, "*.dll").Union(Directory.GetFiles(path, "*.exe")))
+            extensionMethodsFromThisType.Clear(); // to be consistent with string dictionary
+        }
+
+        private AssemblyDescription GetAssemblyDescription(string fullName, string path)
+        {
+            // maybe we already have one like that (interning)
+            if(assemblyFromAssemblyPath.ContainsKey(path))
             {
-                if(assemblyBlacklist.Any(x => assembly.Contains(x)))
-                {
-                    Logger.LogAs(this, LogLevel.Noisy, "Ignoring assembly '{0}'", assembly);
-                    continue;
-                }
-                AnalyzeAssembly(assembly, throwOnBadImage: false);
+                return assemblyFromAssemblyPath[path];
             }
-            if(recursive)
+            var description = new AssemblyDescription(fullName, path);
+            assemblyFromAssemblyPath.Add(path, description);
+            return description;
+        }
+
+        private bool IsAutoLoadType(TypeDefinition type)
+        {
+#if NET
+            var isAutoLoad = type.Interfaces.Select(x => x.InterfaceType.GetFullNameOfMember()).Contains(typeof(IAutoLoadType).FullName);
+#else
+            var isAutoLoad = type.Interfaces.Select(x => x.GetFullNameOfMember()).Contains(typeof(IAutoLoadType).FullName);
+#endif
+            if(isAutoLoad)
             {
-                foreach(var subdir in Directory.GetDirectories(path))
-                {
-                    ScanInner(subdir, recursive);
-                }
+                return true;
             }
-        }
-
-        private static string ExtractSimpleName(string name)
-        {
-            return name.Split(',')[0];
-        }
-
-        private string GetUnifiedTypeName(Type type)
-        {
-            // type names returned by Type.ToString() and TypeReference.FullName differ by the type of brackets
-            return type.ToString().Replace('[', '<').Replace(']', '>');
+            var resolved = ResolveBaseType(type);
+            if(resolved == null)
+            {
+                return false;
+            }
+            return IsAutoLoadType(resolved);
         }
 
         private IEnumerable<MethodInfo> GetExtensionMethodsInner(Type type)
         {
-            var fullName = GetUnifiedTypeName(type); 
+            var fullName = GetUnifiedTypeName(type);
             IEnumerable<MethodInfo> methodInfos;
             if(!extensionMethodsTraceFromTypeFullName.ContainsKey(fullName))
             {
@@ -341,139 +444,6 @@ namespace Antmicro.Renode.Utilities
             return methodInfos;
         }
 
-        private Type GetTypeWithLazyLoad(string name, string assemblyFullName, string path)
-        {
-            var fullName = string.Format("{0}, {1}", name, assemblyFullName);
-            var type = Type.GetType(fullName);
-            if(type == null)
-            {
-                //While Type.GetType on Mono is very liberal, finding the types even without the AQN provided, on Windows we have to either provide the assembly to search in or the full type name with AQN.
-                //This is useful when we're generating dynamic assemblies, via loading a cs file and compiling it ad-hoc.
-                var assembly = Assembly.LoadFrom(path);
-                type = assembly.GetType(name, true);
-                Logger.LogAs(this, LogLevel.Noisy, "Loaded assembly {0} ({1} triggered).", path, type.FullName);
-            }
-            return type;
-        }
-
-        private void BuildAssemblyCache()
-        {
-            assemblyFromAssemblyPath = new Dictionary<string, AssemblyDescription>();
-            foreach(var assembly in assemblyFromTypeName.Select(x => x.Value).Union(assembliesFromTypeName.SelectMany(x => x.Value)).Distinct())
-            {
-                assemblyFromAssemblyPath.Add(assembly.Path, assembly);
-            }
-            Logger.LogAs(this, LogLevel.Noisy, "Assembly cache with {0} distinct assemblies built.", assemblyFromAssemblyPath.Count);
-        }
-
-        private TypeDefinition ResolveInner(TypeReference tp)
-        {
-            if(isBundled)
-            {
-                try
-                {
-                    var scope = tp.GetElementType().Scope.ToString();
-                    var bundled = AssemblyHelper.GetBundledAssemblyByFullName(scope);
-                    if(bundled != null)
-                    {
-                        if(tp.IsArray)
-                        {
-                            // this supports only one-dimensional arrays for now
-                            var elementType = bundled.MainModule.GetType(tp.Namespace, tp.GetElementType().Name);
-                            return new ArrayType(elementType).Resolve();
-                        }
-
-                        return bundled.MainModule.GetType(tp.Namespace, tp.Name);
-                    }
-                }
-                catch
-                {
-                    // intentionally do nothing, we'll try to resolve it later
-                }
-            }
-
-            try
-            {
-                return tp.Resolve();
-            }
-            catch
-            {
-                // we couldn't resolve it in any way, just give up
-                return null;
-            }
-        }
-
-        private bool TryExtractExtensionMethods(TypeDefinition type, out Dictionary<string, HashSet<MethodDescription>> extractedMethods)
-        {
-            // type is enclosing type
-            if(!type.IsClass)
-            {
-                extractedMethods = null;
-                return false;
-            }
-            var result = false;
-            extractedMethods = new Dictionary<string, HashSet<MethodDescription>>();
-            foreach(var method in type.Methods)
-            {
-                if(method.IsStatic && method.IsPublic && method.CustomAttributes.Any(x => x.AttributeType.GetFullNameOfMember() == typeof(System.Runtime.CompilerServices.ExtensionAttribute).FullName))
-                {
-                    // so this is extension method
-                    // let's check the type of the first parameter
-                    var paramType = method.Parameters[0].ParameterType;
-
-                    if(IsInterestingType(paramType) ||
-                        (paramType.GetFullNameOfMember() == typeof(object).FullName
-                        && method.CustomAttributes.Any(x => x.AttributeType.GetFullNameOfMember() == typeof(ExtensionOnObjectAttribute).FullName)))
-                    {
-                        result = true;
-                        // that's the interesting extension method
-                        var methodDescription = new MethodDescription(type.GetFullNameOfMember(), method.Name, GetMethodSignature(method), true);
-                        if(extractedMethods.ContainsKey(paramType.GetFullNameOfMember()))
-                        {
-                            extractedMethods[paramType.GetFullNameOfMember()].Add(methodDescription);
-                        }
-                        else
-                        {
-                            extractedMethods.Add(paramType.GetFullNameOfMember(), new HashSet<MethodDescription> { methodDescription });
-                        }
-                    }
-                }
-            }
-            return result;
-        }
-
-        private static bool IsReferenced(Assembly referencingAssembly, string checkedAssemblyName)
-        {
-            var alreadyVisited = new HashSet<Assembly>();
-            var queue = new Queue<Assembly>();
-            queue.Enqueue(referencingAssembly);
-            while(queue.Count > 0)
-            {
-                var current = queue.Dequeue();
-                if(current.FullName == checkedAssemblyName)
-                {
-                    return true;
-                }
-                if(alreadyVisited.Contains(current))
-                {
-                    continue;
-                }
-                alreadyVisited.Add(current);
-                foreach(var reference in current.GetReferencedAssemblies())
-                {
-                    try
-                    {
-                        queue.Enqueue(Assembly.Load(reference));
-                    }
-                    catch(FileNotFoundException)
-                    {
-                        // if we could not load references assembly, do nothing
-                    }
-                }
-            }
-            return false;
-        }
-
         private bool AnalyzeAssembly(string path, bool bundled = false, bool throwOnBadImage = true)
         {
             Logger.LogAs(this, LogLevel.Noisy, "Analyzing assembly {0}.", path);
@@ -511,7 +481,8 @@ namespace Antmicro.Renode.Utilities
                 Logger.LogAs(this, LogLevel.Noisy, message);
                 return false;
             }
-            var assemblyName = assembly.FullName;
+            // simple assembly name is required for the mechanism in `ResolveAssembly()`
+            var assemblyName = assembly.Name.Name;
             if(!assemblyFromAssemblyName.ContainsKey(assemblyName))
             {
                 assemblyFromAssemblyName.Add(assemblyName, GetAssemblyDescription(assemblyName, path));
@@ -552,11 +523,11 @@ namespace Antmicro.Renode.Utilities
 
             foreach(var type in types)
             {
-            #if NET
+#if NET
                 if(type.Interfaces.Any(i => ResolveInner(i.InterfaceType)?.GetFullNameOfMember() == typeof(IPeripheral).FullName))
-            #else
+#else
                 if(type.Interfaces.Any(i => ResolveInner(i)?.GetFullNameOfMember() == typeof(IPeripheral).FullName))
-            #endif    
+#endif
                 {
                     Logger.LogAs(this, LogLevel.Noisy, "Peripheral type {0} found.", type.Resolve().GetFullNameOfMember());
                     foundPeripherals.Add(type);
@@ -613,9 +584,174 @@ namespace Antmicro.Renode.Utilities
                 {
                     ProcessExtractedExtensionMethods(extractedMethods);
                 }
+                DiscoverAbstractSuperclasses(type);
             }
 
             return true;
+        }
+
+        private bool TryExtractExtensionMethods(TypeDefinition type, out Dictionary<string, HashSet<MethodDescription>> extractedMethods)
+        {
+            // type is enclosing type
+            if(!type.IsClass)
+            {
+                extractedMethods = null;
+                return false;
+            }
+            var result = false;
+            extractedMethods = new Dictionary<string, HashSet<MethodDescription>>();
+            foreach(var method in type.Methods)
+            {
+                if(method.IsStatic && method.IsPublic && method.CustomAttributes.Any(x => x.AttributeType.GetFullNameOfMember() == typeof(System.Runtime.CompilerServices.ExtensionAttribute).FullName))
+                {
+                    // so this is extension method
+                    // let's check the type of the first parameter
+                    var paramType = method.Parameters[0].ParameterType;
+
+                    if(IsInterestingType(paramType) ||
+                        (paramType.GetFullNameOfMember() == typeof(object).FullName
+                        && method.CustomAttributes.Any(x => x.AttributeType.GetFullNameOfMember() == typeof(ExtensionOnObjectAttribute).FullName)))
+                    {
+                        result = true;
+                        // that's the interesting extension method
+                        var methodDescription = new MethodDescription(type.GetFullNameOfMember(), method.Name, GetMethodSignature(method), true);
+                        if(extractedMethods.ContainsKey(paramType.GetFullNameOfMember()))
+                        {
+                            extractedMethods[paramType.GetFullNameOfMember()].Add(methodDescription);
+                        }
+                        else
+                        {
+                            extractedMethods.Add(paramType.GetFullNameOfMember(), new HashSet<MethodDescription> { methodDescription });
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
+        private TypeDefinition ResolveInner(TypeReference tp)
+        {
+            if(isBundled)
+            {
+                try
+                {
+                    var scope = tp.GetElementType().Scope.ToString();
+                    var bundled = AssemblyHelper.GetBundledAssemblyByFullName(scope);
+                    if(bundled != null)
+                    {
+                        if(tp.IsArray)
+                        {
+                            // this supports only one-dimensional arrays for now
+                            var elementType = bundled.MainModule.GetType(tp.Namespace, tp.GetElementType().Name);
+                            return new ArrayType(elementType).Resolve();
+                        }
+
+                        return bundled.MainModule.GetType(tp.Namespace, tp.Name);
+                    }
+                }
+                catch
+                {
+                    // intentionally do nothing, we'll try to resolve it later
+                }
+            }
+
+            try
+            {
+                return tp.Resolve();
+            }
+            catch
+            {
+                // we couldn't resolve it in any way, just give up
+                return null;
+            }
+        }
+
+        private void BuildAssemblyCache()
+        {
+            assemblyFromAssemblyPath = new Dictionary<string, AssemblyDescription>();
+            foreach(var assembly in assemblyFromTypeName.Select(x => x.Value).Union(assembliesFromTypeName.SelectMany(x => x.Value)).Distinct())
+            {
+                assemblyFromAssemblyPath.Add(assembly.Path, assembly);
+            }
+            Logger.LogAs(this, LogLevel.Noisy, "Assembly cache with {0} distinct assemblies built.", assemblyFromAssemblyPath.Count);
+        }
+
+        private Type GetTypeWithLazyLoad(string name, string assemblyFullName, string path)
+        {
+            var fullName = string.Format("{0}, {1}", name, assemblyFullName);
+            var type = Type.GetType(fullName);
+            if(type == null)
+            {
+                //While Type.GetType on Mono is very liberal, finding the types even without the AQN provided, on Windows we have to either provide the assembly to search in or the full type name with AQN.
+                //This is useful when we're generating dynamic assemblies, via loading a cs file and compiling it ad-hoc.
+                var assembly = Assembly.LoadFrom(path);
+                type = assembly.GetType(name, true);
+                Logger.LogAs(this, LogLevel.Noisy, "Loaded assembly {0} ({1} triggered).", path, type.FullName);
+            }
+            return type;
+        }
+
+        private string GetUnifiedTypeName(Type type)
+        {
+            // type names returned by Type.ToString() and TypeReference.FullName differ by the type of brackets
+            return type.ToString().Replace('[', '<').Replace(']', '>');
+        }
+
+        private void ScanInner(string path, bool recursive)
+        {
+            // TODO: case insensitive
+            foreach(var assembly in Directory.GetFiles(path, "*.dll").Union(Directory.GetFiles(path, "*.exe")))
+            {
+                if(assemblyBlacklist.Any(x => assembly.Contains(x)))
+                {
+                    Logger.LogAs(this, LogLevel.Noisy, "Ignoring assembly '{0}'", assembly);
+                    continue;
+                }
+                AnalyzeAssembly(assembly, throwOnBadImage: false);
+            }
+            if(recursive)
+            {
+                foreach(var subdir in Directory.GetDirectories(path))
+                {
+                    ScanInner(subdir, recursive);
+                }
+            }
+        }
+
+        private Assembly ResolveAssembly(object sender, ResolveEventArgs args)
+        {
+            lock(dictSync)
+            {
+                AssemblyDescription description;
+                var simpleName = ExtractSimpleName(args.Name);
+                if(assemblyFromAssemblyName.TryGetValue(simpleName, out description))
+                {
+                    if(args.Name == description.FullName)
+                    {
+                        Logger.LogAs(this, LogLevel.Noisy, "Assembly '{0}' resolved by exact match from '{1}'.", args.Name, description.Path);
+                    }
+                    else
+                    {
+                        Logger.LogAs(this, LogLevel.Noisy, "Assembly '{0}' resolved by simple name '{1}' from '{2}'.", args.Name, simpleName, description.Path);
+                    }
+                    return Assembly.LoadFrom(description.Path);
+                }
+                return null;
+            }
+        }
+
+        private bool ImplementsInterface(TypeDefinition type, Type @interface)
+        {
+            if(type.GetFullNameOfMember() == @interface.FullName)
+            {
+                return true;
+            }
+
+#if NET
+            return (type.BaseType != null && ImplementsInterface(ResolveInner(type.BaseType), @interface)) || type.Interfaces.Any(i => ImplementsInterface(ResolveInner(i.InterfaceType), @interface));
+#else
+            return (type.BaseType != null && ImplementsInterface(ResolveInner(type.BaseType), @interface)) || type.Interfaces.Any(i => ImplementsInterface(ResolveInner(i), @interface));
+#endif
         }
 
         private void ProcessExtractedExtensionMethods(Dictionary<string, HashSet<MethodDescription>> methodsToStore)
@@ -636,80 +772,64 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        private bool IsAutoLoadType(TypeDefinition type)
+        private void DiscoverAbstractSuperclasses(TypeDefinition type)
         {
-        #if NET
-            var isAutoLoad = type.Interfaces.Select(x => x.InterfaceType.GetFullNameOfMember()).Contains(typeof(IAutoLoadType).FullName);
-        #else
-            var isAutoLoad = type.Interfaces.Select(x => x.GetFullNameOfMember()).Contains(typeof(IAutoLoadType).FullName);
-        #endif
-            if(isAutoLoad)
+            var baseType = type;
+            var name = type.FullName;
+            while(true)
             {
-                return true;
+                baseType = ResolveBaseType(baseType);
+                if(baseType == null)
+                {
+                    break;
+                }
+                if(!baseType.IsAbstract)
+                {
+                    continue;
+                }
+                if(concreteSubclassTypeNamesFromTypeName.TryGetValue(baseType.FullName, out var list))
+                {
+                    list.Add(name);
+                }
+                else
+                {
+                    concreteSubclassTypeNamesFromTypeName[baseType.FullName] = new List<string> { name };
+                }
             }
-            var resolved = ResolveBaseType(type);
-            if(resolved == null)
+        }
+
+        private Action<Type> autoLoadedTypeEvent;
+
+        private Dictionary<string, AssemblyDescription> assemblyFromAssemblyPath;
+        //AutoLoadedType will fire for each type even if the event is attached after the loading.
+        private readonly object autoLoadedTypeLocker = new object();
+        private readonly List<Type> autoLoadedTypes = new List<Type>();
+
+        public event Action<Type> AutoLoadedType
+        {
+            add
             {
-                return false;
+                // this lock is needed because it happens that two
+                // threads add the event simulataneously and an exception is rised
+                lock(autoLoadedTypeLocker)
+                {
+                    if(value != null)
+                    {
+                        foreach(var type in autoLoadedTypes)
+                        {
+                            value(type);
+                        }
+                        autoLoadedTypeEvent += value;
+                    }
+                }
             }
-            return IsAutoLoadType(resolved);
-        }
 
-        private TypeDefinition ResolveBaseType(TypeDefinition type)
-        {
-            return (type.BaseType == null)
-                ? null
-                : ResolveInner(type.BaseType);
-        }
-
-        private bool IsInterestingType(TypeReference type)
-        {
-            return interestingNamespacePrefixes.Any(x => type.Namespace.StartsWith(x));
-        }
-
-        private AssemblyDescription GetAssemblyDescription(string fullName, string path)
-        {
-            // maybe we already have one like that (interning)
-            if(assemblyFromAssemblyPath.ContainsKey(path))
+            remove
             {
-                return assemblyFromAssemblyPath[path];
-            }
-            var description = new AssemblyDescription(fullName, path);
-            assemblyFromAssemblyPath.Add(path, description);
-            return description;
-        }
-
-        private void ClearExtensionMethodsCache()
-        {
-            extensionMethodsFromThisType.Clear(); // to be consistent with string dictionary
-        }
-
-        private static string GetMethodSignature(MethodDefinition definition)
-        {
-            return definition.Parameters.Select(x => x.ParameterType.GetFullNameOfMember()).Aggregate((x, y) => x + "," + y);
-        }
-
-        private static string GetMethodSignature(MethodInfo info)
-        {
-            return info.GetParameters().Select(x => GetSimpleFullTypeName(x.ParameterType)).Aggregate((x, y) => x + "," + y);
-        }
-
-        private static string GetSimpleFullTypeName(Type type)
-        {
-            if(!type.IsGenericType)
-            {
-                return type.IsGenericParameter ? type.ToString() : type.FullName;
-            }
-            var result = string.Format("{0}<{1}>", type.GetGenericTypeDefinition().FullName,
-                                       type.GetGenericArguments().Select(x => GetSimpleFullTypeName(x)).Aggregate((x, y) => x + "," + y));
-            return result;
-        }
-
-        private int GetTypeCount()
-        {
-            lock(dictSync)
-            {
-                return assembliesFromTypeName.Count + assemblyFromTypeName.Count;
+                lock(autoLoadedTypeLocker)
+                {
+                    autoLoadedTypeEvent -= value;
+                }
             }
         }
 
@@ -718,7 +838,7 @@ namespace Antmicro.Renode.Utilities
         private readonly Dictionary<string, List<AssemblyDescription>> assembliesFromTypeName;
         private readonly Dictionary<string, HashSet<MethodDescription>> extensionMethodsTraceFromTypeFullName;
         private readonly Dictionary<Type, MethodInfo[]> extensionMethodsFromThisType;
-        private Dictionary<string, AssemblyDescription> assemblyFromAssemblyPath;
+        private readonly Dictionary<string, List<string>> concreteSubclassTypeNamesFromTypeName;
         private readonly object dictSync;
         private readonly HashSet<string> knownDirectories;
 
@@ -727,78 +847,8 @@ namespace Antmicro.Renode.Utilities
 
         private readonly bool isBundled;
 
-        private static string[] interestingNamespacePrefixes = new []
-        {
-            "Antmicro.Renode",
-            "NetMQ",
-        };
-
-        // This list filters out assemblies that are known not to be interesting for TypeManager.
-        // It has to be manualy catered for, but it shaves about 400ms from the startup time on mono and 2s on NET.
-        private static string[] assemblyBlacklist = new []
-        {
-            "AntShell.dll",
-            "AtkSharp.dll",
-            "BigGustave.dll",
-            "BitMiracle.LibJpeg.NET.dll",
-            "CairoSharp.dll",
-            "CookComputing.XmlRpcV2.dll",
-            "crypto.dll",
-            "CxxDemangler.dll",
-            "Dynamitey.dll",
-            "ELFSharp.dll",
-            "FdtSharp.dll",
-            "GdkSharp.dll",
-            "GioSharp.dll",
-            "GLibSharp.dll",
-            "GtkSharp.dll",
-            "IronPython.dll",
-            "IronPython.Modules.dll",
-            "IronPython.SQLite.dll",
-            "IronPython.StdLib.dll",
-            "IronPython.Wpf.dll",
-            "libtftp.dll",
-            "LZ4.dll",
-            "mcs.dll",
-            "Microsoft.Dynamic.dll",
-            "Microsoft.Scripting.dll",
-            "Microsoft.Scripting.Metadata.dll",
-            "Migrant.dll",
-            "Mono.Cecil.dll",
-            "Mono.Cecil.Mdb.dll",
-            "Mono.Cecil.Pdb.dll",
-            "Mono.Cecil.Rocks.dll",
-            "NaCl.dll",
-            "Newtonsoft.Json.dll",
-            "Nini.dll",
-            "NuGet.Frameworks.dll",
-            "nunit.engine.api.dll",
-            "nunit.engine.core.dll",
-            "nunit.engine.dll",
-            "nunit.framework.dll",
-            "NUnit3.TestAdapter.dll",
-            "OptionsParser.dll",
-            "PacketDotNet.dll",
-            "PangoSharp.dll",
-            "protobuf-net.dll",
-            "Sprache.dll",
-            "TermSharp.dll",
-            "testhost.dll",
-            "Xwt.dll",
-            "Xwt.Gtk.dll",
-            "Xwt.Gtk3.dll",
-            "Xwt.WPF.dll",
-            // Exclude from analysis all "Microsoft" and "System" assemblies.
-            "Microsoft.",
-            "System.",
-        };
-
         private class AssemblyDescription
         {
-            public readonly string Path;
-
-            public readonly string FullName;
-
             public AssemblyDescription(string fullName, string path)
             {
                 FullName = fullName;
@@ -819,6 +869,10 @@ namespace Antmicro.Renode.Utilities
             {
                 return Path.GetHashCode();
             }
+
+            public readonly string Path;
+
+            public readonly string FullName;
         }
 
         private struct MethodDescription

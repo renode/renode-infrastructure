@@ -5,9 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Linq;
-using System;
-using Antmicro.Renode.Peripherals.CPU;
+
 using Antmicro.Renode.Logging;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
@@ -20,8 +20,8 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
 
         [Execute("P")]
         public PacketData Execute(
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber, Separator = '=')]int registerNumber,
-            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)]byte[] value)
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber, Separator = '=')] int registerNumber,
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)] byte[] value)
         {
             var isLittleEndian = manager.Cpu.Endianness == Endianess.LittleEndian;
             var reg = manager.Cpu.GetRegisters().SingleOrDefault(x => x.Index == registerNumber);

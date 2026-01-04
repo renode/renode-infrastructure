@@ -1,11 +1,11 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -40,6 +40,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         public long Size => 0x1000;
+
         public GPIO IRQ { get; }
 
         private void DefineRegisters()
@@ -51,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     writeCallback: (_, val) => WriteData(val),
                     valueProviderCallback: _ => ReadData(),
                     name: "DATA (SPIP Read/Write Data)")
-                .WithChangeCallback((_,__) => UpdateInterrupts());
+                .WithChangeCallback((_, __) => UpdateInterrupts());
 
             registersMap[(long)Registers.Control1] = new WordRegister(this)
                 .WithFlag(0, out isEnabled, name: "SPIEN (SPI Enable)")

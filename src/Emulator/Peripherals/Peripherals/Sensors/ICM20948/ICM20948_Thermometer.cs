@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -34,16 +34,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 switch(resdTemperatureStream.TryGetCurrentSample(this, out var sample, out _))
                 {
                 case RESDStreamStatus.OK:
-                    return sample.Temperature / 1000m;
+                    break;
                 case RESDStreamStatus.BeforeStream:
                     return DefaultTemperature;
                 case RESDStreamStatus.AfterStream:
                     resdTemperatureStream.Dispose();
                     resdTemperatureStream = null;
-                    return DefaultTemperature;
+                    break;
                 default:
                     return DefaultTemperature;
                 }
+                return sample.Temperature / 1000m;
             }
 
             set => throw new RecoverableException($"Explicitly setting temperature is not supported by this model. " +

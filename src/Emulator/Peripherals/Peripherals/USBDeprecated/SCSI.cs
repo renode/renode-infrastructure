@@ -6,43 +6,19 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public class SCSI
     {
-        public SCSI ()
+        public SCSI()
         {
         }
 
         public class CommandDescriptorBlock
         {
-            public byte Size;
-            public byte OperationCode;
-            public byte MiscCDBInformation1;
-            public uint LogicalBlockAddress;
-            public byte MiscCDBInformation2;
-            public byte ServiceAction;
-
-            public uint TransferLength;
-            public uint ParameterListLength;
-            public uint AllocationLength;
-            public byte Control;
-
-            public enum GroupCode:byte
-            {
-                TestUnitReady = 0x00,
-		RequestSense = 0x03,
-                Inquiry = 0x12,
-                ReadCapacity = 0x25,
-                ModeSense = 0x1A,
-                PreventAllowMediumRemoval = 0x1E,
-                Read10 = 0x28,
-                Write10 = 0x2A
-            }
-
             public void Fill(byte[] data)
             {
                 this.Size = (byte)data.Length;
@@ -82,12 +58,78 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 {
                     Logger.LogAs(this, LogLevel.Warning, "Unsupported Command Descriptor Block Length");
                 }
-
             }
-       }
 
-       public class StandardInquiryData
+            public byte Size;
+            public byte OperationCode;
+            public byte MiscCDBInformation1;
+            public uint LogicalBlockAddress;
+            public byte MiscCDBInformation2;
+            public byte ServiceAction;
+
+            public uint TransferLength;
+            public uint ParameterListLength;
+            public uint AllocationLength;
+            public byte Control;
+
+            public enum GroupCode : byte
+            {
+                TestUnitReady = 0x00,
+                RequestSense = 0x03,
+                Inquiry = 0x12,
+                ReadCapacity = 0x25,
+                ModeSense = 0x1A,
+                PreventAllowMediumRemoval = 0x1E,
+                Read10 = 0x28,
+                Write10 = 0x2A
+            }
+        }
+
+        public class StandardInquiryData
         {
+            public void FillVendor(string vendorStr)
+            {
+                for(int i = 0; i < 8; i++)
+                {
+                    this.VendorIdentificationT10[i] = (byte)vendorStr[i];
+                }
+            }
+
+            public void FillIdentification(string identStr)
+            {
+                for(int i = 0; i < 16; i++)
+                {
+                    this.ProductIdentification[i] = (byte)identStr[i];
+                }
+            }
+
+            public void FillRevision(string revisionStr)
+            {
+                for(int i = 0; i < 4; i++)
+                {
+                    this.ProductRevisionLevel[i] = (byte)revisionStr[i];
+                }
+            }
+
+            public byte[] ToArray()
+            {
+                arr[0] = (byte)(((this.PeripheralQualifier & 0x07) << 5) | (byte)(this.PeripheralDeviceType & 0x1fu));
+                arr[1] = this.RMB ? (byte)(1u << 7) : (byte)0;
+                arr[2] = this.Version;
+                arr[3] = (byte)((this.NormalACASupport ? (byte)(1u << 5) : (byte)0u) | (this.HierachicalSupport ? (byte)(1u << 4) : (byte)0u) | (byte)(this.ResponseDataFormat & 0x0fu));
+                arr[4] = this.AdditionalLength;
+                arr[5] = (byte)((byte)(this.SCCSupport ? 1u << 7 : 0u) | (byte)(this.AccessControlsCoordintor ? 1u << 6 : 0u) | (byte)((this.TargetPortGroupSupport & 0x03u) << 4));
+                arr[5] |= (byte)((byte)(this.ThirdPartyCopy ? 1u << 3 : 0u) | (byte)(this.Protect ? 1u << 0 : 0u));
+                arr[6] = (byte)((byte)(this.BasingQueuing ? 1u << 7 : 0u) | (byte)(this.EnclosureServices ? 1u << 6 : 0u) | (byte)(this.VS1 ? 1u << 5 : 0u) | (byte)(this.MultiPort ? 1u << 7 : 0u));
+                arr[6] |= (byte)((byte)(this.MediumChanger ? 1u << 3 : 0u) | (byte)(this.ADDR16 ? 1u << 0 : 0u));
+                arr[7] = (byte)((byte)(this.WBUS16a ? 1u << 5 : 0u) | (byte)(this.Sync ? 1u << 4 : 0u) | (byte)(this.CommandQueuing ? 1u << 1 : 0u) | (byte)(this.VS2 ? 1u << 0 : 0u));
+                Array.Copy(this.VendorIdentificationT10, 0, arr, 8, this.VendorIdentificationT10.Length);
+                Array.Copy(this.ProductIdentification, 0, arr, 16, this.ProductIdentification.Length);
+                Array.Copy(this.ProductRevisionLevel, 0, arr, 32, this.ProductRevisionLevel.Length);
+
+                return arr;
+            }
+
             public byte PeripheralQualifier;
             public byte PeripheralDeviceType;
             public bool RMB;
@@ -116,76 +158,43 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             public byte[] ProductIdentification = new byte[16];
             public byte[] ProductRevisionLevel = new byte[4];
 
-            public void FillVendor(string vendorStr)
-            {
-                for(int i=0;i<8;i++)
-                {
-                    this.VendorIdentificationT10[i] = (byte)vendorStr[i];
-                }
-            }
-
-            public void FillIdentification(string identStr)
-            {
-                for(int i=0;i<16;i++)
-                {
-                    this.ProductIdentification[i] = (byte)identStr[i];
-                }
-            }
-
-            public void FillRevision(string revisionStr)
-            {
-                for(int i=0;i<4;i++)
-                {
-                    this.ProductRevisionLevel[i] = (byte)revisionStr[i];
-                }
-            }
-
-            public byte[] ToArray()
-            {
-                arr[0] = (byte)(((this.PeripheralQualifier & 0x07)<<5) | (byte)(this.PeripheralDeviceType & 0x1fu));
-                arr[1] = this.RMB ? (byte) (1u<<7): (byte) 0;
-                arr[2] = this.Version;
-                arr[3] = (byte)((this.NormalACASupport ? (byte) (1u<<5) : (byte) 0u) | (this.HierachicalSupport ? (byte) (1u<<4) : (byte) 0u) | (byte)(this.ResponseDataFormat & 0x0fu));
-                arr[4] = this.AdditionalLength;
-                arr[5] = (byte)( (byte)(this.SCCSupport ? 1u<<7 : 0u) | (byte)(this.AccessControlsCoordintor ? 1u<<6 : 0u) | (byte)((this.TargetPortGroupSupport & 0x03u) << 4));
-                arr[5]|= (byte)( (byte)(this.ThirdPartyCopy ? 1u<<3 : 0u) | (byte)(this.Protect ? 1u<<0 : 0u) );
-                arr[6] = (byte)( (byte)(this.BasingQueuing ? 1u<<7 : 0u) | (byte)(this.EnclosureServices ? 1u<<6 : 0u) | (byte)(this.VS1 ? 1u<<5 : 0u) | (byte)(this.MultiPort ? 1u<<7 : 0u));
-                arr[6]|= (byte)( (byte)(this.MediumChanger ? 1u<<3 : 0u) | (byte)(this.ADDR16 ? 1u<<0 : 0u));
-                arr[7] = (byte)( (byte)(this.WBUS16a ? 1u<<5 : 0u) | (byte)(this.Sync ? 1u<<4 : 0u) | (byte)(this.CommandQueuing ? 1u<<1 : 0u) | (byte)(this.VS2 ? 1u<<0 : 0u));
-                Array.Copy(this.VendorIdentificationT10, 0, arr, 8, this.VendorIdentificationT10.Length);
-                Array.Copy(this.ProductIdentification, 0, arr, 16, this.ProductIdentification.Length);
-                Array.Copy(this.ProductRevisionLevel, 0, arr, 32, this.ProductRevisionLevel.Length);
-
-                return arr;
-            }
-
-            private byte[] arr = new byte[36];
-
+            private readonly byte[] arr = new byte[36];
         }
 
         public class CapacityDataStructure
         {
-            public uint ReturnedLBA;
-            public uint BlockLength;
-            private byte[] arr = new byte[8];
             public byte[] ToArray()
             {
-                arr[0] = (byte) ((ReturnedLBA & 0xff000000) >> 24);
-                arr[1] = (byte) ((ReturnedLBA & 0x00ff0000) >> 16);
-                arr[2] = (byte) ((ReturnedLBA & 0x0000ff00) >> 8);
-                arr[3] = (byte) ((ReturnedLBA & 0x000000ff) >> 0);
+                arr[0] = (byte)((ReturnedLBA & 0xff000000) >> 24);
+                arr[1] = (byte)((ReturnedLBA & 0x00ff0000) >> 16);
+                arr[2] = (byte)((ReturnedLBA & 0x0000ff00) >> 8);
+                arr[3] = (byte)((ReturnedLBA & 0x000000ff) >> 0);
 
-                arr[4] = (byte) ((BlockLength & 0xff000000) >> 24);
-                arr[5] = (byte) ((BlockLength & 0x00ff0000) >> 16);
-                arr[6] = (byte) ((BlockLength & 0x0000ff00) >> 8);
-                arr[7] = (byte) ((BlockLength & 0x000000ff) >> 0);
+                arr[4] = (byte)((BlockLength & 0xff000000) >> 24);
+                arr[5] = (byte)((BlockLength & 0x00ff0000) >> 16);
+                arr[6] = (byte)((BlockLength & 0x0000ff00) >> 8);
+                arr[7] = (byte)((BlockLength & 0x000000ff) >> 0);
 
                 return arr;
             }
+
+            public uint ReturnedLBA;
+            public uint BlockLength;
+            private readonly byte[] arr = new byte[8];
         }
 
         public class ModeSenseCommand
         {
+            public void Fill(byte[] data)
+            {
+                this.OperationCode = data[0];
+                this.DisableBlockDescriptors = ((data[1] & 1u << 3) != 0) ? true : false;
+                this.PageCode = (byte)((data[2] & 0xC0) >> 6);
+                this.SubpageCode = data[3];
+                this.AllocationLength = data[4];
+                this.Control = data[5];
+            }
+
             public byte OperationCode;
             public bool DisableBlockDescriptors;
             public byte PageControl;
@@ -193,26 +202,16 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             public byte SubpageCode;
             public byte AllocationLength;
             public byte Control;
-
-            public void Fill(byte[] data)
-            {
-                this.OperationCode = data[0];
-                this.DisableBlockDescriptors = ((data[1] & 1u<<3)!=0) ? true:false;
-                this.PageCode = (byte)((data[2]&0xC0) >> 6);
-                this.SubpageCode = data[3];
-                this.AllocationLength = data[4];
-                this.Control = data[5];
-            }
         }
 
-        public enum PeripheralQualifier:byte
+        public enum PeripheralQualifier : byte
         {
             Connected = 0x0,
             Disconnected = 0x01,
             NotSuported = 0x3
         }
 
-        public enum PeripheralDeviceType:byte
+        public enum PeripheralDeviceType : byte
         {
             DirectAccessBlockDevice = 0x00,
             SequentialAccessBlockDevice = 0x01,
@@ -243,14 +242,12 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             Standard = 0x05
         }
 
-        public enum TargetGroupPortSupportCode:byte
+        public enum TargetGroupPortSupportCode : byte
         {
             AsimetricLogicalUnitAccesNotSupported = 0x00,
             ImplicitAsimetricLogicalUnitAccessOnly = 0x01,
             ExplicitAsimetricLogicalUnitAccessOnly = 0x02,
             BothAsimetricLogicalUnitAccess = 0x03,
         }
-
     }
 }
-

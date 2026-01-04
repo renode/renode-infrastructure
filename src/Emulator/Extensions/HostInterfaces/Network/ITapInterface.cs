@@ -5,8 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals.Network;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.Network;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
@@ -15,4 +16,3 @@ namespace Antmicro.Renode.HostInterfaces.Network
         string InterfaceName { get; }
     }
 }
-

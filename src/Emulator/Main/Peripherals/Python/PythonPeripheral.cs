@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,6 +7,7 @@
 //
 
 using System.IO;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
@@ -60,66 +61,83 @@ namespace Antmicro.Renode.Peripherals.Python
             {
                 if(!File.Exists(this.filename))
                 {
-                    throw new ConstructionException(string.Format("Could not find source file for the script: {0}.", this.filename));
+                    throw new ConstructionException($"Could not find source file for the script: {this.filename}.");
                 }
-                this.pythonRunner = new PeripheralPythonEngine(this, x => x.CreateScriptSourceFromFile(this.filename));
+
+                try
+                {
+                    this.pythonRunner = new PeripheralPythonEngine(this, x => x.CreateScriptSourceFromFile(this.filename));
+                }
+                catch(RecoverableException e)
+                {
+                    throw new ConstructionException($"Error encountered when loading Python peripheral from: {this.filename}.", e);
+                }
+            }
+        }
+
+        public void EnsureInit()
+        {
+            if(!inited)
+            {
+                Init();
+                inited = true;
             }
         }
 
         public void SetAbsoluteAddress(ulong address)
         {
-            pythonRunner.Request.absolute = address;
+            pythonRunner.Request.Absolute = address;
         }
 
         public byte ReadByte(long offset)
         {
-            pythonRunner.Request.length = 1;
+            pythonRunner.Request.Length = 1;
             HandleRead(offset);
-            return unchecked((byte)pythonRunner.Request.value);
+            return unchecked((byte)pythonRunner.Request.Value);
         }
 
         public void WriteByte(long offset, byte value)
         {
-            pythonRunner.Request.length = 1;
+            pythonRunner.Request.Length = 1;
             HandleWrite(offset, value);
         }
 
         public uint ReadDoubleWord(long offset)
         {
-            pythonRunner.Request.length = 4;
+            pythonRunner.Request.Length = 4;
             HandleRead(offset);
-            return unchecked((uint)pythonRunner.Request.value);
+            return unchecked((uint)pythonRunner.Request.Value);
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            pythonRunner.Request.length = 4;
+            pythonRunner.Request.Length = 4;
             HandleWrite(offset, value);
         }
 
         public ulong ReadQuadWord(long offset)
         {
-            pythonRunner.Request.length = 8;
+            pythonRunner.Request.Length = 8;
             HandleRead(offset);
-            return unchecked(pythonRunner.Request.value);
+            return unchecked(pythonRunner.Request.Value);
         }
 
         public void WriteQuadWord(long offset, ulong value)
         {
-            pythonRunner.Request.length = 8;
+            pythonRunner.Request.Length = 8;
             HandleWrite(offset, value);
         }
 
         public ushort ReadWord(long offset)
         {
-            pythonRunner.Request.length = 2;
+            pythonRunner.Request.Length = 2;
             HandleRead(offset);
-            return unchecked((ushort)pythonRunner.Request.value);
+            return unchecked((ushort)pythonRunner.Request.Value);
         }
 
         public void WriteWord(long offset, ushort value)
         {
-            pythonRunner.Request.length = 2;
+            pythonRunner.Request.Length = 2;
             HandleWrite(offset, value);
         }
 
@@ -133,13 +151,13 @@ namespace Antmicro.Renode.Peripherals.Python
         {
             EnsureInit();
 
-            pythonRunner.Request.value = 0;
-            pythonRunner.Request.type = PeripheralPythonEngine.PythonRequest.RequestType.USER;
-            pythonRunner.Request.offset = command;
-            pythonRunner.Request.value = value;
-            pythonRunner.Request.length = 8;
+            pythonRunner.Request.Value = 0;
+            pythonRunner.Request.Type = PeripheralPythonEngine.PythonRequest.RequestType.USER;
+            pythonRunner.Request.Offset = command;
+            pythonRunner.Request.Value = value;
+            pythonRunner.Request.Length = 8;
             Execute();
-            return unchecked(pythonRunner.Request.value);
+            return unchecked(pythonRunner.Request.Value);
         }
 
         public void Reset()
@@ -151,15 +169,6 @@ namespace Antmicro.Renode.Peripherals.Python
         public long Size
         {
             get { return size; }
-        }
-
-        public void EnsureInit()
-        {
-            if(!inited)
-            {
-                Init();
-                inited = true;
-            }
         }
 
         public string Code
@@ -174,7 +183,7 @@ namespace Antmicro.Renode.Peripherals.Python
         {
             if(initable)
             {
-                pythonRunner.Request.type = PeripheralPythonEngine.PythonRequest.RequestType.INIT;
+                pythonRunner.Request.Type = PeripheralPythonEngine.PythonRequest.RequestType.INIT;
                 Execute();
             }
         }
@@ -183,10 +192,10 @@ namespace Antmicro.Renode.Peripherals.Python
         {
             EnsureInit();
 
-            pythonRunner.Request.value = 0;
-            pythonRunner.Request.type = PeripheralPythonEngine.PythonRequest.RequestType.READ;
-            pythonRunner.Request.offset = offset;
-            pythonRunner.Request.counter = requestCounter++;
+            pythonRunner.Request.Value = 0;
+            pythonRunner.Request.Type = PeripheralPythonEngine.PythonRequest.RequestType.READ;
+            pythonRunner.Request.Offset = offset;
+            pythonRunner.Request.Counter = requestCounter++;
             Execute();
         }
 
@@ -194,10 +203,10 @@ namespace Antmicro.Renode.Peripherals.Python
         {
             EnsureInit();
 
-            pythonRunner.Request.value = value;
-            pythonRunner.Request.type = PeripheralPythonEngine.PythonRequest.RequestType.WRITE;
-            pythonRunner.Request.offset = offset;
-            pythonRunner.Request.counter = requestCounter++;
+            pythonRunner.Request.Value = value;
+            pythonRunner.Request.Type = PeripheralPythonEngine.PythonRequest.RequestType.WRITE;
+            pythonRunner.Request.Offset = offset;
+            pythonRunner.Request.Counter = requestCounter++;
             Execute();
         }
 

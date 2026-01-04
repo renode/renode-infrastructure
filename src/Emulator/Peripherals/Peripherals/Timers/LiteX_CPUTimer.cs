@@ -26,12 +26,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             DefineRegisters();
         }
 
-        public long Size => 0x100;
-
-        public GPIO IRQ {get;}
-
-        public ulong TimerValue => innerTimer.Value;
-
         public override void Reset()
         {
             base.Reset();
@@ -40,6 +34,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             latchedValue = 0;
             IRQ.Set(false);
         }
+
+        public long Size => 0x100;
+
+        public GPIO IRQ { get; }
+
+        public ulong TimerValue => innerTimer.Value;
 
         private void DefineRegisters()
         {
@@ -86,8 +86,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             });
         }
 
-        private readonly ComparingTimer innerTimer;
         private ulong latchedValue;
+
+        private readonly ComparingTimer innerTimer;
 
         private enum Register
         {

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,9 +7,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
@@ -165,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 humidityBytes[1], humidityBytes[0], temperatureBytes[1], temperatureBytes[0]
             };
 
-            SetStatusBits(ref measurement[0], MeasurementStatus.Valid); 
+            SetStatusBits(ref measurement[0], MeasurementStatus.Valid);
             return measurement;
         }
 
@@ -211,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         }
 
         private decimal GetSampleFromRESDStream<T>(ref RESDStream<T> stream, Func<T, decimal> transformer, decimal defaultValue)
-            where T: RESDSample, new()
+            where T : RESDSample, new()
         {
             if(stream == null)
             {
@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             case RESDStreamStatus.AfterStream:
                 stream.Dispose();
                 stream = null;
-                return defaultValue;
+                return sample;
             default:
                 throw new Exception("Unreachable");
             }
@@ -315,12 +315,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     valueProviderCallback: _ => sensorIdLow);
         }
 
-        private readonly IMachine machine;
-        private readonly List<byte> registerWriteBuffer;
-
-        private readonly ushort sensorIdHigh;
-        private readonly ushort sensorIdLow;
-
         private Registers? currentRegister;
         private RESDStream<TemperatureSample> resdTemperatureStream;
         private RESDStream<HumiditySample> resdHumidityStream;
@@ -333,6 +327,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private decimal temperature;
         private decimal humidity;
+
+        private readonly IMachine machine;
+        private readonly List<byte> registerWriteBuffer;
+
+        private readonly ushort sensorIdHigh;
+        private readonly ushort sensorIdLow;
 
         private const byte MeasurementBits = 14;
         private const ushort MaxMeasurementValue = (1 << MeasurementBits) - 1;
@@ -363,7 +363,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             Stale = 0x1,
         }
 
-        private enum MeasurementResolution: byte
+        private enum MeasurementResolution : byte
         {
             Bits8 = 0b00,
             Bits10 = 0b01,

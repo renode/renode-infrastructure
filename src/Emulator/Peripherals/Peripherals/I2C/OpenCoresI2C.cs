@@ -1,16 +1,16 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Core.Structure;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -35,7 +35,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                 {(long)Registers.Receive, new ByteRegister(this)
                     .WithValueField(0, 8, out receiveBuffer, FieldMode.Read)
                 },
-
                 {(long)Registers.Status, new ByteRegister(this)
                     .WithFlag(7, out receivedAckFromSlaveNegated, FieldMode.Read)
                     .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => transactionInProgress, name: "Busy")
@@ -52,7 +51,6 @@ namespace Antmicro.Renode.Peripherals.I2C
                 {(long)Registers.Transmit, new ByteRegister(this)
                     .WithValueField(0, 8, out transmitBuffer, FieldMode.Write)
                 },
-
                 {(long)Registers.Command, new ByteRegister(this)
                     .WithFlag(7, out generateStartCondition, FieldMode.Write)
                     .WithFlag(6, out generateStopCondition, FieldMode.Write)
@@ -150,9 +148,9 @@ namespace Antmicro.Renode.Peripherals.I2C
             var slaveAddress = (byte)(transmitBuffer.Value >> 1);
             if(!ChildCollection.TryGetValue(slaveAddress, out selectedSlave))
             {
-                 this.Log(LogLevel.Warning, "Addressing unregistered slave: 0x{0:X}", slaveAddress);
-                 receivedAckFromSlaveNegated.Value = true;
-                 return false;
+                this.Log(LogLevel.Warning, "Addressing unregistered slave: 0x{0:X}", slaveAddress);
+                receivedAckFromSlaveNegated.Value = true;
+                return false;
             }
 
             receivedAckFromSlaveNegated.Value = false;
@@ -167,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 {
                     dataFromSlave.Enqueue(b);
                 }
-                
+
                 if(dataFromSlave.Count == 0)
                 {
                     this.Log(LogLevel.Warning, "Trying to read from slave, but no data is available");

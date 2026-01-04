@@ -14,11 +14,11 @@ namespace Antmicro.Renode.Peripherals
     public interface IPhysicalLayer<T, V> : IPhysicalLayer
     {
         V Read(T addr);
+
         void Write(T addr, V val);
     }
 
-    public interface IPhysicalLayer: IPeripheral
+    public interface IPhysicalLayer : IPeripheral
     {
     }
 }
-

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,11 +7,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.IO;
-using Antmicro.Renode.Logging;
+using System.Linq;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Utilities.RESD
 {
@@ -96,6 +97,12 @@ namespace Antmicro.Renode.Utilities.RESD
             serializedBuffer = null;
         }
 
+        private byte[] serializedBuffer;
+        private readonly string filePath;
+
+        private const byte SupportedVersion = 0x1;
+        private const int HeaderPaddingLength = 3;
+
         private class DataBlockEnumerator : IEnumerator<IDataBlock>, IEnumerable<IDataBlock>
         {
             public DataBlockEnumerator(LowLevelRESDParser parser, Type sampleFilter)
@@ -152,15 +159,19 @@ namespace Antmicro.Renode.Utilities.RESD
                     Type dataBlockType;
                     switch(dataBlockHeader.BlockType)
                     {
-                        case BlockType.ConstantFrequencySamples:
-                            dataBlockType = typeof(ConstantFrequencySamplesDataBlock<>).MakeGenericType(new[] { classType });
-                            break;
+                    case BlockType.ConstantFrequencySamples:
+                        dataBlockType = typeof(ConstantFrequencySamplesDataBlock<>).MakeGenericType(new[] { classType });
+                        break;
 
-                        default:
-                            // skip the rest of the unsupported block
-                            parser.LogCallback?.Invoke(LogLevel.Warning, $"RESD: Skipping unupported block of type {dataBlockHeader.BlockType} and size {dataBlockHeader.Size} bytes");
-                            reader.SkipBytes((int)dataBlockHeader.Size);
-                            continue;
+                    case BlockType.ArbitraryTimestampSamples:
+                        dataBlockType = typeof(ArbitraryTimestampSamplesDataBlock<>).MakeGenericType(new[] { classType });
+                        break;
+
+                    default:
+                        // skip the rest of the unsupported block
+                        parser.LogCallback?.Invoke(LogLevel.Warning, $"RESD: Skipping unupported block of type {dataBlockHeader.BlockType} and size {dataBlockHeader.Size} bytes");
+                        reader.SkipBytes((int)dataBlockHeader.Size);
+                        continue;
                     }
 
                     Current = (IDataBlock)dataBlockType.GetMethod("ReadFromStream").Invoke(null, new object[] { dataBlockHeader, limitedReader });
@@ -185,6 +196,7 @@ namespace Antmicro.Renode.Utilities.RESD
             }
 
             public IDataBlock Current { get; private set; }
+
             object IEnumerator.Current => Current;
 
             public long FirstBlockOffset { get; private set; }
@@ -223,11 +235,6 @@ namespace Antmicro.Renode.Utilities.RESD
             private readonly Type sampleFilter;
         }
 
-        private byte[] serializedBuffer;
-        private readonly string filePath;
-
-        private const byte SupportedVersion = 0x1;
-        private const int HeaderPaddingLength = 3;
         private static readonly byte[] MagicValue = new byte[] { (byte)'R', (byte)'E', (byte)'S', (byte)'D' };
     }
 }

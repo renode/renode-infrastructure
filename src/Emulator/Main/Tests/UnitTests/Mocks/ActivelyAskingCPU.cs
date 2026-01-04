@@ -5,8 +5,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Threading;
+
 using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.UnitTests.Mocks
@@ -45,9 +45,8 @@ namespace Antmicro.Renode.UnitTests.Mocks
             finished.Set();
         }
 
-        private CancellationTokenSource tokenSource;
+        private readonly CancellationTokenSource tokenSource;
         private readonly ManualResetEventSlim finished;
         private readonly ulong addressToAsk;
     }
 }
-

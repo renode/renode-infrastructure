@@ -6,10 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Renode.Peripherals;
 using System.Collections.Generic;
-using Antmicro.Renode.Exceptions;
 using System.Linq;
+
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Core.Structure
 {
@@ -21,24 +23,6 @@ namespace Antmicro.Renode.Core.Structure
     public abstract class SimpleContainerBase<T> : IPeripheralContainer<T, NumberRegistrationPoint<int>>, IDisposable, ISimpleContainer
          where T : IPeripheral
     {
-        public void Register(T peripheral, int address)
-        {
-            Register(peripheral, new NumberRegistrationPoint<int>(address));
-        }
-
-        public virtual IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(T peripheral)
-        {
-            return ChildCollection.Keys.Select(x => new NumberRegistrationPoint<int>(x)).ToList();
-        }
-
-        public virtual IEnumerable<IRegistered<T, NumberRegistrationPoint<int>>> Children
-        {
-            get
-            {
-                return ChildCollection.Select(x => Registered.Create(x.Value, new NumberRegistrationPoint<int>(x.Key))).ToList();
-            }
-        }
-
         public virtual void Register(T peripheral, NumberRegistrationPoint<int> registrationPoint)
         {
             if(ChildCollection.ContainsKey(registrationPoint.Address))
@@ -63,7 +47,7 @@ namespace Antmicro.Renode.Core.Structure
 
         public virtual void Dispose()
         {
-            foreach(var child in ChildCollection.Values.OfType<IDisposable>())
+            foreach(var child in ChildCollection.Values.OfType<IDisposable>().Where(c => !(c is ICPU)))
             {
                 child.Dispose();
             }
@@ -71,7 +55,30 @@ namespace Antmicro.Renode.Core.Structure
             ChildCollection.Clear();
         }
 
+        public void Register(T peripheral, int address)
+        {
+            Register(peripheral, new NumberRegistrationPoint<int>(address));
+        }
+
+        public virtual IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(T peripheral)
+        {
+            return ChildCollection.Keys.Select(x => new NumberRegistrationPoint<int>(x)).ToList();
+        }
+
+        public virtual IEnumerable<IRegistered<T, NumberRegistrationPoint<int>>> Children
+        {
+            get
+            {
+                return ChildCollection.Select(x => Registered.Create(x.Value, new NumberRegistrationPoint<int>(x.Key))).ToList();
+            }
+        }
+
         Dictionary<int, IPeripheral> ISimpleContainer.ChildCollection => this.ChildCollection.ToDictionary(k => k.Key, v => (IPeripheral)v.Value);
+
+        protected SimpleContainerBase()
+        {
+            ChildCollection = new Dictionary<int, T>();
+        }
 
         protected T GetByAddress(int address)
         {
@@ -88,19 +95,12 @@ namespace Antmicro.Renode.Core.Structure
             return ChildCollection.TryGetValue(address, out peripheral);
         }
 
-        protected SimpleContainerBase()
-        {
-            ChildCollection =  new Dictionary<int, T>();
-        }
-
         protected Dictionary<int, T> ChildCollection;
     }
 
     public abstract class SimpleContainer<T> : SimpleContainerBase<T>, IPeripheral
          where T : IPeripheral
     {
-        public abstract void Reset();
-
         public override void Register(T peripheral, NumberRegistrationPoint<int> registrationPoint)
         {
             base.Register(peripheral, registrationPoint);
@@ -112,6 +112,8 @@ namespace Antmicro.Renode.Core.Structure
             base.Unregister(peripheral);
             machine.UnregisterAsAChildOf(this, peripheral);
         }
+
+        public abstract void Reset();
 
         protected SimpleContainer(IMachine machine) : base()
         {

@@ -10,7 +10,6 @@ using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using System;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
@@ -76,9 +75,8 @@ namespace Antmicro.Renode.Peripherals.Video
         private uint bufferAddress = 0xFFFFFFFF;
 
         private readonly IBusController sysbus;
-       
+
         private const int DefaultWidth = 640;
         private const int DefaultHeight = 480;
     }
 }
-

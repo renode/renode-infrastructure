@@ -5,10 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public uint ReadDoubleWord(long offset)
         {
-            return registers.Read(offset);;
+            return registers.Read(offset); ;
         }
 
         public void WriteDoubleWord(long offset, uint value)
@@ -47,7 +47,9 @@ namespace Antmicro.Renode.Peripherals.UART
         public GPIO IRQ { get; }
 
         public override uint BaudRate => 115200;
+
         public override Parity ParityBit => Parity.None;
+
         public override Bits StopBits => Bits.One;
 
         public long Size => 0x10000;

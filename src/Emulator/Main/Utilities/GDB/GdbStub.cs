@@ -6,58 +6,34 @@
 //
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Migrant;
-using System.Linq;
-using System.IO;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
     [Transient]
-    public class GdbStub : IDisposable, IExternal
+    public class GdbStub : IDisposable, IExternal, IDisconnectableState
     {
         public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation)
+            : this(machine, cpus)
         {
-            this.cpus = cpus;
-            Port = port;
-
-            LogsEnabled = true;
-
-            pcktBuilder = new PacketBuilder();
-            commandsManager = new CommandsManager(machine, cpus);
-            TypeManager.Instance.AutoLoadedType += commandsManager.Register;
-
             terminal = new SocketServerProvider(false, serverName: "GDB");
-            terminal.DataReceived += OnByteWritten;
-            terminal.ConnectionAccepted += delegate
-            {
-                commandsManager.CanAttachCPU = false;
-                foreach(var cpu in commandsManager.ManagedCpus)
-                {
-                    cpu.Halted += OnHalted;
-                    cpu.ExecutionMode = ExecutionMode.SingleStep;
-                    cpu.DebuggerConnected = true;
-                }
-                if(autostartEmulation && !EmulationManager.Instance.CurrentEmulation.IsStarted)
-                {
-                    EmulationManager.Instance.CurrentEmulation.StartAll();
-                }
-            };
-            terminal.ConnectionClosed += delegate
-            {
-                foreach(var cpu in commandsManager.ManagedCpus)
-                {
-                    cpu.Halted -= OnHalted;
-                    cpu.ExecutionMode = ExecutionMode.Continuous;
-                    cpu.DebuggerConnected = false;
-                }
-                commandsManager.CanAttachCPU = true;
-            };
+            SetupTerminal(connected: false, autostartEmulation: autostartEmulation);
             terminal.Start(port);
-            commHandler = new CommunicationHandler(this, commandsManager);
+            LogsEnabled = false;
+        }
 
+        public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, SocketServerProvider terminal)
+            : this(machine, cpus)
+        {
+            this.terminal = terminal;
+            SetupTerminal(connected: true, autostartEmulation: false);
             LogsEnabled = false;
         }
 
@@ -71,13 +47,23 @@ namespace Antmicro.Renode.Utilities.GDB
             return commandsManager.IsCPUAttached(cpu);
         }
 
+        public void DisconnectState()
+        {
+            terminal.ClearConnectionEvents();
+            disconnectedState = true;
+        }
+
         public void Dispose()
         {
             foreach(var cpu in cpus)
             {
                 cpu.Halted -= OnHalted;
             }
-            terminal.Dispose();
+
+            if(!disconnectedState)
+            {
+                terminal.Dispose();
+            }
         }
 
         public event Action<Stream> ConnectionAccepted
@@ -86,11 +72,149 @@ namespace Antmicro.Renode.Utilities.GDB
             remove => terminal.ConnectionAccepted -= value;
         }
 
-        public int Port { get; private set; }
+        public IEnumerable<string> AttachedCPUNames => cpus.Select(cpu => commandsManager.Machine.GetLocalName(cpu));
+
+        public int Port => Terminal.Port.Value;
 
         public bool LogsEnabled { get; set; }
 
         public bool GdbClientConnected => !commandsManager.CanAttachCPU;
+
+        public SocketServerProvider Terminal => terminal;
+
+        public CommandsManager CommandsManager => commandsManager;
+
+        private GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus)
+        {
+            this.cpus = cpus;
+            LogsEnabled = true;
+
+            pcktBuilder = new PacketBuilder();
+            commandsManager = new CommandsManager(machine, cpus);
+            commHandler = new CommunicationHandler(this, commandsManager);
+            TypeManager.Instance.AutoLoadedType += commandsManager.Register;
+            EmulationManager.PreservableManager.RegisterPreservable(this, livesThroughEmulationChange: false);
+        }
+
+        private void SetupTerminal(bool connected, bool autostartEmulation)
+        {
+            terminal.DataReceived += OnByteWritten;
+            terminal.ConnectionClosed += OnConnectionClosed;
+
+            terminal.ConnectionAccepted += delegate
+            {
+                OnConnectionAccepted();
+                if(autostartEmulation && !EmulationManager.Instance.CurrentEmulation.IsStarted)
+                {
+                    EmulationManager.Instance.CurrentEmulation.StartAll();
+                }
+            };
+
+            if(connected)
+            {
+                OnConnectionAccepted();
+            }
+        }
+
+        private void OnByteWritten(int b)
+        {
+            if(b == -1)
+            {
+                return;
+            }
+            var result = pcktBuilder.AppendByte((byte)b);
+            if(result == null)
+            {
+                return;
+            }
+
+            if(result.Interrupt)
+            {
+                if(LogsEnabled)
+                {
+                    commandsManager.Cpu.Log(LogLevel.Noisy, "GDB CTRL-C occured - pausing CPU");
+                }
+
+                // This weird syntax ensures we have unpaused cores to report first, and only if there are none, we will fall-back to halted ones
+                stopReplyingCpu = commandsManager.ManagedCpus.OrderByDescending(cpu => !cpu.IsHalted).FirstOrDefault();
+                foreach(var cpu in commandsManager.ManagedCpus)
+                {
+                    // This call is synchronous, so it's safe to assume that `stopReplyingCpu` will still be valid
+                    cpu.Pause();
+                }
+                stopReplyingCpu = null;
+                return;
+            }
+
+            using(var ctx = commHandler.OpenContext())
+            {
+                if(result.CorruptedPacket)
+                {
+                    if(LogsEnabled)
+                    {
+                        commandsManager.Cpu.Log(LogLevel.Warning, "Corrupted GDB packet received: {0}", result.Packet.Data.GetDataAsStringLimited());
+                    }
+                    // send NACK
+                    ctx.Send((byte)'-');
+                    return;
+                }
+
+                if(LogsEnabled)
+                {
+                    commandsManager.Cpu.Log(LogLevel.Debug, "GDB packet received: {0}", result.Packet.Data.GetDataAsStringLimited());
+                }
+                // send ACK
+                ctx.Send((byte)'+');
+
+                Command command;
+                if(!commandsManager.TryGetCommand(result.Packet, out command))
+                {
+                    if(LogsEnabled)
+                    {
+                        commandsManager.Cpu.Log(LogLevel.Warning, "Unsupported GDB command: {0}", result.Packet.Data.GetDataAsStringLimited());
+                    }
+                    ctx.Send(new Packet(PacketData.Empty));
+                }
+                else
+                {
+                    IEnumerable<PacketData> packetDatas;
+                    try
+                    {
+                        packetDatas = Command.Execute(command, result.Packet);
+                    }
+                    catch(Exception e)
+                    {
+                        var error = Error.Unknown;
+                        // Can't check for the innermost recursively
+                        // since this won't be the innermost.
+                        if(e.InnerException is InvalidRegisterAccessException)
+                        {
+                            error = Error.OperationNotPermitted;
+                        }
+
+                        if(LogsEnabled)
+                        {
+                            // Get to the inner-most exception. The outer-most exception here is often
+                            // 'Reflection.TargetInvocationException' which doesn't have any useful message.
+                            while(e.InnerException != null)
+                            {
+                                e = e.InnerException;
+                            }
+                            var commandString = result.Packet.Data.GetDataAsStringLimited();
+                            commandsManager.Cpu.Log(LogLevel.Error, "GDB '{0}' command failed: {1}", commandString, e.Message);
+                        }
+
+                        ctx.Send(new Packet(PacketData.ErrorReply(error)));
+                        return;
+                    }
+                    // If there is no data here, we will respond later with Stop Reply Response
+                    foreach(var packetData in packetDatas)
+                    {
+                        ctx.Send(new Packet(packetData));
+                    }
+                }
+            }
+        }
 
         private void OnHalted(HaltArguments args)
         {
@@ -165,99 +289,30 @@ namespace Antmicro.Renode.Utilities.GDB
             }
         }
 
-        private ICpuSupportingGdb stopReplyingCpu;
-
-        private void OnByteWritten(int b)
+        private void OnConnectionAccepted()
         {
-            if(b == -1)
+            commandsManager.CanAttachCPU = false;
+            foreach(var cpu in commandsManager.ManagedCpus)
             {
-                return;
-            }
-            var result = pcktBuilder.AppendByte((byte)b);
-            if(result == null)
-            {
-                return;
-            }
-
-            if(result.Interrupt)
-            {
-                if(LogsEnabled)
-                {
-                    commandsManager.Cpu.Log(LogLevel.Noisy, "GDB CTRL-C occured - pausing CPU");
-                }
-
-                // This weird syntax ensures we have unpaused cores to report first, and only if there are none, we will fall-back to halted ones
-                stopReplyingCpu = commandsManager.ManagedCpus.OrderByDescending(cpu => !cpu.IsHalted).FirstOrDefault();
-                foreach(var cpu in commandsManager.ManagedCpus)
-                {
-                    // This call is synchronous, so it's safe to assume that `stopReplyingCpu` will still be valid
-                    cpu.Pause();
-                }
-                stopReplyingCpu = null;
-                return;
-            }
-
-            using(var ctx = commHandler.OpenContext())
-            {
-                if(result.CorruptedPacket)
-                {
-                    if(LogsEnabled)
-                    {
-                        commandsManager.Cpu.Log(LogLevel.Warning, "Corrupted GDB packet received: {0}", result.Packet.Data.GetDataAsStringLimited());
-                    }
-                    // send NACK
-                    ctx.Send((byte)'-');
-                    return;
-                }
-
-                if(LogsEnabled)
-                {
-                    commandsManager.Cpu.Log(LogLevel.Debug, "GDB packet received: {0}", result.Packet.Data.GetDataAsStringLimited());
-                }
-                // send ACK
-                ctx.Send((byte)'+');
-
-                Command command;
-                if(!commandsManager.TryGetCommand(result.Packet, out command))
-                {
-                    if(LogsEnabled)
-                    {
-                        commandsManager.Cpu.Log(LogLevel.Warning, "Unsupported GDB command: {0}", result.Packet.Data.GetDataAsStringLimited());
-                    }
-                    ctx.Send(new Packet(PacketData.Empty));
-                }
-                else
-                {
-                    IEnumerable<PacketData> packetDatas;
-                    try
-                    {
-                        packetDatas = Command.Execute(command, result.Packet);
-                    }
-                    catch(Exception e)
-                    {
-                        if(LogsEnabled)
-                        {
-                            commandsManager.Cpu.Log(LogLevel.Debug, "{0}", e);
-                            // Get to the inner-most exception. The outer-most exception here is often
-                            // 'Reflection.TargetInvocationException' which doesn't have any useful message.
-                            while(e.InnerException != null)
-                            {
-                                e = e.InnerException;
-                            }
-                            var commandString = result.Packet.Data.GetDataAsStringLimited();
-                            commandsManager.Cpu.Log(LogLevel.Error, "GDB '{0}' command failed: {1}", commandString, e.Message);
-                        }
-                        ctx.Send(new Packet(PacketData.ErrorReply(Error.Unknown)));
-                        return;
-                    }
-                    // If there is no data here, we will respond later with Stop Reply Response
-                    foreach(var packetData in packetDatas)
-                    {
-                        ctx.Send(new Packet(packetData));
-                    }
-                }
+                cpu.Halted += OnHalted;
+                cpu.ExecutionMode = ExecutionMode.SingleStep;
+                cpu.DebuggerConnected = true;
             }
         }
+
+        private void OnConnectionClosed()
+        {
+            foreach(var cpu in commandsManager.ManagedCpus)
+            {
+                cpu.Halted -= OnHalted;
+                cpu.ExecutionMode = ExecutionMode.Continuous;
+                cpu.DebuggerConnected = false;
+            }
+            commandsManager.CanAttachCPU = true;
+        }
+
+        private ICpuSupportingGdb stopReplyingCpu;
+        private bool disconnectedState;
 
         private readonly PacketBuilder pcktBuilder;
         private readonly IEnumerable<ICpuSupportingGdb> cpus;
@@ -333,11 +388,12 @@ namespace Antmicro.Renode.Utilities.GDB
                 }
             }
 
+            private int counter;
+
             private readonly GdbStub stub;
             private readonly CommandsManager manager;
             private readonly Queue<byte> queue;
             private readonly object internalLock;
-            private int counter;
 
             public class Context : IDisposable
             {
@@ -385,4 +441,3 @@ namespace Antmicro.Renode.Utilities.GDB
         }
     }
 }
-

@@ -5,15 +5,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Xml.Linq;
-using System.Linq;
-using Antmicro.Renode.Logging;
 using System.Collections.Generic;
-using Antmicro.Renode.Exceptions;
-using System.Xml;
 using System.IO;
-using Antmicro.Renode.Utilities;
 using System.IO.Compression;
+using System.Linq;
+using System.Xml;
+using System.Xml.Linq;
+
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
@@ -128,6 +129,106 @@ namespace Antmicro.Renode.Peripherals.Bus
                 LogWriteRequests(value, offset, width, ref weHaveIt);
             }
             return weHaveIt;
+        }
+
+        private static int CheckAndGetWidth(SysbusAccessWidth type)
+        {
+            switch(type)
+            {
+            case SysbusAccessWidth.Byte:
+            case SysbusAccessWidth.Word:
+            case SysbusAccessWidth.DoubleWord:
+            case SysbusAccessWidth.QuadWord:
+                return (int)type;
+            default:
+                throw new ArgumentException($"'{type}' is unsupported width of data.");
+            }
+        }
+
+        private static ulong? CalculateOffset(ulong? baseAddress, ulong? addressOffset)
+        {
+            if(baseAddress == null)
+            {
+                return null;
+            }
+            else
+            {
+                if(addressOffset == null)
+                {
+                    return baseAddress;
+                }
+                else
+                {
+                    return baseAddress + addressOffset;
+                }
+            }
+        }
+
+        private static string GetMandatoryField(XElement node, string fieldName)
+        {
+            var fieldElement = node.Element(fieldName);
+            if(fieldElement != null)
+            {
+                return fieldElement.Value;
+            }
+            else
+            {
+                var path = GetPath(node);
+                throw new RecoverableException($"Field '{fieldName}' in '{path}' is required.");
+            }
+        }
+
+        private static string GetOptionalFieldOrNull(XElement node, string fieldName)
+        {
+            var fieldElement = node.Element(fieldName);
+            if(fieldElement != null)
+            {
+                return fieldElement.Value;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private static string GetPath(XElement node)
+        {
+            var rootElementName = "device";
+            var path = node.Element("name") != null ? node.Element("name").Value : $"<{node.Name.LocalName}>";
+            var tmpElement = node.Parent;
+            if(tmpElement != null)
+            {
+                while(tmpElement.Name != rootElementName)
+                {
+                    var tmpNameElement = tmpElement.Element("name");
+                    if(tmpNameElement != null)
+                    {
+                        path = $"{tmpNameElement.Value}.{path}";
+                    }
+                    tmpElement = tmpElement.Parent;
+                }
+            }
+            return path;
+        }
+
+        private static ulong? SmartParseHexOrDecimal(string whatToParse, XElement node)
+        {
+            if(whatToParse == null)
+            {
+                return null;
+            }
+            else
+            {
+                SmartParser.Instance.TryParse(whatToParse, typeof(ulong), out var result);
+                if(result != null)
+                {
+                    return (ulong)result;
+                }
+                else
+                {
+                    throw new RecoverableException($"Cannot parse '{whatToParse}' to a number in '{GetPath(node)}'.");
+                }
+            }
         }
 
         private bool HitInTheRegisterDictionary(out SVDRegister tmpRegister, ulong offset, int countOfBytes)
@@ -309,108 +410,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             );
         }
 
-        private static int CheckAndGetWidth(SysbusAccessWidth type)
-        {
-            switch(type)
-            {
-            case SysbusAccessWidth.Byte:
-            case SysbusAccessWidth.Word:
-            case SysbusAccessWidth.DoubleWord:
-            case SysbusAccessWidth.QuadWord:
-                return (int)type;
-            default:
-                throw new ArgumentException($"'{type}' is unsupported width of data.");
-            }
-        }
-
-        private static ulong? CalculateOffset(ulong? baseAddress, ulong? addressOffset)
-        {
-            if(baseAddress == null)
-            {
-                return null;
-            }
-            else
-            {
-                if(addressOffset == null)
-                {
-                    return baseAddress;
-                }
-                else
-                {
-                    return baseAddress + addressOffset;
-                }
-            }
-        }
-
-        private static string GetMandatoryField(XElement node, string fieldName)
-        {
-            var fieldElement = node.Element(fieldName);
-            if(fieldElement != null)
-            {
-                return fieldElement.Value;
-            }
-            else
-            {
-                var path = GetPath(node);
-                throw new RecoverableException($"Field '{fieldName}' in '{path}' is required.");
-            }
-        }
-
-        private static string GetOptionalFieldOrNull(XElement node, string fieldName)
-        {
-            var fieldElement = node.Element(fieldName);
-            if(fieldElement != null)
-            {
-                return fieldElement.Value;
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-        private static string GetPath(XElement node)
-        {
-            var rootElementName = "device";
-            var path = node.Element("name") != null ? node.Element("name").Value : $"<{node.Name.LocalName}>";
-            var tmpElement = node.Parent;
-            if(tmpElement != null)
-            {
-                while(tmpElement.Name != rootElementName)
-                {
-                    var tmpNameElement = tmpElement.Element("name");
-                    if(tmpNameElement != null)
-                    {
-                        path = $"{tmpNameElement.Value}.{path}";
-                    }
-                    tmpElement = tmpElement.Parent;
-                }
-            }
-            return path;
-        }
-
-        private static ulong? SmartParseHexOrDecimal(string whatToParse, XElement node)
-        {
-            if(whatToParse == null)
-            {
-                return null;
-            }
-            else
-            {
-                SmartParser.Instance.TryParse(whatToParse, typeof(ulong), out var result);
-                if(result != null)
-                {
-                    return (ulong)result;
-                }
-                else
-                {
-                    throw new RecoverableException($"Cannot parse '{whatToParse}' to a number in '{GetPath(node)}'.");
-                }
-            }
-        }
-
-        private IBusController currentSystemBus;
-        private Dictionary<ulong, SVDRegister> registerDictionary;
+        private readonly IBusController currentSystemBus;
+        private readonly Dictionary<ulong, SVDRegister> registerDictionary;
 
         private class SVDDevice
         {
@@ -438,10 +439,110 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             public String Name { get; private set; }
+
             public String Description { get; private set; }
+
             public Endianess Endianess { get; private set; }
+
             public List<SVDPeripheral> Peripherals { get; private set; }
+
             public SVDParser Parent { get; private set; }
+
+            private static RegisterSettings GetLocalRegisterSettings(XElement node)
+            {
+                var sizeString = GetOptionalFieldOrNull(node, "size");
+                var resetValueString = GetOptionalFieldOrNull(node, "resetValue");
+                var accessString = GetOptionalFieldOrNull(node, "access");
+                ulong? address = null;
+                var nodeName = node.Name.LocalName;
+                if(nodeName == NestingType.Peripheral.ToString().ToLower())
+                {
+                    address = GetBaseAddress(node);
+                }
+                else if(nodeName == NestingType.Cluster.ToString().ToLower() || nodeName == NestingType.Register.ToString().ToLower())
+                {
+                    address = GetAddressOffset(node);
+                }
+
+                return new RegisterSettings(
+                    (int?)SmartParseHexOrDecimal(sizeString, node),
+                    (ulong?)SmartParseHexOrDecimal(resetValueString, node),
+                    address,
+                    GetPermittedAccess(accessString)
+                );
+            }
+
+            private static RegisterSettings GetRegisterSettings(XElement node, RegisterSettings defaultRegisterSettings, ulong? definiteAddress = null)
+            {
+                var localRegisterSettings = GetLocalRegisterSettings(node);
+                return new RegisterSettings(
+                    defaultRegisterSettings,
+                    localRegisterSettings.Size,
+                    localRegisterSettings.ResetValue,
+                    definiteAddress ?? localRegisterSettings.Address,
+                    localRegisterSettings.Access
+                );
+            }
+
+            private static ulong? GetBaseAddress(XElement node)
+            {
+                var addressOffsetString = GetMandatoryField(node, "baseAddress");
+                return SmartParseHexOrDecimal(addressOffsetString, node);
+            }
+
+            private static ulong? GetAddressOffset(XElement node)
+            {
+                var addressOffsetString = GetMandatoryField(node, "addressOffset");
+                return SmartParseHexOrDecimal(addressOffsetString, node);
+            }
+
+            private static PermittedAccess? GetPermittedAccess(string accessString)
+            {
+                switch(accessString?.ToLower())
+                {
+                case null:
+                    return null;
+                case "read-only":
+                    return PermittedAccess.Read;
+                case "write-only":
+                    return PermittedAccess.Write;
+                case "read-write":
+                    return PermittedAccess.Read | PermittedAccess.Write;
+                case "writeonce":
+                    return PermittedAccess.WriteOnce;
+                case "read-writeonce":
+                    return PermittedAccess.Read | PermittedAccess.WriteOnce;
+                default:
+                    throw new RecoverableException(string.Format("Found element with unexpected access type: {0}.", accessString));
+                }
+            }
+
+            private static Endianess GetEndianess(string endianessString)
+            {
+                switch(endianessString)
+                {
+                case "little":
+                    return Endianess.LittleEndian;
+                case "big":
+                    return Endianess.BigEndian;
+                case "selectable":
+                    return Endianess.Selectable;
+                case "other":
+                    return Endianess.Other;
+                default:
+                    throw new RecoverableException(string.Format("Found element with unexpected endianess type: {0}.", endianessString));
+                }
+            }
+
+            private static bool ElementNameEquals(XElement node, string name)
+            {
+                var nameElement = node.Elements("name").FirstOrDefault();
+                if(nameElement != null && nameElement.Value == name)
+                {
+                    return true;
+                }
+                return false;
+            }
 
             private void ScanPeripherals(RegisterSettings defaultRegisterSettings)
             {
@@ -636,103 +737,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 peripheral.Registers.Add(newRegister);
             }
 
-            private static RegisterSettings GetLocalRegisterSettings(XElement node)
-            {
-                var sizeString = GetOptionalFieldOrNull(node, "size");
-                var resetValueString = GetOptionalFieldOrNull(node, "resetValue");
-                var accessString = GetOptionalFieldOrNull(node, "access");
-                ulong? address = null;
-                var nodeName = node.Name.LocalName;
-                if(nodeName == NestingType.Peripheral.ToString().ToLower())
-                {
-                    address = GetBaseAddress(node);
-                }
-                else if(nodeName == NestingType.Cluster.ToString().ToLower() || nodeName == NestingType.Register.ToString().ToLower())
-                {
-                    address = GetAddressOffset(node);
-                }
-
-                return new RegisterSettings(
-                    (int?)SmartParseHexOrDecimal(sizeString, node),
-                    (ulong?)SmartParseHexOrDecimal(resetValueString, node),
-                    address,
-                    GetPermittedAccess(accessString)
-                );
-            }
-
-            private static RegisterSettings GetRegisterSettings(XElement node, RegisterSettings defaultRegisterSettings, ulong? definiteAddress = null)
-            {
-                var localRegisterSettings = GetLocalRegisterSettings(node);
-                return new RegisterSettings(
-                    defaultRegisterSettings,
-                    localRegisterSettings.Size,
-                    localRegisterSettings.ResetValue,
-                    definiteAddress ?? localRegisterSettings.Address,
-                    localRegisterSettings.Access
-                );
-            }
-
-            private static ulong? GetBaseAddress(XElement node)
-            {
-                var addressOffsetString = GetMandatoryField(node, "baseAddress");
-                return SmartParseHexOrDecimal(addressOffsetString, node);
-            }
-
-            private static ulong? GetAddressOffset(XElement node)
-            {
-                var addressOffsetString = GetMandatoryField(node, "addressOffset");
-                return SmartParseHexOrDecimal(addressOffsetString, node);
-            }
-
-            private static PermittedAccess? GetPermittedAccess(string accessString)
-            {
-                switch(accessString?.ToLower())
-                {
-                case null:
-                    return null;
-                case "read-only":
-                    return PermittedAccess.Read;
-                case "write-only":
-                    return PermittedAccess.Write;
-                case "read-write":
-                    return PermittedAccess.Read | PermittedAccess.Write;
-                case "writeonce":
-                    return PermittedAccess.WriteOnce;
-                case "read-writeonce":
-                    return PermittedAccess.Read | PermittedAccess.WriteOnce;
-                default:
-                    throw new RecoverableException(string.Format("Found element with unexpected access type: {0}.", accessString));
-                }
-            }
-
-            private static Endianess GetEndianess(string endianessString)
-            {
-                switch(endianessString)
-                {
-                case "little":
-                    return Endianess.LittleEndian;
-                case "big":
-                    return Endianess.BigEndian;
-                case "selectable":
-                    return Endianess.Selectable;
-                case "other":
-                    return Endianess.Other;
-                default:
-                    throw new RecoverableException(string.Format("Found element with unexpected endianess type: {0}.", endianessString));
-                }
-            }
-
-            private static bool ElementNameEquals(XElement node, string name)
-            {
-                var nameElement = node.Elements("name").FirstOrDefault();
-                if(nameElement != null && nameElement.Value == name)
-                {
-                    return true;
-                }
-                return false;
-            }
-
-            private XElement deviceNode;
+            private readonly XElement deviceNode;
         }
 
         private class SVDPeripheral
@@ -745,7 +750,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             public string Name { get; private set; }
+
             public List<SVDRegister> Registers { get; private set; }
+
             public SVDDevice ParentDevice { get; private set; }
         }
 
@@ -776,15 +783,32 @@ namespace Antmicro.Renode.Peripherals.Bus
                 Access = settings.Access ?? PermittedAccess.Read | PermittedAccess.Write;
             }
 
+            public void MergeWithRegister(SVDRegister register)
+            {
+                Name = Name + "|" + register.Name;
+                Access |= register.Access;
+                if(!HasReadAccess && register.HasReadAccess)
+                {
+                    ResetValue = register.ResetValue;
+                }
+            }
+
             public bool HasReadAccess => (Access & PermittedAccess.Read) != 0;
+
             public bool HasWriteAccess => (Access & PermittedAccess.Write) != 0;
+
             public bool HasWriteOnceAccess => (Access & PermittedAccess.WriteOnce) != 0;
 
             public string Name { get; private set; }
+
             public int Size { get; private set; }
+
             public ulong Address { get; private set; }
+
             public uint SizeInBytes { get; private set; }
+
             public PermittedAccess Access { get; private set; }
+
             public SVDPeripheral Peripheral { get; private set; }
 
             public ulong ResetValue
@@ -793,6 +817,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     return resetValueWithCorrectEndianess;
                 }
+
                 private set
                 {
                     var resetValueInLittleEndian = value;
@@ -829,18 +854,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
             }
 
-            public void MergeWithRegister(SVDRegister register)
-            {
-                Name = Name + "|" + register.Name;
-                Access |= register.Access;
-                if(!HasReadAccess && register.HasReadAccess)
-                {
-                    ResetValue = register.ResetValue;
-                }
-            }
-
             private ulong resetValueWithCorrectEndianess;
-            private string path;
+            private readonly string path;
         }
 
         private struct RegisterSettings
@@ -862,8 +877,11 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
 
             public int? Size { get; private set; }
+
             public ulong? ResetValue { get; private set; }
+
             public ulong? Address { get; private set; }
+
             public PermittedAccess? Access { get; private set; }
         }
 

@@ -1,23 +1,23 @@
 //
 // Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
+
 using PacketDotNet;
 
 using IPProtocolType = PacketDotNet.IPProtocolType;
@@ -28,28 +28,11 @@ namespace Antmicro.Renode.Peripherals.Network
     {
         protected readonly DMAChannel[] dmaChannels;
 
-        protected enum BusWidth
+        public enum BusWidth
         {
             Bits32  = 4,
             Bits64  = 8,
             Bits128 = 16,
-        }
-
-        protected enum DMAChannelInterruptMode
-        {
-            Pulse            = 0b00,
-            Level            = 0b01,
-            LevelAndReassert = 0b10,
-            Reserved         = 0b11,
-        }
-
-        private enum DMAState
-        {
-            Stopped = 0,
-            Running = 1,
-            ProcessingIntermediate = 2,
-            ProcessingSecond = 4,
-            Suspended = 8,
         }
 
         protected class DMAChannel
@@ -92,7 +75,9 @@ namespace Antmicro.Renode.Peripherals.Network
 
             public void DefineChannelRegisters(ref Dictionary<long, DoubleWordRegister> map)
             {
-                var offset = parent.DMAChannelOffsets[channelNumber];
+                // This is an offset from the start of the DMA block, not from the start of the entire peripheral
+                // as the DMA block may be placed in a separate connection region.
+                var offset = 0x100 + 0x80 * channelNumber;
                 map = map.Concat(new Dictionary<long, DoubleWordRegister>()
                 {
                     {(long)RegistersDMAChannel.Control + offset, new DoubleWordRegister(parent)
@@ -160,7 +145,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         name: "DMACRxDLAR.RDESLA (Start of Receive List)")
                     },
                     {(long)RegistersDMAChannel.TxDescriptorTailPointer + offset, new DoubleWordRegister(parent)
-                        .WithValueField(0, 32, out txDescriptorRingTail, changeCallback: (previousValue, _) =>
+                        .WithValueField(0, 32, out txDescriptorRingTail, writeCallback: (previousValue, _) =>
                         {
                             var clearTxFinishedRing = txDescriptorRingTail.Value != txDescriptorRingCurrent.Value;
                             if((txState & DMAState.Suspended) != 0 || clearTxFinishedRing)
@@ -172,7 +157,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         }, name: "DMACTxDTPR.TDT (Transmit Descriptor Tail Pointer)")
                     },
                     {(long)RegistersDMAChannel.RxDescriptorTailPointer + offset, new DoubleWordRegister(parent)
-                        .WithValueField(0, 32, out rxDescriptorRingTail, changeCallback: (previousValue, _) =>
+                        .WithValueField(0, 32, out rxDescriptorRingTail, writeCallback: (previousValue, _) =>
                         {
                             var clearRxFinishedRing = rxDescriptorRingTail.Value != rxDescriptorRingCurrent.Value;
                             if((rxState & DMAState.Suspended) != 0 || clearRxFinishedRing)
@@ -294,35 +279,35 @@ namespace Antmicro.Renode.Peripherals.Network
                 {
                     switch(parent.dmaInterruptMode.Value)
                     {
-                        case DMAChannelInterruptMode.Pulse:
-                            if(txInterrupt.Value)
-                            {
-                                TxIRQ.Blink();
-                                this.Log(LogLevel.Debug, "Blinking TxIRQ");
-                            }
-                            if(rxInterrupt.Value)
-                            {
-                                RxIRQ.Blink();
-                                this.Log(LogLevel.Debug, "Blinking RxIRQ");
-                            }
-                            break;
-                        case DMAChannelInterruptMode.Level:
-                        case DMAChannelInterruptMode.LevelAndReassert:
+                    case DMAChannelInterruptMode.Pulse:
+                        if(txInterrupt.Value)
                         {
-                            var txState = txInterrupt.Value && txInterruptEnable.Value && normalInterruptSummaryEnable.Value;
-                            var rxState = rxInterrupt.Value && rxInterruptEnable.Value && normalInterruptSummaryEnable.Value;
-                            TxIRQ.Set(txState);
-                            RxIRQ.Set(rxState);
-                            this.Log(LogLevel.Debug, "TxIRQ: {0}, RxIRQ: {1}", txState ? "setting" : "unsetting", rxState ? "setting" : "unsetting");
-                            // In both Level and LevelAndReassert transmit/receive completed conditions are only used for channel specific interrupts
-                            // and don't contribute to the common interrupt. Mask their influence
-                            txMask = false;
-                            rxMask = false;
-                            break;
+                            TxIRQ.Blink();
+                            this.Log(LogLevel.Debug, "Blinking TxIRQ");
                         }
-                        default:
-                            this.Log(LogLevel.Warning, "Invalid interrupt mode value {0}", parent.dmaInterruptMode.Value);
-                            break;
+                        if(rxInterrupt.Value)
+                        {
+                            RxIRQ.Blink();
+                            this.Log(LogLevel.Debug, "Blinking RxIRQ");
+                        }
+                        break;
+                    case DMAChannelInterruptMode.Level:
+                    case DMAChannelInterruptMode.LevelAndReassert:
+                    {
+                        var txState = txInterrupt.Value && txInterruptEnable.Value && normalInterruptSummaryEnable.Value;
+                        var rxState = rxInterrupt.Value && rxInterruptEnable.Value && normalInterruptSummaryEnable.Value;
+                        TxIRQ.Set(txState);
+                        RxIRQ.Set(rxState);
+                        this.Log(LogLevel.Debug, "TxIRQ: {0}, RxIRQ: {1}", txState ? "setting" : "unsetting", rxState ? "setting" : "unsetting");
+                        // In both Level and LevelAndReassert transmit/receive completed conditions are only used for channel specific interrupts
+                        // and don't contribute to the common interrupt. Mask their influence
+                        txMask = false;
+                        rxMask = false;
+                        break;
+                    }
+                    default:
+                        this.Log(LogLevel.Warning, "Invalid interrupt mode value {0}", parent.dmaInterruptMode.Value);
+                        break;
                     }
                 }
 
@@ -334,12 +319,13 @@ namespace Antmicro.Renode.Peripherals.Network
                                                   (fatalBusError.Value && fatalBusErrorEnable.Value) ||
                                                   (contextDescriptorError.Value && contextDescriptorErrorEnable.Value);
 
-                return (rxWatchdogTimeout.Value && rxWatchdogTimeoutEnable.Value)               ||
+                return (rxWatchdogTimeout.Value && rxWatchdogTimeoutEnable.Value) ||
                        (abnormalInterruptSummary.Value && abnormalInterruptSummaryEnable.Value) ||
                        (GetNormalInterruptSummary(txMask, rxMask) && normalInterruptSummaryEnable.Value);
             }
 
             public DMATxProcessState DmaTxState => (txState == DMAState.Stopped) ? DMATxProcessState.Stopped : DMATxProcessState.Suspended;
+
             public DMARxProcessState DmaRxState => (rxState == DMAState.Stopped) ? DMARxProcessState.Stopped :
                                             ((incomingFrames.Count == 0) ? DMARxProcessState.WaitingForPacket : DMARxProcessState.Suspended);
 
@@ -358,18 +344,19 @@ namespace Antmicro.Renode.Peripherals.Network
                 normalInterruptSummary.Value;
 
             public GPIO TxIRQ { get; }
+
             public GPIO RxIRQ { get; }
 
-            private TxDescriptor GetTxDescriptor(ulong index = 0)
+            private TxDescriptor GetTxDescriptor()
             {
-                var descriptor = new TxDescriptor(parent.Bus, txDescriptorRingCurrent.Value, parent.CpuContext);
+                var descriptor = new TxDescriptor(parent.Bus, txDescriptorRingCurrent.Value, parent.BusContext);
                 descriptor.Fetch();
                 return descriptor;
             }
 
             private RxDescriptor GetRxDescriptor()
             {
-                var descriptor = new RxDescriptor(parent.Bus, rxDescriptorRingCurrent.Value, parent.CpuContext);
+                var descriptor = new RxDescriptor(parent.Bus, rxDescriptorRingCurrent.Value, parent.BusContext);
                 descriptor.Fetch();
                 return descriptor;
             }
@@ -437,6 +424,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 var frame = incomingFrames.Peek();
                 var bytes = frame.Bytes;
                 var isFirst = true;
+                PTPInfo? ptpInfo = null;
+                var insertTimestamp = false;
                 while(!rxFinishedRing && parent.rxEnable.Value && startRx.Value)
                 {
                     var descriptor = GetRxDescriptor();
@@ -450,31 +439,31 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
                     rxState &= ~DMAState.Suspended;
                     var structure = descriptor.GetNormalReadDescriptor();
-    #if DEBUG
+#if DEBUG
                     this.Log(LogLevel.Noisy, "Receive: Loaded {0} from 0x{1:X}.", structure, descriptor.Address);
-    #endif
+#endif
 
                     var bufferAddress = 0UL;
                     var bufferSize = 0UL;
-                    var invalidDescriptor = structure.buffer1Address == UInt32.MaxValue || structure.buffer2Address == UInt32.MaxValue;
-                    if(!invalidDescriptor && structure.buffer1Address != 0 && structure.buffer1AddressValid)
+                    var invalidDescriptor = structure.Buffer1Address == UInt32.MaxValue || structure.Buffer2Address == UInt32.MaxValue;
+                    if(!invalidDescriptor && structure.Buffer1Address != 0 && structure.Buffer1AddressValid)
                     {
-                        bufferAddress = structure.buffer1Address;
+                        bufferAddress = structure.Buffer1Address;
                         bufferSize = RxBuffer1Size;
                     }
-                    else if(!invalidDescriptor && structure.buffer2Address != 0 && structure.buffer2AddressValid)
+                    else if(!invalidDescriptor && structure.Buffer2Address != 0 && structure.Buffer2AddressValid)
                     {
-                        bufferAddress = structure.buffer2Address;
+                        bufferAddress = structure.Buffer2Address;
                         bufferSize = RxBuffer2Size;
                     }
                     else
                     {
                         contextDescriptorError.Value |= invalidDescriptor;
                         this.Log(LogLevel.Debug, "Receive: Loaded descriptor doesn't provide a valid buffer.");
-                        structure.owner = DescriptorOwner.Application;
-    #if DEBUG
+                        structure.OwnerField = DescriptorOwner.Application;
+#if DEBUG
                         this.Log(LogLevel.Noisy, "Receive: Writing {0} to 0x{1:X}.", structure, descriptor.Address);
-    #endif
+#endif
                         descriptor.SetDescriptor(structure);
                         descriptor.Write();
                         IncreaseRxDescriptorPointer();
@@ -490,19 +479,23 @@ namespace Antmicro.Renode.Peripherals.Network
 
                     if(rxOffset >= (ulong)bytes.Length)
                     {
-                        if(parent.enableTimestamp.Value && (parent.enableTimestampForAll.Value /* || is PTP */))
+                        if(insertTimestamp)
                         {
-                            this.Log(LogLevel.Error, "Receive: Timestamping is not supported.");
                             var contextStructure = descriptor.GetAsContextDescriptor();
-                            contextStructure.contextType = true;
-                            contextStructure.owner = DescriptorOwner.Application;
-    #if DEBUG
+                            contextStructure.ContextTypeField = true;
+                            contextStructure.OwnerField = DescriptorOwner.Application;
+                            parent.GetTimestamp(out var seconds, out var nanoseconds);
+                            contextStructure.ReceivePacketTimestamp = (seconds << 32) | nanoseconds;
+#if DEBUG
                             this.Log(LogLevel.Noisy, "Receive: Writing {0} to 0x{1:X}.", contextStructure, descriptor.Address);
-    #endif
+#endif
                             descriptor.SetDescriptor(contextStructure);
                             descriptor.Write();
                             IncreaseRxDescriptorPointer();
                         }
+                        ptpInfo = null;
+                        insertTimestamp = false;
+
                         rxOffset = 0;
                         incomingFrames.Dequeue();
                         rxQueueLength -= bytes.Length;
@@ -520,107 +513,137 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
 
                     var bytesWritten = Math.Min((ulong)bytes.Length - rxOffset, bufferSize);
-                    parent.Bus.WriteBytes(bytes, bufferAddress, (int)rxOffset, (long)bytesWritten, true, parent.CpuContext);
+                    parent.Bus.WriteBytes(bytes, bufferAddress, (int)rxOffset, (long)bytesWritten, true, parent.BusContext);
                     this.Log(LogLevel.Noisy, "Receive: Writing frame[0x{0:X}, 0x{1:X}) at 0x{2:X}.", rxOffset, rxOffset + bytesWritten, bufferAddress);
                     rxOffset += bytesWritten;
 
                     var writeBackStructure = descriptor.GetAsNormalWriteBackDescriptor();
-                    writeBackStructure.owner = DescriptorOwner.Application;
-                    writeBackStructure.firstDescriptor = isFirst;
-                    writeBackStructure.lastDescriptor = rxOffset == (ulong)bytes.Length;
-                    writeBackStructure.contextType = false;;
-                    writeBackStructure.receiveStatusSegment0Valid = true;
-                    writeBackStructure.receiveStatusSegment1Valid = true;
-                    writeBackStructure.receiveStatusSegment2Valid = true;
+                    writeBackStructure.OwnerField = DescriptorOwner.Application;
+                    writeBackStructure.FirstDescriptor = isFirst;
+                    writeBackStructure.LastDescriptor = rxOffset == (ulong)bytes.Length;
+                    writeBackStructure.ContextTypeField = false; ;
+                    writeBackStructure.ReceiveStatusSegment0Valid = true;
+                    writeBackStructure.ReceiveStatusSegment1Valid = true;
+                    writeBackStructure.ReceiveStatusSegment2Valid = true;
                     isFirst = false;
 
-                    writeBackStructure.packetLength = (uint)bytes.Length;
-                    writeBackStructure.outerVlanTag = 0x0;
-                    writeBackStructure.innerVlanTag = 0x0;
-                    writeBackStructure.oamSubtypeCodeOrMACControlPacketOpcode = (uint)frame.UnderlyingPacket.Type;
-                    writeBackStructure.ipHeaderError = false;
-                    writeBackStructure.ipv4HeaderPresent = frame.UnderlyingPacket.Type == EthernetPacketType.IpV4;
-                    writeBackStructure.ipv6HeaderPresent = frame.UnderlyingPacket.Type == EthernetPacketType.IpV6;
-                    if(writeBackStructure.ipv4HeaderPresent || writeBackStructure.ipv6HeaderPresent)
+                    writeBackStructure.PacketLength = (uint)bytes.Length;
+                    writeBackStructure.OuterVlanTag = 0x0;
+                    writeBackStructure.InnerVlanTag = 0x0;
+                    writeBackStructure.OamSubtypeCodeOrMACControlPacketOpcode = (uint)frame.UnderlyingPacket.Type;
+                    writeBackStructure.IpHeaderError = false;
+                    writeBackStructure.Ipv4HeaderPresent = frame.UnderlyingPacket.Type == EthernetPacketType.IpV4;
+                    writeBackStructure.Ipv6HeaderPresent = frame.UnderlyingPacket.Type == EthernetPacketType.IpV6;
+                    if(writeBackStructure.Ipv4HeaderPresent || writeBackStructure.Ipv6HeaderPresent)
                     {
                         switch(((IpPacket)frame.UnderlyingPacket.PayloadPacket).NextHeader)
                         {
-                            case IPProtocolType.UDP:
-                                writeBackStructure.payloadType = PayloadType.UDP;
-                                break;
-                            case IPProtocolType.TCP:
-                                writeBackStructure.payloadType = PayloadType.TCP;
-                                break;
-                            case IPProtocolType.ICMP:
-                            case IPProtocolType.ICMPV6:
-                                writeBackStructure.payloadType = PayloadType.ICMP;
-                                break;
-                            case IPProtocolType.IGMP:
-                                if(!writeBackStructure.ipv4HeaderPresent)
-                                {
-                                    goto default;
-                                }
-                                writeBackStructure.payloadType = PayloadType.IGMPIPV4;
-                                break;
-                            default:
-                                writeBackStructure.payloadType = PayloadType.Unknown;
-                                break;
+                        case IPProtocolType.UDP:
+                            writeBackStructure.PayloadType = PayloadType.UDP;
+                            break;
+                        case IPProtocolType.TCP:
+                            writeBackStructure.PayloadType = PayloadType.TCP;
+                            break;
+                        case IPProtocolType.ICMP:
+                        case IPProtocolType.ICMPV6:
+                            writeBackStructure.PayloadType = PayloadType.ICMP;
+                            break;
+                        case IPProtocolType.IGMP:
+                            if(!writeBackStructure.Ipv4HeaderPresent)
+                            {
+                                goto default;
+                            }
+                            writeBackStructure.PayloadType = PayloadType.IGMPIPV4;
+                            break;
+                        default:
+                            writeBackStructure.PayloadType = PayloadType.Unknown;
+                            break;
                         }
                     }
 
                     // NOTE: VLAN tagging is not supported by PacketDotNet, the `Type` may contain a VLAN tag
                     switch(frame.UnderlyingPacket.Type)
                     {
-                        case EthernetPacketType.Arp:
-                            writeBackStructure.lengthTypeField = PacketKind.ARPRequest;
-                            break;
-                        case EthernetPacketType.MacControl:
-                            writeBackStructure.lengthTypeField = PacketKind.MACControlPacket;
-                            break;
-                        case EthernetPacketType.VLanTaggedFrame:
-                            writeBackStructure.lengthTypeField = PacketKind.TypePacketWithVLANTag;
-                            break;
-                        case EthernetPacketType.ProviderBridging:
-                            writeBackStructure.lengthTypeField = PacketKind.TypePacketWithDoubleVLANTag;
-                            break;
-                        case EthernetPacketType.ConnectivityFaultManagementOrOperationsAdministrationManagement:
-                            writeBackStructure.lengthTypeField = PacketKind.OAMPacket;
-                            break;
-                        default:
-                            writeBackStructure.lengthTypeField = (uint)frame.UnderlyingPacket.Type < EtherTypeMinimalValue ? PacketKind.LengthPacket : PacketKind.TypePacket;
-                            break;
+                    case EthernetPacketType.Arp:
+                        writeBackStructure.LengthTypeField = PacketKind.ARPRequest;
+                        break;
+                    case EthernetPacketType.MacControl:
+                        writeBackStructure.LengthTypeField = PacketKind.MACControlPacket;
+                        break;
+                    case EthernetPacketType.VLanTaggedFrame:
+                        writeBackStructure.LengthTypeField = PacketKind.TypePacketWithVLANTag;
+                        break;
+                    case EthernetPacketType.ProviderBridging:
+                        writeBackStructure.LengthTypeField = PacketKind.TypePacketWithDoubleVLANTag;
+                        break;
+                    case EthernetPacketType.ConnectivityFaultManagementOrOperationsAdministrationManagement:
+                        writeBackStructure.LengthTypeField = PacketKind.OAMPacket;
+                        break;
+                    default:
+                        writeBackStructure.LengthTypeField = (uint)frame.UnderlyingPacket.Type < EtherTypeMinimalValue ? PacketKind.LengthPacket : PacketKind.TypePacket;
+                        break;
                     }
 
-                    writeBackStructure.timestampAvailable = parent.enableTimestamp.Value;
-                    writeBackStructure.timestampDropped = false;
-                    writeBackStructure.dribbleBitError = false;
-                    writeBackStructure.receiveError = false;
-                    writeBackStructure.overflowError = false;
-                    writeBackStructure.receiveWatchdogTimeout = false;
-                    writeBackStructure.giantPacket = false;
-                    writeBackStructure.crcError = parent.crcCheckDisable.Value ? false : !EthernetFrame.CheckCRC(bytes);
-                    writeBackStructure.errorSummary = new bool[]
+                    if(writeBackStructure.LastDescriptor)
                     {
-                        writeBackStructure.dribbleBitError,
-                        writeBackStructure.receiveError,
-                        writeBackStructure.overflowError,
-                        writeBackStructure.receiveWatchdogTimeout,
-                        writeBackStructure.giantPacket,
-                        writeBackStructure.crcError,
+                        if(parent.enableTimestamp.Value)
+                        {
+                            var parsePtp = false;
+                            switch(frame.UnderlyingPacket.Type)
+                            {
+                            case EthernetPacketType.PrecisionTimeProtocol:
+                                parsePtp = parent.processPtpOverEthernet.Value;
+                                break;
+                            case EthernetPacketType.IpV4:
+                                parsePtp = parent.processPtpOverIpv4.Value;
+                                break;
+                            case EthernetPacketType.IpV6:
+                                parsePtp = parent.processPtpOverIpv6.Value;
+                                break;
+                            }
+                            ptpInfo = parsePtp ? PTPInfo.FromFrame(frame, parent.usedPtpVersion.Value) : null;
+                            insertTimestamp = parent.enableTimestamp.Value && (ptpInfo != null || parent.enableTimestampForAll.Value);
+                        }
+                        else
+                        {
+                            ptpInfo = null;
+                            insertTimestamp = false;
+                        }
+                    }
+
+                    writeBackStructure.TimestampAvailable = insertTimestamp;
+                    writeBackStructure.PtpMessageType = ptpInfo?.MessageType ?? PTPMessageType.NoPTPMessageReceived;
+                    writeBackStructure.PtpPacketType = (ptpInfo?.Transport ?? PTPInfo.TransportType.IpV4) == PTPInfo.TransportType.Ethernet;
+                    writeBackStructure.PtpVersion = ptpInfo?.Version ?? PTPVersion.IEEE1588version1;
+                    writeBackStructure.TimestampDropped = false;
+                    writeBackStructure.DribbleBitError = false;
+                    writeBackStructure.ReceiveError = false;
+                    writeBackStructure.OverflowError = false;
+                    writeBackStructure.ReceiveWatchdogTimeout = false;
+                    writeBackStructure.GiantPacket = false;
+                    writeBackStructure.CrcError = parent.crcCheckDisable.Value ? false : !EthernetFrame.CheckCRC(bytes);
+                    writeBackStructure.ErrorSummary = new bool[]
+                    {
+                        writeBackStructure.DribbleBitError,
+                        writeBackStructure.ReceiveError,
+                        writeBackStructure.OverflowError,
+                        writeBackStructure.ReceiveWatchdogTimeout,
+                        writeBackStructure.GiantPacket,
+                        writeBackStructure.CrcError,
                     }.Any(x => x);
-    #if DEBUG
+#if DEBUG
                     this.Log(LogLevel.Noisy, "Receive: Writing {0} to 0x{1:X}.", writeBackStructure, descriptor.Address);
-    #endif
+#endif
                     descriptor.SetDescriptor(writeBackStructure);
                     descriptor.Write();
                     IncreaseRxDescriptorPointer();
 
-                    if(!writeBackStructure.lastDescriptor)
+                    if(!writeBackStructure.LastDescriptor)
                     {
                         continue;
                     }
 
-                    if(structure.interruptOnCompletion)
+                    if(structure.InterruptOnCompletion)
                     {
                         rxInterrupt.Value = true;
                         rxWatchdog.Enabled = false;
@@ -694,58 +717,58 @@ namespace Antmicro.Renode.Peripherals.Network
                     if(descriptor.Type.Is<TxDescriptor.NormalReadDescriptor>())
                     {
                         var structure = descriptor.GetNormalReadDescriptor();
-    #if DEBUG
+#if DEBUG
                         this.Log(LogLevel.Noisy, "Transmission: Loaded {0} from 0x{1:X}.", structure, descriptor.Address);
-    #endif
-                        if(frameAssembler == null && !structure.firstDescriptor)
+#endif
+                        if(frameAssembler == null && !structure.FirstDescriptor)
                         {
                             this.Log(LogLevel.Warning, "Transmission: Building frame without first descriptor.");
                             break;
                         }
-                        else if(frameAssembler != null && structure.firstDescriptor)
+                        else if(frameAssembler != null && structure.FirstDescriptor)
                         {
                             this.Log(LogLevel.Warning, "Transmission: Building new frame without clearing last frame.");
                         }
 
-                        var buffer = structure.FetchBuffer1OrHeader(parent.Bus, parent.CpuContext);
-                        txCurrentBuffer.Value = structure.buffer1OrHeaderAddress;
-                        var tsoEnabled = structure.tcpSegmentationEnable && tcpSegmentationEnable.Value;
+                        var buffer = structure.FetchBuffer1OrHeader(parent.Bus, parent.BusContext);
+                        txCurrentBuffer.Value = structure.Buffer1OrHeaderAddress;
+                        var tsoEnabled = structure.TcpSegmentationEnable && tcpSegmentationEnable.Value;
 
                         MACAddress? sourceAddress = null;
-                        switch(structure.sourceAddressControl)
+                        switch(structure.SourceAddressControl)
                         {
-                            case DescriptorSourceAddressOperation.MACAddressRegister0Insert:
-                            case DescriptorSourceAddressOperation.MACAddressRegister0Replace:
-                                sourceAddress = parent.MAC0;
-                                break;
-                            case DescriptorSourceAddressOperation.MACAddressRegister1Insert:
-                            case DescriptorSourceAddressOperation.MACAddressRegister1Replace:
-                                sourceAddress = parent.MAC1;
-                                break;
-                            default:
-                                sourceAddress = null;
-                                break;
+                        case DescriptorSourceAddressOperation.MACAddressRegister0Insert:
+                        case DescriptorSourceAddressOperation.MACAddressRegister0Replace:
+                            sourceAddress = parent.MAC0;
+                            break;
+                        case DescriptorSourceAddressOperation.MACAddressRegister1Insert:
+                        case DescriptorSourceAddressOperation.MACAddressRegister1Replace:
+                            sourceAddress = parent.MAC1;
+                            break;
+                        default:
+                            sourceAddress = null;
+                            break;
                         }
 
                         if(!sourceAddress.HasValue)
                         {
                             switch(parent.sourceAddressOperation.Value)
                             {
-                                case RegisterSourceAddressOperation.MACAddressRegister0Insert:
-                                case RegisterSourceAddressOperation.MACAddressRegister0Replace:
-                                    sourceAddress = parent.MAC0;
-                                    break;
-                                case RegisterSourceAddressOperation.MACAddressRegister1Insert:
-                                case RegisterSourceAddressOperation.MACAddressRegister1Replace:
-                                    sourceAddress = parent.MAC1;
-                                    break;
-                                default:
-                                    this.Log(LogLevel.Error, "Using a reserved value in ETH_MACCR.SARC register.");
-                                    break;
+                            case RegisterSourceAddressOperation.MACAddressRegister0Insert:
+                            case RegisterSourceAddressOperation.MACAddressRegister0Replace:
+                                sourceAddress = parent.MAC0;
+                                break;
+                            case RegisterSourceAddressOperation.MACAddressRegister1Insert:
+                            case RegisterSourceAddressOperation.MACAddressRegister1Replace:
+                                sourceAddress = parent.MAC1;
+                                break;
+                            default:
+                                this.Log(LogLevel.Error, "Using a reserved value in ETH_MACCR.SARC register.");
+                                break;
                             }
                         }
 
-                        if(structure.firstDescriptor)
+                        if(structure.FirstDescriptor)
                         {
                             if(tsoEnabled)
                             {
@@ -758,39 +781,39 @@ namespace Antmicro.Renode.Peripherals.Network
                                     parent.SendFrame,
                                     sourceAddress
                                 );
-                                buffer = structure.FetchBuffer2OrBuffer1(parent.Bus, parent.CpuContext);
-                                txCurrentBuffer.Value = structure.buffer2orBuffer1Address;
+                                buffer = structure.FetchBuffer2OrBuffer1(parent.Bus, parent.BusContext);
+                                txCurrentBuffer.Value = structure.Buffer2orBuffer1Address;
                             }
                             else
                             {
                                 frameAssembler = new FrameAssembler(
                                     parent,
-                                    structure.crcPadControl,
-                                    parent.checksumOffloadEnable.Value ? structure.checksumControl : ChecksumOperation.None,
+                                    structure.CrcPadControl,
+                                    parent.checksumOffloadEnable.Value ? structure.ChecksumControl : ChecksumOperation.None,
                                     parent.SendFrame
                                 );
                             }
                         }
-                        if(structure.buffer2Length != 0 && !tsoEnabled)
+                        if(structure.Buffer2Length != 0 && !tsoEnabled)
                         {
                             // Though it's not clearly stated in the documentation, the STM driver
                             // expects buffer2 to be valid even with TSO disabled. In this case,
                             // concatenate two buffers when assembling frame to be sent.
                             frameAssembler.PushPayload(buffer);
-                            buffer = structure.FetchBuffer2OrBuffer1(parent.Bus, parent.CpuContext);
-                            txCurrentBuffer.Value = structure.buffer2orBuffer1Address;
+                            buffer = structure.FetchBuffer2OrBuffer1(parent.Bus, parent.BusContext);
+                            txCurrentBuffer.Value = structure.Buffer2orBuffer1Address;
                         }
                         frameAssembler.PushPayload(buffer);
                         earlyTxInterrupt.Value = true;
 
-                        if(!structure.lastDescriptor)
+                        if(!structure.LastDescriptor)
                         {
                             txState |= DMAState.ProcessingIntermediate;
                             var writeBackIntermediateStructure = new TxDescriptor.NormalWriteBackDescriptor();
-                            writeBackIntermediateStructure.owner = DescriptorOwner.Application;
-    #if DEBUG
+                            writeBackIntermediateStructure.OwnerField = DescriptorOwner.Application;
+#if DEBUG
                             this.Log(LogLevel.Noisy, "Transmission: Writing intermediate {0} to 0x{1:X}.", writeBackIntermediateStructure, descriptor.Address);
-    #endif
+#endif
                             descriptor.SetDescriptor(writeBackIntermediateStructure);
                             descriptor.Write();
                             IncreaseTxDescriptorPointer();
@@ -803,50 +826,60 @@ namespace Antmicro.Renode.Peripherals.Network
                         if((txState & DMAState.ProcessingSecond) == 0 && operateOnSecondPacket.Value)
                         {
                             txState |= DMAState.ProcessingSecond;
-                            continue;
+                            // Even with OSP mode we do nothing more here!
+                            // In OSP mode the DMA is expected to:
+                            // * fetch the second frame without needing to wait for the status of first descriptor
+                            // * wait for the status of the first frame before writing it back
+                            // * and repeat
+                            // We can immediately close the first descriptor as at this point that frame
+                            // has already been transmitted, so we can write back the status and fetch the second descriptor
+                            // in the next loop iteration if it is available. So for this model OSP mode is a no-op due
+                            // to instant frame transmission.
                         }
 
                         var writeBackStructure = new TxDescriptor.NormalWriteBackDescriptor();
-                        writeBackStructure.ipHeaderError = false;
-                        writeBackStructure.deferredBit = false;
-                        writeBackStructure.underflowError = structure.buffer1OrHeaderAddress == 0x0 || structure.headerOrBuffer1Length == 0x0;
-                        writeBackStructure.excessiveDeferral = false;
-                        writeBackStructure.collisionCount = false;
-                        writeBackStructure.excessiveCollision = false;
-                        writeBackStructure.lateCollision = false;
-                        writeBackStructure.noCarrier = false;
-                        writeBackStructure.lossOfCarrier = false;
-                        writeBackStructure.payloadChecksumError = false;
-                        writeBackStructure.packetFlushed = false;
-                        writeBackStructure.jabberTimeout = false;
-                        writeBackStructure.errorSummary = new bool[]
+                        writeBackStructure.IpHeaderError = false;
+                        writeBackStructure.DeferredBit = false;
+                        writeBackStructure.UnderflowError = structure.Buffer1OrHeaderAddress == 0x0 || structure.HeaderOrBuffer1Length == 0x0;
+                        writeBackStructure.ExcessiveDeferral = false;
+                        writeBackStructure.CollisionCount = false;
+                        writeBackStructure.ExcessiveCollision = false;
+                        writeBackStructure.LateCollision = false;
+                        writeBackStructure.NoCarrier = false;
+                        writeBackStructure.LossOfCarrier = false;
+                        writeBackStructure.PayloadChecksumError = false;
+                        writeBackStructure.PacketFlushed = false;
+                        writeBackStructure.JabberTimeout = false;
+                        writeBackStructure.ErrorSummary = new bool[]
                         {
-                            writeBackStructure.ipHeaderError,
-                            writeBackStructure.jabberTimeout,
-                            writeBackStructure.packetFlushed,
-                            writeBackStructure.payloadChecksumError,
-                            writeBackStructure.lossOfCarrier,
-                            writeBackStructure.noCarrier,
-                            writeBackStructure.lateCollision,
-                            writeBackStructure.excessiveCollision,
-                            writeBackStructure.excessiveDeferral,
-                            writeBackStructure.underflowError,
+                            writeBackStructure.IpHeaderError,
+                            writeBackStructure.JabberTimeout,
+                            writeBackStructure.PacketFlushed,
+                            writeBackStructure.PayloadChecksumError,
+                            writeBackStructure.LossOfCarrier,
+                            writeBackStructure.NoCarrier,
+                            writeBackStructure.LateCollision,
+                            writeBackStructure.ExcessiveCollision,
+                            writeBackStructure.ExcessiveDeferral,
+                            writeBackStructure.UnderflowError,
                         }.Any(x => x);
-                        writeBackStructure.txTimestampCaptured = false;
-                        writeBackStructure.owner = DescriptorOwner.Application;
-                        writeBackStructure.firstDescriptor = structure.firstDescriptor;
-                        writeBackStructure.lastDescriptor = structure.lastDescriptor;
+                        writeBackStructure.TxTimestampCaptured = false;
+                        writeBackStructure.OwnerField = DescriptorOwner.Application;
+                        writeBackStructure.FirstDescriptor = structure.FirstDescriptor;
+                        writeBackStructure.LastDescriptor = structure.LastDescriptor;
 
-                        if(structure.transmitTimestampEnable && parent.enableTimestamp.Value)
+                        if(structure.TransmitTimestampEnable && parent.enableTimestamp.Value)
                         {
-                            this.Log(LogLevel.Error, "Transmission: Timestamping is not supported.");
+                            writeBackStructure.TxTimestampCaptured = true;
+                            parent.GetTimestamp(out var seconds, out var nanoseconds);
+                            writeBackStructure.TxPacketTimestamp = (seconds << 32) | nanoseconds;
                         }
-    #if DEBUG
+#if DEBUG
                         this.Log(LogLevel.Noisy, "Transmission: Writing {0} to 0x{1:X}.", writeBackStructure, descriptor.Address);
-    #endif
+#endif
                         descriptor.SetDescriptor(writeBackStructure);
 
-                        if(structure.interruptOnCompletion)
+                        if(structure.InterruptOnCompletion)
                         {
                             txInterrupt.Value = true;
                         }
@@ -855,17 +888,17 @@ namespace Antmicro.Renode.Peripherals.Network
                     {
                         var structure = descriptor.GetContextDescriptor();
                         latestTxContext = structure;
-    #if DEBUG
+#if DEBUG
                         this.Log(LogLevel.Noisy, "Transmission: Loaded {0} from 0x{1:X}.", structure, descriptor.Address);
-    #endif
-                        if(structure.oneStepTimestampCorrectionEnable && structure.oneStepTimestampCorrectionInputOrMaximumSegmentSizeValid)
+#endif
+                        if(structure.OneStepTimestampCorrectionEnable && structure.OneStepTimestampCorrectionInputOrMaximumSegmentSizeValid)
                         {
                             this.Log(LogLevel.Error, "Transmission: Timestamping is not supported. One Step Timestamp Correction failed.");
                         }
-                        structure.owner = DescriptorOwner.Application;
-    #if DEBUG
+                        structure.OwnerField = DescriptorOwner.Application;
+#if DEBUG
                         this.Log(LogLevel.Noisy, "Transmission: Writing {0} to 0x{1:X}.", structure, descriptor.Address);
-    #endif
+#endif
                         descriptor.SetDescriptor(structure);
                     }
                     else
@@ -905,11 +938,14 @@ namespace Antmicro.Renode.Peripherals.Network
             }
 
             private ulong RxBuffer1Size => alternateRxBufferSize.Value == 0 ? rxBufferSize.Value : alternateRxBufferSize.Value;
+
             private ulong RxBuffer2Size => rxBufferSize.Value;
 
             // TODO: Maybe remove those:
             private ulong ProgrammableBurstLengthMultiplier => programmableBurstLengthTimes8.Value ? 8UL : 1UL;
+
             private ulong TxProgrammableBurstLength => txProgrammableBurstLength.Value * ProgrammableBurstLengthMultiplier;
+
             private ulong RxProgrammableBurstLength => rxProgrammableBurstLength.Value * ProgrammableBurstLengthMultiplier;
 
             private IValueRegisterField maximumSegmentSize;
@@ -979,6 +1015,23 @@ namespace Antmicro.Renode.Peripherals.Network
             private readonly SynopsysDWCEthernetQualityOfService parent;
             private readonly int channelNumber;
             private readonly bool hasInterrupts;
+        }
+
+        protected enum DMAChannelInterruptMode
+        {
+            Pulse            = 0b00,
+            Level            = 0b01,
+            LevelAndReassert = 0b10,
+            Reserved         = 0b11,
+        }
+
+        private enum DMAState
+        {
+            Stopped = 0,
+            Running = 1,
+            ProcessingIntermediate = 2,
+            ProcessingSecond = 4,
+            Suspended = 8,
         }
     }
 }

@@ -12,7 +12,5 @@ namespace Antmicro.Renode.Core
     [Icon("box")]
     public interface IExternal : IEmulationElement
     {
-
     }
 }
-

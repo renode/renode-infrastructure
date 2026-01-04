@@ -1,22 +1,23 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Debugging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     // OpenTitan HMACi HWIP as per https://docs.opentitan.org/hw/ip/hmac/doc/ (30.06.2021)
-    public class OpenTitan_HMAC: BasicDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IKnownSize
+    public class OpenTitan_HMAC : BasicDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IKnownSize
     {
         public OpenTitan_HMAC(IMachine machine) : base(machine)
         {
@@ -40,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             UpdateInterrupts();
             FatalAlert.Unset();
         }
-        
+
         public override void WriteDoubleWord(long offset, uint value)
         {
             if(IsInFifoWindowRange(offset))
@@ -52,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 base.WriteDoubleWord(offset, value);
             }
         }
-        
+
         public void WriteWord(long offset, ushort value)
         {
             if(IsInFifoWindowRange(offset))
@@ -64,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.Log(LogLevel.Warning, "Tried to write value 0x{0:X} at offset 0x{1:X}, but word access to registers is not supported", value, offset);
             }
         }
-        
+
         public void WriteByte(long offset, byte value)
         {
             if(IsInFifoWindowRange(offset))
@@ -86,24 +87,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
             return base.ReadDoubleWord(offset);
         }
-        
+
         //Below methods are required to properly register writes for byte and word accesses
         public ushort ReadWord(long offset)
         {
             this.Log(LogLevel.Warning, "Tried to read value at offset 0x{0:X}, but word access to registers is not supported", offset);
             return 0;
         }
-        
+
         public byte ReadByte(long offset)
         {
             this.Log(LogLevel.Warning, "Tried to read value at offset 0x{0:X}, but byte access to registers is not supported", offset);
             return 0;
         }
-        
-        public long Size =>  0x1000;
-        
+
+        public long Size => 0x1000;
+
         public GPIO IRQ { get; }
-        public GPIO FatalAlert { get;  private set;}
+
+        public GPIO FatalAlert { get; private set; }
 
         private void HashProcess()
         {
@@ -126,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     hash = sha.ComputeHash(message);
                 }
             }
-           
+
             if(digestSwap.Value)
             {
                 Misc.EndiannessSwapInPlace(hash, sizeof(uint));
@@ -161,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             fifoEmptyInterrupt.Value = true;
             UpdateInterrupts();
         }
-        
+
         private void DefineRegisters()
         {
             Registers.InterruptStatus.Define(this)
@@ -195,7 +197,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(2, out endianSwap, name: "endian_swap") //0 - big endian; 1 - little endian
                 .WithFlag(3, out digestSwap, name: "digest_swap") //1 - big-endian 
                 .WithIgnoredBits(4, 28)
-                .WithWriteCallback((_, __) => 
+                .WithWriteCallback((_, __) =>
                 {
                     this.Log(LogLevel.Debug, "Configuration set to hmac_en: {0}, sha_en: {1}, endian_swap: {2}, digest_swap: {3}", hmacEnabled.Value, shaEnabled.Value, endianSwap.Value, digestSwap.Value);
                 });
@@ -241,14 +243,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             DebugHelper.Assert(part >= 0 && part < SecretKeyLength);
 
-            this.Log(LogLevel.Noisy, "Setting key_{0} to 0x{1:X2}", part, value); 
+            this.Log(LogLevel.Noisy, "Setting key_{0} to 0x{1:X2}", part, value);
             var offset = part * 4;
             for(int i = 3; i >= 0; i--)
             {
                 key[i + offset] = (byte)value;
                 value = value >> 8;
             }
-        }            
+        }
 
         private uint GetDigestPart(int part)
         {
@@ -258,10 +260,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private ulong ReceivedLengthInBits => (ulong)packer.Count * 8;
 
-        private readonly byte[] digest;
-        private readonly byte[] key;
-        private readonly Packer packer;
-        
         private IFlagRegisterField hmacDoneInterrupt;
         private IFlagRegisterField fifoEmptyInterrupt;
         private IFlagRegisterField hmacErrorInterrupt;
@@ -272,6 +270,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField shaEnabled;
         private IFlagRegisterField endianSwap;
         private IFlagRegisterField digestSwap;
+
+        private readonly byte[] digest;
+        private readonly byte[] key;
+        private readonly Packer packer;
 
         private const int SecretKeyLength = 8;
         private const int DigestLength = 8;
@@ -291,7 +293,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     for(int i = 0; i < accessByteCount; i++)
                     {
-                        var b = (byte)(data >> (8 * i)); 
+                        var b = (byte)(data >> (8 * i));
                         byteQueue.Enqueue(b);
                         parent.Log(LogLevel.Noisy, "Pushed byte 0x{0:X2}", b);
                     }
@@ -308,23 +310,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         byteList.Add(byteQueue.Dequeue());
                     }
                 }
-                
+
                 var output = byteList.ToArray();
                 if(reverse)
                 {
                     Array.Reverse(output);
                 }
-                
+
                 return output;
             }
 
-            public ulong Count => (ulong)byteQueue.Count; 
-            
+            public ulong Count => (ulong)byteQueue.Count;
+
             private readonly IEmulationElement parent;
             private readonly Queue<byte> byteQueue;
             private readonly object queueLock;
         }
-        
+
         private enum Registers
         {
             InterruptStatus        = 0x0,
@@ -353,7 +355,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Digest_6               = 0x5C,
             Digest_7               = 0x60,
             MessageLengthLowerPart = 0x64,
-            MessageLengthUpperPart = 0x68, 
+            MessageLengthUpperPart = 0x68,
             FifoWindow             = 0x800,
         }
     }

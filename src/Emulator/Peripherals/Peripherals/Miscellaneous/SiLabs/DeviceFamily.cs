@@ -1,8 +1,8 @@
 ﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
@@ -60,5 +60,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         EZR32LG = 120, //EZR32 Leopard Gecko Device Family
         EZR32WG = 121, //EZR32 Wonder Gecko Device Family
         EZR32HG = 122, //EZR32 Happy Gecko Device Family
+        EFR32MG24 = 215, //EFR32 Mighty Gecko Series 2 Device Config 4
+        EFR32MG26 = 225, //EFR32 Mighty Gecko Series 2 Device Config 6
     }
 }

@@ -1,13 +1,13 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTag("FCTRIM", 1, 4)
                     .WithEnumField(5, 2, out encoding, name: "DRST_DRS")
                     .WithTaggedFlag("DMX32", 7)
-                },                
+                },
                 {(long)Registers.Control5, new ByteRegister(this)
                     .WithTag("PRDIV0", 0, 5)
                     .WithTaggedFlag("PLLSTEN0", 5)

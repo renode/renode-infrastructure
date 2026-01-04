@@ -1,19 +1,16 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.USB;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals.USB
@@ -80,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.USB
             setupPacket.Value = 0x0200;
             setupPacket.Index = 0;
             setupPacket.Count = 9;
-            device.USBCore.HandleSetupPacket(setupPacket, _ => {}, null);
+            device.USBCore.HandleSetupPacket(setupPacket, _ => { }, null);
         }
 
         private void SetAddress(IUSBDevice device)
@@ -95,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.USB
             setupPacket.Count = 0;
 
             // This should respond with empty data packet, but we dont check it for now as it is not necessary
-            device.USBCore.HandleSetupPacket(setupPacket, _ => 
+            device.USBCore.HandleSetupPacket(setupPacket, _ =>
             {
                 devices.Add(addressCounter, device);
                 addressCounter++;
@@ -112,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.USB
             setupPacket.Value = 1; // Set to first configuration for now
             setupPacket.Index = 0;
             setupPacket.Count = 0;
-            device.USBCore.HandleSetupPacket(setupPacket, _ => {}, null);
+            device.USBCore.HandleSetupPacket(setupPacket, _ => { }, null);
         }
 
         private bool TryInitializeConnectedDevice(IUSBDevice peripheral)
@@ -140,17 +137,17 @@ namespace Antmicro.Renode.Peripherals.USB
         private void ExecuteWithDelay(Action action)
         {
             var now = timeSource.ElapsedVirtualTime;
-            var calculatedDelay = now + TimeInterval.FromMilliseconds(defaultDelay); 
+            var calculatedDelay = now + TimeInterval.FromMilliseconds(defaultDelay);
             var calculatedTimestamp = new TimeStamp(calculatedDelay, timeSource.Domain);
             timeSource.ExecuteInSyncedState(_ =>
             {
-                action();   
+                action();
             }, calculatedTimestamp);
         }
 
         private byte addressCounter;
+        private readonly TimeSourceBase timeSource;
         private readonly TwoWayDictionary<byte, IUSBDevice> devices;
-        private TimeSourceBase timeSource;
         private readonly uint defaultDelay;
     }
 }

@@ -7,8 +7,9 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Linq;
+using System.Runtime.CompilerServices;
+
 using Antmicro.Renode.Debugging;
 
 namespace Antmicro.Renode.Utilities
@@ -87,7 +88,7 @@ namespace Antmicro.Renode.Utilities
             ulong mask = ulong.MaxValue;
             foreach(var bit in bits)
             {
-                mask -= 1u << bit;
+                mask -= 1ul << bit;
             }
             reg &= mask;
         }
@@ -107,7 +108,7 @@ namespace Antmicro.Renode.Utilities
             ulong mask = ulong.MaxValue;
             for(var i = 0; i < width; i++)
             {
-                mask -= 1u << (position + i);
+                mask -= 1ul << (position + i);
             }
             reg &= mask;
         }
@@ -124,10 +125,10 @@ namespace Antmicro.Renode.Utilities
 
         public static void SetBits(ref ulong reg, int position, int width)
         {
-            var mask = 0x0u;
+            var mask = 0x0ul;
             for(var i = 0; i < width; i++)
             {
-                mask += 1u << (position + i);
+                mask += 1ul << (position + i);
             }
             reg |= mask;
         }
@@ -401,6 +402,17 @@ namespace Antmicro.Renode.Utilities
             return result;
         }
 
+        public static uint GetSetBitsCount(ulong value)
+        {
+            var count = 0u;
+            while(value != 0)
+            {
+                count++;
+                value &= value - 1;
+            }
+            return count;
+        }
+
         public static string GetSetBitsPretty(ulong reg)
         {
             var setBits = new HashSet<int>(GetSetBits(reg));
@@ -436,7 +448,6 @@ namespace Antmicro.Renode.Utilities
                 reg >>= 1;
                 pos++;
             }
-
         }
 
         public static ulong GetLeastSignificantOne(ulong val)
@@ -513,6 +524,15 @@ namespace Antmicro.Renode.Utilities
             return (byte)(((uint)reg >> offset) & ((0x1ul << size) - 1));
         }
 
+        public static ushort GetValue(ushort reg, int offset, int size)
+        {
+            if(size < 0 || size > 16)
+            {
+                throw new ArgumentException("size not in [0,16]");
+            }
+            return (ushort)(((uint)reg >> offset) & ((0x1ul << size) - 1));
+        }
+
         public static uint GetValue(uint reg, int offset, int size)
         {
             if(size < 0 || size > 32)
@@ -557,7 +577,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         public static void SetMaskedValue(ref ulong reg, ulong value, int maskOffset, int maskSize)
-        {            
+        {
             var mask = CalculateQuadWordMask(maskSize, maskOffset);
             value <<= maskOffset;
             value &= mask;
@@ -636,9 +656,9 @@ namespace Antmicro.Renode.Utilities
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint CalculateMask(int width, int position)
         {
-            const int MaxWidth = 32;
-            AssertMaskParameters(width, position, MaxWidth);
-            if(width == MaxWidth && position == 0)
+            const int maxWidth = 32;
+            AssertMaskParameters(width, position, maxWidth);
+            if(width == maxWidth && position == 0)
             {
                 return uint.MaxValue;
             }
@@ -648,9 +668,9 @@ namespace Antmicro.Renode.Utilities
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong CalculateQuadWordMask(int width, int position)
         {
-            const int MaxWidth = 64;
-            AssertMaskParameters(width, position, MaxWidth);
-            if(width == MaxWidth && position == 0)
+            const int maxWidth = 64;
+            AssertMaskParameters(width, position, maxWidth);
+            if(width == maxWidth && position == 0)
             {
                 return ulong.MaxValue;
             }
@@ -732,8 +752,18 @@ namespace Antmicro.Renode.Utilities
 
         private static void AssertMaskParameters(int width, int position, int maxWidth)
         {
-            DebugHelper.Assert(width >= 0 && position >= 0, $"Width (0x{width:X}) and position (0x{position:X}) should be grater than 0.");
-            DebugHelper.Assert(checked(width + position) <= maxWidth, $"Sum of width (0x{width:X}) and position (0x{position:X}) should be lower than or equal to {maxWidth}.");
+            if(width < 0)
+            {
+                throw new ArgumentException($"'{nameof(width)}' (0x{width:X}) should be grater than 0.");
+            }
+            if(position < 0)
+            {
+                throw new ArgumentException($"'{nameof(position)} ({position}) should be grater than or equal to 0.");
+            }
+            if(checked(width + position) > maxWidth)
+            {
+                throw new ArgumentException($"Sum of '{nameof(width)}' ({width}) and '{nameof(position)}' ({position}) should be less than or equal to {maxWidth}.");
+            }
         }
 
         private static bool[] GetBitsInner(ulong reg, int length)
@@ -836,6 +866,8 @@ namespace Antmicro.Renode.Utilities
                 }
             }
 
+            private static readonly FragmentComparer comparer = new FragmentComparer();
+
             private void InnerDefine(Fragment f)
             {
                 if(sizeLimit.HasValue && f.Offset + f.Length > sizeLimit.Value)
@@ -866,19 +898,6 @@ namespace Antmicro.Renode.Utilities
             private readonly List<Fragment> fragments;
             private readonly int? sizeLimit;
 
-            private static FragmentComparer comparer = new FragmentComparer();
-
-            private struct Fragment
-            {
-                public int Offset;
-                public int Length;
-                public ulong RawValue;
-                public Func<ulong> ValueProvider;
-                public string Name;
-
-                public ulong EffectiveValue => ValueProvider != null ? ValueProvider() & ((1u << Length) - 1) : RawValue;
-            }
-
             private class FragmentComparer : IComparer<Fragment>
             {
                 public int Compare(Fragment x, Fragment y)
@@ -894,6 +913,17 @@ namespace Antmicro.Renode.Utilities
                     return 0;
                 }
             }
+
+            private struct Fragment
+            {
+                public int Offset;
+                public int Length;
+                public ulong RawValue;
+                public Func<ulong> ValueProvider;
+                public string Name;
+
+                public ulong EffectiveValue => ValueProvider != null ? ValueProvider() & ((1u << Length) - 1) : RawValue;
+            }
         }
 
         // TODO: optimize it - add padding automatically, limit number of copying
@@ -903,10 +933,6 @@ namespace Antmicro.Renode.Utilities
             {
                 return new BitConcatenator(size);
             }
-
-            private BitStream bs = new BitStream();
-
-            public BitStream Bits => bs;
 
             public BitConcatenator StackAbove(uint value, int length, int position = 0)
             {
@@ -919,10 +945,14 @@ namespace Antmicro.Renode.Utilities
                 return this;
             }
 
+            public BitStream Bits => bs;
+
             private BitConcatenator(int? size)
             {
                 maxHeight = size;
             }
+
+            private readonly BitStream bs = new BitStream();
 
             private readonly int? maxHeight;
         }

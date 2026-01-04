@@ -11,26 +11,24 @@ using System;
 namespace Antmicro.Renode.Core
 {
     [AttributeUsage(AttributeTargets.Class)]
-	public class GPIOAttribute : Attribute
-	{
-		/// <summary>
-		/// Specifies number of GPIO inputs. If it is 0 (default), the number of inputs is unbound.
-		/// </summary>
-		public int NumberOfInputs
-		{
-			get;
-			set;
-		}
-		
-		/// <summary>
-		/// Specifies number of GPIO outputs. If it is 0 (default), the number of outputs is unbound.
-		/// </summary>
-		public int NumberOfOutputs
-		{
-			get;
-			set;
-		}
-		
-	}
-}
+    public class GPIOAttribute : Attribute
+    {
+        /// <summary>
+        /// Specifies number of GPIO inputs. If it is 0 (default), the number of inputs is unbound.
+        /// </summary>
+        public int NumberOfInputs
+        {
+            get;
+            set;
+        }
 
+        /// <summary>
+        /// Specifies number of GPIO outputs. If it is 0 (default), the number of outputs is unbound.
+        /// </summary>
+        public int NumberOfOutputs
+        {
+            get;
+            set;
+        }
+    }
+}

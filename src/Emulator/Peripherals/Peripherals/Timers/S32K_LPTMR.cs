@@ -1,15 +1,12 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -130,7 +127,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                             this.Log(LogLevel.Warning, "Trying to set CMR to 0, this is currently not handled");
                         }
                         compare = (uint)value;
-
                     })
                 .WithReservedBits(16, 16)
             ;

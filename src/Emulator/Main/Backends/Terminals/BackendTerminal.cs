@@ -7,9 +7,10 @@
 //
 using System;
 using System.Collections;
-using Antmicro.Renode.Peripherals.UART;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Backends.Terminals
@@ -20,10 +21,6 @@ namespace Antmicro.Renode.Backends.Terminals
         {
             buffer = new Queue();
         }
-
-        public virtual event Action<byte> CharReceived;
-
-        public abstract void WriteChar(byte value);
 
         public virtual void BufferStateChanged(BufferState state)
         {
@@ -77,6 +74,10 @@ namespace Antmicro.Renode.Backends.Terminals
             buffer.Clear();
         }
 
+        public abstract void WriteChar(byte value);
+
+        public virtual event Action<byte> CharReceived;
+
         protected void CallCharReceived(byte value)
         {
             var charReceived = CharReceived;
@@ -126,12 +127,11 @@ namespace Antmicro.Renode.Backends.Terminals
             machine.HandleTimeDomainEvent(handler, handlerValue, vts);
         }
 
-        private readonly Queue buffer;
-        private readonly object innerLock = new object();
-
         private IUART uart;
         private IMachine machine;
         private bool pendingTimeDomainEvent;
+
+        private readonly Queue buffer;
+        private readonly object innerLock = new object();
     }
 }
-

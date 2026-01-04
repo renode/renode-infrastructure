@@ -6,74 +6,31 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Sockets;
+using Antmicro.Renode.UserInterface.Commands;
+using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.Utilities;
-using System.IO;
-using System.Text;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Reflection;
-using System.Security.Cryptography;
+
 using AntShell;
 using AntShell.Commands;
-using Antmicro.Renode.UserInterface.Tokenizer;
-using Antmicro.Renode.UserInterface.Commands;
 
 namespace Antmicro.Renode.UserInterface
 {
-    public partial class Monitor : ICommandHandler
+    public partial class Monitor : ICommandHandler, IHasPreservableState
     {
-        public ICommandInteraction HandleCommand(string cmd, ICommandInteraction ci)
-        {
-            Parse(cmd, ci);
-            return ci;
-        }
-
-        public string[] SuggestionNeeded(string cmd)
-        {
-            return SuggestCommands(cmd).ToArray();
-        }
-
-        public Func<IEnumerable<ICommandDescription>> GetInternalCommands { get; set; }
-
-        public IMachine Machine
-        {
-            get
-            {
-                return currentMachine;
-            }
-            set
-            {
-                currentMachine = value;
-            }
-        }
-
-        private Emulation Emulation
-        {
-            get
-            {
-                return emulationManager.CurrentEmulation;
-            }
-        }
-
-        public IEnumerable<string> CurrentPathPrefixes
-        {
-            get
-            {
-                return monitorPath.PathElements;
-            }
-        }
-
-        private readonly EmulationManager emulationManager;
-        private MonitorPath monitorPath = new MonitorPath(Environment.CurrentDirectory);
-        public const string StartupCommandEnv = "STARTUP_COMMAND";
-        private bool swallowExceptions;
-        private bool breakOnException;
-
         public Monitor()
         {
             swallowExceptions = ConfigurationManager.Instance.Get(ConfigurationSection, "consume-exceptions-from-command", true);
@@ -115,6 +72,7 @@ namespace Antmicro.Renode.UserInterface
                 emulationManager.CurrentEmulation.MachineAdded += RegisterResetCommand;
                 monitorPath.Reset();
             };
+            EmulationManager.PreservableManager.RegisterPreservable(this, livesThroughEmulationChange: true);
 
             SetVariable(CurrentDirectoryVariable, new PathToken("@" + startingCurrentDirectory), variables);
             CurrentNumberFormat = ConfigurationManager.Instance.Get<NumberModes>(ConfigurationSection, "number-format", NumberModes.Hexadecimal);
@@ -122,226 +80,106 @@ namespace Antmicro.Renode.UserInterface
             JoinEmulation();
         }
 
-        private void RegisterResetCommand(IMachine machine)
+        public void Bind(string name, Func<object> objectServer)
         {
-            machine.MachineReset += ResetMachine;
+            objectDelegateMappings[name] = objectServer;
         }
 
-        private void UpdateMonitorPrompt(IMachine machine)
+        public bool TryLoadPlatform(string filename, ICommandInteraction writer = null)
         {
-            if(currentMachine == machine)
+            if(writer == null)
             {
-                currentMachine = null;
+                writer = Interaction;
             }
-        }
-
-        private void InitializeAutoCommand(Type type)
-        {
-            if(type.IsSubclassOf(typeof(AutoLoadCommand)))
+            if(CurrentMachine == null)
             {
-                var constructor = type.GetConstructor(new[] { typeof(Monitor) })
-                                  ?? type.GetConstructors().FirstOrDefault(x =>
-                {
-                    var constructorParams = x.GetParameters();
-                    if(constructorParams.Length == 0)
-                    {
-                        return false;
-                    }
-                    return constructorParams[0].ParameterType == typeof(Monitor) && constructorParams.Skip(1).All(y => y.IsOptional);
-                });
-                if(constructor == null)
-                {
-                    Logger.LogAs(this, LogLevel.Error, "Could not initialize command {0}.", type.Name);
-                    return;
-                }
-                var parameters = new List<object> { this };
-                parameters.AddRange(constructor.GetParameters().Skip(1).Select(x => x.DefaultValue));
-                var commandInstance = (AutoLoadCommand)constructor.Invoke(parameters.ToArray());
-                RegisterCommand(commandInstance);
+                var machine = new Machine();
+                EmulationManager.Instance.CurrentEmulation.AddMachine(machine);
+                CurrentMachine = machine;
             }
+            var path = new PathToken(filename);
+            var command = new LiteralToken("LoadPlatformDescription");
+            ExecuteDeviceAction("machine", Machine, new Token[] { command, path });
+            return true;
         }
 
-        private void JoinEmulation()
+        public bool SetPeripheralMacro(IPeripheral peripheral, string macroName, string contents, IMachine machine = null)
         {
-            Emulation.MachineExchanged += (oldMachine, newMachine) =>
+            machine = machine ?? CurrentMachine;
+            string variablePrefix;
+            if(peripheral == null)
             {
-                if(currentMachine == oldMachine)
-                {
-                    currentMachine = newMachine;
-                }
-            };
-        }
-
-        private static void SetBasePath()
-        {
-            if(!Misc.TryGetRootDirectory(out var baseDirectory))
-            {
-                Logger.Log(LogLevel.Warning, "Monitor: could not find root base path, using current instead.");
-                return;
+                variablePrefix = "";
             }
-            Directory.SetCurrentDirectory(baseDirectory);
-        }
-
-        public void RegisterCommand(Command command)
-        {
-            if(Commands.Contains(command))
+            else if(machine.TryGetLocalName(peripheral, out variablePrefix))
             {
-                Logger.LogAs(this, LogLevel.Warning, "Command {0} already registered.", command.Name);
-                return;
-            }
-            Commands.Add(command);
-        }
-
-        public void UnregisterCommand(Command command)
-        {
-            if(!Commands.Contains(command))
-            {
-                Logger.LogAs(this, LogLevel.Warning, "Command {0} not registered.", command.Name);
-                return;
-            }
-            Commands.Remove(command);
-        }
-
-        private void InitCommands()
-        {
-            Bind(Core.Machine.MachineKeyword, () => Machine);
-            BindStatic("connector", () => emulationManager.CurrentEmulation.Connector);
-            BindStatic(EmulationToken, () => Emulation);
-            BindStatic("plugins", () => TypeManager.Instance.PluginManager);
-            BindStatic("EmulationManager", () => emulationManager);
-            BindStatic("sockets", () => SocketsManager.Instance);
-
-            var includeCommand = new IncludeFileCommand(this, (x, y) => pythonRunner.TryExecutePythonScript(x, y), x => TryExecuteScript(x), (x, y) => TryCompilePlugin(x, y), (x,y) => TryLoadPlatform(x,y));
-            Commands.Add(new HelpCommand(this, () =>
-            {
-                var gic = GetInternalCommands;
-                var result = Commands.Cast<ICommandDescription>();
-                if(gic != null)
-                {
-                    result = result.Concat(gic());
-                }
-                return result;
-            }));
-            Commands.Add(includeCommand);
-            Commands.Add(new CreatePlatformCommand(this, x => currentMachine = x));
-            Commands.Add(new UsingCommand(this, () => usings));
-            Commands.Add(new QuitCommand(this, x => currentMachine = x, () => Quitted));
-            Commands.Add(new PeripheralsCommand(this, () => currentMachine));
-            Commands.Add(new MonitorPathCommand(this, monitorPath));
-            Commands.Add(new StartCommand(this, includeCommand));
-            Commands.Add(new SetCommand(this, "set", "VARIABLE", (x, y) => SetVariable(x, y, variables), (x, y) => EnableStringEater(x, y, VariableType.Variable),
-                DisableStringEater, () => stringEaterMode, GetVariableName));
-            Commands.Add(new SetCommand(this, "macro", "MACRO", (x, y) => SetVariable(x, y, macros), (x, y) => EnableStringEater(x, y, VariableType.Macro),
-                DisableStringEater, () => stringEaterMode, GetVariableName));
-            Commands.Add(new SetCommand(this, "alias", "ALIAS", (x, y) => SetVariable(x, y, aliases), (x, y) => EnableStringEater(x, y, VariableType.Alias),
-	        DisableStringEater, () => stringEaterMode, GetVariableName));
-            Commands.Add(new PythonExecuteCommand(this, x => ExpandVariable(x, variables), (x, y) => pythonRunner.ExecutePythonCommand(x, y)));
-            Commands.Add(new ExecuteCommand(this, "execute", "VARIABLE", x => ExpandVariable(x, variables), () => variables.Keys));
-            Commands.Add(new ExecuteCommand(this, "runMacro", "MACRO", x => ExpandVariable(x, macros), () => macros.Keys));
-            Commands.Add(new MachCommand(this, () => currentMachine, x => currentMachine = x));
-            Commands.Add(new ResdCommand(this));
-            Commands.Add(new VerboseCommand(this, x => verboseMode = x));
-        }
-
-        private void DisableStringEater()
-        {
-            stringEaterMode = 0;
-            stringEaterValue = null;
-            stringEaterVariableName = null;
-            recordingType = null;
-        }
-
-        private void EnableStringEater(string variable, int mode, VariableType type)
-        {
-            recordingType = type;
-            stringEaterMode = mode;
-            stringEaterVariableName = variable;
-        }
-
-        private void ResetMachine(IMachine machine)
-        {
-            string machineName;
-            if(EmulationManager.Instance.CurrentEmulation.TryGetMachineName(machine, out machineName))
-            {
-                var activeMachine = _currentMachine;
-                _currentMachine = machine;
-                var macroName = GetVariableName("reset");
-                Token resetMacro;
-                if(macros.TryGetValue(macroName, out resetMacro))
-                {
-                    var macroLines = resetMacro.GetObjectValue().ToString().Split('\n');
-                    foreach(var line in macroLines)
-                    {
-                        Parse(line, Interaction);
-                    }
-                }
-                else
-                {
-                    Logger.LogAs(this, LogLevel.Warning, "No action for reset - macro {0} is not registered.", macroName);
-                }
-                _currentMachine = activeMachine;
-            }
-        }
-
-        private TokenizationResult Tokenize(string cmd, ICommandInteraction writer)
-        {
-            var result = tokenizer.Tokenize(cmd);
-            if(result.UnmatchedCharactersLeft != 0)
-            {
-                //Reevaluate the expression if the tokenization failed, but expanding the variables may help.
-                //E.g. i $ORIGIN/dir/script. This happens only if the variable is the last successful token.
-                if(result.Tokens.Any() && result.Tokens.Last() is VariableToken lastVariableToken)
-                {
-                    if(!TryExpandVariable(lastVariableToken, variables, out var lastExpandedToken))
-                    {
-                        writer.WriteError($"No such variable: ${lastVariableToken.Value}");
-                        return null;
-                    }
-                    // replace the last token with the expanded version
-                    var newString = result.Tokens.Take(result.Tokens.Count() - 1).Select(x => x.OriginalValue).Stringify() + lastExpandedToken.OriginalValue + cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft);
-                    return Tokenize(newString, writer);
-                }
-                var messages = new StringBuilder();
-
-                var message = "Could not tokenize here:";
-                writer.WriteError(message);
-                messages.AppendFormat("Monitor: {0}\n", message);
-
-                writer.WriteError(cmd);
-                messages.AppendLine(cmd);
-
-                var matchedLength = cmd.Length - result.UnmatchedCharactersLeft;
-                var padded = "^".PadLeft(matchedLength + 1);
-                writer.WriteError(padded);
-                messages.AppendLine(padded);
-                if(result.Exception != null)
-                {
-                    messages.AppendFormat("Encountered exception: {0}\n", result.Exception.Message);
-                    writer.WriteError(result.Exception.Message);
-                }
-                Logger.Log(LogLevel.Warning, messages.ToString());
-                return null;
-            }
-            return result;
-        }
-
-        public void SetVariable(string var, Token val, Dictionary<string, Token> collection)
-        {
-            collection[var] = val;
-        }
-
-        private Token ExecuteWithResult(String value, ICommandInteraction writer)
-        {
-            var eater = new CommandInteractionEater();
-            if(Parse(value, eater))
-            {
-                return new StringToken(eater.GetContents());
+                variablePrefix += ".";
             }
             else
             {
-                writer.WriteError(eater.GetError());
-                return null;
+                return false;
             }
+
+            var variableName = GetVariableName($"{variablePrefix}{macroName}");
+            SetVariable(variableName, new StringToken(contents), macros);
+            return true;
+        }
+
+        public bool Parse(string cmd, ICommandInteraction writer = null)
+        {
+            if(writer == null)
+            {
+                writer = Interaction;
+            }
+
+            if(stringEaterMode > 0)
+            {
+                //For multiline scripts in variables
+                if(cmd.Contains(MultiLineTerminator))
+                {
+                    stringEaterMode += 1;
+                    if(stringEaterMode > 2)
+                    {
+                        SetVariable(stringEaterVariableName, new StringToken(stringEaterValue), variableCollections[recordingType.Value]);
+                        stringEaterValue = "";
+                        stringEaterMode = 0;
+                    }
+                    return true;
+                }
+                if(stringEaterMode > 1)
+                {
+                    if(stringEaterValue != "")
+                    {
+                        stringEaterValue = stringEaterValue + "\n";
+                    }
+                    stringEaterValue = stringEaterValue + cmd;
+                    return true;
+                }
+                SetVariable(stringEaterVariableName, new StringToken(cmd), variableCollections[recordingType.Value]);
+                stringEaterValue = "";
+                stringEaterMode = 0;
+                return true;
+            }
+
+            if(string.IsNullOrWhiteSpace(cmd))
+            {
+                return true;
+            }
+            var tokens = Tokenize(cmd, writer);
+            if(tokens == null)
+            {
+                return false;
+            }
+            int groupNumber = 0;
+            foreach(var singleCommand in tokens.Tokens
+                    .GroupBy(x => { if(x is CommandSplit) groupNumber++; return groupNumber; })
+                    .Select(x => x.Where(y => !(y is CommandSplit)))
+                    .Where(x => x.Any()))
+            {
+                if(!ParseTokens(singleCommand, writer))
+                    return false;
+            }
+            return true;
         }
 
         public bool ParseTokens(IEnumerable<Token> tokensToParse, ICommandInteraction writer)
@@ -462,159 +300,10 @@ namespace Antmicro.Renode.UserInterface
             return true;
         }
 
-        public bool Parse(string cmd, ICommandInteraction writer = null)
+        public void SetVariable(string var, Token val, Dictionary<string, Token> collection)
         {
-            if(writer == null)
-            {
-                writer = Interaction;
-            }
-
-            if(stringEaterMode > 0)
-            {
-                //For multiline scripts in variables
-                if(cmd.Contains(MultiLineTerminator))
-                {
-                    stringEaterMode += 1;
-                    if(stringEaterMode > 2)
-                    {
-                        SetVariable(stringEaterVariableName, new StringToken(stringEaterValue), variableCollections[recordingType.Value]);
-                        stringEaterValue = "";
-                        stringEaterMode = 0;
-                    }
-                    return true;
-                }
-                if(stringEaterMode > 1)
-                {
-                    if(stringEaterValue != "")
-                    {
-                        stringEaterValue = stringEaterValue + "\n";
-                    }
-                    stringEaterValue = stringEaterValue + cmd;
-                    return true;
-                }
-                SetVariable(stringEaterVariableName, null, variableCollections[recordingType.Value]);
-                stringEaterValue = "";
-                stringEaterMode = 0;
-            }
-
-            if(string.IsNullOrWhiteSpace(cmd))
-            {
-                return true;
-            }
-            var tokens = Tokenize(cmd, writer);
-            if(tokens == null)
-            {
-                return false;
-            }
-            int groupNumber = 0;
-            foreach(var singleCommand in tokens.Tokens
-                    .GroupBy(x => { if(x is CommandSplit) groupNumber++; return groupNumber; })
-                    .Select(x => x.Where(y => !(y is CommandSplit)))
-                    .Where(x => x.Any()))
-            {
-                if(!ParseTokens(singleCommand, writer))
-                    return false;
-            }
-            return true;
+            collection[var] = val;
         }
-
-        private string GetVariableName(string variableName)
-        {
-            var elements = variableName.Split(new[] { '.' }, 2);
-
-            if(elements.Length == 1 || (!elements[0].Equals("global") && !EmulationManager.Instance.CurrentEmulation.Names.Select(x => x.Replace("-", "_")).Any(x => x == elements[0])))
-            {
-                if(currentMachine != null)
-                {
-                    variableName = String.Format("{0}.{1}", EmulationManager.Instance.CurrentEmulation[currentMachine].Replace("-", "_"), variableName);
-                }
-                else
-                {
-                    variableName = String.Format("global.{0}", variableName);
-                }
-            }
-            return variableName;
-        }
-
-        public bool TryCompilePlugin(string filename, ICommandInteraction writer = null)
-        {
-            if(writer == null)
-            {
-                writer = Interaction;
-            }
-            string sha;
-            using(var shaComputer = SHA256.Create())
-            {
-                using(var f = File.OpenRead(filename))
-                {
-                    var bytesSha = shaComputer.ComputeHash(f);
-
-                    var strBldr = new StringBuilder(32 * 2);
-                    foreach(var b in bytesSha)
-                    {
-                        strBldr.AppendFormat("{0:X2}", b);
-                    }
-                    sha = strBldr.ToString();
-
-                    if(scannedFilesCache.Contains(sha))
-                    {
-                        writer.WriteLine($"Code from file {filename} has already been compiled. Ignoring...");
-                        return true;
-                    }
-                }
-            }
-
-            try
-            {
-                if(!EmulationManager.Instance.CompiledFilesCache.TryGetEntryWithSha(sha, out var compiledCode))
-                {
-                    var compiler = new AdHocCompiler();
-                    compiledCode = compiler.Compile(filename);
-                    // Load dynamically compiled assembly to memory. It presents an advantage that next
-                    // ad-hoc compiled assembly can reference types from this one without any extra steps.
-                    // Therefore "EnsureTypeIsLoaded" call is no necessary as dependencies are already loaded.
-                    // Assembly.LoadFrom is used for a compatibility with Mono/.NET Framework,
-                    // but once we move fully to .NET, consider AssemblyLoadContext.LoadFromAssemblyPath.
-                    Assembly.LoadFrom(compiledCode);
-                    EmulationManager.Instance.CompiledFilesCache.StoreEntryWithSha(sha, compiledCode);
-                }
-
-                cache.ClearCache();
-                var result = TypeManager.Instance.ScanFile(compiledCode);
-                if(result)
-                {
-                    scannedFilesCache.Add(sha);
-                }
-                return result;
-            }
-            catch(Exception e)
-                when(e is RecoverableException
-                  || e is InvalidOperationException)
-            {
-                writer.WriteError("Errors during compilation or loading:\r\n" + e.Message.Replace(Environment.NewLine, "\r\n"));
-                return false;
-            }
-        }
-
-        public bool TryLoadPlatform(string filename, ICommandInteraction writer = null)
-        {
-            if(writer == null)
-            {
-                writer = Interaction;
-            }
-            if(currentMachine == null)
-            {
-                var machine = new Machine();
-                EmulationManager.Instance.CurrentEmulation.AddMachine(machine);
-                currentMachine = machine;
-            }
-            var path = new PathToken(filename);
-            var command = new LiteralToken("LoadPlatformDescription");
-            ExecuteDeviceAction("machine", Machine, new Token[]{ command, path });
-            return true;
-        }
-
-        private List<string> scannedFilesCache = new List<string>();
 
         public bool TryExecuteScript(string filename, ICommandInteraction writer = null)
         {
@@ -690,93 +379,280 @@ namespace Antmicro.Renode.UserInterface
 
         public object GetVariable(string name)
         {
-            return variables.GetOrDefault(GetVariableName(name))?.GetObjectValue();
+            return TryExpandVariable(new VariableToken(name), variables, out var value) ? value.GetObjectValue() : null;
         }
 
-        private bool TryGetFilenameFromAvailablePaths(string fileName, out string fullPath)
+        public void UnregisterCommand(Command command)
         {
-            fullPath = String.Empty;
-            //Try to find the given file, then the file with path prefix
-            foreach(var pathElement in monitorPath.PathElements.Prepend(String.Empty))
+            if(!Commands.Contains(command))
             {
-                var currentPath = Path.Combine(pathElement, fileName);
-                if(File.Exists(currentPath) || Directory.Exists(currentPath))
+                Logger.LogAs(this, LogLevel.Warning, "Command {0} not registered.", command.Name);
+                return;
+            }
+            Commands.Remove(command);
+        }
+
+        public bool TryCompilePlugin(string[] filenames, ICommandInteraction writer = null)
+        {
+            if(writer == null)
+            {
+                writer = Interaction;
+            }
+
+            // Sort filenames to have consistent order when calculating hash
+            Array.Sort(filenames);
+
+            string sha;
+            using(var shaComputer = SHA256.Create())
+            {
+                var buffer = new List<byte[]>();
+                foreach(string filename in filenames)
                 {
-                    fullPath = Path.GetFullPath(currentPath);
+                    buffer.Add(File.ReadAllBytes(filename));
+                }
+
+                var bytesSha = shaComputer.ComputeHash(buffer.SelectMany(x => x).ToArray());
+
+                var strBldr = new StringBuilder(32 * 2);
+                foreach(var b in bytesSha)
+                {
+                    strBldr.AppendFormat("{0:X2}", b);
+                }
+                sha = strBldr.ToString();
+
+                if(scannedFilesCache.Contains(sha))
+                {
+                    var nameOrNames = filenames.Length == 1 ? filenames.Single() : $"s {Misc.PrettyPrintCollection(filenames)}";
+                    writer.WriteLine($"Code from file{nameOrNames} has already been compiled. Ignoring...");
                     return true;
                 }
             }
-            return false;
+
+            try
+            {
+                if(!EmulationManager.Instance.CompiledFilesCache.TryGetEntryWithSha(sha, out var compiledCode))
+                {
+                    var compiler = new AdHocCompiler();
+                    compiledCode = compiler.Compile(filenames);
+                    // Load dynamically compiled assembly to memory. It presents an advantage that next
+                    // ad-hoc compiled assembly can reference types from this one without any extra steps.
+                    // Therefore "EnsureTypeIsLoaded" call is no necessary as dependencies are already loaded.
+                    // Assembly.LoadFrom is used for a compatibility with Mono/.NET Framework,
+                    // but once we move fully to .NET, consider AssemblyLoadContext.LoadFromAssemblyPath.
+                    Assembly.LoadFrom(compiledCode);
+                    EmulationManager.Instance.CompiledFilesCache.StoreEntryWithSha(sha, compiledCode);
+                }
+
+                cache.ClearCache();
+                var result = TypeManager.Instance.ScanFile(compiledCode);
+                if(result)
+                {
+                    scannedFilesCache.Add(sha);
+                }
+                return result;
+            }
+            catch(Exception e)
+                when(e is RecoverableException
+                  || e is InvalidOperationException)
+            {
+                writer.WriteError("Errors during compilation or loading:\r\n" + e.Message.Replace(Environment.NewLine, "\r\n"));
+                return false;
+            }
         }
 
-        private void PrintExceptionDetails(Exception e, ICommandInteraction writer, int tab = 0)
+        public void BindStatic(string name, Func<object> objectServer)
         {
-            if(!(e is TargetInvocationException) && !String.IsNullOrWhiteSpace(e.Message))
+            staticObjectDelegateMappings[name] = objectServer;
+        }
+
+        public void OnMachineRemoved(Machine m)
+        {
+            if(m == CurrentMachine)
             {
-                writer.WriteError(e.Message.Replace("\n", "\r\n").Indent(tab, '\t'));
+                CurrentMachine = null;
             }
-            else
+        }
+
+        public void RegisterCommand(Command command)
+        {
+            if(Commands.Contains(command))
             {
-                tab--; //if no message is printed out, we do not need an indentation.
+                Logger.LogAs(this, LogLevel.Warning, "Command {0} already registered.", command.Name);
+                return;
             }
-            var aggregateException = e as AggregateException;
-            if(aggregateException != null)
+            Commands.Add(command);
+        }
+
+        public ICommandInteraction HandleCommand(string cmd, ICommandInteraction ci)
+        {
+            Parse(cmd, ci);
+            return ci;
+        }
+
+        public string[] SuggestionNeeded(string cmd)
+        {
+            return SuggestCommands(cmd).ToArray();
+        }
+
+        public object ExtractPreservedState()
+        {
+            return Machine?.ToString();
+        }
+
+        public void LoadPreservedState(object state)
+        {
+            if(state == null)
             {
-                foreach(var exception in aggregateException.InnerExceptions)
+                return;
+            }
+
+            if(!(state is string machineName))
+            {
+                throw new RecoverableException("Unexpected state received while loading preserved state");
+            }
+
+            if(!emulationManager.CurrentEmulation.TryGetMachineByName(machineName, out var newMachine))
+            {
+                throw new RecoverableException("Machine was not found in the snapshot");
+            }
+
+            Machine = newMachine;
+        }
+
+        public IEnumerable<Command> RegisteredCommands
+        {
+            get
+            {
+                return Commands;
+            }
+        }
+
+        public ICommandInteraction Interaction { get; set; }
+
+        public IEnumerable<string> CurrentPathPrefixes
+        {
+            get
+            {
+                return monitorPath.PathElements;
+            }
+        }
+
+        public Func<IEnumerable<ICommandDescription>> GetInternalCommands { get; set; }
+
+        public IMachine Machine
+        {
+            get
+            {
+                return CurrentMachine;
+            }
+
+            set
+            {
+                CurrentMachine = value;
+            }
+        }
+
+        public string PreservableName => "Monitor";
+
+        public event Action<string> MachineChanged;
+
+        public const string StartupCommandEnv = "STARTUP_COMMAND";
+
+        private static void SetBasePath()
+        {
+            if(!Misc.TryGetRootDirectory(out var baseDirectory))
+            {
+                Logger.Log(LogLevel.Warning, "Monitor: could not find root base path, using current instead.");
+                return;
+            }
+            Directory.SetCurrentDirectory(baseDirectory);
+        }
+
+        private static string StripPrefix(string path, string prefix)
+        {
+            if(String.IsNullOrEmpty(prefix))
+            {
+                return path;
+            }
+            return path.StartsWith(prefix, StringComparison.Ordinal) ? path.Substring(prefix.Length + (prefix.EndsWith(Path.DirectorySeparatorChar) ? 0 : 1)) : path;
+        }
+
+        private static String AllButLastAndAggregate(IEnumerable<String> value, bool dontDropLast = false)
+        {
+            if(dontDropLast)
+            {
+                return value.Any() ? value.Aggregate((x, y) => x + ' ' + y) : string.Empty;
+            }
+            var list = value.ToList();
+            if(list.Count < 2)
+            {
+                return String.Empty;
+            }
+            var output = AllButLast(value);
+            return output.Aggregate((x, y) => x + ' ' + y);
+        }
+
+        private static IEnumerable<T> AllButLast<T>(IEnumerable<T> value) where T : class
+        {
+            var list = value.ToList();
+            if(list.Any())
+            {
+                var last = list.Last();
+                return list.Where(x => x != last);
+            }
+            return value;
+        }
+
+        private static string FindLastCommandInString(string origin)
+        {
+            bool inApostrophes = false;
+            int position = 0;
+            for(int i = 0; i < origin.Length; ++i)
+            {
+                switch(origin[i])
                 {
-                    PrintExceptionDetails(exception, writer, tab + 1);
+                case '"':
+                    inApostrophes = !inApostrophes;
+                    break;
+                case ';':
+                    if(!inApostrophes)
+                    {
+                        position = i + 1;
+                    }
+                    break;
                 }
             }
-            if(e.InnerException != null)
-            {
-                PrintExceptionDetails(e.InnerException, writer, tab + 1);
-            }
+            return origin.Substring(position).TrimStart();
         }
 
-        private void PrintException(string commandName, Exception e, ICommandInteraction writer)
+        private static IEnumerable<String> SuggestFiles(String allButLast, String prefix, String directory, String lastElement)
         {
-            writer.WriteError(string.Format("There was an error executing command '{0}'", commandName));
-            PrintExceptionDetails(e, writer);
-        }
-
-        private IList<Token> ExpandVariables(IEnumerable<Token> tokens)
-        {
-            return tokens.Select(x => x is VariableToken ? ExpandVariable(x as VariableToken, variables) ?? x : x).ToList(); // ?? to prevent null tokens
-        }
-
-        private Token ExpandVariable(VariableToken token, Dictionary<string, Token> collection)
-        {
-            Token result;
-            if(!TryExpandVariable(token, collection, out result))
+            //the sanitization of the first "./" is required to preserve the original input provided by the user
+            var directoryPath = Path.Combine(prefix, directory);
+            try
             {
-                throw new RecoverableException(string.Format("No such variable: ${0}", token.Value));
-            }
-            return result;
-        }
-
-        private bool TryExpandVariable(VariableToken token, Dictionary<string, Token> collection, out Token expandedVariable)
-        {
-            expandedVariable = null;
-            var varName = token.Value;
-            string newName;
-            if(collection.TryGetValue(varName, out expandedVariable))
-            {
-                return true;
-            }
-            if(currentMachine != null)
-            {
-                newName = String.Format("{0}.{1}", Emulation[currentMachine].Replace("-", "_"), varName);
-                if(collection.TryGetValue(newName, out expandedVariable))
+                if(!Directory.Exists(directoryPath))
                 {
-                    return true;
+                    return Enumerable.Empty<string>();
                 }
+                var files = Directory.GetFiles(directoryPath, lastElement + '*', SearchOption.TopDirectoryOnly)
+                                     .Select(x => allButLast + "@" + StripPrefix(x, prefix).Replace(" ", @"\ "));
+                var dirs = Directory.GetDirectories(directoryPath, lastElement + '*', SearchOption.TopDirectoryOnly)
+                                    .Select(x => allButLast + "@" + (StripPrefix(x, prefix) + '/').Replace(" ", @"\ "));
+
+                var result = new List<string>();
+                //We change "\" characters to "/", unless they were followed by the space character, in which case they treated as escape char.
+                foreach(var file in files.Concat(dirs))
+                {
+                    var sanitizedFile = SanitizePathSeparator(file);
+                    result.Add(sanitizedFile);
+                }
+                return result;
             }
-            newName = String.Format("{0}{1}", globalVariablePrefix, varName);
-            if(collection.TryGetValue(newName, out expandedVariable))
+            catch(UnauthorizedAccessException)
             {
-                return true;
+                return new[] { "{0}@{1}/".FormatWith(allButLast, Path.Combine(StripPrefix(directoryPath, prefix), lastElement)) };
             }
-            return false;
         }
 
         private bool ExecuteCommand(Token[] com, ICommandInteraction writer)
@@ -834,9 +710,10 @@ namespace Antmicro.Renode.UserInterface
                     }
                 }
 
-                if (TryExpandVariable(new VariableToken(string.Format("${0}", com[0].OriginalValue)), aliases, out var cmd)) {
-                        var aliasedCommand = Tokenize(cmd.GetObjectValue().ToString(), writer).Tokens;
-                        return ParseTokens(aliasedCommand.Concat(com.Skip(1)), writer);
+                if(TryExpandVariable(new VariableToken(string.Format("${0}", com[0].OriginalValue)), aliases, out var cmd))
+                {
+                    var aliasedCommand = Tokenize(cmd.GetObjectValue().ToString(), writer).Tokens;
+                    return ParseTokens(aliasedCommand.Concat(com.Skip(1)), writer);
                 }
 
                 if(!pythonRunner.ExecuteBuiltinCommand(ExpandVariables(com).ToArray(), writer))
@@ -848,65 +725,94 @@ namespace Antmicro.Renode.UserInterface
             return true;
         }
 
-        private static string FindLastCommandInString(string origin)
+        private bool IsNameAvailable(string name)
         {
-            bool inApostrophes = false;
-            int position = 0;
-            for(int i = 0; i < origin.Length; ++i)
+            var names = GetAvailableNames();
+            var ret = names.Contains(name);
+            if(!ret)
             {
-                switch(origin[i])
+                foreach(var use in usings)
                 {
-                case '"':
-                    inApostrophes = !inApostrophes;
-                    break;
-                case ';':
-                    if(!inApostrophes)
+                    ret = names.Contains(use + name);
+                    if(ret)
                     {
-                        position = i + 1;
+                        break;
                     }
-                    break;
                 }
             }
-            return origin.Substring(position).TrimStart();
+            return ret;
         }
 
-        private static IEnumerable<String> SuggestFiles(String allButLast, String prefix, String directory, String lastElement)
+        private IEnumerable<string> GetAvailableNames()
         {
-            //the sanitization of the first "./" is required to preserve the original input provided by the user
-            var directoryPath = Path.Combine(prefix, directory);
-            try
+            if(CurrentMachine != null)
             {
-                if(!Directory.Exists(directoryPath))
-                {
-                    return Enumerable.Empty<string>();
-                }
-                var files = Directory.GetFiles(directoryPath, lastElement + '*', SearchOption.TopDirectoryOnly)
-                                     .Select(x => allButLast + "@" + StripPrefix(x, prefix).Replace(" ", @"\ "));
-                var dirs = Directory.GetDirectories(directoryPath, lastElement + '*', SearchOption.TopDirectoryOnly)
-                                    .Select(x => allButLast + "@" + (StripPrefix(x, prefix) + '/').Replace(" ", @"\ "));
-
-                var result = new List<string>();
-                //We change "\" characters to "/", unless they were followed by the space character, in which case they treated as escape char.
-                foreach(var file in files.Concat(dirs))
-                {
-                    var sanitizedFile = SanitizePathSeparator(file);
-                    result.Add(sanitizedFile);
-                }
-                return result;
+                return CurrentMachine.GetAllNames().Union(Emulation.ExternalsManager.GetNames().Union(staticObjectDelegateMappings.Keys.Union(objectDelegateMappings.Keys)));
             }
-            catch(UnauthorizedAccessException)
-            {
-                return new[] { "{0}@{1}/".FormatWith(allButLast, Path.Combine(StripPrefix(directoryPath, prefix), lastElement)) };
-            }
+            return Emulation.ExternalsManager.GetNames().Union(staticObjectDelegateMappings.Keys);
         }
 
-        private static string StripPrefix(string path, string prefix)
+        private IEnumerable<string> GetAllAvailableNames()
         {
-            if(String.IsNullOrEmpty(prefix))
+            var baseNames = GetAvailableNames().ToList();
+            var result = new List<string>(baseNames);
+            foreach(var use in usings)
             {
-                return path;
+                var localUse = use;
+                result.AddRange(baseNames.Where(x => x.StartsWith(localUse, StringComparison.Ordinal) && x.Length > localUse.Length).Select(x => x.Substring(localUse.Length)));
             }
-            return path.StartsWith(prefix, StringComparison.Ordinal) ? path.Substring(prefix.Length + (prefix.EndsWith(Path.DirectorySeparatorChar) ? 0 : 1)) : path;
+            return result;
+        }
+
+        private bool TryExpandVariable(VariableToken token, Dictionary<string, Token> collection, out Token expandedVariable)
+        {
+            expandedVariable = null;
+            var varName = token.Value;
+            string newName;
+            if(collection.TryGetValue(varName, out expandedVariable))
+            {
+                return true;
+            }
+            if(CurrentMachine != null)
+            {
+                newName = String.Format("{0}.{1}", Emulation[CurrentMachine].Replace("-", "_"), varName);
+                if(collection.TryGetValue(newName, out expandedVariable))
+                {
+                    return true;
+                }
+            }
+            newName = String.Format("{0}{1}", GlobalVariablePrefix, varName);
+            if(collection.TryGetValue(newName, out expandedVariable))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        private bool IsNameAvailableInEmulationManager(string name)
+        {
+            var info = GetMonitorInfo(typeof(EmulationManager));
+            return info.AllNames.Contains(name);
+        }
+
+        private object FromStaticMapping(string name)
+        {
+            Func<object> value;
+            if(staticObjectDelegateMappings.TryGetValue(name, out value))
+            {
+                return value();
+            }
+            return null;
+        }
+
+        private object FromMapping(string name)
+        {
+            Func<object> value;
+            if(objectDelegateMappings.TryGetValue(name, out value))
+            {
+                return value();
+            }
+            return null;
         }
 
         private IEnumerable<String> SuggestCommands(String prefix)
@@ -980,7 +886,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 var varName = lastElement.Substring(1);
                 var options = variables.Keys.Concat(macros.Keys).Where(x => x.StartsWith(varName, StringComparison.Ordinal)).ToList();
-                var machinePrefix = currentMachine == null ? globalVariablePrefix : Emulation[currentMachine] + ".";
+                var machinePrefix = CurrentMachine == null ? GlobalVariablePrefix : Emulation[CurrentMachine] + ".";
                 options.AddRange(variables.Keys.Concat(macros.Keys).Where(x => x.StartsWith(String.Format("{0}{1}", machinePrefix, varName), StringComparison.Ordinal)).Select(x => x.Substring(machinePrefix.Length)));
 
                 if(options.Any())
@@ -1002,11 +908,18 @@ namespace Antmicro.Renode.UserInterface
                 {
                     var currentObject = GetDevice(currentCommandSplit[0]);
                     //Take whole command split without first and last element
-                    var commandsChain = currentCommandSplit.Skip(1).Take(currentCommandSplit.Length - 2);
+                    var commandsChain = currentCommandSplit.Skip(1).Take(currentCommandSplit.Length - 2).Select((word, index) => new { word, index }).ToList();
                     foreach(var command in commandsChain)
                     {
+                        //If we're accessing a list, and there are no extra words yet, show suggestions for its elements (if any)
+                        if(command.index == commandsChain.Count - 1 &&
+                            (command.word == SelectCommand || command.word == ForEachCommand) && currentObject is IEnumerable enumerable)
+                        {
+                            currentObject = enumerable.Cast<object>().FirstOrDefault();
+                            break;
+                        }
                         //It is assumed that commands chain can contain only properties or fields
-                        var newObject = FindFieldOrProperty(currentObject, command);
+                        var newObject = FindFieldOrProperty(currentObject, command.word);
                         if(newObject == null)
                         {
                             currentObject = null;
@@ -1017,7 +930,7 @@ namespace Antmicro.Renode.UserInterface
 
                     if(currentObject != null)
                     {
-                        var devInfo = GetObjectSuggestions(currentObject).Distinct(); 
+                        var devInfo = GetObjectSuggestions(currentObject).Distinct();
                         suggestions.AddRange(devInfo.Where(x => x.StartsWith(currentCommandSplit[currentCommandSplit.Length - 1], StringComparison.OrdinalIgnoreCase))
                             .Select(x => allButLastOptional + x));
                     }
@@ -1046,145 +959,319 @@ namespace Antmicro.Renode.UserInterface
             return suggestions.OrderBy(x => x).Distinct();
         }
 
-        private IEnumerable<string> GetAvailableNames()
+        private Token ExpandVariable(VariableToken token, Dictionary<string, Token> collection)
         {
-            if(currentMachine != null)
+            Token result;
+            if(!TryExpandVariable(token, collection, out result))
             {
-                return currentMachine.GetAllNames().Union(Emulation.ExternalsManager.GetNames().Union(staticObjectDelegateMappings.Keys.Union(objectDelegateMappings.Keys)));
-            }
-            return Emulation.ExternalsManager.GetNames().Union(staticObjectDelegateMappings.Keys);
-        }
-
-        private IEnumerable<string> GetAllAvailableNames()
-        {
-            var baseNames = GetAvailableNames().ToList();
-            var result = new List<string>(baseNames);
-            foreach(var use in usings)
-            {
-                var localUse = use;
-                result.AddRange(baseNames.Where(x => x.StartsWith(localUse, StringComparison.Ordinal) && x.Length > localUse.Length).Select(x => x.Substring(localUse.Length)));
+                throw new RecoverableException(string.Format("No such variable: ${0}", token.Value));
             }
             return result;
         }
 
-        private bool IsNameAvailable(string name)
+        private bool TryGetFilenameFromAvailablePaths(string fileName, out string fullPath)
         {
-            var names = GetAvailableNames();
-            var ret = names.Contains(name);
-            if(!ret)
+            fullPath = String.Empty;
+            //Try to find the given file, then the file with path prefix
+            foreach(var pathElement in monitorPath.PathElements.Prepend(String.Empty))
             {
-                foreach(var use in usings)
+                var currentPath = Path.Combine(pathElement, fileName);
+                if(File.Exists(currentPath) || Directory.Exists(currentPath))
                 {
-                    ret = names.Contains(use + name);
-                    if(ret)
+                    fullPath = Path.GetFullPath(currentPath);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void PrintException(string commandName, Exception e, ICommandInteraction writer)
+        {
+            writer.WriteError(string.Format("There was an error executing command '{0}'", commandName));
+            PrintExceptionDetails(e, writer);
+        }
+
+        private void RegisterResetCommand(IMachine machine)
+        {
+            machine.MachineReset += ResetMachine;
+            machine.PeripheralReset += ResetPeripheral;
+        }
+
+        private void UpdateMonitorPrompt(IMachine machine)
+        {
+            if(CurrentMachine == machine)
+            {
+                CurrentMachine = null;
+            }
+        }
+
+        private IList<Token> ExpandVariables(IEnumerable<Token> tokens)
+        {
+            return tokens.Select(x => x is VariableToken ? ExpandVariable(x as VariableToken, variables) ?? x : x).ToList(); // ?? to prevent null tokens
+        }
+
+        private void JoinEmulation()
+        {
+            Emulation.MachineExchanged += (oldMachine, newMachine) =>
+            {
+                if(CurrentMachine == oldMachine)
+                {
+                    CurrentMachine = newMachine;
+                }
+            };
+        }
+
+        private void InitCommands()
+        {
+            Bind(Core.Machine.MachineKeyword, () => Machine);
+            BindStatic("connector", () => emulationManager.CurrentEmulation.Connector);
+            BindStatic(EmulationToken, () => Emulation);
+            BindStatic("plugins", () => TypeManager.Instance.PluginManager);
+            BindStatic("EmulationManager", () => emulationManager);
+            BindStatic("sockets", () => SocketsManager.Instance);
+
+            var includeCommand = new IncludeFileCommand(this, (x, y) => pythonRunner.TryExecutePythonScript(x, y), x => TryExecuteScript(x), (x, y) => TryCompilePlugin(x, y), (x, y) => TryLoadPlatform(x, y));
+            Commands.Add(new HelpCommand(this, () =>
+            {
+                var gic = GetInternalCommands;
+                var result = Commands.Cast<ICommandDescription>();
+                if(gic != null)
+                {
+                    result = result.Concat(gic());
+                }
+                return result;
+            }));
+            Commands.Add(includeCommand);
+            Commands.Add(new CreatePlatformCommand(this, x => CurrentMachine = x));
+            Commands.Add(new UsingCommand(this, () => usings));
+            Commands.Add(new QuitCommand(this, x => CurrentMachine = x, () => Quitted));
+            Commands.Add(new PeripheralsCommand(this, () => CurrentMachine));
+            Commands.Add(new MonitorPathCommand(this, monitorPath));
+            Commands.Add(new StartCommand(this, includeCommand));
+            Commands.Add(new SetCommand(this, "set", "VARIABLE", (x, y) => SetVariable(x, y, variables), (x, y) => EnableStringEater(x, y, VariableType.Variable),
+                DisableStringEater, () => stringEaterMode, GetVariableName));
+            Commands.Add(new SetCommand(this, "macro", "MACRO", (x, y) => SetVariable(x, y, macros), (x, y) => EnableStringEater(x, y, VariableType.Macro),
+                DisableStringEater, () => stringEaterMode, GetVariableName));
+            Commands.Add(new SetCommand(this, "alias", "ALIAS", (x, y) => SetVariable(x, y, aliases), (x, y) => EnableStringEater(x, y, VariableType.Alias),
+            DisableStringEater, () => stringEaterMode, GetVariableName));
+            Commands.Add(new PythonExecuteCommand(this, x => ExpandVariable(x, variables), (x, y) => pythonRunner.ExecutePythonCommand(x, y)));
+            Commands.Add(new ExecuteCommand(this, "execute", "VARIABLE", x => ExpandVariable(x, variables), () => variables.Keys));
+            Commands.Add(new ExecuteCommand(this, "runMacro", "MACRO", x => ExpandVariable(x, macros), () => macros.Keys));
+            Commands.Add(new MachCommand(this, () => CurrentMachine, x => CurrentMachine = x));
+            Commands.Add(new ResdCommand(this));
+            Commands.Add(new VerboseCommand(this, x => verboseMode = x));
+        }
+
+        private void DisableStringEater()
+        {
+            stringEaterMode = 0;
+            stringEaterValue = null;
+            stringEaterVariableName = null;
+            recordingType = null;
+        }
+
+        private void EnableStringEater(string variable, int mode, VariableType type)
+        {
+            recordingType = type;
+            stringEaterMode = mode;
+            stringEaterVariableName = variable;
+        }
+
+        private void ResetMachine(IMachine machine)
+        {
+            string machineName;
+            if(EmulationManager.Instance.CurrentEmulation.TryGetMachineName(machine, out machineName))
+            {
+                using(ObtainMachineContext(machine))
+                {
+                    var macroName = GetVariableName("reset");
+                    Token resetMacro;
+                    if(macros.TryGetValue(macroName, out resetMacro))
                     {
-                        break;
+                        var macroLines = resetMacro.GetObjectValue().ToString().Split('\n');
+                        foreach(var line in macroLines)
+                        {
+                            Parse(line, Interaction);
+                        }
+                    }
+                    else
+                    {
+                        Logger.LogAs(this, LogLevel.Warning, "No action for reset - macro {0} is not registered.", macroName);
                     }
                 }
             }
-            return ret;
         }
 
-        private bool IsNameAvailableInEmulationManager(string name)
+        private void InitializeAutoCommand(Type type)
         {
-            var info = GetMonitorInfo(typeof(EmulationManager));
-            return info.AllNames.Contains(name);
-        }
-
-        private static IEnumerable<T> AllButLast<T>(IEnumerable<T> value) where T : class
-        {
-            var list = value.ToList();
-            if(list.Any())
+            if(type.IsSubclassOf(typeof(AutoLoadCommand)))
             {
-                var last = list.Last();
-                return list.Where(x => x != last);
-            }
-            return value;
-        }
-
-        private static String AllButLastAndAggregate(IEnumerable<String> value, bool dontDropLast = false)
-        {
-            if(dontDropLast)
-            {
-                return value.Any() ? value.Aggregate((x, y) => x + ' ' + y) : string.Empty;
-            }
-            var list = value.ToList();
-            if(list.Count < 2)
-            {
-                return String.Empty;
-            }
-            var output = AllButLast(value);
-            return output.Aggregate((x, y) => x + ' ' + y);
-        }
-
-        public void Bind(string name, Func<object> objectServer)
-        {
-            objectDelegateMappings[name] = objectServer;
-        }
-
-        public void BindStatic(string name, Func<object> objectServer)
-        {
-            staticObjectDelegateMappings[name] = objectServer;
-        }
-
-        private object FromStaticMapping(string name)
-        {
-            Func<object> value;
-            if(staticObjectDelegateMappings.TryGetValue(name, out value))
-            {
-                return value();
-            }
-            return null;
-        }
-
-        private object FromMapping(string name)
-        {
-            Func<object> value;
-            if(objectDelegateMappings.TryGetValue(name, out value))
-            {
-                return value();
-            }
-            return null;
-        }
-
-        public IEnumerable<Command> RegisteredCommands
-        {
-            get
-            {
-                return Commands;
+                var constructor = type.GetConstructor(new[] { typeof(Monitor) })
+                                  ?? type.GetConstructors().FirstOrDefault(x =>
+                {
+                    var constructorParams = x.GetParameters();
+                    if(constructorParams.Length == 0)
+                    {
+                        return false;
+                    }
+                    return constructorParams[0].ParameterType == typeof(Monitor) && constructorParams.Skip(1).All(y => y.IsOptional);
+                });
+                if(constructor == null)
+                {
+                    Logger.LogAs(this, LogLevel.Error, "Could not initialize command {0}.", type.Name);
+                    return;
+                }
+                var parameters = new List<object> { this };
+                parameters.AddRange(constructor.GetParameters().Skip(1).Select(x => x.DefaultValue));
+                var commandInstance = (AutoLoadCommand)constructor.Invoke(parameters.ToArray());
+                RegisterCommand(commandInstance);
             }
         }
 
-        private readonly Dictionary<string, Func<object>> staticObjectDelegateMappings = new Dictionary<string, Func<object>>();
-        private readonly Dictionary<string, Func<object>> objectDelegateMappings = new Dictionary<string, Func<object>>();
-        private readonly Dictionary<string, Token> variables = new Dictionary<string, Token>();
-        private readonly Dictionary<string, Token> macros = new Dictionary<string, Token>();
-        private readonly Dictionary<string, Token> aliases = new Dictionary<string, Token>();
-        private readonly Dictionary<VariableType, Dictionary<string, Token>> variableCollections;
-        private int stringEaterMode;
-        private string stringEaterValue = "";
-        private string stringEaterVariableName = "";
-        private VariableType? recordingType;
-        private bool verboseMode;
-
-        public ICommandInteraction Interaction { get; set; }
-
-        public void OnMachineRemoved(Machine m)
+        private TokenizationResult Tokenize(string cmd, ICommandInteraction writer)
         {
-            if(m == currentMachine)
+            var result = tokenizer.Tokenize(cmd);
+            if(result.UnmatchedCharactersLeft != 0)
             {
-                currentMachine = null;
+                //Reevaluate the expression if the tokenization failed, but expanding the variables may help.
+                //E.g. i $ORIGIN/dir/script. This happens only if the variable is the last successful token.
+                if(result.Tokens.Any() && result.Tokens.Last() is VariableToken lastVariableToken)
+                {
+                    if(!TryExpandVariable(lastVariableToken, variables, out var lastExpandedToken))
+                    {
+                        writer.WriteError($"No such variable: ${lastVariableToken.Value}");
+                        return null;
+                    }
+                    // replace the last token with the expanded version
+                    var newString = String.Concat(
+                        result.Tokens.Take(result.Tokens.Count() - 1).Select(x => x.OriginalValue).Stringify(),
+                        " ",
+                        lastExpandedToken.OriginalValue,
+                        cmd.Substring(cmd.Length - result.UnmatchedCharactersLeft)
+                    );
+                    return Tokenize(newString, writer);
+                }
+                var messages = new StringBuilder();
+
+                var message = "Could not tokenize here:";
+                writer.WriteError(message);
+                messages.AppendFormat("Monitor: {0}\n", message);
+
+                writer.WriteError(cmd);
+                messages.AppendLine(cmd);
+
+                var matchedLength = cmd.Length - result.UnmatchedCharactersLeft;
+                var padded = "^".PadLeft(matchedLength + 1);
+                writer.WriteError(padded);
+                messages.AppendLine(padded);
+                if(result.Exception != null)
+                {
+                    messages.AppendFormat("Encountered exception: {0}\n", result.Exception.Message);
+                    writer.WriteError(result.Exception.Message);
+                }
+                Logger.Log(LogLevel.Warning, messages.ToString());
+                return null;
+            }
+            return result;
+        }
+
+        private Token ExecuteWithResult(String value, ICommandInteraction writer)
+        {
+            var eater = new CommandInteractionEater();
+            if(Parse(value, eater))
+            {
+                return new StringToken(eater.GetContents());
+            }
+            else
+            {
+                writer.WriteError(eater.GetError());
+                return null;
             }
         }
 
-        private IMachine _currentMachine;
+        private string GetVariableName(string variableName)
+        {
+            var elements = variableName.Split(new[] { '.' }, 2);
 
-        private IMachine currentMachine
+            if(elements.Length == 1 || (!elements[0].Equals("global") && !EmulationManager.Instance.CurrentEmulation.Names.Select(x => x.Replace("-", "_")).Any(x => x == elements[0])))
+            {
+                if(CurrentMachine != null)
+                {
+                    variableName = String.Format("{0}.{1}", EmulationManager.Instance.CurrentEmulation[CurrentMachine].Replace("-", "_"), variableName);
+                }
+                else
+                {
+                    variableName = String.Format("global.{0}", variableName);
+                }
+            }
+            return variableName;
+        }
+
+        private IDisposable ObtainMachineContext(IMachine machine)
+        {
+            var activeMachine = _currentMachine;
+            _currentMachine = machine;
+            return DisposableWrapper.New(() => _currentMachine = activeMachine);
+        }
+
+        private void PrintExceptionDetails(Exception e, ICommandInteraction writer, int tab = 0)
+        {
+            if(!(e is TargetInvocationException) && !String.IsNullOrWhiteSpace(e.Message))
+            {
+                writer.WriteError(e.Message.Replace("\n", "\r\n").Indent(tab, '\t'));
+            }
+            else
+            {
+                tab--; //if no message is printed out, we do not need an indentation.
+            }
+            var aggregateException = e as AggregateException;
+            if(aggregateException != null)
+            {
+                foreach(var exception in aggregateException.InnerExceptions)
+                {
+                    PrintExceptionDetails(exception, writer, tab + 1);
+                }
+            }
+            if(e.InnerException != null)
+            {
+                PrintExceptionDetails(e.InnerException, writer, tab + 1);
+            }
+        }
+
+        private void ResetPeripheral(IMachine machine, IPeripheral peripheral)
+        {
+            string macroName;
+            if(machine.TryGetLocalName(peripheral, out var localName))
+            {
+                macroName = $"{localName}.reset";
+            }
+            else
+            {
+                return;
+            }
+
+            using(ObtainMachineContext(machine))
+            {
+                if(TryExpandVariable(new VariableToken(macroName), macros, out var resetMacro))
+                {
+                    var macroLines = resetMacro.GetObjectValue().ToString().Split('\n');
+                    foreach(var line in macroLines)
+                    {
+                        Parse(line, Interaction);
+                    }
+                }
+            }
+        }
+
+        private HashSet<Command> Commands { get; set; }
+
+        private IMachine CurrentMachine
         {
             get
             {
                 return _currentMachine;
             }
+
             set
             {
                 _currentMachine = value;
@@ -1197,13 +1284,43 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        public event Action<string> MachineChanged;
+        private Emulation Emulation
+        {
+            get
+            {
+                return emulationManager.CurrentEmulation;
+            }
+        }
+
+        private IMachine _currentMachine;
+        private string stringEaterVariableName = "";
+        private VariableType? recordingType;
+        private string stringEaterValue = "";
+        private int stringEaterMode;
+        private bool verboseMode;
+
+        private readonly MonitorPath monitorPath = new MonitorPath(Environment.CurrentDirectory);
+        private readonly bool swallowExceptions;
+        private readonly bool breakOnException;
+
+        private readonly List<string> scannedFilesCache = new List<string>();
+
+        private readonly MonitorPythonEngine pythonRunner;
+
+        private readonly EmulationManager emulationManager;
+
+        private readonly Dictionary<string, Func<object>> staticObjectDelegateMappings = new Dictionary<string, Func<object>>();
+        private readonly Dictionary<string, Func<object>> objectDelegateMappings = new Dictionary<string, Func<object>>();
+        private readonly Dictionary<string, Token> variables = new Dictionary<string, Token>();
+        private readonly Dictionary<string, Token> macros = new Dictionary<string, Token>();
+        private readonly Dictionary<string, Token> aliases = new Dictionary<string, Token>();
+        private readonly Dictionary<VariableType, Dictionary<string, Token>> variableCollections;
 
         private readonly Tokenizer.Tokenizer tokenizer = Tokenizer.Tokenizer.CreateTokenizer();
 
         internal delegate void CommandHandler(IEnumerable<Token> p, ICommandInteraction w);
 
-        private const string globalVariablePrefix = "global.";
+        private const string GlobalVariablePrefix = "global.";
 
         private const string ConfigurationSection = "monitor";
 
@@ -1211,13 +1328,9 @@ namespace Antmicro.Renode.UserInterface
 
         private const string MultiLineTerminator = @"""""""";
 
-        private const string OriginVariable = globalVariablePrefix + "ORIGIN";
+        private const string OriginVariable = GlobalVariablePrefix + "ORIGIN";
 
-        private const string CurrentDirectoryVariable = globalVariablePrefix + "CWD";
-
-        private HashSet<Command> Commands { get; set; }
-
-        private readonly MonitorPythonEngine pythonRunner;
+        private const string CurrentDirectoryVariable = GlobalVariablePrefix + "CWD";
 
         private enum VariableType
         {

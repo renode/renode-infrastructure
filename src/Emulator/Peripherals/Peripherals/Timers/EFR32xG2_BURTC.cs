@@ -6,13 +6,12 @@
 //
 
 using System;
-using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -70,17 +69,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     switch(value)
                     {
-                        case Command.None:
-                            break;
-                        case Command.Start:
-                            innerTimer.Enabled = true;
-                            break;
-                        case Command.Stop:
-                            innerTimer.Enabled = false;
-                            break;
-                        default:
-                            this.Log(LogLevel.Warning, "Unsupported command combination: {0}", value);
-                            break;
+                    case Command.None:
+                        break;
+                    case Command.Start:
+                        innerTimer.Enabled = true;
+                        break;
+                    case Command.Stop:
+                        innerTimer.Enabled = false;
+                        break;
+                    default:
+                        this.Log(LogLevel.Warning, "Unsupported command combination: {0}", value);
+                        break;
                     }
                 }, name: "START/STOP")
                 .WithReservedBits(2, 30);

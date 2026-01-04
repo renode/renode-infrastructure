@@ -4,10 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -101,6 +101,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public override Bits StopBits => twoStopBitsSelect.Value ? Bits.Two : Bits.One;
 
+        protected override void QueueEmptied()
+        {
+            UpdateInterrupts();
+        }
+
         protected override void CharWritten()
         {
             UpdateInterrupts();
@@ -113,11 +118,6 @@ namespace Antmicro.Renode.Peripherals.UART
                 return AssertFlagEnabled(uartEnable, "Character cannot be received by UART; UARTEN is disabled!")
                     && AssertFlagEnabled(receiveEnable, "Character cannot be received by UART; RXE is disabled!");
             }
-        }
-
-        protected override void QueueEmptied()
-        {
-            UpdateInterrupts();
         }
 
         private bool AssertFlagEnabled(IFlagRegisterField flag, string errorMessage)
@@ -289,14 +289,14 @@ namespace Antmicro.Renode.Peripherals.UART
             var levelSelect = receiveInterruptFifoLevelSelect.Value;
             switch(levelSelect)
             {
-                case 0b000: receiveInterruptTriggerPoint = 1d / 8d * receiveFifoSize; break;
-                case 0b001: receiveInterruptTriggerPoint = 1d / 4d * receiveFifoSize; break;
-                case 0b010: receiveInterruptTriggerPoint = 1d / 2d * receiveFifoSize; break;
-                case 0b011: receiveInterruptTriggerPoint = 3d / 4d * receiveFifoSize; break;
-                case 0b100: receiveInterruptTriggerPoint = 7d / 8d * receiveFifoSize; break;
-                default:
-                    this.Log(LogLevel.Warning, "Receive interrupt FIFO level select written with invalid value: {0}", levelSelect);
-                    return;
+            case 0b000: receiveInterruptTriggerPoint = 1d / 8d * receiveFifoSize; break;
+            case 0b001: receiveInterruptTriggerPoint = 1d / 4d * receiveFifoSize; break;
+            case 0b010: receiveInterruptTriggerPoint = 1d / 2d * receiveFifoSize; break;
+            case 0b011: receiveInterruptTriggerPoint = 3d / 4d * receiveFifoSize; break;
+            case 0b100: receiveInterruptTriggerPoint = 7d / 8d * receiveFifoSize; break;
+            default:
+                this.Log(LogLevel.Warning, "Receive interrupt FIFO level select written with invalid value: {0}", levelSelect);
+                return;
             }
             this.Log(LogLevel.Debug, "Receive Interrupt Trigger Point set to: {0} (level select = {1}; fifo size = {2}{3})",
                 receiveInterruptTriggerPoint, levelSelect, receiveFifoSize, enableFifoBuffers.Value ? "" : " (FIFO buffers disabled)");
@@ -359,6 +359,9 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private uint RawInterruptStatus => Renode.Utilities.BitHelper.GetValueFromBitsArray(interruptRawStatuses);
 
+        private uint receiveFifoSize;
+        private double receiveInterruptTriggerPoint;
+
         private IFlagRegisterField enableFifoBuffers;
         private IFlagRegisterField evenParitySelect;
         private IValueRegisterField fractionalBaudRate;
@@ -379,9 +382,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly uint[] peripheralID = { 0x11, 0x10, 0x34, 0x0 };
         private readonly uint[] primeCellID = { 0x0D, 0xF0, 0x05, 0xB1 };
         private readonly uint uartClockFrequency;
-
-        private uint receiveFifoSize;
-        private double receiveInterruptTriggerPoint;
 
         private const uint InterruptsCount = 11;
 
@@ -435,4 +435,3 @@ namespace Antmicro.Renode.Peripherals.UART
         }
     }
 }
-

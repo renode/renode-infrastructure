@@ -16,8 +16,6 @@ namespace Antmicro.Renode.UserInterface
         {
         }
 
-        public event Action<byte[]> BytesWritten;
-
         public override void Write(byte[] buffer, int offset, int count)
         {
             if(IgnoreWrites)
@@ -30,7 +28,24 @@ namespace Antmicro.Renode.UserInterface
             bytesWritten(realData);
         }
 
-        public bool IgnoreWrites { get; set; }
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override long Seek(long offset, SeekOrigin origin)
+        {
+            throw new NotSupportedException();
+        }
+
+        public override void SetLength(long value)
+        {
+            throw new NotSupportedException();
+        }
 
         public override bool CanRead
         {
@@ -70,31 +85,15 @@ namespace Antmicro.Renode.UserInterface
             {
                 throw new NotSupportedException();
             }
+
             set
             {
                 throw new NotSupportedException();
             }
         }
 
-        public override void Flush()
-        {
+        public bool IgnoreWrites { get; set; }
 
-        }
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
+        public event Action<byte[]> BytesWritten;
     }
 }
-

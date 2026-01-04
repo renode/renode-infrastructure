@@ -4,12 +4,14 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.UserInterface;
+
 using ELFSharp.ELF;
-using System.Text;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
@@ -21,7 +23,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         }
 
         [Execute("qRcmd,")]
-        public IEnumerable<PacketData> Run([Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexString)]string arg)
+        public IEnumerable<PacketData> Run([Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexString)] string arg)
         {
             if(!openOcdOverlay.TryProcess(arg, out var result, out var ok))
             {
@@ -37,9 +39,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             var resultReply = ok ? PacketData.Success : PacketData.ErrorReply();
             if(consoleOutput != null)
             {
-                return new [] { new PacketData(consoleOutput), resultReply };
+                return new[] { new PacketData(consoleOutput), resultReply };
             }
-            return new [] { resultReply };
+            return new[] { resultReply };
         }
 
         private readonly OpenOcdOverlay openOcdOverlay;
@@ -100,4 +102,3 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         }
     }
 }
-

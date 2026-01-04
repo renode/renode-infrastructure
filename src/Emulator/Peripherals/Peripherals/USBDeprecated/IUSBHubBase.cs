@@ -6,15 +6,19 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core.Structure;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
-    public interface IUSBHubBase : IPeripheralRegister<IUSBHub, USBRegistrationPoint>,  IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>
+    public interface IUSBHubBase : IPeripheralRegister<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>
     {
-         event Action <uint> Connected ;
-         event Action <uint,uint> Disconnected ;
-         event Action <IUSBHub> RegisterHub ;
-         event Action <IUSBPeripheral> ActiveDevice ;
+        event Action <uint> Connected ;
+
+        event Action <uint,uint> Disconnected ;
+
+        event Action <IUSBHub> RegisterHub ;
+
+        event Action <IUSBPeripheral> ActiveDevice ;
     }
 }

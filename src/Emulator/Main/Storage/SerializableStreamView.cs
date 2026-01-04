@@ -7,6 +7,7 @@
 //
 using System;
 using System.IO;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Utilities;
 
@@ -41,12 +42,6 @@ namespace Antmicro.Renode.Storage
             underlyingStreamOffset = offset;
             Position = 0;
             PaddingByte = paddingByte;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            base.Dispose(disposing);
-            underlyingStream.Dispose();
         }
 
         public override void Flush()
@@ -169,6 +164,7 @@ namespace Antmicro.Renode.Storage
             {
                 return underlyingStream.Position - underlyingStreamOffset + paddingOffset;
             }
+
             set
             {
                 if(value > Length)
@@ -193,6 +189,12 @@ namespace Antmicro.Renode.Storage
             }
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            underlyingStream.Dispose();
+        }
+
         private SerializableStreamView()
         {
             // this is intended for deserialization only
@@ -204,4 +206,3 @@ namespace Antmicro.Renode.Storage
         private long length;
     }
 }
-

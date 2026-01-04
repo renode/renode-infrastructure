@@ -13,4 +13,3 @@ namespace Antmicro.Renode.UnitTests.Mocks
     {
     }
 }
-

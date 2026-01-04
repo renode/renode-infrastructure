@@ -1,5 +1,5 @@
-﻿﻿//
-// Copyright (c) 2010-2020 Antmicro
+﻿//
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,9 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Exceptions;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Storage;
 using Antmicro.Renode.Storage.SCSI;
@@ -23,10 +21,10 @@ namespace Antmicro.Renode.Peripherals.ATAPI
     //This device implements ATAPI CDROM
     public class CDROM : IAtapiPeripheral, IDisposable
     {
-        public CDROM(string imageFile, bool persistent = false, uint? size = null, uint blockSize = 2048)
+        public CDROM(string imageFile, bool persistent = false, uint? size = null, uint blockSize = 2048, CompressionType compression = CompressionType.None)
         {
             BlockSize = blockSize;
-            dataBackend = DataStorage.Create(imageFile, size, persistent);
+            dataBackend = DataStorage.CreateFromFile(imageFile, size, persistent, compression: compression);
 
             var sizeMisalignment = dataBackend.Length % blockSize;
             if(sizeMisalignment != 0)
@@ -65,38 +63,39 @@ namespace Antmicro.Renode.Peripherals.ATAPI
             this.Log(LogLevel.Debug, "Decoded command: {0}", command);
             switch(command)
             {
-                case SCSICommand.TestUnitReady:
-                    break;
-                case SCSICommand.Inquiry:
-                    // this is just an empty stub
-                    QueueData(new byte[36]);
-                    break;
-                case SCSICommand.Read10:
-                    var cmd = Packet.DecodeDynamic<IReadWrite10Command>(packet, 0);
-                    this.Log(LogLevel.Debug, "Command args: LogicalBlockAddress: 0x{0:x}, TransferLength: {1}", (uint)cmd.LogicalBlockAddress, (ushort)cmd.TransferLength);
-                    var bytesCount = (int)(cmd.TransferLength * BlockSize);
-                    var readPosition = (long)cmd.LogicalBlockAddress * BlockSize;
-                    dataBackend.Position = readPosition;
-                    var data = dataBackend.ReadBytes(bytesCount);
-                    this.Log(LogLevel.Debug, "Reading {0} bytes from address 0x{1:x}", bytesCount, readPosition);
-                    QueueData(data);
-                    break;
-                case SCSICommand.ModeSense6:
-                    // this is just an empty stub
-                    QueueData(new byte[192]);
-                    break;
-                case SCSICommand.RequestSense:
-                    // this is just an empty stub
-                    QueueData(new byte[512]);
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Unsupported SCSI command: {0}", command);
-                    break;
+            case SCSICommand.TestUnitReady:
+                break;
+            case SCSICommand.Inquiry:
+                // this is just an empty stub
+                QueueData(new byte[36]);
+                break;
+            case SCSICommand.Read10:
+                var cmd = Packet.DecodeDynamic<IReadWrite10Command>(packet, 0);
+                this.Log(LogLevel.Debug, "Command args: LogicalBlockAddress: 0x{0:x}, TransferLength: {1}", (uint)cmd.LogicalBlockAddress, (ushort)cmd.TransferLength);
+                var bytesCount = (int)(cmd.TransferLength * BlockSize);
+                var readPosition = (long)cmd.LogicalBlockAddress * BlockSize;
+                dataBackend.Position = readPosition;
+                var data = dataBackend.ReadBytes(bytesCount);
+                this.Log(LogLevel.Debug, "Reading {0} bytes from address 0x{1:x}", bytesCount, readPosition);
+                QueueData(data);
+                break;
+            case SCSICommand.ModeSense6:
+                // this is just an empty stub
+                QueueData(new byte[192]);
+                break;
+            case SCSICommand.RequestSense:
+                // this is just an empty stub
+                QueueData(new byte[512]);
+                break;
+            default:
+                this.Log(LogLevel.Error, "Unsupported SCSI command: {0}", command);
+                break;
             }
         }
 
         public uint BlockSize { get; }
-        public bool DataReady { get { return dataQueue.Count != 0;}}
+
+        public bool DataReady { get { return dataQueue.Count != 0; } }
 
         private void QueueData(byte[] data)
         {
@@ -120,4 +119,3 @@ namespace Antmicro.Renode.Peripherals.ATAPI
         private readonly Stream dataBackend;
     }
 }
-

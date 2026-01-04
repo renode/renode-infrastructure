@@ -4,16 +4,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.SPI;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Peripherals.UART.Silabs;
 
 namespace Antmicro.Renode.Peripherals.UART
@@ -76,6 +71,8 @@ namespace Antmicro.Renode.Peripherals.UART
             base.Reset();
         }
 
+        private readonly DoubleWordRegisterCollection registers;
+
         private enum Registers
         {
             IpVersion = 0x0,
@@ -106,7 +103,5 @@ namespace Antmicro.Renode.Peripherals.UART
             TimeCompare1 = 0x64,
             TimeCompare2 = 0x68,
         }
-
-        private readonly DoubleWordRegisterCollection registers;
     }
 }

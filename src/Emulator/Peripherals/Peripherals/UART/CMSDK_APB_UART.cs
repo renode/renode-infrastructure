@@ -1,16 +1,15 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -22,8 +21,8 @@ namespace Antmicro.Renode.Peripherals.UART
             var registersMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Data, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, 
-                        writeCallback: (_, value) => 
+                    .WithValueField(0, 8,
+                        writeCallback: (_, value) =>
                         {
                             if(!txEnabled.Value)
                             {
@@ -37,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.UART
                                 UpdateInterrupts();
                             }
                         },
-                        valueProviderCallback: _ => 
+                        valueProviderCallback: _ =>
                         {
                             if(!rxEnabled.Value)
                             {
@@ -60,8 +59,8 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(4, 28)
                 },
                 {(long)Registers.Control, new DoubleWordRegister(this)
-                    .WithFlag(0, out txEnabled, name: "TxEnabled")  
-                    .WithFlag(1, out rxEnabled, name: "RxEnabled") 
+                    .WithFlag(0, out txEnabled, name: "TxEnabled")
+                    .WithFlag(1, out rxEnabled, name: "RxEnabled")
                     .WithFlag(2, out txInterruptEnabled, name: "TxInterruptEnable", writeCallback: (_, __) => UpdateInterrupts())
                     .WithFlag(3, out rxInterruptEnabled, name: "RxInterruptEnable", writeCallback: (_, __) => UpdateInterrupts())
                     .WithTaggedFlag("TxOverrunInterruptEnable", 4)
@@ -97,6 +96,18 @@ namespace Antmicro.Renode.Peripherals.UART
             registers.Write(offset, value);
         }
 
+        public long Size => 0x1000;
+
+        public GPIO TxInterrupt { get; }
+
+        public GPIO RxInterrupt { get; }
+
+        public override uint BaudRate => (baudRateDivValue.Value == 0) ? 0 : (uint)(frequency / baudRateDivValue.Value);
+
+        public override Bits StopBits => Bits.None;
+
+        public override Parity ParityBit => Parity.None;
+
         protected override void CharWritten()
         {
             // We're assuming that the size of rx buffer equals 1, so we set rxBufferFull flag when a char is read by uart.
@@ -118,22 +129,14 @@ namespace Antmicro.Renode.Peripherals.UART
             RxInterrupt.Set(rxInterrupt);
         }
 
-        public long Size => 0x1000;
-        public GPIO TxInterrupt { get; }
-        public GPIO RxInterrupt { get; }
-
-        public override uint BaudRate => (baudRateDivValue.Value == 0) ? 0 : (uint)(frequency / baudRateDivValue.Value); 
-        public override Bits StopBits => Bits.None;
-        public override Parity ParityBit => Parity.None;
-
-        private IFlagRegisterField rxBufferFull;
-        private IFlagRegisterField txEnabled; 
-        private IFlagRegisterField rxEnabled;
-        private IFlagRegisterField txInterruptEnabled; 
-        private IFlagRegisterField rxInterruptEnabled; 
-        private IFlagRegisterField txInterruptPending; 
-        private IFlagRegisterField rxInterruptPending; 
-        private IValueRegisterField baudRateDivValue;
+        private readonly IFlagRegisterField rxBufferFull;
+        private readonly IFlagRegisterField txEnabled;
+        private readonly IFlagRegisterField rxEnabled;
+        private readonly IFlagRegisterField txInterruptEnabled;
+        private readonly IFlagRegisterField rxInterruptEnabled;
+        private readonly IFlagRegisterField txInterruptPending;
+        private readonly IFlagRegisterField rxInterruptPending;
+        private readonly IValueRegisterField baudRateDivValue;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly ulong frequency;

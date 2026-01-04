@@ -32,6 +32,9 @@
   <PropertyGroup Condition=" $(GUI_DISABLED) == 'true' ">
     <DefineConstants>$(DefineConstants);GUI_DISABLED</DefineConstants>
   </PropertyGroup>
+  <PropertyGroup Condition="$(CurrentPlatform) != 'Windows'">
+    <DefineConstants>$(DefineConstants);MONO</DefineConstants>
+  </PropertyGroup>
   <Import Project="$(MSBuildBinPath)/Microsoft.CSharp.targets" />
   <Import Project="$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets" Condition="Exists('$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets')" />
   <Target Name="_PrepareProperties" BeforeTargets="Build">
@@ -80,6 +83,12 @@
       </EmbeddedResource>
       <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-riscv64-le.so">
         <LogicalName>Antmicro.Renode.translate-riscv64-le.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-x86.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+        <LogicalName>Antmicro.Renode.kvm-x86.so</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-x86_64.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+        <LogicalName>Antmicro.Renode.kvm-x86_64.so</LogicalName>
       </EmbeddedResource>
     </ItemGroup>
     <ItemGroup>
@@ -240,6 +249,7 @@
     </Compile>
     <Compile Include="Emulator/Cores/Arm-M/NVIC.cs" />
     <Compile Include="Emulator/Cores/Arm-M/DWT.cs" />
+    <Compile Include="Emulator/Cores/Arm-M/CortexMImplementationDefinedAttributionUnit.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Cores/Arm-M/CortexMRegisters.tt">
@@ -279,7 +289,9 @@
     </Compile>
     <Compile Include="Emulator/Cores/X86/LAPIC.cs" />
     <Compile Include="Emulator/Cores/X86/IOAPIC.cs" />
+    <Compile Include="Emulator/Cores/X86/APICMessageHelper.cs" />
     <Compile Include="Emulator/Cores/X86/ACPI/ACPIExtensions.cs" />
+    <Compile Include="Emulator/Cores/X86/ACPI/DifferentiatedSystemDescriptionTable.cs"/>
     <Compile Include="Emulator/Cores/X86/ACPI/RootSystemDescriptionPointer.cs" />
     <Compile Include="Emulator/Cores/X86/ACPI/RootSystemDescriptionTable.cs" />
     <Compile Include="Emulator/Cores/X86/ACPI/SystemDescriptionTableHeader.cs" />
@@ -303,6 +315,30 @@
     <None Include="Emulator/Cores/X86/X86_64Registers.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>X86_64Registers.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+    <Compile Include="Emulator/Cores/KVM/KVMCPU.cs" />
+    <Compile Include="Emulator/Cores/KVM/X86/X86KVMBase.cs" />
+    <Compile Include="Emulator/Cores/KVM/X86/X86KVM.cs" />
+    <Compile Include="Emulator/Cores/KVM/X86/X86KVMRegisters.cs">
+      <DependentUpon>X86KVMRegisters.tt</DependentUpon>
+    </Compile>
+    <Compile Include="Emulator/Cores/KVM/X86/X86_64KVM.cs" />
+    <Compile Include="Emulator/Cores/KVM/X86/X86_64KVMRegisters.cs">
+      <DependentUpon>X86_64KVMRegisters.tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Emulator/Cores/KVM/X86/X86KVMRegisters.tt" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>X86KVMRegisters.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Emulator/Cores/KVM/X86/X86_64KVMRegisters.tt" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>X86_64KVMRegisters.cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -340,6 +376,7 @@
     <Compile Include="Emulator/Cores/RiscV/MiV_CoreLevelInterruptor.cs" />
     <Compile Include="Emulator/Cores/RiscV/BaseRiscV.cs" />
     <Compile Include="Emulator/Cores/RiscV/PlatformLevelInterruptController.cs" />
+    <Compile Include="Emulator/Cores/RiscV/AndesNCEPLIC100.cs" />
     <Compile Include="Emulator/Cores/RiscV/PrivilegeLevel.cs" />
     <Compile Include="Emulator/Cores/RiscV/IbexRiscV32.cs" />
     <Compile Include="Emulator/Cores/RiscV/Minerva.cs" />
@@ -350,6 +387,7 @@
     <Compile Include="Emulator/Cores/RiscV/RiscVCpuHooksExtensions.cs" />
     <Compile Include="Emulator/Cores/RiscV/RiscVInstructionPythonEngine.cs" />
     <Compile Include="Emulator/Cores/RiscV/RiscVCsrPythonEngine.cs" />
+    <Compile Include="Emulator/Cores/RiscV/RiscVStackAccessPythonEngine.cs" />
     <Compile Include="Emulator/Cores/RiscV/CV32E40P.cs" />
     <Compile Include="Emulator/Cores/RiscV/PULP_InterruptController.cs" />
     <Compile Include="Emulator/Cores/RiscV/PULP_EventController.cs" />
@@ -365,6 +403,9 @@
     <Compile Include="Emulator/Cores/RiscV/Andes_AndeStarV5Extension.cs" />
     <Compile Include="Emulator/Cores/RiscV/CoreLocalInterruptController.cs" />
     <Compile Include="Emulator/Cores/RiscV/VeeR_EL2.cs" />
+    <Compile Include="Emulator/Cores/RiscV/VeeR_EL2_PIC.cs" />
+    <Compile Include="Emulator/Cores/RiscV/ExternalPMPBase.cs" />
+    <Compile Include="Emulator/Cores/RiscV/RiscVExternalPMP.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Cores/RiscV/RiscV32Registers.tt">
@@ -470,6 +511,7 @@
     <Compile Include="Emulator/Extensions/UserInterface/Commands/StartCommand.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Commands/SetCommand.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Commands/PythonExecuteCommand.cs" />
+    <Compile Include="Emulator/Extensions/UserInterface/Commands/AutoSaveCommand.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Tokenizer/LeftBraceToken.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Tokenizer/RightBraceToken.cs" />
     <Compile Include="Emulator/Extensions/TAPHelper/DynamicModuleSpawner.cs" />
@@ -538,6 +580,7 @@
     <Compile Include="Emulator/Extensions/Utilities/GDB/Commands/ThreadAttachedCommand.cs" />
     <Compile Include="Emulator/Extensions/Utilities/GDB/Commands/ThreadContextCommand.cs" />
     <Compile Include="Emulator/Extensions/Utilities/GDB/Commands/Trace32Commands.cs" />
+    <Compile Include="Emulator/Extensions/Utilities/GDB/Commands/ReverseExecutionCommand.cs" />
     <Compile Include="Emulator/Extensions/Utilities/USBIP/USBIPServer.cs" />
     <Compile Include="Emulator/Extensions/Utilities/USBIP/InterfaceDescriptor.cs" />
     <Compile Include="Emulator/Extensions/Utilities/USBIP/DeviceDescriptor.cs" />
@@ -553,6 +596,7 @@
     <Compile Include="Emulator/Extensions/Utilities/UartFileBackend.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Commands/LastLogCommand.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Commands/DisplayImageCommand.cs" />
+    <Compile Include="Emulator/Extensions/UserInterface/Commands/ReverseExecModeCommand.cs" />
     <Compile Include="Emulator/Extensions/Hooks/InterruptPythonEngine.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/InlineImage.cs" />
     <Compile Include="Emulator/Extensions/HostInterfaces/Camera/HostCamera.cs" />
@@ -614,6 +658,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Memory/ArrayMemoryWithReadonlys.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/EmulatorController.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/S32K_SCG.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/NXP_INTMUX.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/SIC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/EOSS3_IntrCtrl.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Cache/PL310.cs" />
@@ -622,7 +667,6 @@
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/STM32_EXTICore.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/STM32H7_EXTI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/STM32WBA_EXTI.cs" />
-    <Compile Include="Emulator/Peripherals/Peripherals/DMA/STM32DMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/UDMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/MPFS_PDMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/NPCX_MDMA.cs" />
@@ -720,6 +764,8 @@
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/SHT21.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/BMC050.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/Button.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/VirtIOMMIOEntropy.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/VirtIOMMIOConsole.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/SynopsysEthernetMAC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/XilinxQSPI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/Cadence_xSPI.cs" />
@@ -749,6 +795,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/STM32F4GPIOPort_old.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/STM32_GPIOPort.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/STM32F1GPIOPort.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/STM32F1AFIO.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/NXPGPIOPort.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/XilinxGPIOPS.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/USBDeprecated/USBTablet.cs" />
@@ -824,7 +871,8 @@
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/TranslationCPU_Profiler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Cluster.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/BaseProfiler.cs" />
-    <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/CollapsedStackProfiler.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/FrameTrackingCollapsedStackProfiler.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/ControlTrackingCollapsedStackProfiler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/PerfettoProfiler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/ProtoBuf/TracePacket.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/ProtoBuf/PerfettoTraceWriter.cs" />
@@ -833,6 +881,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/CPUCore.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/ExternalCPU.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Synchronizer.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/CPU/HookDescriptor.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Disassembler/IDisassembler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Registers/IRegisters.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Registers/RegistersGroup.cs" />
@@ -857,6 +906,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/RenesasRZG_IIC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/Renesas_SCI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/RCAR_UART.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/UART/MesonUart.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Sensors/DummySensor.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/Quark_SystemControlSubsystem.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/SiFive_UART.cs" />
@@ -938,13 +988,19 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Network/K6xF_Ethernet.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/K6xF_SIM.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/NRF52840_UART.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/UART/NRF54H20_UARTE.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/ATAPI/ATAPI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/ATAPI/CDROM.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32F4_RCC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF_CLOCK.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF54L_CLOCK.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/NRF54H20_GRTC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF_Bellboard.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF_VPREventInterface.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF_USBREG.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF52840_ECB.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF52840_PPI.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF_SharedMemory.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/USB/NRF_USBD.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/USB/CDCToUARTConverter.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/NRF52840_RNG.cs" />
@@ -986,6 +1042,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Network/LiteX_Ethernet_CSR32.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/LiteX_Timer_CSR32.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/STM32_IndependentWatchdog.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/STM32H7_SystemWindowWatchdog.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_VerilatorSwTestStatus.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_PowerManager.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_HMAC.cs" />
@@ -1118,6 +1175,8 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Sensors/AS6221.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Sensors/MAX77818.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/LC709205F.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/I3C/Caliptra_I3C.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/I3C/Caliptra_I3C_generated.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CRC/STM32_CRC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/MTD/STM32L0_FlashController.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/MTD/STM32_FlashController.cs" />
@@ -1135,6 +1194,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_ScrambledMemory.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_ClockManager.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/GenericSpiFlash.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/SPI/GenericSpiFlash_SFDP.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/Macronix_MX25R.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/QuectelModem.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/Quectel_BC660K.cs" />
@@ -1152,7 +1212,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/Marvell_Armada_Timer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/CMSDK_APB_UART.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/NEORV32_UART.cs" />
-    <Compile Include="Emulator/Peripherals/Peripherals/Timers/NEORV32_MachineSystemTimer.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/RiscVMachineTimer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/KB1200_UART.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/SynopsysDWCEthernetQualityOfService/SynopsysDWCEthernetQualityOfService.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/SynopsysDWCEthernetQualityOfService/SynopsysDWCEthernetQualityOfService_Descriptors.cs" />
@@ -1255,6 +1315,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Mocks/MockDoubleWordPeripheralWithOnlyRegionReadMethod.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/LPC_Clock0.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/LLVMArchitectureMapping.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Video/Allegro_E310.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Assembler/IAssembler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Assembler/LLVMAssembler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Analog/STM32F3_ADC.cs" />
@@ -1279,11 +1340,78 @@
     <Compile Include="Emulator/Peripherals/Peripherals/DMA/MSP430F261X_DMA.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/UART/MSP430_eUSCI.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/MSP430F2XXX_Watchdog.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Analog/SAM4S_ADC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SAM4S_RSTC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/SAM4S_WDT.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SAM4S_DACC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_AES_1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_CMU_3.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_CMU_3.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_DeviceInformation.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_DPLL_1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_DPLL_1.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_EMU_3.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_HFRCO_2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_HFRCO_2.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_HFXO_2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_HFXO_3.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_HFXO_3.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_LFRCO_2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_LFRCO_2.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_LFXO_1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_LFXO_1.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_LockbitsData.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_MSC_3.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_PRS_3.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_PRS_3.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_DCDC_2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_DCDC_2.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_RNGCTRL.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_SEMAILBOX_1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_SLAB_ITM.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_SMU_1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_SYSCFG_3.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG2_SYSRTC_1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/EFR32xG24_FlashUserData.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/ICMU_EFR32xG2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/IHFXO_EFR32xG2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SiLabs/Silabs_SecureElement.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/EFR32MG24_LDMA.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/EFR32xG22_LDMA.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/UART/EFR32xG2_USART_0.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/UART/EFR32xG2_EUSART_2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/EFR32xG2_TIMER_1.Generated.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/EFR32xG2_TIMER_1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/EFR32xG2_GPIO_1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/EFR32xG2_GPIO_3.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Wireless/EFR32xG24_Radio.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/SAM4S_EEFC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/I2C/SAM4S_TWI.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Memory/GenericI2cEeprom.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.BusController.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.ExternalMmu.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.StreamController.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.Structures.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.WrappingQueue.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.RegistrationPoint.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/MemoryControllers/ARM_SMMUv3/ARM_SMMUv3.Domain.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/SPI/ISSI_IS25WP.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/AndesATCPIT100.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/AndesATCWDT200_Watchdog.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/SPI/AndesATCSPI200.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/SPI/Puya_P25Q.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/AndesATCRTC100.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/EgisET171_AOSMU.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/EgisET171_SMU2.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
+    <Compile Include="Emulator/Main/Utilities/Packets/AlignAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/OffsetAttribute.cs" />
+    <Compile Include="Emulator/Main/Utilities/Packets/PaddingBeforeAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/WidthAttribute.cs" />
+    <Compile Include="Emulator/Main/Utilities/Packets/PresentIfAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/PacketFieldAttribute.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/LeastSignificantByteFirst.cs" />
     <Compile Include="Emulator/Main/Utilities/Packets/DynamicPropertiesObject.cs" />
@@ -1330,7 +1458,9 @@
     <Compile Include="Emulator/Main/Peripherals/BasicWordPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/BasicDoubleWordPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/IPeripheral.cs" />
+    <Compile Include="Emulator/Main/Peripherals/IContextState.cs" />
     <Compile Include="Emulator/Main/Peripherals/ICluster.cs" />
+    <Compile Include="Emulator/Main/Peripherals/DelayedInvalidationContext.cs" />
     <Compile Include="Emulator/Main/Utilities/Misc.cs" />
     <Compile Include="Emulator/Main/Utilities/VideoCapturer.cs" />
     <Compile Include="Emulator/Main/Core/GPIOAttribute.cs" />
@@ -1359,6 +1489,8 @@
     <Compile Include="Emulator/Main/Peripherals/SPI/ISPIPeripheral.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IRegistered.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IRegistrationPoint.cs" />
+    <Compile Include="Emulator/Main/Core/Structure/IJsonSerializable.cs" />
+    <Compile Include="Emulator/Main/Core/Structure/IConditionalRegistration.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IBusRegistered.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/BusRegistered.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IBusController.cs" />
@@ -1376,6 +1508,7 @@
     <Compile Include="Emulator/Main/Peripherals/Bus/BusRangeRegistration.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/BusParametrizedRegistration.cs" />
     <Compile Include="Emulator/Main/Core/Machine.cs" />
+    <Compile Include="Emulator/Main/Core/AtomicState.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IBusPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/PCI/IPCIPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/PCI/IPCIePeripheral.cs" />
@@ -1407,6 +1540,7 @@
     <Compile Include="Emulator/Main/Exceptions/RegistrationException.cs" />
     <Compile Include="Emulator/Main/Exceptions/RecoverableException.cs" />
     <Compile Include="Emulator/Main/Exceptions/ConstructionException.cs" />
+    <Compile Include="Emulator/Main/Exceptions/InvalidRegisterAccessException.cs" />
     <Compile Include="Emulator/Main/Core/IGPIOReceiver.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IQuadWordPeripheral.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IDoubleWordPeripheral.cs" />
@@ -1429,6 +1563,7 @@
     <Compile Include="Emulator/Main/Peripherals/IRQControllers/IIRQController.cs" />
     <Compile Include="Emulator/Main/Utilities/AdHocCompiler.cs" />
     <Compile Include="Emulator/Main/Core/EmulationManager.cs" />
+    <Compile Include="Emulator/Main/Core/PreservableManager.cs" />
     <Compile Include="Emulator/Main/Core/PeripheralTreeEntry.cs" />
     <Compile Include="Emulator/Main/Logging/ILoggerBackend.cs" />
     <Compile Include="Emulator/Main/Logging/Logger.cs" />
@@ -1484,14 +1619,15 @@
     </Compile>
     <Compile Include="Emulator/Main/Utilities/IAutoLoadType.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPU.cs" />
-    <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithAArch64Support.cs" />
+    <Compile Include="Emulator/Main/Peripherals/CPU/IArmWithSystemRegisters.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMetrics.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithNMI.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithExternalMmu.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPSCI.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMappedMemory.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithRegisters.cs" />
-    <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithOpcodeHooks.cs" />
+    <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPostOpcodeExecutionHooks.cs" />
+    <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPreOpcodeExecutionHooks.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMemoryAccessHooks.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPostGprAccessHooks.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/IHaltable.cs" />
@@ -1505,6 +1641,7 @@
     <Compile Include="Emulator/Main/Core/IGPIOSender.cs" />
     <Compile Include="Emulator/Main/Testing/TimeoutExecutor.cs" />
     <Compile Include="Emulator/Main/Core/BinaryFingerprint.cs" />
+    <Compile Include="Emulator/Main/Core/AccessConditionParser.cs" />
     <Compile Include="Emulator/Main/Time/ClockEntry.cs" />
     <Compile Include="Emulator/Main/Time/Direction.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/Redirector.cs" />
@@ -1538,6 +1675,7 @@
     <Compile Include="Emulator/Main/Peripherals/Wireless/WirelessMedium.cs" />
     <Compile Include="Emulator/Main/Peripherals/Wireless/IEEE802_15_4Medium.cs" />
     <Compile Include="Emulator/Main/Peripherals/Wireless/BLEMedium.cs" />
+    <Compile Include="Emulator/Main/Peripherals/Wireless/InterferenceQueue.cs" />
     <Compile Include="Emulator/Main/Utilities/ProgressMonitor.cs" />
     <Compile Include="Emulator/Main/Utilities/IProgressMonitorHandler.cs" />
     <Compile Include="Emulator/Main/Peripherals/GPIOPort/BaseGPIOPort.cs" />
@@ -1547,6 +1685,7 @@
     <Compile Include="Emulator/Main/Peripherals/BackendManager.cs" />
     <Compile Include="Emulator/Main/Peripherals/Video/IVideo.cs" />
     <Compile Include="Emulator/Main/Core/INumberedGPIOOutput.cs" />
+    <Compile Include="Emulator/Main/Core/IHasAutomaticallyConnectedGPIOOutputs.cs" />
     <Compile Include="Emulator/Main/Peripherals/BasicPeripheralBackendAnalyzer.cs" />
     <Compile Include="Emulator/Main/Utilities/Collections/SerializableWeakKeyDictionary.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IHasChildren.cs" />
@@ -1591,6 +1730,7 @@
     <Compile Include="Emulator/Main/Core/Structure/Registers/FieldMode.cs" />
     <Compile Include="Emulator/Main/Core/Structure/Registers/IEnumRegisterField.cs" />
     <Compile Include="Emulator/Main/Core/Structure/Registers/IFlagRegisterField.cs" />
+    <Compile Include="Emulator/Main/Core/Structure/Registers/IPacketRegisterField.cs" />
     <Compile Include="Emulator/Main/Core/Structure/Registers/IValueRegisterField.cs" />
     <Compile Include="Emulator/Main/Core/Structure/Registers/RegisterField.cs" />
     <Compile Include="Emulator/Main/Core/Structure/Registers/Tag.cs" />
@@ -1620,7 +1760,6 @@
     <Compile Include="Emulator/Main/Logging/Backends/NetworkBackend.cs" />
     <Compile Include="Emulator/Main/Logging/Backends/LoggerBackend.cs" />
     <Compile Include="Emulator/Main/Logging/Backends/TextBackend.cs" />
-    <Compile Include="Emulator/Main/Logging/Backends/DummyLoggerBackend.cs" />
     <Compile Include="Emulator/Main/Peripherals/Timers/LimitTimer.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/ConnectionRegionAttribute.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/BusAccess.cs" />
@@ -1685,7 +1824,6 @@
     <Compile Include="Emulator/Main/Time/TimeHandle.cs" />
     <Compile Include="Emulator/Main/Time/ITimeDomain.cs" />
     <Compile Include="Emulator/Main/Time/TimeDomainsManager.cs" />
-    <Compile Include="Emulator/Main/Debug/IIdentifiable.cs" />
     <Compile Include="Emulator/Main/Debug/IdentifiableObject.cs" />
     <Compile Include="Emulator/Main/Time/HandlesCollection.cs" />
     <Compile Include="Emulator/Main/Time/Sleeper.cs" />
@@ -1715,8 +1853,10 @@
     <Compile Include="Emulator/Main/Utilities/GDB/PacketData.cs" />
     <Compile Include="Emulator/Main/Utilities/GDB/PacketThreadId.cs" />
     <Compile Include="Emulator/Main/Utilities/GDB/GdbStub.cs" />
+    <Compile Include="Emulator/Main/Utilities/GDB/WatchpointDescriptor.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICpuSupportingGdb.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMMU.cs" />
+    <Compile Include="Emulator/Main/Peripherals/IPeripheralWithTransactionState.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/GDB/GDBTypeBitField.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/GDB/GDBCustomType.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/GDB/GDBFeatureDescriptor.cs" />
@@ -1799,12 +1939,14 @@
     <Compile Include="Emulator/Main/Peripherals/CPU/CPUState.cs" />
     <Compile Include="Emulator/Main/Peripherals/IEndiannessAware.cs" />
     <Compile Include="Emulator/Main/Utilities/SnapshotTracker.cs" />
+    <Compile Include="Emulator/Main/Utilities/AutoSnapshotCreator.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IBusRegistration.cs" />
     <Compile Include="Emulator/Main/Peripherals/UART/ILIN.cs" />
     <Compile Include="Emulator/Main/Peripherals/UART/LINHub.cs" />
     <Compile Include="Emulator/Main/Utilities/LINDecoder.cs" />
     <Compile Include="Emulator/Main/Peripherals/UART/LINBase.cs" />
     <Compile Include="Emulator/Main/Peripherals/CAN/SocketCAN.cs" />
+    <Compile Include="Emulator/Extensions/UserInterface/Tokenizer/CommaToken.cs" />
     <Compile Include="Emulator/Main/Peripherals/Sensor/IMagneticSensor.cs" />
     <Compile Include="Emulator/Main/Peripherals/Sensor/IADC.cs" />
     <Compile Include="Emulator/Main/Peripherals/Bus/IIndirectCSRPeripheral.cs" />
@@ -1812,6 +1954,46 @@
     <Compile Include="Emulator/Main/Utilities/ELFUtils.cs" />
     <Compile Include="Emulator/Main/Logging/Backends/FormattedTextBackend.cs" />
     <Compile Include="Emulator/Main/Utilities/SealableValue.cs" />
+    <Compile Include="Emulator/Main/Core/StateMask.cs" />
+    <Compile Include="Emulator/Main/Core/ICoalescable.cs" />
+    <Compile Include="Emulator/Main/Core/Extensions/MemoryDumpExtensions.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/ZynqMP_RTC.cs" />
+    <Compile Include="Emulator/Main/Peripherals/Miscellaneous/LogicGate.cs" />
+    <Compile Include="Emulator/Main/Core/ISimpleManagedThread.cs" />
+    <Compile Include="Emulator/Main/Peripherals/UART/UARTRESDFeeder.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/I2C/PCA9548.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/I2C/TCA6416.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/SPI/ZynqMP_GQSPI.cs" />
+    <Compile Include="Emulator/Main/Utilities/GStreamerWrapper.cs" />
+    <Compile Include="Emulator/Main/Core/RuntimeInfo.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/UART/NXP_FLEXCOMM.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl0.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl3.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_ClockControl/IMXRT700_ClockControl4.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_MessagingUnit.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_OSC32KNP.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/IMXRT700_eDMA.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/IMXRT700_eDMA.Channel.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/IMXRT700_DmaMux.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_SYSCON0.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/IMXRT700_SYSCON1.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Sound/IMXRT700_SAI.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Sound/IMXRT700_SAI.Transceiver.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Sound/IMXRT700_MICFIL.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/I2C/TAS2572.cs" />
+    <Compile Include="Emulator/Main/Core/IIdentifiable.cs" />
+    <Compile Include="Emulator/Main/Core/IdentifiableObject.cs" />
+    <Compile Include="Emulator/Main/Peripherals/Bus/Wrappers/PeripheralAccessProfiler.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/STM32_DMAMUX.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/DMA/STM32DMA.cs" />
+    <Compile Include="Emulator/Main/Core/IPreservable.cs" />
+    <Compile Include="Emulator/Main/Core/IHasPreservableState.cs" />
+    <Compile Include="Emulator/Main/Core/IDisconnectableState.cs" />
+    <Compile Include="Emulator/Main/Peripherals/UART/IDelayableUART.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/AndesATCGPIO100.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
@@ -1861,9 +2043,9 @@
       <Project>{92494904-35FA-4DC9-BDE9-3A3E87AC49D3}</Project>
       <Name>Xwt</Name>
     </ProjectReference>
-    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.Gtk/Xwt.Gtk.csproj" Condition=" $(CurrentPlatform) != 'Windows' And $(GUI_DISABLED) != 'true' ">
-      <Project>{C3887A93-B2BD-4097-8E2F-3A063EFF32FD}</Project>
-      <Name>Xwt.Gtk</Name>
+    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.Gtk/Xwt.Gtk3.csproj" Condition=" $(CurrentPlatform) != 'Windows' And $(GUI_DISABLED) != 'true' ">
+      <Project>{3B25FD1F-CEBA-4450-8893-DC330FDB56A7}</Project>
+      <Name>Xwt.Gtk3</Name>
     </ProjectReference>
     <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.WPF/Xwt.WPF.csproj" Condition=" $(CurrentPlatform) == 'Windows' And $(GUI_DISABLED) != 'true' ">
       <Project>{c93d746e-1586-4d4f-b411-bf5a966e6a08}</Project>
@@ -1927,11 +2109,14 @@
     <Reference Include="Mono.Posix" Condition=" $(CurrentPlatform) != 'Windows'" />
   </ItemGroup>
   <ItemGroup Condition=" $(CurrentPlatform) != Windows And $(GUI_DISABLED) != 'true' ">
-    <Reference Include="gdk-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f">
-      <Package>gtk-sharp-2.0</Package>
+    <Reference Include="gdk-sharp">
+      <HintPath>../../../lib/resources/libraries/GdkSharp.dll</HintPath>
     </Reference>
-    <Reference Include="glib-sharp, Version=2.12.0.0, Culture=neutral, PublicKeyToken=35e10195dab3c99f">
-      <Package>glib-sharp-2.0</Package>
+    <Reference Include="glib-sharp">
+      <HintPath>../../../lib/resources/libraries/GLibSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="gio-sharp">
+      <HintPath>../../../lib/resources/libraries/GioSharp.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -1968,6 +2153,9 @@
     </Reference>
     <Reference Include="IronPython.Modules">
       <HintPath>../../../lib/resources/libraries/IronPython.Modules.dll</HintPath>
+    </Reference>
+    <Reference Include="Sprache">
+      <HintPath>../../../lib/resources/libraries/Sprache.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>

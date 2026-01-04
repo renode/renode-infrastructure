@@ -11,6 +11,7 @@ namespace Antmicro.Renode.Peripherals.Bus
     public interface IDoubleWordPeripheral : IBusPeripheral
     {
         uint ReadDoubleWord(long offset);
+
         void WriteDoubleWord(long offset, uint value);
     }
 }

@@ -1,25 +1,25 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
     public partial class PL330_DMA : BasicDoubleWordPeripheral, IKnownSize, IDMA, INumberedGPIOOutput, IGPIOReceiver
     {
-        // This model doesn't take into account differences in AXI bus width, 
+        // This model doesn't take into account differences in AXI bus width,
         // which could have impact on unaligned transfers in real HW
         // this is a know limitation at this moment
         public PL330_DMA(IMachine machine, uint numberOfSupportedEventsAndInterrupts = MaximumSupportedEventsOrInterrupts, uint numberOfSupportedPeripheralRequestInterfaces = MaximumSupportedPeripheralRequestInterfaces, byte revision = 0x3) : base(machine)
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             RegisterInstructions();
             DefineRegisters();
- 
+
             eventActive = new bool[NumberOfSupportedEventsAndInterrupts];
 
             var gpios = new Dictionary<int, IGPIO>();
@@ -136,26 +136,34 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
 
         public long Size => 0x1000;
+
         public int NumberOfChannels => 8;
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
         public GPIO AbortIRQ { get; } = new GPIO();
 
         public byte Revision { get; }
+
         public int NumberOfSupportedEventsAndInterrupts { get; }
+
         public int NumberOfSupportedPeripheralRequestInterfaces { get; }
 
         // The values below are only used in Configuration and DmaConfiguration registers - they have no impact on the model's operation
         public int InstructionCacheLineLength { get; set; } = 16;
+
         public int InstructionCacheLinesNumber { get; set; } = 32;
 
         public ulong WriteIssuingCapability { get; set; } = 8;
+
         public ulong ReadIssuingCapability { get; set; } = 8;
 
         public ulong ReadQueueDepth { get; set; } = 16;
+
         public ulong WriteQueueDepth { get; set; } = 16;
 
         public ulong DataBufferDepth { get; set; } = 1024;
+
         public ulong AXIBusWidth { get; set; } = 32;
 
         private void DefineRegisters()
@@ -186,7 +194,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             Registers.DmaInterruptClear.Define(this)
                 .WithFlags(0, NumberOfSupportedEventsAndInterrupts, FieldMode.Write,
-                    writeCallback: (idx, _, val) => 
+                    writeCallback: (idx, _, val) =>
                         {
                             if(val)
                             {
@@ -198,7 +206,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             // This register is RO. To bring channel out of fault, issue KILL to Debug Registers
             Registers.FaultStatusDmaChannel.Define(this)
-                .WithFlags(0, NumberOfChannels, FieldMode.Read, 
+                .WithFlags(0, NumberOfChannels, FieldMode.Read,
                     valueProviderCallback: (idx, _) => channels[idx].Status == Channel.ChannelStatus.Faulting,
                     name: "Faulting channels");
 
@@ -424,54 +432,57 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // TODO: in case of infinite loop, this will hang the emulation.
                 // It's not ideal - separate thread will be good, but what about time flow?
                 // Still, it's enough in the beginning, for simple use cases
-                do
+                using(var invalidationCtx = sysbus.EnterDelayedInvalidationContext())
                 {
-                    foreach(var channelThread in channels.Where(c => c.Status == Channel.ChannelStatus.Executing))
+                    var insnBuffer = new byte[7];
+                    do
                     {
-                        this.Log(LogLevel.Debug, "Executing channel thread: {0}", channelThread.Id);
-
-                        while(channelThread.Status == Channel.ChannelStatus.Executing)
+                        foreach(var channelThread in channels.Where(c => c.Status == Channel.ChannelStatus.Executing))
                         {
-                            var address = channelThread.PC;
-                            var insn = sysbus.ReadByte(address, context: GetCurrentCPUOrNull());
-                            if(!decoderRoot.TryParseOpcode(insn, out var instruction))
-                            {
-                                this.Log(LogLevel.Error, "Invalid instruction with opcode 0x{0:X} at address: 0x{1:X}. Aborting thread {2}.", insn, address, channelThread.Id);
-                                channelThread.SignalChannelAbort(Channel.ChannelFaultReason.UndefinedInstruction);
-                                continue;
-                            }
+                            this.Log(LogLevel.Debug, "Executing channel thread: {0}", channelThread.Id);
 
-                            while(!instruction.IsFinished)
+                            while(channelThread.Status == Channel.ChannelStatus.Executing)
                             {
-                                instruction.Parse(sysbus.ReadByte(address, context: GetCurrentCPUOrNull()));
-                                address += sizeof(byte);
-                            }
+                                var address = channelThread.PC;
+                                sysbus.ReadBytes(address, insnBuffer.Length, insnBuffer, 0, context: Context);
 
-                            LogInstructionExecuted(instruction, DMAThreadType.Channel, channelThread.Id, channelThread.PC);
-                            instruction.Execute(DMAThreadType.Channel, channelThread.Id);
+                                if(!decoderRoot.TryParseOpcode(insnBuffer[0], out var instruction))
+                                {
+                                    this.Log(LogLevel.Error, "Invalid instruction with opcode 0x{0:X} at address: 0x{1:X}. Aborting thread {2}.", insnBuffer[0], address, channelThread.Id);
+                                    channelThread.SignalChannelAbort(Channel.ChannelFaultReason.UndefinedInstruction);
+                                    continue;
+                                }
+
+                                var insnIdx = 0;
+                                while(!instruction.IsFinished)
+                                {
+                                    instruction.Parse(insnBuffer[insnIdx]);
+                                    insnIdx++;
+                                }
+
+                                LogInstructionExecuted(instruction, DMAThreadType.Channel, channelThread.Id, channelThread.PC);
+                                instruction.Execute(DMAThreadType.Channel, channelThread.Id);
+                            }
                         }
-                    }
 
-                // A channel might have become unpaused as a result of an event generated by another channel
-                // As long as there are any channels in executing state, we have to retry
-                } while(channels.Any(c => c.Status == Channel.ChannelStatus.Executing));
+                        // A channel might have become unpaused as a result of an event generated by another channel
+                        // As long as there are any channels in executing state, we have to retry
+                    } while(channels.Any(c => c.Status == Channel.ChannelStatus.Executing));
+                }
             }
         }
 
         private void LogInstructionExecuted(Instruction insn, DMAThreadType threadType, int threadId, ulong? address = null)
         {
-            this.Log(LogLevel.Noisy, "[{0}] Executing: {1} {2}", threadType == DMAThreadType.Manager ? "M" : threadId.ToString(),
-                insn.ToString(), address != null ? $"@ 0x{address:X}" : "" );
+            // We check log level here to avoid string interpolation
+            if(Logger.MinimumLogLevel <= LogLevel.Noisy)
+            {
+                this.Log(LogLevel.Noisy, "[{0}] Executing: {1} {2}", threadType == DMAThreadType.Manager ? "M" : threadId.ToString(),
+                    insn.ToString(), address != null ? $"@ 0x{address:X}" : "");
+            }
         }
 
-        private ICPU GetCurrentCPUOrNull()
-        {
-            if(!machine.SystemBus.TryGetCurrentCPU(out var cpu))
-            {
-                return null;
-            }
-            return cpu;
-        }
+        private IPeripheral Context => this;
 
         private IEnumRegisterField<DMAThreadType> debugThreadType;
         private IValueRegisterField debugChannelNumber;
@@ -502,6 +513,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                 DefineRegisters();
             }
 
+            public void SignalChannelAbort(Channel.ChannelFaultReason reason)
+            {
+                Parent.Log(LogLevel.Error, "Channel {0} is aborting because of {1}", Id, reason.ToString());
+                // Changing status will automatically set Abort IRQ
+                this.Status = Channel.ChannelStatus.Faulting;
+                this.faultReason = reason;
+            }
+
             public void Reset()
             {
                 ChannelControlRawValue = 0x00800200;
@@ -518,8 +537,82 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 LoopCounter[0] = 0;
                 LoopCounter[1] = 0;
-                localMFIFO.Clear();
+                LocalMFIFO.Clear();
             }
+
+            public ulong PC { get; set; }
+
+            // Peripheral bound to the channel
+            public int? Peripheral { get; set; }
+
+            // What event is the channel waiting for (after calling DMAWFE)
+            // We don't care about clearing this, since it only has meaning when the channel is in WaitingForEvent state
+            public uint WaitingEventOrPeripheralNumber { get; set; }
+
+            // In bytes
+            public int EndianSwapSize { get; private set; }
+
+            public bool DestinationIncrementingAddress { get; private set; }
+
+            public bool SourceIncrementingAddress { get; private set; }
+
+            public int DestinationBurstLength { get; private set; }
+
+            public int SourceBurstLength { get; private set; }
+
+            public int DestinationWriteSize { get; private set; }
+
+            // Sizes are specified in bytes
+            public int SourceReadSize { get; private set; }
+
+            // Whether it's a last request - this is set in peripheral transfers only, in infinite loop transfers
+            public bool RequestLast { get; set; }
+
+            // RequestType is part of Peripheral Request Interface (is set by `DMAWFP`)
+            public ChannelRequestType RequestType { get; set; }
+
+            public ChannelStatus Status
+            {
+                get => status;
+                set
+                {
+                    status = value;
+                    if(status != Channel.ChannelStatus.Faulting)
+                    {
+                        // If we are not Faulting then clear Fault Reason
+                        // since it could be set previously, when the channel aborted
+                        this.faultReason = ChannelFaultReason.NoFault;
+                    }
+                    Parent.UpdateAbortInterrupt();
+                }
+            }
+
+            public uint ChannelControlRawValue
+            {
+                get => channelControlRawValue;
+                set
+                {
+                    channelControlRawValue = value;
+
+                    SourceIncrementingAddress = BitHelper.GetValue(value, 0, 1) == 1;
+                    SourceReadSize = 1 << (int)BitHelper.GetValue(value, 1, 3);
+                    SourceBurstLength = (int)BitHelper.GetValue(value, 4, 4) + 1;
+
+                    DestinationIncrementingAddress = BitHelper.GetValue(value, 14, 1) == 1;
+                    DestinationWriteSize = 1 << (int)BitHelper.GetValue(value, 15, 3);
+                    DestinationBurstLength = (int)BitHelper.GetValue(value, 18, 4) + 1;
+
+                    EndianSwapSize = 1 << (int)BitHelper.GetValue(value, 28, 3);
+                }
+            }
+
+            public uint DestinationAddress { get; set; }
+
+            public uint SourceAddress { get; set; }
+
+            public readonly int Id;
+            public readonly byte[] LoopCounter = new byte[2];
+            public readonly Queue<byte> LocalMFIFO = new Queue<byte>();
 
             private void DefineRegisters()
             {
@@ -554,81 +647,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 (Registers.Channel0LoopCounter1 + Id * 0x20).Define(Parent)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => LoopCounter[1], name: $"Channel {Id} Loop Counter 1");
             }
-
-            public ulong PC { get; set; }
-
-            public uint SourceAddress { get; set; }
-            public uint DestinationAddress { get; set; }
-            public uint ChannelControlRawValue
-            {
-                get => channelControlRawValue;
-                set
-                {
-                    channelControlRawValue = value;
-
-                    SourceIncrementingAddress = BitHelper.GetValue(value, 0, 1) == 1;
-                    SourceReadSize = 1 << (int)BitHelper.GetValue(value, 1, 3);
-                    SourceBurstLength = (int)BitHelper.GetValue(value, 4, 4) + 1;
-
-                    DestinationIncrementingAddress = BitHelper.GetValue(value, 14, 1) == 1;
-                    DestinationWriteSize = 1 << (int)BitHelper.GetValue(value, 15, 3);
-                    DestinationBurstLength = (int)BitHelper.GetValue(value, 18, 4) + 1;
-
-                    EndianSwapSize = 1 << (int)BitHelper.GetValue(value, 28, 3);
-                }
-            }
-
-            public void SignalChannelAbort(Channel.ChannelFaultReason reason)
-            {
-                Parent.Log(LogLevel.Error, "Channel {0} is aborting because of {1}", Id, reason.ToString());
-                // Changing status will automatically set Abort IRQ
-                this.Status = Channel.ChannelStatus.Faulting;
-                this.faultReason = reason;
-            }
-
-            public ChannelStatus Status 
-            {
-                get => status;
-                set
-                {
-                    status = value;
-                    if(status != Channel.ChannelStatus.Faulting)
-                    {
-                        // If we are not Faulting then clear Fault Reason
-                        // since it could be set previously, when the channel aborted
-                        this.faultReason = ChannelFaultReason.NoFault;
-                    }
-                    Parent.UpdateAbortInterrupt();
-                }
-            }
-
-            // RequestType is part of Peripheral Request Interface (is set by `DMAWFP`)
-            public ChannelRequestType RequestType { get; set; }
-            // Whether it's a last request - this is set in peripheral transfers only, in infinite loop transfers
-            public bool RequestLast { get; set; }
-
-            // Sizes are specified in bytes
-            public int SourceReadSize { get; private set; }
-            public int DestinationWriteSize { get; private set; }
-
-            public int SourceBurstLength { get; private set; }
-            public int DestinationBurstLength { get; private set; }
-
-            public bool SourceIncrementingAddress { get; private set; }
-            public bool DestinationIncrementingAddress { get; private set; }
-
-            // In bytes
-            public int EndianSwapSize { get; private set; }
-            
-            // What event is the channel waiting for (after calling DMAWFE)
-            // We don't care about clearing this, since it only has meaning when the channel is in WaitingForEvent state
-            public uint WaitingEventOrPeripheralNumber { get; set; }
-            // Peripheral bound to the channel
-            public int? Peripheral { get; set; }
-
-            public readonly int Id;
-            public readonly byte[] LoopCounter = new byte[2];
-            public readonly Queue<byte> localMFIFO = new Queue<byte>();
 
             private ChannelStatus status;
             private ChannelFaultReason faultReason;

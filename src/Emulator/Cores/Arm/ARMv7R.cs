@@ -1,14 +1,16 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -26,6 +28,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             catch(Exception e)
             {
+                // Free unmanaged resources allocated by the base class constructor
+                Dispose();
                 throw new ConstructionException($"Failed to attach CPU to Generic Interrupt Controller: {e.Message}", e);
             }
         }
@@ -34,11 +38,15 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         // Currently unsupported
         public bool FIQMaskOverride => false;
+
         public bool IRQMaskOverride => false;
 
         public Affinity Affinity { get; }
+
         public SecurityState SecurityState => SecurityState.Secure;
+
         public ExceptionLevel ExceptionLevel => ExceptionLevel.EL1_SystemMode;
+
         public uint AuxiliaryControlRegister { get; set; }
 
         protected override void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)

@@ -6,17 +6,18 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public class DesignWare_SPI: SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
+    public class DesignWare_SPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IKnownSize
     {
         public DesignWare_SPI(IMachine machine, uint transmitDepth, uint receiveDepth) : base(machine)
         {
@@ -55,12 +56,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                     })
                 },
-
                 {(long)Registers.Control1, new DoubleWordRegister(this)
                     .WithReservedBits(16, 16)
                     .WithValueField(0, 16, out numberOfFrames, name: "NDF")
                 },
-
                 {(long)Registers.Enable, new DoubleWordRegister(this)
                     .WithReservedBits(1, 31)
                     .WithFlag(0, out enabled, changeCallback: (_, val) =>
@@ -71,7 +70,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                     }, name: "SSI_EN")
                 },
-
                 {(long)Registers.SlaveSelect, new DoubleWordRegister(this)
                     .WithReservedBits(3, 29)
                     .WithEnumField<DoubleWordRegister, SlaveSelect>(0, 3, name: "SER", writeCallback: (previousVal, val) =>
@@ -103,12 +101,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                     })
                 },
-
                 {(long)Registers.ClockDivider, new DoubleWordRegister(this)
                     .WithValueField(1, 16, name: "SCKDV_15_1")
                     .WithFlag(0, FieldMode.Read, name: "SCKDV_0") // it's always 0 to ensure that the divider is even
                 },
-
                 {(long)Registers.TransmitTreshold, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
                     .WithValueField(0, 8, writeCallback: (_, val) =>
@@ -123,7 +119,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                     }, valueProviderCallback: _ => transmitThreshold, name: "TFT")
                 },
-
                 {(long)Registers.ReceiveTreshold, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
                     .WithValueField(0, 8, writeCallback: (_, val) =>
@@ -138,17 +133,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                         }
                     }, valueProviderCallback: _ => receiveThreshold, name: "RFT")
                 },
-
                 {(long)Registers.TransmitLevel, new DoubleWordRegister(this)
                     .WithReservedBits(3, 29)
                     .WithValueField(0, 3, FieldMode.Read, valueProviderCallback: _ => (uint)transmitBuffer.Count, name: "TXFLR")
                 },
-
                 {(long)Registers.ReceiveLevel, new DoubleWordRegister(this)
                     .WithReservedBits(3, 29)
                     .WithValueField(0, 3, FieldMode.Read, valueProviderCallback: _ => (uint)receiveBuffer.Count, name: "RXFLR")
                 },
-
                 {(long)Registers.Status, new DoubleWordRegister(this)
                     .WithReservedBits(7, 25)
                     .WithTag("DCOL", 6, 1) // read-to-clear
@@ -159,7 +151,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => transmitBuffer.Count < transmitDepth, name: "TFNF")
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "BUSY") // in Renode transfers are instant, so BUSY is always 'false'
                 },
-
                 {(long)Registers.InterruptMask, new DoubleWordRegister(this)
                     .WithReservedBits(6, 26)
                     .WithFlag(5, out multiMasterContentionMask, name: "MSTIM")
@@ -170,7 +161,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(0, out transmitEmptyMask, name: "TXEIM")
                     .WithWriteCallback((_, __) => UpdateInterrupt())
                 },
-
                 {(long)Registers.InterruptStatus, new DoubleWordRegister(this)
                     .WithReservedBits(6, 26)
                     .WithFlag(5, mode: FieldMode.Read, valueProviderCallback: _ => multiMasterContention.Value && multiMasterContentionMask.Value, name: "MSTIS")
@@ -180,7 +170,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(1, mode: FieldMode.Read, valueProviderCallback: _ => transmitOverflow.Value && transmitOverflowMask.Value, name: "TXOIS")
                     .WithFlag(0, mode: FieldMode.Read, valueProviderCallback: _ => transmitEmpty.Value && transmitEmptyMask.Value, name: "TXEIS")
                 },
-
                 {(long)Registers.InterruptRawStatus, new DoubleWordRegister(this)
                     .WithReservedBits(6, 26)
                     .WithFlag(5, mode: FieldMode.Read, flagField: out multiMasterContention, name: "MSTIR")
@@ -190,27 +179,22 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(1, mode: FieldMode.Read, flagField: out transmitOverflow, name: "TXOIR")
                     .WithFlag(0, mode: FieldMode.Read, flagField: out transmitEmpty, name: "TXEIR")
                 },
-
                 {(long)Registers.TransmitOverflowInterruptClear, new DoubleWordRegister(this)
                     .WithReservedBits(1, 31)
                     .WithFlag(0, mode: FieldMode.Read, name: "TXOICR", readCallback: (_, __) => { transmitOverflow.Value = false; UpdateInterrupt(); })
                 },
-
                 {(long)Registers.ReceiveOverflowInterruptClear, new DoubleWordRegister(this)
                     .WithReservedBits(1, 31)
                     .WithFlag(0, mode: FieldMode.Read, name: "RXOICR", readCallback: (_, __) => { receiveOverflow.Value = false; UpdateInterrupt(); })
                 },
-
                 {(long)Registers.ReceiveUnderflowInterruptClear, new DoubleWordRegister(this)
                     .WithReservedBits(1, 31)
                     .WithFlag(0, mode: FieldMode.Read, name: "RXUICR", readCallback: (_, __) => { receiveUnderflow.Value = false; UpdateInterrupt(); })
                 },
-
                 {(long)Registers.MultiMasterContentionInterruptClear, new DoubleWordRegister(this)
                     .WithReservedBits(1, 31)
                     .WithFlag(0, mode: FieldMode.Read, name: "MSTICR", readCallback: (_, __) => { multiMasterContention.Value = false; UpdateInterrupt(); })
                 },
-
                 {(long)Registers.InterruptClear, new DoubleWordRegister(this)
                     .WithReservedBits(1, 31)
                     .WithFlag(0, mode: FieldMode.Read, readCallback: (_, __) =>
@@ -223,15 +207,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                         UpdateInterrupt();
                     }, name: "ICR")
                 },
-
                 {(long)Registers.DeviceIdentificationCode, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0xFFFFFFFF, name: "IDCODE")
                 },
-
                 {(long)Registers.SynopsisComponentVersion, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0x3332332A, name: "SSI_COMP_VERSION")
                 },
-
                 {(long)Registers.DataRegister, new DoubleWordRegister(this)
                     .WithReservedBits(16, 16)
                     .WithValueField(0, 16, valueProviderCallback: _ =>
@@ -319,6 +300,12 @@ namespace Antmicro.Renode.Peripherals.SPI
             return true;
         }
 
+        public long Size => 0x400;
+
+        public GPIO IRQ { get; private set; } = new GPIO();
+
+        public TransferSize FrameSize { get; private set; }
+
         private void UpdateInterrupt()
         {
             var value = false;
@@ -359,21 +346,21 @@ namespace Antmicro.Renode.Peripherals.SPI
             var bytesFromFrames = ((int)numberOfFrames.Value + 1) * (FrameSize == TransferSize.SingleByte ? 1 : 2 /* TransferSize.DoubleByte */);
             switch(transferMode.Value)
             {
-                case TransferMode.TransmitReceive:
-                    DoTransfer(peripheral, transmitBuffer.Count, readFromFifo: true, writeToFifo: true);
-                    break;
-                case TransferMode.Transmit:
-                    DoTransfer(peripheral, transmitBuffer.Count, readFromFifo: true, writeToFifo: false);
-                    break;
-                case TransferMode.Receive:
-                    DoTransfer(peripheral, bytesFromFrames, readFromFifo: false, writeToFifo: true);
-                    break;
-                case TransferMode.EEPROM:
-                    // control bytes
-                    DoTransfer(peripheral, transmitBuffer.Count, readFromFifo: true, writeToFifo: false);
-                    // data bytes
-                    DoTransfer(peripheral, bytesFromFrames, readFromFifo: false, writeToFifo: true);
-                    break;
+            case TransferMode.TransmitReceive:
+                DoTransfer(peripheral, transmitBuffer.Count, readFromFifo: true, writeToFifo: true);
+                break;
+            case TransferMode.Transmit:
+                DoTransfer(peripheral, transmitBuffer.Count, readFromFifo: true, writeToFifo: false);
+                break;
+            case TransferMode.Receive:
+                DoTransfer(peripheral, bytesFromFrames, readFromFifo: false, writeToFifo: true);
+                break;
+            case TransferMode.EEPROM:
+                // control bytes
+                DoTransfer(peripheral, transmitBuffer.Count, readFromFifo: true, writeToFifo: false);
+                // data bytes
+                DoTransfer(peripheral, bytesFromFrames, readFromFifo: false, writeToFifo: true);
+                break;
             }
 
             return true;
@@ -388,20 +375,20 @@ namespace Antmicro.Renode.Peripherals.SPI
                 var dataToSlave = readFromFifo ? transmitBuffer.Dequeue() : (ushort)0;
                 switch(FrameSize)
                 {
-                    case TransferSize.SingleByte:
-                        dataFromSlave = peripheral.Transmit((byte)dataToSlave);
-                        break;
+                case TransferSize.SingleByte:
+                    dataFromSlave = peripheral.Transmit((byte)dataToSlave);
+                    break;
 
-                    case TransferSize.DoubleByte:
-                    {
-                        var responseHigh = peripheral.Transmit((byte)(dataToSlave >> 8));
-                        var responseLow = peripheral.Transmit((byte)dataToSlave);
-                        dataFromSlave = (ushort)((responseHigh << 8) | responseLow);
-                        break;
-                    }
+                case TransferSize.DoubleByte:
+                {
+                    var responseHigh = peripheral.Transmit((byte)(dataToSlave >> 8));
+                    var responseLow = peripheral.Transmit((byte)dataToSlave);
+                    dataFromSlave = (ushort)((responseHigh << 8) | responseLow);
+                    break;
+                }
 
-                    default:
-                        throw new ArgumentException($"Unexpected transfer size {FrameSize}");
+                default:
+                    throw new ArgumentException($"Unexpected transfer size {FrameSize}");
                 }
 
                 this.Log(LogLevel.Noisy, "Sent 0x{0:X}, received 0x{1:X}", dataToSlave, dataFromSlave);
@@ -446,22 +433,22 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             switch(val)
             {
-                case SlaveSelect.Slave1:
-                    id = 1;
-                    return true;
-                case SlaveSelect.Slave2:
-                    id = 2;
-                    return true;
-                case SlaveSelect.Slave3:
-                    id = 3;
-                    return true;
-                case SlaveSelect.None:
-                    id = 0;
-                    return true;
-                default:
-                    this.Log(LogLevel.Warning, "Unexpected Slave Select (SER) value: 0x{0:X}", val);
-                    id = -1;
-                    return false;
+            case SlaveSelect.Slave1:
+                id = 1;
+                return true;
+            case SlaveSelect.Slave2:
+                id = 2;
+                return true;
+            case SlaveSelect.Slave3:
+                id = 3;
+                return true;
+            case SlaveSelect.None:
+                id = 0;
+                return true;
+            default:
+                this.Log(LogLevel.Warning, "Unexpected Slave Select (SER) value: 0x{0:X}", val);
+                id = -1;
+                return false;
             }
         }
 
@@ -478,33 +465,27 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        public long Size => 0x400;
-
-        public GPIO IRQ { get; private set; } = new GPIO();
-
-        public TransferSize FrameSize { get; private set; }
-
         private uint transmitThreshold;
         private uint receiveThreshold;
 
-        private IValueRegisterField dataFrameSize;
-        private IEnumRegisterField<TransferMode> transferMode;
-        private IValueRegisterField numberOfFrames;
-        private IFlagRegisterField enabled;
+        private readonly IValueRegisterField dataFrameSize;
+        private readonly IEnumRegisterField<TransferMode> transferMode;
+        private readonly IValueRegisterField numberOfFrames;
+        private readonly IFlagRegisterField enabled;
 
-        private IFlagRegisterField multiMasterContentionMask;
-        private IFlagRegisterField receiveFullMask;
-        private IFlagRegisterField receiveOverflowMask;
-        private IFlagRegisterField receiveUnderflowMask;
-        private IFlagRegisterField transmitOverflowMask;
-        private IFlagRegisterField transmitEmptyMask;
+        private readonly IFlagRegisterField multiMasterContentionMask;
+        private readonly IFlagRegisterField receiveFullMask;
+        private readonly IFlagRegisterField receiveOverflowMask;
+        private readonly IFlagRegisterField receiveUnderflowMask;
+        private readonly IFlagRegisterField transmitOverflowMask;
+        private readonly IFlagRegisterField transmitEmptyMask;
 
-        private IFlagRegisterField multiMasterContention; // this IRQ is never set in the current implementation
-        private IFlagRegisterField receiveFull;
-        private IFlagRegisterField receiveOverflow;
-        private IFlagRegisterField receiveUnderflow;
-        private IFlagRegisterField transmitOverflow;
-        private IFlagRegisterField transmitEmpty;
+        private readonly IFlagRegisterField multiMasterContention; // this IRQ is never set in the current implementation
+        private readonly IFlagRegisterField receiveFull;
+        private readonly IFlagRegisterField receiveOverflow;
+        private readonly IFlagRegisterField receiveUnderflow;
+        private readonly IFlagRegisterField transmitOverflow;
+        private readonly IFlagRegisterField transmitEmpty;
 
         private readonly uint transmitDepth;
 

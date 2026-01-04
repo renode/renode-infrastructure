@@ -1,16 +1,15 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
-using Antmicro.Renode.Core;
 using System.Linq;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Bus
@@ -75,28 +74,26 @@ namespace Antmicro.Renode.Peripherals.Bus
             throw new RecoverableException("Cannot translate address that does not lay in redirector.");
         }
 
-        public byte[] ReadBytes(long offset, int count, ICPU context = null)
+        public byte[] ReadBytes(long offset, int count, IPeripheral context = null)
         {
             return systemBus.ReadBytes(redirectedAddress + checked((ulong)offset), count, context: context);
         }
 
-        public void WriteBytes(long offset, byte[] array, int startingIndex, int count, ICPU context = null)
+        public void WriteBytes(long offset, byte[] array, int startingIndex, int count, IPeripheral context = null)
         {
             systemBus.WriteBytes(array, redirectedAddress + checked((ulong)offset), count, context: context);
         }
 
-        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, ICPU cpu)
+        public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, IPeripheral cpu)
         {
             this.LoadFileChunks(chunks, cpu);
         }
 
         public void Reset()
         {
-
         }
 
         private readonly ulong redirectedAddress;
         private readonly IBusController systemBus;
     }
 }
-

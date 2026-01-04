@@ -1,12 +1,13 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
@@ -99,6 +100,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         public GPIO IRQ { get; private set; }
+
         public long Size => 0x1000;
 
         private void PrepareRegisters()
@@ -233,13 +235,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             return BitHelper.GetValueFromBitsArray(result);
         }
 
-        private DoubleWordRegisterCollection registers;
-        private readonly GPIOInterruptManager irqManager;
-        private readonly object locker;
-
         private IValueRegisterField interruptSenseField;
         private IValueRegisterField interruptBothEdgeField;
         private IValueRegisterField interruptEventField;
+
+        private DoubleWordRegisterCollection registers;
+        private readonly GPIOInterruptManager irqManager;
+        private readonly object locker;
 
         private const int NumberOfGPIOs = 8;
 

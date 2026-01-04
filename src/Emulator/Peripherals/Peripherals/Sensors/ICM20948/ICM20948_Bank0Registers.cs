@@ -4,13 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.I2C;
-using Antmicro.Renode.Peripherals.SPI;
-using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Utilities.RESD;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -91,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             GyroAccelUserBank0Registers.InterruptEnable3.Define(gyroAccelUserBank0Registers)
                 .WithReservedBits(1, 7)
-                .WithFlag(0, out fifoWatermarkInterruptEnabled,  name: "FIFO_WM_EN")
+                .WithFlag(0, out fifoWatermarkInterruptEnabled, name: "FIFO_WM_EN")
                 .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
 
@@ -273,7 +267,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField rawDataReadyInterruptStatus;
         private IFlagRegisterField fifoOverflowInterruptStatus;
         private IFlagRegisterField fifoWatermarkInterruptStatus;
-        private IValueRegisterField[] externalSlaveSensorData = new IValueRegisterField[NumberOfExternalSlaveSensorDataRegisters];
+        private readonly IValueRegisterField[] externalSlaveSensorData = new IValueRegisterField[NumberOfExternalSlaveSensorDataRegisters];
 
         private enum GyroAccelUserBank0Registers : byte
         {

@@ -5,17 +5,17 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Text;
-using System.Threading;
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Threading;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Network;
 using Antmicro.Renode.Peripherals.Wireless;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Testing
@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Testing
                     return true;
                 }
 
-                WaitHandle.WaitAny(new [] { timeoutEvent.WaitHandle, newFrameEvent });
+                WaitHandle.WaitAny(new[] { timeoutEvent.WaitHandle, newFrameEvent });
             }
             while(!timeoutEvent.IsTriggered);
 
@@ -96,14 +96,14 @@ namespace Antmicro.Renode.Testing
                 while(packetsChecked < maxPackets && frames.TryTake(out var frame))
                 {
                     packetsChecked++;
-                    if(IsMatch(bytes, index, frame.bytes))
+                    if(IsMatch(bytes, index, frame.Bytes))
                     {
                         result = frame;
                         return true;
                     }
                 }
 
-                WaitHandle.WaitAny(new [] { timeoutEvent.WaitHandle, newFrameEvent });
+                WaitHandle.WaitAny(new[] { timeoutEvent.WaitHandle, newFrameEvent });
             }
             while(!timeoutEvent.IsTriggered && packetsChecked < maxPackets);
 
@@ -257,11 +257,11 @@ namespace Antmicro.Renode.Testing
     {
         public NetworkInterfaceTesterResult(byte[] bytes, double timestamp)
         {
-            this.bytes = bytes;
-            this.timestamp = timestamp;
+            this.Bytes = bytes;
+            this.Timestamp = timestamp;
         }
 
-        public byte[] bytes;
-        public double timestamp;
+        public byte[] Bytes;
+        public double Timestamp;
     }
 }

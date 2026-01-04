@@ -4,9 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
+
 using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities.GDB
@@ -63,12 +62,12 @@ namespace Antmicro.Renode.Utilities.GDB
         {
             switch(id)
             {
-                case All:
-                    return "all";
-                case Any:
-                    return "any";
-                default:
-                    return id.ToString();
+            case All:
+                return "all";
+            case Any:
+                return "any";
+            default:
+                return id.ToString();
             }
         }
 
@@ -87,4 +86,3 @@ namespace Antmicro.Renode.Utilities.GDB
         }
     }
 }
-

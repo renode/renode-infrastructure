@@ -1,19 +1,13 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Logging.Profiling;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.CPU;
-using Antmicro.Renode.Peripherals.Memory;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
@@ -85,14 +79,17 @@ namespace Antmicro.Renode.Peripherals.MTD
             }
 
             public bool IsLocked { get; private set; }
+
             public bool DisabledUntilReset { get; private set; }
+
             public event Action Locked;
+
+            private int keyIndex;
 
             private readonly STM32_FlashController owner;
             private readonly string name;
             private readonly uint[] keys;
             private readonly bool unlockedAfterReset;
-            private int keyIndex;
         }
     }
 }

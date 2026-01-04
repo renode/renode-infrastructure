@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -61,7 +62,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTag("Shift Register Loop SRL", 11, 1) //rwl
                     .WithTag("Control Frame Size CFS", 12, 4) //rwl
                     .WithTag("Data Frame Size in 32-bit mode DFS_32", 16, 7) //rwl
-                                
                 },
                 {(long)Registers.Control1, new DoubleWordRegister(this, 0)
                     .WithValueField(0, 16, name: "Number of Data Frames NDF")

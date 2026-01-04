@@ -1,29 +1,35 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Core.Structure;
+
 using static Antmicro.Renode.Peripherals.SPI.Cadence_xSPI;
 
 namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
 {
     internal abstract class Command
     {
-        static public Command CreateCommand(Cadence_xSPI controller, CommandPayload payload)
+        public static Command CreateCommand(Cadence_xSPI controller, CommandPayload payload)
         {
+            Command command;
             switch(controller.Mode)
             {
-                case ControllerMode.SoftwareTriggeredInstructionGenerator:
-                    return STIGCommand.CreateSTIGCommand(controller, payload);
-                case ControllerMode.AutoCommand:
-                    return AutoCommand.CreateAutoCommand(controller, payload);
-                default:
-                    controller.Log(LogLevel.Warning, "Unable to create the command, unknown controller mode 0x{0:x}", controller.Mode);
-                    return null;
+            case ControllerMode.SoftwareTriggeredInstructionGenerator:
+                command = STIGCommand.CreateSTIGCommand(controller, payload);
+                break;
+            case ControllerMode.AutoCommand:
+                command = AutoCommand.CreateAutoCommand(controller, payload);
+                break;
+            default:
+                controller.Log(LogLevel.Warning, "Unable to create the command, unknown controller mode 0x{0:x}", controller.Mode);
+                return null;
             }
+
+            command.Mode = controller.Mode;
+            return command;
         }
 
         public Command(Cadence_xSPI controller)
@@ -49,11 +55,18 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
         public abstract void Transmit();
 
         public bool TransmissionFinished { get; protected set; }
+
         public bool Completed { get; protected set; }
+
         public bool CRCError { get; protected set; }
+
         public bool BusError { get; protected set; }
+
         public bool InvalidCommandError { get; protected set; }
+
         public bool Failed => CRCError || BusError || InvalidCommandError;
+
+        public ControllerMode Mode { get; private set; }
 
         public abstract uint ChipSelect { get; }
 
@@ -78,8 +91,8 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             }
         }
 
+        protected readonly Cadence_xSPI controller;
         private ISPIPeripheral peripheral;
         private bool isPeripheralObtained;
-        private readonly Cadence_xSPI controller;
     }
 }

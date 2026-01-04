@@ -6,6 +6,7 @@
 //
 
 using System.Text;
+
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.ACPI
@@ -22,11 +23,11 @@ namespace Antmicro.Renode.Core.ACPI
             RsdtAddress = address;
         }
 
-        [PacketField, Width(8)]
+        [PacketField, Width(bytes: 8)]
         public byte[] Signature;
         [PacketField]
         public byte Checksum;
-        [PacketField, Width(6)]
+        [PacketField, Width(bytes: 6)]
         public byte[] OEMID;
         [PacketField]
         public byte Revision;

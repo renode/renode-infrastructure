@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Timers;
@@ -102,86 +103,121 @@ namespace Antmicro.Renode.Peripherals.Network
             this.Log(LogLevel.Debug, "GPIO {0} -> {1}", (GPIOInput)number, value);
             switch((GPIOInput)number)
             {
-                case GPIOInput.Power:
-                    // Pulling down the Power Key pin means to turn on the modem.
-                    // The modem cannot be turned on while it is in reset.
-                    if(!value && !inReset)
-                    {
-                        EnableModem();
-                    }
-                    break;
-                case GPIOInput.Reset:
-                    // We assume the reset completes immediately, and the modem is held in reset
-                    // as long as the reset pin is low.
-                    inReset = !value;
-                    if(inReset)
-                    {
-                        Reset();
-                    }
-                    else
-                    {
-                        EnableModem();
-                    }
-                    break;
-                case GPIOInput.PsmEint:
-                    // If we are sleeping (and not held in reset) we should wake up on a falling edge.
-                    if(!Enabled && !inReset && !value)
-                    {
-                        EnableModem();
-                    }
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Got GPIO state {0} for unknown input {1}", value, number);
-                    break;
+            case GPIOInput.Power:
+                // Pulling down the Power Key pin means to turn on the modem.
+                // The modem cannot be turned on while it is in reset.
+                if(!value && !inReset)
+                {
+                    EnableModem();
+                }
+                break;
+            case GPIOInput.Reset:
+                // We assume the reset completes immediately, and the modem is held in reset
+                // as long as the reset pin is low.
+                inReset = !value;
+                if(inReset)
+                {
+                    Reset();
+                }
+                else
+                {
+                    EnableModem();
+                }
+                break;
+            case GPIOInput.PsmEint:
+                // If we are sleeping (and not held in reset) we should wake up on a falling edge.
+                if(!Enabled && !inReset && !value)
+                {
+                    EnableModem();
+                }
+                break;
+            default:
+                this.Log(LogLevel.Error, "Got GPIO state {0} for unknown input {1}", value, number);
+                break;
             }
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         public string IccidNumber { get; set; } = "00000000000000000000";
+
         public string TrackingAreaCode { get; set; } = "0000";
+
         public string NetworkLocationArea { get; set; } = "00000";
+
         public string CellId { get; set; } = "0000";
+
         public int CellPhysicalId { get; set; } = 0;
+
         public int CellEarfcn { get; set; } = 0;
+
         public int CellEarfcnOffset { get; set; } = 0;
+
         public string ActiveTime { get; set; } = "00100100";
+
         public string PeriodicTau { get; set; } = "01000111";
+
         public string NetworkIp { get; set; } = "0.0.0.0";
+
         public int BitErrorRate { get; set; } = 0;
+
         public int Rsrp { get; set; } = 0;
+
         public decimal Rsrq { get; set; } = 0m;
+
         public int Rssi { get; set; } = 0;
+
         public int Sinr { get; set; } = 0;
+
         public int Rscp { get; set; } = 0;
+
         public decimal Ecno { get; set; } = 0m;
+
         public int Band { get; set; } = 0;
+
         public int EnhancedCoverageLevel { get; set; } = 0;
+
         public int TransmitPower { get; set; } = 0;
+
         public NetworkRegistrationStates NetworkRegistrationState { get; set; } = NetworkRegistrationStates.NotRegisteredNotSearching;
+
         public PublicLandMobileNetworkSearchingState ModemPLMNState { get; set; } = PublicLandMobileNetworkSearchingState.Selected;
+
         public int PLMNSearchTime { get; set; } = 0;
+
         public bool DeepsleepOnRellock { get; set; } = false;
+
         // The delay before sending the +CSCON URC in virtual milliseconds
         public ulong CsconDelay { get; set; } = 500;
+
         // The delay before sending the +CEREG URC in virtual milliseconds
         public ulong CeregDelay { get; set; } = 500;
+
         // The delay before sending the +IP URC in virtual milliseconds
         public ulong IpDelay { get; set; } = 1000;
+
         // These timers should in theory be automatically updated when we enter deep sleep,
         // receive or transmit something. This is a basic implementation that only supports
         // setting them manually.
         public decimal SleepDuration { get; set; } = 0m;
+
         public decimal RxTime { get; set; } = 0m;
+
         public decimal TxTime { get; set; } = 0m;
+
         // These parameters should be set according to expectations of network behavior.
         public ulong ClosePortInactivityDisconnectDelay { get; set; }
+
         public ulong SendDataInactivityDisconnectDelay { get; set; }
+
         public ulong SendDataActivityConnectDelay { get; set; } = 550;
+
         public bool SendCSCONOnChangeOnly { get; set; } = true;
 
         public int SignalStrength => (int?)Misc.RemapNumber(Rssi, -113m, -51m, 0, 31) ?? 0;
+
         public int ActiveTimeSeconds => ConvertEncodedStringToSeconds(ActiveTime, ModemTimerType.ActiveTimeT3324);
+
         public int PeriodicTauSeconds => ConvertEncodedStringToSeconds(PeriodicTau, ModemTimerType.PeriodicTauT3412);
 
         protected override Response HandleCommand(string command)
@@ -408,20 +444,20 @@ namespace Antmicro.Renode.Peripherals.Network
             string result;
             switch(serialNumberType)
             {
-                case SerialNumberType.Device:
-                    result = serialNumber;
-                    break;
-                case SerialNumberType.Imei:
-                    result = imeiNumber;
-                    break;
-                case SerialNumberType.ImeiSv:
-                    result = imeiNumber.Substring(0, imeiNumber.Length - 1) + softwareVersionNumber;
-                    break;
-                case SerialNumberType.SoftwareVersionNumber:
-                    result = softwareVersionNumber;
-                    break;
-                default:
-                    return Error; // unreachable
+            case SerialNumberType.Device:
+                result = serialNumber;
+                break;
+            case SerialNumberType.Imei:
+                result = imeiNumber;
+                break;
+            case SerialNumberType.ImeiSv:
+                result = imeiNumber.Substring(0, imeiNumber.Length - 1) + softwareVersionNumber;
+                break;
+            case SerialNumberType.SoftwareVersionNumber:
+                result = softwareVersionNumber;
+                break;
+            default:
+                return Error; // unreachable
             }
             return Ok.WithParameters($"+CGSN: {result}");
         }
@@ -497,13 +533,13 @@ namespace Antmicro.Renode.Peripherals.Network
             // Only modes 0 and 2 are implemented.
             switch(mode)
             {
-                case 0:
-                    return Ok.WithParameters($"+QENG: 0,{CellEarfcn},{CellEarfcnOffset},{CellPhysicalId},\"{CellId}\",{Rsrp},{(int)Rsrq},{Rssi},{Sinr},{Band},\"{TrackingAreaCode}\",{EnhancedCoverageLevel},{TransmitPower},2");
-                case 2:
-                    // The 3 here is not a typo, it matches real modem output and the AT command manual
-                    return Ok.WithParameters($"+QENG: 3,{SleepDuration * 10:0},{RxTime * 10:0},{TxTime * 10:0}");
-                default:
-                    return Error;
+            case 0:
+                return Ok.WithParameters($"+QENG: 0,{CellEarfcn},{CellEarfcnOffset},{CellPhysicalId},\"{CellId}\",{Rsrp},{(int)Rsrq},{Rssi},{Sinr},{Band},\"{TrackingAreaCode}\",{EnhancedCoverageLevel},{TransmitPower},2");
+            case 2:
+                // The 3 here is not a typo, it matches real modem output and the AT command manual
+                return Ok.WithParameters($"+QENG: 3,{SleepDuration * 10:0},{RxTime * 10:0},{TxTime * 10:0}");
+            default:
+                return Error;
             }
         }
 
@@ -574,46 +610,46 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             switch(mode)
             {
-                case 0: // Disable sleep modes.
+            case 0: // Disable sleep modes.
+            {
+                deepsleepTimer.Enabled = false;
+                break;
+            }
+            case 1: // Enable deep sleep mode.
+            {
+                if(ActiveTimeSeconds != 0)
                 {
-                    deepsleepTimer.Enabled = false;
+                    deepsleepTimer.Value = 0;
+                    deepsleepTimer.Limit = (ulong)ActiveTimeSeconds;
+                    deepsleepTimer.Enabled = true;
+                    // Defer entering deep sleep until timer timeouts.
+                    this.Log(LogLevel.Noisy, "Defer deepsleep by {0} seconds", ActiveTimeSeconds);
                     break;
                 }
-                case 1: // Enable deep sleep mode.
+                // The signaling connection goes inactive when sleep mode is enabled.
+                ExecuteWithDelay(() =>
                 {
-                    if(ActiveTimeSeconds != 0)
-                    {
-                        deepsleepTimer.Value = 0;
-                        deepsleepTimer.Limit = (ulong)ActiveTimeSeconds;
-                        deepsleepTimer.Enabled = true;
-                        // Defer entering deep sleep until timer timeouts.
-                        this.Log(LogLevel.Noisy, "Defer deepsleep by {0} seconds", ActiveTimeSeconds);
-                        break;
-                    }
-                    // The signaling connection goes inactive when sleep mode is enabled.
-                    ExecuteWithDelay(() =>
-                    {
-                        SendSignalingConnectionStatus(false);
+                    SendSignalingConnectionStatus(false);
 
-                        // Also, if we are configured to enter deep sleep when the sleep
-                        // lock is released, we also use sleep mode being enabled as our
-                        // cue to enter it.
-                        if(DeepsleepOnRellock)
-                        {
-                            EnterDeepsleep();
-                        }
-                    }, CsconDelay);
-                    break;
-                }
-                case 2: // Enable light sleep mode.
-                {
-                    // Light sleep mode is not implemented.
-                    break;
-                }
-                default:
-                {
-                    return Error;
-                }
+                    // Also, if we are configured to enter deep sleep when the sleep
+                    // lock is released, we also use sleep mode being enabled as our
+                    // cue to enter it.
+                    if(DeepsleepOnRellock)
+                    {
+                        EnterDeepsleep();
+                    }
+                }, CsconDelay);
+                break;
+            }
+            case 2: // Enable light sleep mode.
+            {
+                // Light sleep mode is not implemented.
+                break;
+            }
+            default:
+            {
+                return Error;
+            }
             }
             return Ok;
         }
@@ -707,18 +743,18 @@ namespace Antmicro.Renode.Peripherals.Network
 
             switch(receiveDataFormat)
             {
-                case DataFormat.Hex:
-                    var hexBytes = BitConverter.ToString(readBytes).Replace("-", "");
-                    return Ok.WithParameters(qirdResponseHeader + hexBytes.SurroundWith(dataOutputSurrounding));
-                case DataFormat.Text:
-                    var dataOutputSurroundingBytes = StringEncoding.GetBytes(dataOutputSurrounding);
-                    return Ok.WithParameters(StringEncoding.GetBytes(qirdResponseHeader)
-                                                        .Concat(dataOutputSurroundingBytes)
-                                                        .Concat(readBytes)
-                                                        .Concat(dataOutputSurroundingBytes)
-                                                        .ToArray());
-                default:
-                    throw new InvalidOperationException($"Invalid {nameof(receiveDataFormat)}");
+            case DataFormat.Hex:
+                var hexBytes = BitConverter.ToString(readBytes).Replace("-", "");
+                return Ok.WithParameters(qirdResponseHeader + hexBytes.SurroundWith(dataOutputSurrounding));
+            case DataFormat.Text:
+                var dataOutputSurroundingBytes = StringEncoding.GetBytes(dataOutputSurrounding);
+                return Ok.WithParameters(StringEncoding.GetBytes(qirdResponseHeader)
+                                                    .Concat(dataOutputSurroundingBytes)
+                                                    .Concat(readBytes)
+                                                    .Concat(dataOutputSurroundingBytes)
+                                                    .ToArray());
+            default:
+                throw new InvalidOperationException($"Invalid {nameof(receiveDataFormat)}");
             }
         }
 
@@ -742,14 +778,14 @@ namespace Antmicro.Renode.Peripherals.Network
                 byte[] bytes;
                 switch(sendDataFormat)
                 {
-                    case DataFormat.Hex:
-                        bytes = Misc.HexStringToByteArray(data);
-                        break;
-                    case DataFormat.Text:
-                        bytes = StringEncoding.GetBytes(data);
-                        break;
-                    default:
-                        throw new InvalidOperationException($"Invalid {nameof(sendDataFormat)}");
+                case DataFormat.Hex:
+                    bytes = Misc.HexStringToByteArray(data);
+                    break;
+                case DataFormat.Text:
+                    bytes = StringEncoding.GetBytes(data);
+                    break;
+                default:
+                    throw new InvalidOperationException($"Invalid {nameof(sendDataFormat)}");
                 }
                 // Non-data mode is only supported with a fixed length
                 if(sendLength == null || bytes.Length != sendLength)
@@ -800,6 +836,90 @@ namespace Antmicro.Renode.Peripherals.Network
         protected virtual bool IsValidContextId(int id)
         {
             return id >= 1 && id <= 16;
+        }
+
+        // Return encoded string that represents the greatest available value
+        // that is not greater than the requested one.
+        protected string ConvertSecondsToEncodedString(int t, ModemTimerType timerType)
+        {
+            IReadOnlyDictionary<byte, int> keyMap;
+            switch(timerType)
+            {
+            case ModemTimerType.ActiveTimeT3324:
+            {
+                keyMap = activeTimeUnitToSecondsMultiplier;
+                break;
+            }
+            case ModemTimerType.PeriodicTauT3412:
+            {
+                keyMap = periodicTauTimeUnitToSecondsMultiplier;
+                break;
+            }
+            default:
+            {
+                throw new ArgumentException("Invalid timer type");
+            }
+            }
+
+            byte selectedKey = 0b111;
+            int selectedValue = 0;
+
+            foreach(var entry in keyMap.OrderByDescending(x => x.Value))
+            {
+                if(t >= entry.Value)
+                {
+                    selectedKey = entry.Key;
+                    selectedValue = entry.Value;
+                    break;
+                }
+            }
+
+            selectedValue = selectedValue == 0 ? 0 : t / selectedValue;
+
+            const int timerValueWidth = 5;
+            const int maxTimerValue = (1 << timerValueWidth) - 1; // 5 bits for coding timer value
+            var timeByteCoded = selectedKey << timerValueWidth | (selectedValue & maxTimerValue);
+
+            return Convert.ToString(timeByteCoded, 2).PadLeft(8, '0');
+        }
+
+        protected int ConvertEncodedStringToSeconds(string encoded, ModemTimerType timerType)
+        {
+            IReadOnlyDictionary<byte, int> keyMap;
+            int defaultMultiplier;
+            switch(timerType)
+            {
+            case ModemTimerType.ActiveTimeT3324:
+            {
+                keyMap = activeTimeUnitToSecondsMultiplier;
+                defaultMultiplier = ActiveTimeDefaultUnitMultiplier;
+                break;
+            }
+            case ModemTimerType.PeriodicTauT3412:
+            {
+                keyMap = periodicTauTimeUnitToSecondsMultiplier;
+                defaultMultiplier = PeriodicTauDefaultUnitMultiplier;
+                break;
+            }
+            default:
+            {
+                throw new ArgumentException("Invalid timer type");
+            }
+            }
+
+            if(!Misc.TryParseBitPattern(encoded, out var parsed, out _))
+            {
+                this.Log(LogLevel.Warning, "Unable to decode time code '{0}' - should be a bit-string", encoded);
+                return 0;
+            }
+            var timerValue = BitHelper.GetValue((byte)parsed, 0, 5);
+            var unit = BitHelper.GetValue((byte)parsed, 5, 3);
+
+            if(keyMap.TryGetValue(unit, out var multiplier))
+            {
+                return multiplier * timerValue;
+            }
+            return defaultMultiplier * timerValue;
         }
 
         protected void SendSocketData(byte[] bytes, int connectionId)
@@ -882,24 +1002,24 @@ namespace Antmicro.Renode.Peripherals.Network
             string eventDescription = null;
             switch(kind)
             {
-                case NbiotEvent.EnterDeepsleep:
-                    if(deepSleepEventEnabled)
-                    {
-                        eventDescription = "ENTER DEEPSLEEP";
-                    }
-                    break;
-                case NbiotEvent.EnterPowerSavingMode:
-                    if(powerSavingModeEventEnabled)
-                    {
-                        eventDescription = "ENTER PSM";
-                    }
-                    break;
-                case NbiotEvent.ExitPowerSavingMode:
-                    if(powerSavingModeEventEnabled)
-                    {
-                        eventDescription = "EXIT PSM";
-                    }
-                    break;
+            case NbiotEvent.EnterDeepsleep:
+                if(deepSleepEventEnabled)
+                {
+                    eventDescription = "ENTER DEEPSLEEP";
+                }
+                break;
+            case NbiotEvent.EnterPowerSavingMode:
+                if(powerSavingModeEventEnabled)
+                {
+                    eventDescription = "ENTER PSM";
+                }
+                break;
+            case NbiotEvent.ExitPowerSavingMode:
+                if(powerSavingModeEventEnabled)
+                {
+                    eventDescription = "EXIT PSM";
+                }
+                break;
             }
             if(eventDescription != null)
             {
@@ -921,9 +1041,13 @@ namespace Antmicro.Renode.Peripherals.Network
         }
 
         protected abstract string Vendor { get; }
+
         protected abstract string ModelName { get; }
+
         protected abstract string Revision { get; }
+
         protected abstract string ManufacturerRevision { get; }
+
         protected abstract string SoftwareRevision { get; }
 
         protected bool echoInDataMode;
@@ -950,15 +1074,15 @@ namespace Antmicro.Renode.Peripherals.Network
         {
             switch(mtResultCodeMode)
             {
-                case MobileTerminationResultCodeMode.Disabled:
-                    return Error;
-                case MobileTerminationResultCodeMode.Numeric:
-                    return new Response($"+CME ERROR: {errorCode}");
-                case MobileTerminationResultCodeMode.Verbose:
-                    this.Log(LogLevel.Warning, "Verbose MT error reporting is not implemented");
-                    goto case MobileTerminationResultCodeMode.Numeric;
-                default:
-                    throw new ArgumentOutOfRangeException();
+            case MobileTerminationResultCodeMode.Disabled:
+                return Error;
+            case MobileTerminationResultCodeMode.Numeric:
+                return new Response($"+CME ERROR: {errorCode}");
+            case MobileTerminationResultCodeMode.Verbose:
+                this.Log(LogLevel.Warning, "Verbose MT error reporting is not implemented");
+                goto case MobileTerminationResultCodeMode.Numeric;
+            default:
+                throw new ArgumentOutOfRangeException();
             }
         }
 
@@ -1012,90 +1136,6 @@ namespace Antmicro.Renode.Peripherals.Network
                 return false;
             }
             return true;
-        }
-
-        // Return encoded string that represents the greatest available value
-        // that is not greater than the requested one.
-        protected string ConvertSecondsToEncodedString(int t, ModemTimerType timerType)
-        {
-            IReadOnlyDictionary<byte, int> keyMap;
-            switch(timerType)
-            {
-                case ModemTimerType.ActiveTimeT3324:
-                {
-                    keyMap = activeTimeUnitToSecondsMultiplier;
-                    break;
-                }
-                case ModemTimerType.PeriodicTauT3412:
-                {
-                    keyMap = periodicTauTimeUnitToSecondsMultiplier;
-                    break;
-                }
-                default:
-                {
-                    throw new ArgumentException("Invalid timer type");
-                }
-            }
-
-            byte selectedKey = 0b111;
-            int selectedValue = 0;
-
-            foreach(var entry in keyMap.OrderByDescending(x => x.Value))
-            {
-                if(t >= entry.Value)
-                {
-                    selectedKey = entry.Key;
-                    selectedValue = entry.Value;
-                    break;
-                }
-            }
-
-            selectedValue = selectedValue == 0 ? 0 : t / selectedValue;
-
-            const int timerValueWidth = 5;
-            const int maxTimerValue = (1 << timerValueWidth) - 1; // 5 bits for coding timer value
-            var timeByteCoded = selectedKey << timerValueWidth | (selectedValue & maxTimerValue);
-
-            return Convert.ToString(timeByteCoded, 2).PadLeft(8, '0');
-        }
-
-        protected int ConvertEncodedStringToSeconds(string encoded, ModemTimerType timerType)
-        {
-            IReadOnlyDictionary<byte, int> keyMap;
-            int defaultMultiplier;
-            switch(timerType)
-            {
-                case ModemTimerType.ActiveTimeT3324:
-                {
-                    keyMap = activeTimeUnitToSecondsMultiplier;
-                    defaultMultiplier = ActiveTimeDefaultUnitMultiplier;
-                    break;
-                }
-                case ModemTimerType.PeriodicTauT3412:
-                {
-                    keyMap = periodicTauTimeUnitToSecondsMultiplier;
-                    defaultMultiplier = PeriodicTauDefaultUnitMultiplier;
-                    break;
-                }
-                default:
-                {
-                    throw new ArgumentException("Invalid timer type");
-                }
-            }
-
-            if(!Misc.TryParseBitPattern(encoded, out var parsed, out _))
-            {
-                this.Log(LogLevel.Warning, "Unable to decode time code '{0}' - should be a bit-string", encoded);
-                return 0;
-            }
-            var timerValue = BitHelper.GetValue((byte)parsed, 0, 5);
-            var unit = BitHelper.GetValue((byte)parsed, 5, 3);
-
-            if(keyMap.TryGetValue(unit, out var multiplier))
-            {
-                return multiplier * timerValue;
-            }
-            return defaultMultiplier * timerValue;
         }
 
         // When this is set to Numeric or Verbose, MT-related errors are reported with "+CME ERROR: "
@@ -1284,14 +1324,14 @@ namespace Antmicro.Renode.Peripherals.Network
             public string Qistate => $"+QISTATE: {ConnectionId},\"{Type.ToString().ToUpper()}\",\"{RemoteHost}\",{RemotePort}";
 
             public ServiceType Type { get; }
+
             public QuectelModem Owner { get; }
+
             public int ConnectionId { get; }
+
             public string RemoteHost { get; }
+
             public ushort RemotePort { get; }
-
-            private void BytesReceived(int byteCount) => Owner.BytesReceived(ConnectionId, byteCount);
-
-            private readonly IEmulatedNetworkService connectedService;
 
             private SocketService(QuectelModem owner, int connectionId, ServiceType type, IEmulatedNetworkService conn, string remoteHost, ushort remotePort)
             {
@@ -1303,6 +1343,10 @@ namespace Antmicro.Renode.Peripherals.Network
                 connectedService = conn;
                 connectedService.BytesReceived += BytesReceived;
             }
+
+            private void BytesReceived(int byteCount) => Owner.BytesReceived(ConnectionId, byteCount);
+
+            private readonly IEmulatedNetworkService connectedService;
         }
     }
 }

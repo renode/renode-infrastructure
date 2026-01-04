@@ -1,12 +1,12 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
-// 
+//
 
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Utilities
             internalCache = new HashSet<string>();
             Populate();
         }
-        
+
         public bool ContainsEntryWithSha(string sha)
         {
             return Enabled && internalCache.Contains(sha);
@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Utilities
             }
 
             EnsureCacheDirectory();
-            using(var locker = new FileLocker(Path.Combine(cacheLocation, lockFileName)))
+            using(var locker = new FileLocker(Path.Combine(cacheLocation, LockFileName)))
             {
                 FileCopier.Copy(filename, Path.Combine(cacheLocation, sha), true);
                 internalCache.Add(sha);
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Utilities
                 return;
             }
             EnsureCacheDirectory();
-            using(var locker = new FileLocker(Path.Combine(cacheLocation, lockFileName)))
+            using(var locker = new FileLocker(Path.Combine(cacheLocation, LockFileName)))
             {
                 var dinfo = new DirectoryInfo(cacheLocation);
                 foreach(var file in dinfo.EnumerateFiles())
@@ -80,6 +80,6 @@ namespace Antmicro.Renode.Utilities
         private readonly HashSet<string> internalCache;
         private readonly string cacheLocation;
 
-        private const string lockFileName = ".lock";
+        private const string LockFileName = ".lock";
     }
 }

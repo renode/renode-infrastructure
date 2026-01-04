@@ -1,25 +1,28 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public interface IARMSingleSecurityStateCPU : ICPU
+    public interface IARMSingleSecurityStateCPU : ICPU, IGPIOReceiver
     {
         ExceptionLevel ExceptionLevel { get; }
 
         Affinity Affinity { get; }
+
         // This kind of CPU is always in a specific Security State and it can't be changed
         SecurityState SecurityState { get; }
 
         bool FIQMaskOverride { get; }
+
         bool IRQMaskOverride { get; }
     }
 
@@ -39,9 +42,11 @@ namespace Antmicro.Renode.Peripherals.CPU
     public interface IARMCPUsConnectionsProvider
     {
         void AttachCPU(IARMSingleSecurityStateCPU cpu);
+
         // AttachedCPUs and CPUAttached provide information for GPIO handling purposes.
         // Depending on the declaration order in repl file, some CPUs can be attached before or after peripheral's creation.
         IEnumerable<IARMSingleSecurityStateCPU> AttachedCPUs { get; }
+
         event Action<IARMSingleSecurityStateCPU> CPUAttached;
     }
 
@@ -53,14 +58,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         EL3_MonitorMode = 3
     }
 
-    public enum ExecutionState
-    {
-        AArch32,
-        AArch64
-    }
-
-    // GIC should use GPIO#0 of an ARM CPU to signal IRQ and GPIO#1 to signal FIQ
-    // An ARM CPU should be connected to a GIC following the convention `[<N*4>-<N*4+3>] -> cpuN@[0-3]`";
+    // GIC exposes a GPIO line with `<cpu.MultiprocessingId>*4 + I` ID for every interrupt type
+    // defined in the enum below (`I` is its enum value) and every `cpu` connected to it.
+    //
+    // The signals are connected automatically in GIC's `AttachCPU` method but are removed if any
+    // manual connections are present in REPL (e.g. `[0-3] -> cpu@[0-3]`).
     public enum InterruptSignalType
     {
         IRQ  = 0,
@@ -92,17 +94,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             UpdateLevels();
         }
 
+        public override string ToString()
+        {
+            return String.Join(".", levels);
+        }
+
         public byte GetLevel(int levelIndex)
         {
             return levels[levelIndex];
         }
 
         public uint AllLevels => allLevels;
-
-        public override string ToString()
-        {
-            return String.Join(".", levels);
-        }
 
         // NOTE: UpdateLevels needs to be called whenever any value inside of `levels` is updated.
         protected void UpdateLevels()

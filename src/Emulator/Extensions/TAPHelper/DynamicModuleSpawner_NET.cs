@@ -5,25 +5,27 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
-using System.Reflection;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
+
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Utilities;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.TAPHelper
 {
     public class DynamicModuleSpawner
     {
         public static string GetTAPHelper()
-        {			
+        {
             var generatedFilePath = TemporaryFilesManager.Instance.GetTemporaryFile();
             var outputFilePath = Path.ChangeExtension(generatedFilePath, ".dll");
             var outputFileName = Path.GetFileName(outputFilePath);
@@ -79,14 +81,14 @@ namespace Antmicro.Renode.TAPHelper
                 .ForEach(location => references.Add(MetadataReference.CreateFromFile(location)));
 
             var result = CSharpCompilation.Create(filename,
-                new[] { parsedSyntaxTree }, 
-                references: references, 
+                new[] { parsedSyntaxTree },
+                references: references,
                 options: new CSharpCompilationOptions(
                     OutputKind.ConsoleApplication,
                     optimizationLevel: OptimizationLevel.Release,
                     assemblyIdentityComparer: DesktopAssemblyIdentityComparer.Default)).Emit(path);
 
-            if (!result.Success) 
+            if(!result.Success)
             {
                 var failures = result.Diagnostics.Where(diagnostic => diagnostic.IsWarningAsError || diagnostic.Severity == DiagnosticSeverity.Error);
                 var diagnosticString = string.Join(Environment.NewLine, failures.Select(x => x.ToString()));
@@ -105,9 +107,9 @@ namespace Antmicro.Renode.TAPHelper
             //     }
             //   }
             // }
-            using (var stream = new MemoryStream())
+            using(var stream = new MemoryStream())
             {
-                using (var writer = new Utf8JsonWriter(
+                using(var writer = new Utf8JsonWriter(
                     stream,
                     new JsonWriterOptions() { Indented = true }
                 ))

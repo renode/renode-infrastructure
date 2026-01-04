@@ -6,14 +6,16 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using Antmicro.Renode.Logging;
-using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Collections.Generic;
-using Dynamitey;
+using System.Runtime.InteropServices;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Logging;
+
+using Dynamitey;
 
 namespace Antmicro.Renode.Utilities.Binding
 {
@@ -88,6 +90,117 @@ namespace Antmicro.Renode.Utilities.Binding
             GC.SuppressFinalize(this);
         }
 
+        private static string ShortTypeNameFromParamsAndReturn(IEnumerable<Type> parameterTypes, Type returnType)
+        {
+            var baseName = returnType == typeof(void) ? "Action" : "Func" + returnType.Name;
+            var paramNames = parameterTypes.Select(p => p.Name);
+            return string.Join("", paramNames.Prepend(baseName)).Replace("[]", "Array");
+        }
+
+        private static string GetCName(string name)
+        {
+            var lastCapitalChar = 0;
+            var cName = name.GroupBy(x =>
+            {
+                if (char.IsUpper(x))
+                {
+                    lastCapitalChar++;
+                }
+                return lastCapitalChar;
+            }).Select(x => x.Aggregate(string.Empty, (y, z) => y + char.ToLower(z))).
+                Aggregate((x, y) => x + "_" + y);
+
+            return cName;
+        }
+
+        private static string GetWrappedName(string name, bool useExceptionWrapper)
+        {
+            if(useExceptionWrapper)
+            {
+                return name + "_ex"; // Bind to exception wrapper instead of inner function
+            }
+
+            return name;
+        }
+
+        private static string GetCSharpName(string name)
+        {
+            var words = name.Split('_');
+            return words.Select(x => FirstLetterUpper(x)).Aggregate((x, y) => x + y);
+        }
+
+        private static string FirstLetterUpper(string str)
+        {
+            return str.Substring(0, 1).ToUpper() + str.Substring(1);
+        }
+
+        private static string FilterCppName(string name)
+        {
+            var result = Symbol.DemangleSymbol(name).Split('(')[0].ToString();
+            if(result.StartsWith("_"))
+            {
+                return result.Skip(4).ToString();
+            }
+            return result;
+        }
+
+        private static Type GetUnderlyingType(Type type)
+        {
+            return type.IsEnum ? type.GetEnumUnderlyingType() : type;
+        }
+
+        // This method and the constants used in it are inspired by MakeNewCustomDelegate from .NET itself.
+        // See https://github.com/dotnet/runtime/blob/8ca896c3f5ef8eb1317439178bf041b5f270f351/src/libraries/System.Linq.Expressions/src/System/Linq/Expressions/Compiler/DelegateHelpers.cs#L110
+        private static Type DelegateTypeFromParamsAndReturn(IEnumerable<Type> parameterTypes, Type returnType, string name = null)
+        {
+            // Convert enums to their underlying types to avoid creating needless additional delegate types
+            returnType = GetUnderlyingType(returnType);
+            parameterTypes = parameterTypes.Select(GetUnderlyingType);
+
+            if(name == null)
+            {
+                // The default naming mirrors the generic delegate types, but for functions, the return type comes first
+                // For example, Func<Int32, UInt64> becomes FuncUInt64Int32.
+                name = ShortTypeNameFromParamsAndReturn(parameterTypes, returnType);
+            }
+
+            var delegateTypeName = $"NativeBinder.Delegates.{name}";
+
+            lock(moduleBuilder)
+            {
+                var delegateType = moduleBuilder.GetType(delegateTypeName);
+
+                if(delegateType == null)
+                {
+                    var delegateTypeAttributes = TypeAttributes.Class | TypeAttributes.Public | TypeAttributes.Sealed |
+                        TypeAttributes.AnsiClass | TypeAttributes.AutoClass;
+                    var delegateConstructorAttributes = MethodAttributes.RTSpecialName | MethodAttributes.HideBySig |
+                        MethodAttributes.Public;
+                    var delegateInvokeAttributes = MethodAttributes.Public | MethodAttributes.HideBySig |
+                        MethodAttributes.NewSlot | MethodAttributes.Virtual;
+                    var delegateMethodImplAttributes = MethodImplAttributes.Runtime | MethodImplAttributes.Managed;
+
+                    var typeBuilder = moduleBuilder.DefineType(delegateTypeName, delegateTypeAttributes, typeof(MulticastDelegate));
+
+                    var constructor = typeBuilder.DefineConstructor(delegateConstructorAttributes,
+                        CallingConventions.Standard, new [] { typeof(object), typeof(IntPtr) });
+                    constructor.SetImplementationFlags(delegateMethodImplAttributes);
+
+                    var invokeMethod = typeBuilder.DefineMethod("Invoke", delegateInvokeAttributes, returnType, parameterTypes.ToArray());
+                    invokeMethod.SetImplementationFlags(delegateMethodImplAttributes);
+
+                    // Add the [UnmanagedFunctionPointer] attribute with Cdecl specified
+                    var unmanagedFnAttrCtor = typeof(UnmanagedFunctionPointerAttribute).GetConstructor(new [] { typeof(CallingConvention) });
+                    var unmanagedFnAttrBuilder = new CustomAttributeBuilder(unmanagedFnAttrCtor, new object[] { CallingConvention.Cdecl });
+                    typeBuilder.SetCustomAttribute(unmanagedFnAttrBuilder);
+
+                    delegateType = typeBuilder.CreateType();
+                }
+
+                return delegateType;
+            }
+        }
+
         private void DisposeInner()
         {
 #if !PLATFORM_WINDOWS && !NET
@@ -159,7 +272,10 @@ namespace Antmicro.Renode.Utilities.Binding
             var invoke = importType.GetMethod("Invoke");
             Type[] paramTypes = invoke.GetParameters().Select(p => p.ParameterType).ToArray();
             Type[] paramTypesWithWrappersType = new Type[] { wrappersType }.Concat(paramTypes).ToArray();
-            DynamicMethod method = new DynamicMethod(importField.Name, invoke.ReturnType, paramTypesWithWrappersType, wrappersType);
+            // We need skipVisibility to handle methods that have a protected or private type as a parameter or return value.
+            // Interesting tidbit: this access check is only performed by .NET Framework, Mono and .NET Core allow it
+            // without skipVisibility.
+            DynamicMethod method = new DynamicMethod(importField.Name, invoke.ReturnType, paramTypesWithWrappersType, wrappersType, skipVisibility: true);
             var il = method.GetILGenerator();
 
             il.Emit(OpCodes.Ldarg_0); // wrappersType instance
@@ -183,7 +299,7 @@ namespace Antmicro.Renode.Utilities.Binding
         {
             classToBind.NoisyLog("Binding managed -> native calls.");
 
-            foreach (var field in importFields)
+            foreach(var field in importFields)
             {
                 var attribute = (ImportAttribute)field.GetCustomAttributes(false).First(x => x is ImportAttribute);
                 var cName = GetWrappedName(attribute.Name ?? GetCName(field.Name), attribute.UseExceptionWrapper);
@@ -296,7 +412,9 @@ namespace Antmicro.Renode.Utilities.Binding
             var symbols = SharedLibraries.GetAllSymbols(libraryFileName);
             var classMethods = classToBind.GetType().GetAllMethods().ToArray();
             var exportedMethods = new List<MethodInfo>();
-            foreach(var originalCandidate in symbols.Where(x => x.Contains("renode_external_attach")))
+            // When tlib is built with gcov coverage reporting it creates functions prefixed with __gcov for each function in the binary
+            // so we need to exclude those since they should not be bound here
+            foreach(var originalCandidate in symbols.Where(x => x.Contains("renode_external_attach") && !x.StartsWith("__gcov")))
             {
                 var candidate  = FilterCppName(originalCandidate);
                 var parts = candidate.Split(new [] { "__" }, StringSplitOptions.RemoveEmptyEntries);
@@ -304,28 +422,29 @@ namespace Antmicro.Renode.Utilities.Binding
                 var expectedTypeName = parts[1];
                 var csName = cName.StartsWith('$') ? GetCSharpName(cName.Substring(1)) : cName;
                 classToBind.NoisyLog("(NativeBinder) Binding {0} as {2} of type {1}.", cName, expectedTypeName, csName);
+
                 // let's find the desired method
-                var desiredMethodInfo = classMethods.FirstOrDefault(x => x.Name == csName);
+                var desiredMethodInfo = classMethods.FirstOrDefault(method =>
+                {
+                    var parameterTypes = method.GetParameters().Select(p => p.ParameterType).ToList();
+                    var actualTypeName = ShortTypeNameFromParamsAndReturn(parameterTypes, method.ReturnType);
+
+                    return method.Name == csName &&
+                        expectedTypeName == actualTypeName &&
+                        method.IsDefined(typeof(ExportAttribute), true);
+                });
+
                 if(desiredMethodInfo == null)
                 {
-                    throw new InvalidOperationException(string.Format("Could not find method {0} in a class {1}.",
-                                                                      csName, classToBind.GetType().Name));
-                }
-                if(!desiredMethodInfo.IsDefined(typeof(ExportAttribute), true))
-                {
                     throw new InvalidOperationException(
-                        string.Format("Method {0} is exported as {1} but it is not marked with the Export attribute.",
-                                  desiredMethodInfo.Name, cName));
+                        $"Could not find method {csName} of type {expectedTypeName} marked with the [Export] attribute in the class {classToBind.GetType().Name}."
+                    );
                 }
-                var parameterTypes = desiredMethodInfo.GetParameters().Select(p => p.ParameterType).ToList();
-                var actualTypeName = ShortTypeNameFromParamsAndReturn(parameterTypes, desiredMethodInfo.ReturnType);
-                if(expectedTypeName != actualTypeName)
-                {
-                    throw new InvalidOperationException($"Method {cName} has type {actualTypeName} but the native library expects {expectedTypeName}");
-                }
+
+                var desiredParameterTypes = desiredMethodInfo.GetParameters().Select(p => p.ParameterType).ToList();
                 exportedMethods.Add(desiredMethodInfo);
                 // let's make the delegate instance
-                var delegateType = DelegateTypeFromParamsAndReturn(parameterTypes, desiredMethodInfo.ReturnType);
+                var delegateType = DelegateTypeFromParamsAndReturn(desiredParameterTypes, desiredMethodInfo.ReturnType);
                 Delegate attachee;
                 try
                 {
@@ -342,7 +461,7 @@ namespace Antmicro.Renode.Utilities.Binding
                 // but both on linux & osx it seems to be essential to avoid delegates from being relocated
                 handles = handles.Union(new [] { GCHandle.Alloc(attachee, GCHandleType.Pinned) }).ToArray();
 #endif
-                delegateStore = delegateStore.Union(new [] { attachee }).ToArray();
+                delegateStore = delegateStore.Union(new[] { attachee }).ToArray();
                 // let's make the attaching function delegate
                 var attacherType = DelegateTypeFromParamsAndReturn(new [] { delegateType }, typeof(void), $"Attach{delegateType.Name}");
                 var address = SharedLibraries.GetSymbolAddress(libraryAddress, originalCandidate);
@@ -358,125 +477,22 @@ namespace Antmicro.Renode.Utilities.Binding
             }
         }
 
-        private static string ShortTypeNameFromParamsAndReturn(IEnumerable<Type> parameterTypes, Type returnType)
-        {
-            var baseName = returnType == typeof(void) ? "Action" : "Func" + returnType.Name;
-            var paramNames = parameterTypes.Select(p => p.Name);
-            return string.Join("", paramNames.Prepend(baseName)).Replace("[]", "Array");
-        }
-
-        private static string GetCName(string name)
-        {
-            var lastCapitalChar = 0;
-            var cName = name.GroupBy(x =>
-            {
-                if (char.IsUpper(x))
-                {
-                    lastCapitalChar++;
-                }
-                return lastCapitalChar;
-            }).Select(x => x.Aggregate(string.Empty, (y, z) => y + char.ToLower(z))).
-                Aggregate((x, y) => x + "_" + y);
-
-            return cName;
-        }
-
-        private static string GetWrappedName(string name, bool useExceptionWrapper)
-        {
-            if(useExceptionWrapper)
-            {
-                return name + "_ex"; // Bind to exception wrapper instead of inner function
-            }
-
-            return name;
-        }
-
-        private static string GetCSharpName(string name)
-        {
-            var words = name.Split('_');
-            return words.Select(x => FirstLetterUpper(x)).Aggregate((x, y) => x + y);
-        }
-
-        private static string FirstLetterUpper(string str)
-        {
-            return str.Substring(0, 1).ToUpper() + str.Substring(1);
-        }
-
-        private static string FilterCppName(string name)
-        {
-            var result = Symbol.DemangleSymbol(name).Split('(')[0].ToString();
-            if(result.StartsWith("_"))
-            {
-                return result.Skip(4).ToString();
-            }
-            return result;
-        }
-
-        // This method and the constants used in it are inspired by MakeNewCustomDelegate from .NET itself.
-        // See https://github.com/dotnet/runtime/blob/8ca896c3f5ef8eb1317439178bf041b5f270f351/src/libraries/System.Linq.Expressions/src/System/Linq/Expressions/Compiler/DelegateHelpers.cs#L110
-        private static Type DelegateTypeFromParamsAndReturn(IEnumerable<Type> parameterTypes, Type returnType, string name = null)
-        {
-            if(name == null)
-            {
-                // The default naming mirrors the generic delegate types, but for functions, the return type comes first
-                // For example, Func<Int32, UInt64> becomes FuncUInt64Int32.
-                name = ShortTypeNameFromParamsAndReturn(parameterTypes, returnType);
-            }
-
-            var delegateTypeName = $"NativeBinder.Delegates.{name}";
-
-            lock(moduleBuilder)
-            {
-                var delegateType = moduleBuilder.GetType(delegateTypeName);
-
-                if(delegateType == null)
-                {
-                    var delegateTypeAttributes = TypeAttributes.Class | TypeAttributes.Public | TypeAttributes.Sealed |
-                        TypeAttributes.AnsiClass | TypeAttributes.AutoClass;
-                    var delegateConstructorAttributes = MethodAttributes.RTSpecialName | MethodAttributes.HideBySig |
-                        MethodAttributes.Public;
-                    var delegateInvokeAttributes = MethodAttributes.Public | MethodAttributes.HideBySig |
-                        MethodAttributes.NewSlot | MethodAttributes.Virtual;
-                    var delegateMethodImplAttributes = MethodImplAttributes.Runtime | MethodImplAttributes.Managed;
-
-                    var typeBuilder = moduleBuilder.DefineType(delegateTypeName, delegateTypeAttributes, typeof(MulticastDelegate));
-
-                    var constructor = typeBuilder.DefineConstructor(delegateConstructorAttributes,
-                        CallingConventions.Standard, new [] { typeof(object), typeof(IntPtr) });
-                    constructor.SetImplementationFlags(delegateMethodImplAttributes);
-
-                    var invokeMethod = typeBuilder.DefineMethod("Invoke", delegateInvokeAttributes, returnType, parameterTypes.ToArray());
-                    invokeMethod.SetImplementationFlags(delegateMethodImplAttributes);
-
-                    // Add the [UnmanagedFunctionPointer] attribute with Cdecl specified
-                    var unmanagedFnAttrCtor = typeof(UnmanagedFunctionPointerAttribute).GetConstructor(new [] { typeof(CallingConvention) });
-                    var unmanagedFnAttrBuilder = new CustomAttributeBuilder(unmanagedFnAttrCtor, new object[] { CallingConvention.Cdecl });
-                    typeBuilder.SetCustomAttribute(unmanagedFnAttrBuilder);
-
-                    delegateType = typeBuilder.CreateType();
-                }
-
-                return delegateType;
-            }
-        }
-
         private static readonly ModuleBuilder moduleBuilder;
-
-        private IntPtr libraryAddress;
-        private string libraryFileName;
-        private IEmulationElement classToBind;
         private Type wrappersType;
         private FieldInfo instanceField;
         private FieldInfo exceptionKeeperField;
-        private object wrappersObj;
 
         // the point of delegate store is to hold references to delegates
         // which would otherwise be garbage collected while native calls
         // can still use them
         private object[] delegateStore;
+
+        private IntPtr libraryAddress;
+        private readonly string libraryFileName;
+        private readonly IEmulationElement classToBind;
+        private readonly object wrappersObj;
 #if !PLATFORM_WINDOWS && !NET
         private GCHandle[] handles;
 #endif
     }
 }
-

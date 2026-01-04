@@ -1,20 +1,20 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Endianess = ELFSharp.ELF.Endianess;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.IRQControllers;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
     [GPIO(NumberOfInputs = 1)]
     public partial class X86_64 : BaseX86
     {
-        public X86_64(string cpuType, IMachine machine, LAPIC lapic): base(cpuType, machine, lapic, CpuBitness.Bits64)
+        public X86_64(string cpuType, IMachine machine, LAPIC lapic) : base(cpuType, machine, lapic, CpuBitness.Bits64)
         {
         }
 
@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 coreFeature.Registers.Add(new GDBRegisterDescriptor(16, 64, "rip", "code_ptr"));
 
-                coreFeature.Registers.Add(new GDBRegisterDescriptor(17, 32, "eflags"));
+                coreFeature.Registers.Add(new GDBRegisterDescriptor(17, 32, "eflags", "int32"));
 
                 coreFeature.Registers.Add(new GDBRegisterDescriptor(18, 32, "cs", "int32"));
                 coreFeature.Registers.Add(new GDBRegisterDescriptor(19, 32, "ss", "int32"));
@@ -74,4 +74,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

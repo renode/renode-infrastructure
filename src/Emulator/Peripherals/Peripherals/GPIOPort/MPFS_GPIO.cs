@@ -4,9 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -43,7 +43,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         },
                         valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(irqManager.ActiveInterrupts), name: "INTR")
                 },
-
                 {(long)Registers.InputRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read,
                         valueProviderCallback: val =>
@@ -53,7 +52,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             return BitHelper.GetValueFromBitsArray(result);
                         }, name: "GPIN")
                 },
-
                 {(long)Registers.OutputRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 32,
                         valueProviderCallback: val =>
@@ -76,11 +74,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             }
                         }, name: "GPOUT")
                 },
-
                 {(long)Registers.ClearRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 32, writeCallback: (_, val) => SetRegisterBits((uint)val, false), name: "CLEAR_BITS")
                 },
-
                 {(long)Registers.SetRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 32, writeCallback: (_, val) => SetRegisterBits((uint)val, true), name: "SET_BITS")
                 },
@@ -161,7 +157,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             lock(locker)
             {
-                if((irqManager.PinDirection[number] & GPIOInterruptManager.Direction.Input) == 0)
+                var isInput = irqManager.PinDirection[number].HasFlag(GPIOInterruptManager.Direction.Input);
+                var isOutput = irqManager.PinDirection[number].HasFlag(GPIOInterruptManager.Direction.Output);
+                if(isOutput && !isInput)
                 {
                     this.Log(LogLevel.Warning, "Writing to an output GPIO pin #{0}", number);
                     return;
@@ -172,7 +170,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 // RefreshInterrupts will update the main IRQ, but it will not update the connection.
                 // We have to do it manually, as connection reflects if there is an active interrupt for the given pin.
                 var isIrqActive = irqManager.ActiveInterrupts.ElementAt(number);
-                if((irqManager.PinDirection[number] & GPIOInterruptManager.Direction.Input) != 0)
+                if(isInput)
                 {
                     Connections[number].Set(isIrqActive);
                 }
@@ -198,7 +196,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             lock(locker)
             {
                 var setBits = BitHelper.GetSetBits(regVal);
-                foreach (var i in setBits)
+                foreach(var i in setBits)
                 {
                     Connections[i].Set(state);
                 }

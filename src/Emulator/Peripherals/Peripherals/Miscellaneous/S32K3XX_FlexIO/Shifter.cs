@@ -7,8 +7,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+
 using static Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIO;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
@@ -48,14 +50,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             }
         }
 
-        public event Action<uint> DataTransmitted;
-        public event Action ControlOrConfigurationChanged;
-
         public override IEnumerable<Interrupt> Interrupts => new[] { Status, Error };
+
         public override string Name => $"Shifter{Identifier}";
 
         public Interrupt Status { get; }
+
         public Interrupt Error { get; }
+
         public Timer Timer
         {
             get
@@ -64,10 +66,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
                 return timer;
             }
         }
+
         public ShifterPolarity TimerPolarity => timerPolarity.Value;
+
         public ShifterMode Mode => mode.Value;
+
         public uint StopBit => (uint)stopBit.Value;
+
         public uint StartBit => (uint)startBit.Value;
+
+        public event Action<uint> DataTransmitted;
+
+        public event Action ControlOrConfigurationChanged;
 
         private static Shifter BuildShifter(IResourceBlockOwner owner, int index, Interrupt status, Interrupt error,
             ResourceBlocksManager<Timer> timersManager)

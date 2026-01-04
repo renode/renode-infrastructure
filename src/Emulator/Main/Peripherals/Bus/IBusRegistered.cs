@@ -5,9 +5,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core.Structure;
 using System.Collections.Generic;
 using System.Linq;
+
+using Antmicro.Renode.Core.Structure;
 
 namespace Antmicro.Renode.Peripherals.Bus
 {
@@ -20,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         public static IBusRegistered<TTo> Convert<TFrom, TTo>(this IBusRegistered<TFrom> conversionSource) where TTo : TFrom where TFrom : IBusPeripheral
         {
             return new BusRegistered<TTo>((TTo)conversionSource.Peripheral, new BusRangeRegistration(conversionSource.RegistrationPoint.Range,
-                                          conversionSource.RegistrationPoint.Offset, conversionSource.RegistrationPoint.CPU));
+                                          conversionSource.RegistrationPoint.Offset, conversionSource.RegistrationPoint.Initiator));
         }
 
         public static IEnumerable<IBusRegistered<TTo>> Convert<TFrom, TTo>(this IEnumerable<IBusRegistered<TFrom>> sourceCollection) where TTo : TFrom where TFrom : IBusPeripheral
@@ -29,4 +30,3 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
     }
 }
-

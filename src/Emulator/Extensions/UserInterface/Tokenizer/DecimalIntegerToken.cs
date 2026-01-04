@@ -6,7 +6,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
     public class DecimalIntegerToken : Token
@@ -15,8 +14,6 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
             Value = long.Parse(value);
         }
-
-        public long Value { get; private set; }
 
         public override object GetObjectValue()
         {
@@ -27,6 +24,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         {
             return string.Format("[NumericToken: Value={0}]", Value);
         }
+
+        public long Value { get; private set; }
     }
 }
-

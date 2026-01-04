@@ -1,17 +1,17 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using NUnit.Framework;
+using System.Linq;
+
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.UserInterface.Tokenizer;
-using System.Linq;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Core;
+
+using NUnit.Framework;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -170,6 +170,14 @@ namespace Antmicro.Renode.MonitorTests
         }
 
         [Test]
+        public void NullTest()
+        {
+            var result = tokenizer.Tokenize("null");
+            AssertTokenizationTypes(result, typeof(NullToken));
+            AssertTokenizationValues(result, new object[] { null });
+        }
+
+        [Test]
         public void IntegerTest()
         {
             var result = tokenizer.Tokenize("123465 -213245 +132432");
@@ -253,4 +261,3 @@ namespace Antmicro.Renode.MonitorTests
         private Tokenizer tokenizer;
     }
 }
-

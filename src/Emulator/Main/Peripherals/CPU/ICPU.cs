@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -7,40 +7,53 @@
 //
 
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
-using System.Collections.Generic;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public interface ICPU : IPeripheral, IHasOwnLife, IHaltable
+    public interface ICPU : IPeripheral, IHasOwnLife, IHaltable, IIdentifiable
     {
         string Architecture { get; }
+
         uint MultiprocessingId { get; }
+
         string Model { get; }
+
+        ulong ElapsedCycles { get; }
+
         RegisterValue PC { get; set; }
+
         // Extend `IsHalted` with a getter by using the `new` keyword
         new bool IsHalted { get; set; }
+
         IBusController Bus { get; }
         /// <summary>
         /// Returns true if the thread calling this property is possesed
         /// by the object.
         /// </summary>
         bool OnPossessedThread { get; }
+
         ulong ExecutedInstructions { get; }
+
         void SyncTime();
+
         event Action<HaltArguments> Halted;
+
         TimeHandle TimeHandle { get; }
 
         ulong Step(int count = 1);
+
         ExecutionMode ExecutionMode { get; set; }
 
         ELFSharp.ELF.Endianess Endianness { get; }
 
-        CPUState State { get; }
-        event Action<ICPU, CPUState, CPUState> StateChanged;
+        EmulationCPUState EmulationState { get; }
+
+        event Action<ICPU, EmulationCPUState, EmulationCPUState> StateChanged;
     }
 
     public static class ICPUExtensions
@@ -56,4 +69,3 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
     }
 }
-

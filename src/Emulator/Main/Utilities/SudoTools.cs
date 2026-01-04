@@ -118,18 +118,18 @@ namespace Antmicro.Renode.Utilities
 
             switch(sudoName)
             {
-                // Tool specific adjustments.
-                case "gksudo":
-                    result = string.Format(@"-D ""{0}"" ""{1}""", description, command);
-                    break;
-                case "kdesudo":
-                    result = string.Format(@"-c ""{0}"" --comment ""{1}""", command, description);
-                    break;
-                case "pkexec":
-                    // We do nothing, because 'pkexec' (version 0.105) doesn't accept description as a parameter.
-                default:
-                    result = command;
-                    break;
+            // Tool specific adjustments.
+            case "gksudo":
+                result = string.Format(@"-D ""{0}"" ""{1}""", description, command);
+                break;
+            case "kdesudo":
+                result = string.Format(@"-c ""{0}"" --comment ""{1}""", command, description);
+                break;
+            case "pkexec":
+            // We do nothing, because 'pkexec' (version 0.105) doesn't accept description as a parameter.
+            default:
+                result = command;
+                break;
             }
 
             return result;
@@ -138,7 +138,6 @@ namespace Antmicro.Renode.Utilities
         /// <summary>
         /// List of supported tool names.
         /// </summary>
-        private static string[] knownToolNames = { "gksudo", "kdesudo", "pkexec" };
+        private static readonly string[] knownToolNames = { "gksudo", "kdesudo", "pkexec" };
     }
 }
-

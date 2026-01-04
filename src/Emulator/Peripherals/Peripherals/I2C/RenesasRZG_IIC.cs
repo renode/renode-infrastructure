@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -29,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             NackIRQ = new GPIO();
             StartIRQ = new GPIO();
             StopIRQ = new GPIO();
-            
+
             writeQueue = new Queue<byte>();
             readQueue = new Queue<byte>();
 
@@ -58,13 +59,19 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public long Size => 0x400;
 
         public GPIO ReceiveIRQ { get; }
+
         public GPIO TransmitIRQ { get; }
+
         public GPIO TransmitEndIRQ { get; }
+
         public GPIO NackIRQ { get; }
+
         public GPIO StartIRQ { get; }
+
         public GPIO StopIRQ { get; }
 
         private void DefineRegisters()
@@ -282,7 +289,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithTag("BRH[4:0]", 0, 5)
                 .WithReservedBits(5, 3, 0x7)
                 .WithReservedBits(8, 24);
-            
+
             Registers.TransmitData.Define(this)
                 .WithValueField(0, 8, FieldMode.Write, name: "DRT[7:0]",
                     writeCallback: (_, value) =>
@@ -299,7 +306,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                             machine.ScheduleAction(addressWriteDelay, ___ =>
                             {
                                 WriteData((byte)value);
-                                UpdateInterrupts(); 
+                                UpdateInterrupts();
                             });
                         }
                         else
@@ -327,45 +334,45 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             switch(currentTransmissionState)
             {
-                case TransmissionState.WriteAddress:
+            case TransmissionState.WriteAddress:
+            {
+                if((value >> 3) == ExtendedAddressPrefix)
                 {
-                    if((value >> 3) == ExtendedAddressPrefix)
-                    {
-                        this.ErrorLog("10-bit addressing is currently not supported");
-                        nackInterrupt.Flag = true;
-                        return;
-                    }
-
-                    var isRead = BitHelper.IsBitSet(value, 0);
-                    var address = value >> 1;
-                    if(!TryGetByAddress(address, out selectedPeripheral))
-                    {
-                        nackInterrupt.Flag = true;
-                        this.ErrorLog("Invalid slave peripheral address 0x{0:X}", address);
-                        return;
-                    }
-                    this.DebugLog("Selected peripheral 0x{0:X} ({1})", address, selectedPeripheral.GetName());
-                    currentTransmissionState = isRead ? TransmissionState.Read : TransmissionState.Write;
-                    receiveInterrupt.Flag = isRead;
-                    transmitInterrupt.Flag = !isRead;
-                    transmitEndInterrupt.Flag = transmitInterrupt.Flag;
-                    if(isRead)
-                    {
-                        // Software should discard the first read, as reading it is used for starting the transmission
-                        // on real hardware. Add a dummy value to make sure that a value read from a sensor is not 
-                        // accidentally discarded.
-                        readQueue.Enqueue(0x0);
-                    }
-                    break;
-                }
-                case TransmissionState.Write:
-                    writeQueue.Enqueue(value);
-                    transmitInterrupt.Flag = true;
-                    transmitEndInterrupt.Flag = true;
-                    break;
-                default:
-                    this.ErrorLog("Transmission state: {0} is not valid when writing data (value 0x{1:X})", currentTransmissionState, value);
+                    this.ErrorLog("10-bit addressing is currently not supported");
+                    nackInterrupt.Flag = true;
                     return;
+                }
+
+                var isRead = BitHelper.IsBitSet(value, 0);
+                var address = value >> 1;
+                if(!TryGetByAddress(address, out selectedPeripheral))
+                {
+                    nackInterrupt.Flag = true;
+                    this.ErrorLog("Invalid slave peripheral address 0x{0:X}", address);
+                    return;
+                }
+                this.DebugLog("Selected peripheral 0x{0:X} ({1})", address, selectedPeripheral.GetName());
+                currentTransmissionState = isRead ? TransmissionState.Read : TransmissionState.Write;
+                receiveInterrupt.Flag = isRead;
+                transmitInterrupt.Flag = !isRead;
+                transmitEndInterrupt.Flag = transmitInterrupt.Flag;
+                if(isRead)
+                {
+                    // Software should discard the first read, as reading it is used for starting the transmission
+                    // on real hardware. Add a dummy value to make sure that a value read from a sensor is not 
+                    // accidentally discarded.
+                    readQueue.Enqueue(0x0);
+                }
+                break;
+            }
+            case TransmissionState.Write:
+                writeQueue.Enqueue(value);
+                transmitInterrupt.Flag = true;
+                transmitEndInterrupt.Flag = true;
+                break;
+            default:
+                this.ErrorLog("Transmission state: {0} is not valid when writing data (value 0x{1:X})", currentTransmissionState, value);
+                return;
             }
         }
 
@@ -373,53 +380,53 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             switch(currentTransmissionState)
             {
-                case TransmissionState.Read:
+            case TransmissionState.Read:
+            {
+                if(readQueue.Count == 0)
                 {
-                    if(readQueue.Count == 0)
+                    if(selectedPeripheral == null)
                     {
-                        if(selectedPeripheral == null)
-                        {
-                            this.WarningLog("Attempted to perform a peripheral read without selecting one");
-                        }
-                        else
-                        {
-                            // From IIC controller's perspective there is no way to determine
-                            // how many bytes is software intending to read. Since some peripherals
-                            // assume that the entire read operation will be performed using a single `Read` call
-                            // we request more bytes, buffer them and return those values during subsequent reads
-                            // The amount of bytes to buffer was chosen randomly and may be adjusted if required. 
-                            var data = selectedPeripheral.Read(ReadByteCount);
-                            this.DebugLog("Read {0} from peripheral", data.ToLazyHexString());
-                            readQueue.EnqueueRange(data);
-                        }
+                        this.WarningLog("Attempted to perform a peripheral read without selecting one");
                     }
-
-                    if(!readQueue.TryDequeue(out var result))
+                    else
                     {
-                        this.ErrorLog("Empty read buffer, returning 0x0");
-                        nackInterrupt.Flag = true;
-                        return 0x0;
+                        // From IIC controller's perspective there is no way to determine
+                        // how many bytes is software intending to read. Since some peripherals
+                        // assume that the entire read operation will be performed using a single `Read` call
+                        // we request more bytes, buffer them and return those values during subsequent reads
+                        // The amount of bytes to buffer was chosen randomly and may be adjusted if required. 
+                        var data = selectedPeripheral.Read(ReadByteCount);
+                        this.DebugLog("Read {0} from peripheral", data.ToLazyHexString());
+                        readQueue.EnqueueRange(data);
                     }
+                }
 
-                    // Issue Stop or Restart if a NACK was requested during the last read
-                    if(finishReading)
+                if(!readQueue.TryDequeue(out var result))
+                {
+                    this.ErrorLog("Empty read buffer, returning 0x0");
+                    nackInterrupt.Flag = true;
+                    return 0x0;
+                }
+
+                // Issue Stop or Restart if a NACK was requested during the last read
+                if(finishReading)
+                {
+                    finishReading = false;
+                    // Perform restart if it was requested. Otherwise always stop
+                    if(!restartCondition.TryPerform())
                     {
-                        finishReading = false;
-                        // Perform restart if it was requested. Otherwise always stop
-                        if(!restartCondition.TryPerform())
-                        {
-                            stopCondition.Perform();
-                        }
-                        return result;
+                        stopCondition.Perform();
                     }
-
-                    finishReading = transmitNegativeAcknowledge.Value;
-                    receiveInterrupt.Flag = true;
                     return result;
                 }
-                default:
-                    this.ErrorLog("Transmission state: {0} is not valid when reading data", currentTransmissionState);
-                    return 0x0;
+
+                finishReading = transmitNegativeAcknowledge.Value;
+                receiveInterrupt.Flag = true;
+                return result;
+            }
+            default:
+                this.ErrorLog("Transmission state: {0} is not valid when reading data", currentTransmissionState);
+                return 0x0;
             }
         }
 
@@ -549,19 +556,6 @@ namespace Antmicro.Renode.Peripherals.I2C
         private const int ExtendedAddressPrefix = 0x1E;
         private const int ReadByteCount = 24;
 
-        private struct InterruptConfig
-        {
-            public bool InterruptState => Enable.Value && Flag;
-            public bool Flag
-            {
-                get => FlagField.Value;
-                set => FlagField.Value = value;
-            }
-
-            public IFlagRegisterField Enable;
-            public IFlagRegisterField FlagField;
-        }
-
         private class Condition
         {
             public Condition(RenesasRZG_IIC parent, string name, Action handler)
@@ -603,6 +597,20 @@ namespace Antmicro.Renode.Peripherals.I2C
             private readonly RenesasRZG_IIC parent;
             private readonly string name;
             private readonly Action handler;
+        }
+
+        private struct InterruptConfig
+        {
+            public bool InterruptState => Enable.Value && Flag;
+
+            public bool Flag
+            {
+                get => FlagField.Value;
+                set => FlagField.Value = value;
+            }
+
+            public IFlagRegisterField Enable;
+            public IFlagRegisterField FlagField;
         }
 
         private enum TransmissionState

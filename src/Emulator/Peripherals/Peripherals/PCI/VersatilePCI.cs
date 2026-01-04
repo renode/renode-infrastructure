@@ -46,36 +46,34 @@ namespace Antmicro.Renode.Peripherals.PCI
         }
 
         [ConnectionRegion("config")]
-        public void WriteDoubleWordConfig(long offset, uint value)
+        public void WriteDoubleWordConfig(long _, uint __)
         {
         }
 
         public virtual uint ReadDoubleWord(long offset)
         {
-            //if (offset < 0x800) return 0;
-            //offset -= 0x800;
             int pci_num = (int)(offset / 0x800);
             if(pci_num > 3)
                 return 0;
             if(!_info[pci_num])
                 return 0;
             PCIInfo linfo = info[pci_num];
-            offset -= pci_num * 0x800; 
+            offset -= pci_num * 0x800;
             if(offset == 0x00)
-                return  (uint)linfo.vendor_id + (uint)(linfo.device_id << 16);
+                return (uint)linfo.VendorId + (uint)(linfo.DeviceId << 16);
             if(offset == 0x04)
                 return (1 << 25) | (1 << 1) | (1 << 0); // cmd ?
             if(offset == 0x08)
-                return (uint)(linfo.device_class << 16); // class 
+                return (uint)(linfo.DeviceClass << 16); // class
             if(offset == 0x0c)
                 return 0x8; // ?
             if((offset >= 0x10) && (offset < 0x2c))
             {
                 uint bar_id = (uint)((offset - 0x10) / 4);
-                return linfo.BAR[bar_id];
+                return linfo.Bar[bar_id];
             }
             if(offset == 0x2c)
-                return  (uint)linfo.sub_vendor_id + (uint)(linfo.sub_device_id << 16);
+                return (uint)linfo.SubVendorId + (uint)(linfo.SubDeviceId << 16);
             if(offset == 0x30)
                 return 0x1; // rom ?
             if(offset == 0x3c)
@@ -87,8 +85,6 @@ namespace Antmicro.Renode.Peripherals.PCI
 
         public virtual void WriteDoubleWord(long offset, uint value)
         {
-            //if (offset < 0x800) return;
-            //offset -= 0x800;
             int pci_num = (int)(offset / 0x800);
             if(pci_num > 3)
                 return;
@@ -101,11 +97,11 @@ namespace Antmicro.Renode.Peripherals.PCI
                 uint bar_id = (uint)((offset - 0x10) / 4);
                 if(value == 0xFFFFFFFF)
                 {
-                    linfo.BAR[bar_id] = linfo.BAR_len[bar_id];
+                    linfo.Bar[bar_id] = linfo.BarLen[bar_id];
                 }
                 else
                 {
-                    linfo.BAR[bar_id] = value;
+                    linfo.Bar[bar_id] = value;
                 }
             }
         }
@@ -123,9 +119,9 @@ namespace Antmicro.Renode.Peripherals.PCI
                     continue;
                 for(int i = 0; i < 8; i++)
                 {
-                    if(info[c].BAR_len[i] == 0)
+                    if(info[c].BarLen[i] == 0)
                         continue;
-                    if((offset >= (info[c].BAR[i] & 0x0FFFFFFF)) && (offset < ((info[c].BAR[i] & 0xFFFFFFF) + info[c].BAR_len[i])))
+                    if((offset >= (info[c].Bar[i] & 0x0FFFFFFF)) && (offset < ((info[c].Bar[i] & 0xFFFFFFF) + info[c].BarLen[i])))
                     {
                         found = c;
                         bar_no = i;
@@ -137,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.PCI
                 return;
 
             PCIInfo linfo = info[found];
-            offset -= (linfo.BAR[bar_no] & 0xFFFFFFF);
+            offset -= (linfo.Bar[bar_no] & 0xFFFFFFF);
             IPCIPeripheral pci_device = GetByAddress(found);
             pci_device.WriteDoubleWordPCI((uint)bar_no, offset, value);
         }
@@ -156,9 +152,9 @@ namespace Antmicro.Renode.Peripherals.PCI
                     continue;
                 for(int i = 0; i < 8; i++)
                 {
-                    if(info[c].BAR_len[i] == 0)
+                    if(info[c].BarLen[i] == 0)
                         continue;
-                    if((offset >= (info[c].BAR[i] & 0x0FFFFFFF)) && (offset < ((info[c].BAR[i] & 0xFFFFFFF) + info[c].BAR_len[i])))
+                    if((offset >= (info[c].Bar[i] & 0x0FFFFFFF)) && (offset < ((info[c].Bar[i] & 0xFFFFFFF) + info[c].BarLen[i])))
                     {
                         found = c;
                         bar_no = i;
@@ -171,7 +167,7 @@ namespace Antmicro.Renode.Peripherals.PCI
 
             // (2) forward read
             PCIInfo linfo = info[found];
-            offset -= (linfo.BAR[bar_no] & 0xFFFFFFF);
+            offset -= (linfo.Bar[bar_no] & 0xFFFFFFF);
             IPCIPeripheral pci_device = GetByAddress(found);
             return pci_device.ReadDoubleWordPCI((uint)bar_no, offset);
         }
@@ -179,17 +175,12 @@ namespace Antmicro.Renode.Peripherals.PCI
         public override void Reset()
         {
         }
-        //private void TransferData(uint value)
-        //{
-        //        if (!children.Keys.Select (x => x.Number).Contains (slaveAddressForPacket)) 
-        //}
 
         private void Update()
         {
         }
 
-        private PCIInfo[] info;
-        bool[] _info;
+        private readonly PCIInfo[] info;
+        readonly bool[] _info;
     }
 }
-

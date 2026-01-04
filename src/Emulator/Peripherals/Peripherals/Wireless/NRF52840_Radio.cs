@@ -7,11 +7,11 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public void FakePacket()
         {
-            ReceiveFrame(new byte[]{0xD6, 0xBE, 0x89, 0x8E, 0x60, 0x11, 0xFF, 0xFF, 0xFF, 0xFF, 0x0, 0xC0, 0x2, 0x1, 0x6, 0x7, 0x3, 0xD, 0x18, 0xF, 0x18, 0xA, 0x18, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, null);
+            ReceiveFrame(new byte[] { 0xD6, 0xBE, 0x89, 0x8E, 0x60, 0x11, 0xFF, 0xFF, 0xFF, 0xFF, 0x0, 0xC0, 0x2, 0x1, 0x6, 0x7, 0x3, 0xD, 0x18, 0xF, 0x18, 0xA, 0x18, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0 }, null);
         }
 
         public void ReceiveFrame(byte[] frame, IRadio sender)
@@ -66,23 +66,19 @@ namespace Antmicro.Renode.Peripherals.Wireless
             ScheduleRadioEvents((uint)(headerLengthInAir + payloadLength + crcLen));
         }
 
-        public event Action<IRadio, byte[]> FrameSent;
-
-        public event Action<uint> EventTriggered;
-
-        public int Channel 
-        { 
+        public int Channel
+        {
             get
             {
                 return bluetoothLEChannelMap.TryGetValue(Frequency, out var result)
                     ? result
                     : -1;
             }
-            
-            set 
-            { 
+
+            set
+            {
                 throw new RecoverableException("Setting channel manually is not supported");
-            } 
+            }
         }
 
         public long Size => 0x1000;
@@ -90,6 +86,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
         public uint Frequency => (frequencyMap.Value ? 2360 : 2400U) + (uint)frequency.Value;
 
         public GPIO IRQ { get; }
+
+        public event Action<IRadio, byte[]> FrameSent;
+
+        public event Action<uint> EventTriggered;
 
         private void DefineTask(Registers register, Action callback, string name)
         {
@@ -405,17 +405,17 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private int HeaderLengthInAir()
         {
-           return (int)Math.Ceiling((s0Length.Value * 8 + lengthFieldLength.Value + s1Length.Value) / 8.0);
+            return (int)Math.Ceiling((s0Length.Value * 8 + lengthFieldLength.Value + s1Length.Value) / 8.0);
         }
 
         private int HeaderLengthInRAM()
         {
-           int ret = (int)s0Length.Value + (int)Math.Ceiling(lengthFieldLength.Value / 8.0) + (int)Math.Ceiling(s1Length.Value / 8.0);
-           if(s1Length.Value == 0 && s1Include.Value)
-           {
-              ret += 1;
-           }
-           return ret;
+            int ret = (int)s0Length.Value + (int)Math.Ceiling(lengthFieldLength.Value / 8.0) + (int)Math.Ceiling(s1Length.Value / 8.0);
+            if(s1Length.Value == 0 && s1Include.Value)
+            {
+                ret += 1;
+            }
+            return ret;
         }
 
         private void SendPacket()
@@ -453,66 +453,66 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private void ScheduleRadioEvents(uint packetLen)
         {
-           var timeSource = machine.LocalTimeSource;
-           var now = timeSource.ElapsedVirtualTime;
+            var timeSource = machine.LocalTimeSource;
+            var now = timeSource.ElapsedVirtualTime;
 
-           // @note  Transmit times assume 1M PHY. Low level BLE firmware
-           //        usually takes into account the active phy when calculating
-           //        timing delays, so we might need to do that.
+            // @note  Transmit times assume 1M PHY. Low level BLE firmware
+            //        usually takes into account the active phy when calculating
+            //        timing delays, so we might need to do that.
 
-           // Bit-counter
-           var bcMatchTime = now + TimeInterval.FromMicroseconds(bitCountCompare.Value);
-           var bcMatchTimeStamp = new TimeStamp(bcMatchTime, timeSource.Domain);
+            // Bit-counter
+            var bcMatchTime = now + TimeInterval.FromMicroseconds(bitCountCompare.Value);
+            var bcMatchTimeStamp = new TimeStamp(bcMatchTime, timeSource.Domain);
 
-           // End event
-           var endTime = now + TimeInterval.FromMicroseconds((uint)(packetLen) * 8);
-           var endTimeStamp = new TimeStamp(endTime, timeSource.Domain);
+            // End event
+            var endTime = now + TimeInterval.FromMicroseconds((uint)(packetLen) * 8);
+            var endTimeStamp = new TimeStamp(endTime, timeSource.Domain);
 
-           var disableTime = endTime + TimeInterval.FromMicroseconds(10);
-           var disableTimeStamp = new TimeStamp(disableTime, timeSource.Domain);
+            var disableTime = endTime + TimeInterval.FromMicroseconds(10);
+            var disableTimeStamp = new TimeStamp(disableTime, timeSource.Domain);
 
-           // Address modelled as happening immediatley and serves as anchor
-           // point for other events. RIOT triggers IRQ from it.
-           SetEvent(Events.Address);
+            // Address modelled as happening immediatley and serves as anchor
+            // point for other events. RIOT triggers IRQ from it.
+            SetEvent(Events.Address);
 
-           // RSSI sample period is 0.25 us. Acceptable to model as happening
-           // immediatley upon start
-           if(shorts.AddressRSSIStart.Value)
-           {
-              SetEvent(Events.RSSIEnd);
-           }
+            // RSSI sample period is 0.25 us. Acceptable to model as happening
+            // immediatley upon start
+            if(shorts.AddressRSSIStart.Value)
+            {
+                SetEvent(Events.RSSIEnd);
+            }
 
-           // Schedule a single bit-counter compare event not eariler than
-           // `bitCountCompare` microseconds from now.
-           // This is sufficient for BLE with RIOT stack, however it is possible to use bit
-           // counter to generate successive events, which this model will not
-           // support.
-           if(shorts.AddressBitCountStart.Value)
-           {
-              timeSource.ExecuteInSyncedState(_ =>
-              {
-                 SetEvent(Events.BitCountMatch);
-              }, bcMatchTimeStamp);
-           }
+            // Schedule a single bit-counter compare event not eariler than
+            // `bitCountCompare` microseconds from now.
+            // This is sufficient for BLE with RIOT stack, however it is possible to use bit
+            // counter to generate successive events, which this model will not
+            // support.
+            if(shorts.AddressBitCountStart.Value)
+            {
+                timeSource.ExecuteInSyncedState(_ =>
+                {
+                    SetEvent(Events.BitCountMatch);
+                }, bcMatchTimeStamp);
+            }
 
-           // Schedule "end" events all at once, simulating the transmision time
-           // as 8 microseconds-per-byte. Timing distinction between events here doesn't
-           // seem important
-           timeSource.ExecuteInSyncedState(_ =>
-           {
-              SetEvent(Events.Payload);
-              SetEvent(Events.End);
-              SetEvent(Events.CRCOk);
-           }, endTimeStamp);
+            // Schedule "end" events all at once, simulating the transmision time
+            // as 8 microseconds-per-byte. Timing distinction between events here doesn't
+            // seem important
+            timeSource.ExecuteInSyncedState(_ =>
+            {
+                SetEvent(Events.Payload);
+                SetEvent(Events.End);
+                SetEvent(Events.CRCOk);
+            }, endTimeStamp);
 
-           // BLE stacks use disabled event as common processing trigger.
-           timeSource.ExecuteInSyncedState(_ =>
-           {
-              if(shorts.EndDisable.Value)
-              {
-                 Disable();
-              }
-           }, disableTimeStamp);
+            // BLE stacks use disabled event as common processing trigger.
+            timeSource.ExecuteInSyncedState(_ =>
+            {
+                if(shorts.EndDisable.Value)
+                {
+                    Disable();
+                }
+            }, disableTimeStamp);
         }
 
         private void FillCurrentAddress(byte[] data, int startIndex, uint logicalAddress)
@@ -532,27 +532,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
             data[startIndex + i] = addressPrefixes[logicalAddress];
         }
-        
-        private const int DefaultRSSISample = 10;
 
-        private readonly ConcurrentQueue<KeyValuePair<byte[], IRadio>> rxBuffer;
-        private Shorts shorts;
-        private byte[] addressPrefixes;
         private State radioState;
-        private InterruptManager<Events> interruptManager;
-
-        private IFlagRegisterField[] events;
-        private IValueRegisterField packetPointer;
-        private IValueRegisterField frequency;
-        private IFlagRegisterField frequencyMap;
-        private IValueRegisterField lengthFieldLength;
-        private IValueRegisterField s0Length;
-        private IValueRegisterField s1Length;
-        private IFlagRegisterField s1Include;
-        private IValueRegisterField codeIndicatorLength;
+        private byte[] addressPrefixes;
+        private Shorts shorts;
         private IFlagRegisterField crcIncludedInLength;
-        private IValueRegisterField termLength;
-        private IValueRegisterField maxPacketLength;
         private IValueRegisterField staticLength;
         private IValueRegisterField baseAddressLength;
         private IValueRegisterField baseAddress0;
@@ -560,15 +544,30 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private IValueRegisterField txAddress;
         private IFlagRegisterField[] rxAddressEnabled;
 
-        private IValueRegisterField bitCountCompare;
-
         private IValueRegisterField crcLength;
+        private IValueRegisterField maxPacketLength;
         private IEnumRegisterField<CRCAddressHandling> crcSkipAddress;
         private IValueRegisterField crcPolynomial;
         private IValueRegisterField crcInitialValue;
         private IEnumRegisterField<CCAMode> ccaMode;
+
+        private IValueRegisterField bitCountCompare;
+        private IValueRegisterField termLength;
+        private IValueRegisterField codeIndicatorLength;
         private IFlagRegisterField powerOn;
-        
+        private IFlagRegisterField s1Include;
+        private IValueRegisterField s1Length;
+        private IValueRegisterField s0Length;
+        private IValueRegisterField lengthFieldLength;
+        private IFlagRegisterField frequencyMap;
+        private IValueRegisterField frequency;
+        private IValueRegisterField packetPointer;
+
+        private readonly IFlagRegisterField[] events;
+        private readonly InterruptManager<Events> interruptManager;
+
+        private readonly ConcurrentQueue<KeyValuePair<byte[], IRadio>> rxBuffer;
+
         private readonly Dictionary<uint, int> bluetoothLEChannelMap = new Dictionary<uint, int>()
         {
            { 2402, 37 },
@@ -612,7 +611,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
            { 2478, 36 },
            { 2480, 39 },
         };
-        
+
+        private const int DefaultRSSISample = 10;
+
         private struct Shorts
         {
             public IFlagRegisterField ReadyStart;
@@ -655,7 +656,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Tx = 11,
             TxDisable = 12,
         }
-        
+
         private enum Events
         {
             Ready = 0,
@@ -682,7 +683,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Sync = 26,
             PHYEnd = 27
         }
-        
+
         private enum CCAMode
         {
             EdMode,
@@ -691,7 +692,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             CarrierOrEdMode,
             EdMoteTest1
         }
-        
+
         private enum Registers
         {
             TxEnable = 0x000,

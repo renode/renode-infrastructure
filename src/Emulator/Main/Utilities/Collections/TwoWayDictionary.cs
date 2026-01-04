@@ -6,10 +6,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using Antmicro.Migrant.Hooks;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 
 namespace Antmicro.Renode.Utilities.Collections
 {
@@ -176,7 +177,7 @@ namespace Antmicro.Renode.Utilities.Collections
             rights.Remove(right);
             OnItemRemoved(left, right);
         }
-               
+
         private void OnItemAdded(TLeft left, TRight right)
         {
             var itemAdded = ItemAdded;

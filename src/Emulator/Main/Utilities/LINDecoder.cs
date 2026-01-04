@@ -6,19 +6,23 @@
 //
 
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Antmicro.Renode.Utilities
 {
     public interface ILINEntry
     {
         LINMode Mode { get; set; }
+
         int FrameLength { get; set; }
+
         bool ValidateFrame { get; set; }
+
         bool ExtendedChecksum { get; set; }
 
         event Action<byte[], bool> DataReady;
+
         event Action StartedTransmission;
     }
 
@@ -79,66 +83,66 @@ namespace Antmicro.Renode.Utilities
             var previousState = CurrentState;
             switch(CurrentState)
             {
-                case State.Armed:
+            case State.Armed:
+            {
+                // We are waiting for synchronization
+                if(value != SynchronizationPattern)
                 {
-                    // We are waiting for synchronization
-                    if(value != SynchronizationPattern)
-                    {
-                        CurrentState = State.SynchronizationFailed;
-                        break;
-                    }
-                    CurrentState = State.Synchronized;
+                    CurrentState = State.SynchronizationFailed;
                     break;
                 }
+                CurrentState = State.Synchronized;
+                break;
+            }
 
-                case State.Synchronized:
+            case State.Synchronized:
+            {
+                // We are awaiting Protected Identifier
+                if(!entries.TryGetValue(value, out var entry))
                 {
-                    // We are awaiting Protected Identifier
-                    if(!entries.TryGetValue(value, out var entry))
-                    {
-                        // This transaction is not for us
-                        CurrentState = State.Ignoring;
-                        break;
-                    }
-                    currentProtectedIdentifier = value;
-                    CurrentState = entry.Mode == LINMode.Source ? State.Writing : State.Reading;
-                    break;
-                }
-
-                case State.SynchronizationFailed:
-                    // NOTE: Intentionally left empty
-                    break;
-
-                case State.Writing:
-                    // NOTE: Intentionally left empty
-                    break;
-
-                case State.Reading:
-                {
-                    rxQueue.Enqueue(value);
-                    var entry = CurrentEntry;
-                    if(rxQueue.Count != entry.FrameLength + 1)
-                    {
-                        return;
-                    }
-
-                    var frame = rxQueue.Take(entry.FrameLength).ToArray();
-                    var crc = rxQueue.Skip(entry.FrameLength).First();
-                    var frameValid = !entry.ValidateFrame || entry.IsFrameValid(frame, crc);
-
-                    FrameReceived?.Invoke(currentProtectedIdentifier, frame, frameValid);
-                    entry.InvokeDataReady(frame, frameValid);
-
+                    // This transaction is not for us
                     CurrentState = State.Ignoring;
                     break;
                 }
+                currentProtectedIdentifier = value;
+                CurrentState = entry.Mode == LINMode.Source ? State.Writing : State.Reading;
+                break;
+            }
 
-                case State.Ignoring:
-                    // NOTE: Intentionally left empty
+            case State.SynchronizationFailed:
+                // NOTE: Intentionally left empty
+                break;
+
+            case State.Writing:
+                // NOTE: Intentionally left empty
+                break;
+
+            case State.Reading:
+            {
+                rxQueue.Enqueue(value);
+                var entry = CurrentEntry;
+                if(rxQueue.Count != entry.FrameLength + 1)
+                {
                     return;
+                }
 
-                default:
-                    throw new Exception("unreachable");
+                var frame = rxQueue.Take(entry.FrameLength).ToArray();
+                var crc = rxQueue.Skip(entry.FrameLength).First();
+                var frameValid = !entry.ValidateFrame || entry.IsFrameValid(frame, crc);
+
+                FrameReceived?.Invoke(currentProtectedIdentifier, frame, frameValid);
+                entry.InvokeDataReady(frame, frameValid);
+
+                CurrentState = State.Ignoring;
+                break;
+            }
+
+            case State.Ignoring:
+                // NOTE: Intentionally left empty
+                return;
+
+            default:
+                throw new Exception("unreachable");
             }
 
             if(CurrentState == State.Writing)
@@ -198,9 +202,6 @@ namespace Antmicro.Renode.Utilities
             CurrentState = State.Armed;
         }
 
-        public event Action<State, State> StateChanged;
-        public event Action<byte, byte[], bool> FrameReceived;
-
         public State CurrentState
         {
             get => currentState;
@@ -218,6 +219,10 @@ namespace Antmicro.Renode.Utilities
 
         public bool ValidateProtectedIdentifier { get; set; }
 
+        public event Action<State, State> StateChanged;
+
+        public event Action<byte, byte[], bool> FrameReceived;
+
         protected bool IsProtectedIdentifierValid(byte pid)
         {
             var frameIdentifier = (byte)(pid & 0x7F);
@@ -232,14 +237,14 @@ namespace Antmicro.Renode.Utilities
 
         protected LINEntry CurrentEntry => entries.TryGetValue(currentProtectedIdentifier, out var entry) ? entry : null;
 
+        protected byte currentProtectedIdentifier;
+        protected State currentState;
+
         protected readonly IDictionary<byte, LINEntry> entries;
         protected readonly Queue<byte> rxQueue;
         protected readonly Queue<byte> txQueue;
 
         protected const byte SynchronizationPattern = 0x55;
-
-        protected byte currentProtectedIdentifier;
-        protected State currentState;
 
         public enum State
         {
@@ -278,15 +283,21 @@ namespace Antmicro.Renode.Utilities
             }
 
             public void InvokeDataReady(byte[] frame, bool checksumValid) => DataReady?.Invoke(frame, checksumValid);
+
             public void InvokeStartedTransmission() => StartedTransmission?.Invoke();
 
             public byte ProtectedIdentifier { get; }
+
             public LINMode Mode { get; set; }
+
             public int FrameLength { get; set; }
+
             public bool ValidateFrame { get; set; }
+
             public bool ExtendedChecksum { get; set; }
 
             public event Action<byte[], bool> DataReady;
+
             public event Action StartedTransmission;
         }
     }

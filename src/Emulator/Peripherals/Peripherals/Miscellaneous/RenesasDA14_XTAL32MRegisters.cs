@@ -1,8 +1,8 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -123,11 +123,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(16, 16);
         }
 
-        private IMachine machine;
-
         private IEnumRegisterField<XTAL32MState> xtal32mState;
         private IFlagRegisterField xtal32mEnable;
         private IFlagRegisterField xtal32mReady;
+
+        private readonly IMachine machine;
 
         private enum Registers
         {

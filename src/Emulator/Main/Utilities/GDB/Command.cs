@@ -10,8 +10,10 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Utilities.GDB
@@ -36,7 +38,7 @@ namespace Antmicro.Renode.Utilities.GDB
             }
             else if(result is PacketData resultPacket)
             {
-                return new [] { resultPacket };
+                return new[] { resultPacket };
             }
             throw new ArgumentOutOfRangeException("result",
                 $"Result of GDB command method was of invalid type '{result.GetType().FullName}'");
@@ -68,23 +70,27 @@ namespace Antmicro.Renode.Utilities.GDB
                 translatedAddress = address;
                 return true;
             }
-            
+
             var errorValue = ulong.MaxValue;
             translatedAddress = errorValue;
 
             if(write)
             {
-                translatedAddress = cpu.TranslateAddress(address, MpuAccess.Write);
-
-                if(translatedAddress == errorValue)
+                if(!cpu.TryTranslateAddress(address, MpuAccess.Write, out translatedAddress))
                 {
-                    Logger.LogAs(this, LogLevel.Warning, "Translation address failed for write access type!");
+                    translatedAddress = errorValue;
                 }
             }
             else
             {
-                var fetchAddress = cpu.TranslateAddress(address, MpuAccess.InstructionFetch);
-                var readAddress = cpu.TranslateAddress(address, MpuAccess.Read);
+                if(!cpu.TryTranslateAddress(address, MpuAccess.InstructionFetch, out var fetchAddress))
+                {
+                    fetchAddress = errorValue;
+                }
+                if(!cpu.TryTranslateAddress(address, MpuAccess.Read, out var readAddress))
+                {
+                    readAddress = errorValue;
+                }
 
                 if(fetchAddress == errorValue && readAddress == errorValue)
                 {
@@ -123,7 +129,7 @@ namespace Antmicro.Renode.Utilities.GDB
                     new MemoryFragment(address, length)
                 };
             }
-                
+
             var pageSize = (ulong)cpu.PageSize;
             var accesses = new List<MemoryFragment>();
             var firstLength = Math.Min(length, pageSize - address % pageSize);
@@ -226,22 +232,22 @@ namespace Antmicro.Renode.Utilities.GDB
 
             switch(attribute.Encoding)
             {
-                case ArgumentAttribute.ArgumentEncoding.HexNumber:
-                    return Parse(parameterInfo.ParameterType, valueToParse, NumberStyles.HexNumber);
-                case ArgumentAttribute.ArgumentEncoding.DecimalNumber:
-                    return Parse(parameterInfo.ParameterType, valueToParse);
-                case ArgumentAttribute.ArgumentEncoding.BinaryBytes:
-                    return context.Packet.Data.DataAsBinary.Skip(startPosition).ToArray();
-                case ArgumentAttribute.ArgumentEncoding.HexBytesString:
-                    return valueToParse.Split(2).Select(x => byte.Parse(x, NumberStyles.HexNumber)).ToArray();
-                case ArgumentAttribute.ArgumentEncoding.HexString:
-                    return Encoding.UTF8.GetString(valueToParse.Split(2).Select(x => byte.Parse(x, NumberStyles.HexNumber)).ToArray());
-                case ArgumentAttribute.ArgumentEncoding.String:
-                    return valueToParse;
-                case ArgumentAttribute.ArgumentEncoding.ThreadId:
-                    return new PacketThreadId(valueToParse);
-                default:
-                    throw new ArgumentException(string.Format("Unsupported argument type: {0}", parameterInfo.ParameterType.Name));
+            case ArgumentAttribute.ArgumentEncoding.HexNumber:
+                return Parse(parameterInfo.ParameterType, valueToParse, NumberStyles.HexNumber);
+            case ArgumentAttribute.ArgumentEncoding.DecimalNumber:
+                return Parse(parameterInfo.ParameterType, valueToParse);
+            case ArgumentAttribute.ArgumentEncoding.BinaryBytes:
+                return context.Packet.Data.DataAsBinary.Skip(startPosition).ToArray();
+            case ArgumentAttribute.ArgumentEncoding.HexBytesString:
+                return valueToParse.Split(2).Select(x => byte.Parse(x, NumberStyles.HexNumber)).ToArray();
+            case ArgumentAttribute.ArgumentEncoding.HexString:
+                return Encoding.UTF8.GetString(valueToParse.Split(2).Select(x => byte.Parse(x, NumberStyles.HexNumber)).ToArray());
+            case ArgumentAttribute.ArgumentEncoding.String:
+                return valueToParse;
+            case ArgumentAttribute.ArgumentEncoding.ThreadId:
+                return new PacketThreadId(valueToParse);
+            default:
+                throw new ArgumentException(string.Format("Unsupported argument type: {0}", parameterInfo.ParameterType.Name));
             }
         }
 
@@ -278,6 +284,7 @@ namespace Antmicro.Renode.Utilities.GDB
             }
 
             public int CurrentPosition { get; set; }
+
             public Packet Packet { get; set; }
         }
     }
@@ -291,7 +298,7 @@ namespace Antmicro.Renode.Utilities.GDB
         }
 
         public ulong Address { get; }
+
         public ulong Length { get; }
     }
 }
-

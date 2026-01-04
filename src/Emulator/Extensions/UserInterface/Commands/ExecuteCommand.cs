@@ -5,17 +5,26 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using AntShell.Commands;
-using Antmicro.Renode.UserInterface.Tokenizer;
 using System;
-using Antmicro.Renode.Utilities;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.UserInterface.Tokenizer;
+using Antmicro.Renode.Utilities;
+
+using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface.Commands
 {
     public class ExecuteCommand : Command
     {
+        public ExecuteCommand(Monitor monitor, string name, string noun, Func<VariableToken, Token> getVariable, Func<IEnumerable<string>> getVariables) : base(monitor, name, "executes a command or the content of a {0}.".FormatWith(noun))
+        {
+            GetVariable = getVariable;
+            GetVariables = getVariables;
+            this.noun = noun;
+        }
+
         public override void PrintHelp(ICommandInteraction writer)
         {
             base.PrintHelp(writer);
@@ -52,16 +61,8 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
         }
 
-        public ExecuteCommand(Monitor monitor, string name, string noun, Func<VariableToken, Token> getVariable, Func<IEnumerable<string>> getVariables):base(monitor, name, "executes a command or the content of a {0}.".FormatWith(noun))
-        {
-            GetVariable = getVariable;
-            GetVariables = getVariables;
-            this.noun = noun;
-        }
-
         private readonly string noun;
         private readonly Func<VariableToken, Token> GetVariable;
         private readonly Func<IEnumerable<string>> GetVariables;
     }
 }
-

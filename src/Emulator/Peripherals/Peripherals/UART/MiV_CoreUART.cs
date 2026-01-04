@@ -5,9 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -25,27 +26,22 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, b) => {
                         this.TransmitCharacter((byte)b);
                     })},
-
                 {(long)Registers.ReceiveData, new ByteRegister(this)
                     .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => {
                         this.TryGetCharacter(out var character);
                         return character;
                     })},
-
                 {(long)Registers.Control1, new ByteRegister(this)
                     .WithValueField(0, 8, out baudValue0to7, name: "BAUD_VALUE_0_7")},
-
                 {(long)Registers.Control2, new ByteRegister(this)
                     .WithFlag(0, name: "BIT8") // The register only provides a read-back function
                     .WithFlag(1, out parityFlagField, name: "PARITY_EN")
                     .WithFlag(2, out oddNEventFlagField, name: "ODD_N_EVEN")
                     .WithValueField(3, 5, out baudValue8to12, name: "BAUD_VALUE_8_12")},
-
                 {(long)Registers.Control3, new ByteRegister(this)
                     .WithValueField(0, 3, out baudValueFractionField, name: "BAUD_VAL_FRACTION")
                     // bits 7:3 not mentioned in the documentation
                 },
-
                 {(long)Registers.Status, new ByteRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "TXRDY")
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => Count > 0, name: "RXRDY")

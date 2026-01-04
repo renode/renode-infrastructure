@@ -7,10 +7,12 @@
 using System;
 using System.Runtime.InteropServices;
 
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Debugging;
+#pragma warning disable IDE0005
+using Antmicro.Renode.Exceptions;
+#pragma warning restore IDE0005
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode
 {
@@ -230,7 +232,7 @@ namespace Antmicro.Renode
                 var lastErrorCode = Marshal.GetLastWin32Error();
                 var lastErrorMessage = LibCWrapper.Strerror(lastErrorCode);
 
-                loggingParent.Log(LogLevel.Error, "There was an error when executing the {0} ioctl: {1} (0x{2:X})", Enum.GetName(typeof(IoctlCode), code), lastErrorMessage, lastErrorCode); 
+                loggingParent.Log(LogLevel.Error, "There was an error when executing the {0} ioctl: {1} (0x{2:X})", Enum.GetName(typeof(IoctlCode), code), lastErrorMessage, lastErrorCode);
                 LibCWrapper.Close(fd);
                 return false;
             }

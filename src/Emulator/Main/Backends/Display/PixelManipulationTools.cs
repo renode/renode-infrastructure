@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -7,32 +7,39 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq.Expressions;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq.Expressions;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Backends.Display
 {
     public static class PixelManipulationTools
     {
-        public static IPixelConverter GetConverter(PixelFormat inputFormat, Endianess inputEndianess, PixelFormat outputFormat, Endianess outputEndianess, PixelFormat? clutInputFormat = null, Pixel inputFixedColor = null /* fixed color for A4 and A8 mode */)
+        public static IPixelConverter GetConverter(PixelFormat inputFormat, Endianess inputEndianess, PixelFormat outputFormat, Endianess outputEndianess, int? pitch = null, int? height = null, PixelFormat? clutInputFormat = null, Pixel inputFixedColor = null /* fixed color for A4 and A8 mode */)
         {
-            var converterConfiguration = Tuple.Create(inputFormat, inputEndianess, outputFormat, outputEndianess, clutInputFormat, inputFixedColor);
-            return convertersCache.GetOrAdd(converterConfiguration, (_) => 
-                new PixelConverter(inputFormat, outputFormat, GenerateConvertMethod(
-                    new BufferDescriptor
-                    {
-                        ColorFormat = inputFormat,
-                        ClutColorFormat = clutInputFormat,
-                        FixedColor = inputFixedColor,
-                        DataEndianness = inputEndianess
-                    },
-                    new BufferDescriptor
-                    {
-                        ColorFormat = outputFormat,
-                        DataEndianness = outputEndianess
-                    })));
+            if(inputFormat.IsPlanar() && (pitch == null || height == null))
+            {
+                throw new ArgumentNullException($"Pitch and height must be known to convert from a planar format such as {inputFormat}");
+            }
+            var inputBufferDescriptor =  new BufferDescriptor
+            {
+                ColorFormat = inputFormat,
+                ClutColorFormat = clutInputFormat,
+                FixedColor = inputFixedColor,
+                DataEndianness = inputEndianess,
+                Pitch = pitch,
+                Height = height,
+            };
+            var outputBufferDescriptor = new BufferDescriptor
+            {
+                ColorFormat = outputFormat,
+                DataEndianness = outputEndianess
+            };
+            var converterConfiguration = Tuple.Create(inputBufferDescriptor, outputBufferDescriptor);
+            return convertersCache.GetOrAdd(converterConfiguration, (_) =>
+                new PixelConverter(inputFormat, outputFormat, GenerateConvertMethod(inputBufferDescriptor, outputBufferDescriptor)));
         }
 
         public static IPixelBlender GetBlender(PixelFormat backBuffer, Endianess backBufferEndianess, PixelFormat frontBuffer, Endianess frontBufferEndianes, PixelFormat output, Endianess outputEndianess, PixelFormat? clutForegroundFormat = null, PixelFormat? clutBackgroundFormat = null, Pixel bgFixedColor = null, Pixel fgFixedColor = null)
@@ -262,6 +269,8 @@ namespace Antmicro.Renode.Backends.Display
             var vOutPos = Expression.Variable(typeof(int), "outPos");
 
             var tmp = Expression.Variable(typeof(uint));
+            // There should be a way to specify a stride != the width
+            var lengthExpr = inputBufferDescriptor.ColorFormat.IsPlanar() ? (Expression)Expression.Constant(inputBufferDescriptor.Pitch.Value * inputBufferDescriptor.Height.Value) : Expression.Property(vInputBuffer, "Length");
 
             var outOfLoop = Expression.Label();
 
@@ -270,7 +279,7 @@ namespace Antmicro.Renode.Backends.Display
 
                 Expression.Assign(vInStep, Expression.Constant(inputBufferDescriptor.ColorFormat.GetColorDepth())),
                 Expression.Assign(vOutStep, Expression.Constant(outputBufferDescriptor.ColorFormat.GetColorDepth())),
-                Expression.Assign(vLength, Expression.Property(vInputBuffer, "Length")),
+                Expression.Assign(vLength, lengthExpr),
 
                 Expression.Assign(vInPos, Expression.Constant(0)),
                 Expression.Assign(vOutPos, Expression.Constant(0)),
@@ -321,6 +330,11 @@ namespace Antmicro.Renode.Backends.Display
         /// <param name="color">Variable where values of color channels should be stored.</param>
         private static Expression GenerateFrom(BufferDescriptor inputBufferDescriptor, ParameterExpression inBuffer, ParameterExpression clutBuffer, Expression inPosition, PixelDescriptor color, Expression tmp)
         {
+            if(inputBufferDescriptor.ColorFormat == PixelFormat.NV12)
+            {
+                return GenerateFromNV12(inputBufferDescriptor, inBuffer, inPosition, color);
+            }
+
             byte currentBit = 0;
             byte currentByte = 0;
             bool isAlphaSet = false;
@@ -398,10 +412,10 @@ namespace Antmicro.Renode.Backends.Display
                     // todo: indirect parameters should not be needed here, but we  m u s t  pass something
                     expressions.Add(
                         GenerateFrom(new BufferDescriptor
-                    {
-                        ColorFormat = inputBufferDescriptor.ClutColorFormat.Value,
-                        DataEndianness = inputBufferDescriptor.DataEndianness
-                    }, clutBuffer, clutBuffer, Expression.Convert(clutOffset, typeof(int)), color, tmp));
+                        {
+                            ColorFormat = inputBufferDescriptor.ClutColorFormat.Value,
+                            DataEndianness = inputBufferDescriptor.DataEndianness
+                        }, clutBuffer, clutBuffer, Expression.Convert(clutOffset, typeof(int)), color, tmp));
 
                     expressions.Add(Expression.Assign(color.AlphaChannel, tmp));
                 }
@@ -518,7 +532,6 @@ namespace Antmicro.Renode.Backends.Display
                         currentExpressionFragment = Expression.And(
                             Expression.LeftShift(currentExpressionFragment, Expression.Constant((int)(-transformation.ShiftBits))),
                             Expression.Constant((uint)0xFF));
-
                     }
 
                     currentExpression = (currentExpression == null) ? currentExpressionFragment : Expression.Or(currentExpression, currentExpressionFragment);
@@ -531,7 +544,7 @@ namespace Antmicro.Renode.Backends.Display
                                 Expression.ArrayAccess(outBuffer,
                                     Expression.Add(
                                         outPosition,
-                                        Expression.Constant((outputBufferDescriptor.DataEndianness == Endianess.BigEndian) ? (int) currentByte : (outputBufferDescriptor.ColorFormat.GetColorDepth() - currentByte - 1)))),
+                                        Expression.Constant((outputBufferDescriptor.DataEndianness == Endianess.BigEndian) ? (int)currentByte : (outputBufferDescriptor.ColorFormat.GetColorDepth() - currentByte - 1)))),
                                 Expression.Convert(currentExpression, typeof(byte))));
 
                         currentExpression = null;
@@ -542,6 +555,72 @@ namespace Antmicro.Renode.Backends.Display
             }
 
             return Expression.Block(expressions);
+        }
+
+        private static Expression GenerateFromNV12(BufferDescriptor desc, ParameterExpression inBuffer, Expression inPosition, PixelDescriptor color)
+        {
+            var pitch = desc.Pitch.Value;
+            var height = desc.Height.Value;
+            var i8 = Expression.Constant(8);
+            var i128 = Expression.Constant(128);
+            var iPitch = Expression.Constant(pitch);
+            var yPlaneSize = Expression.Constant(pitch * height);
+
+            var xCoord = Expression.Modulo(inPosition, iPitch);
+            var yCoord = Expression.Divide(inPosition, iPitch);
+
+            var uvRow = Expression.Divide(yCoord, Expression.Constant(2));
+            var uvCol = Expression.Divide(xCoord, Expression.Constant(2));
+
+            var uvPixelOffset = Expression.Add(Expression.Multiply(uvRow, iPitch), Expression.Multiply(uvCol, Expression.Constant(2)));
+            var uPos = Expression.Add(yPlaneSize, uvPixelOffset);
+
+            var yVal = Expression.Variable(typeof(int), "yVal");
+            var uVal = Expression.Variable(typeof(int), "uVal");
+            var vVal = Expression.Variable(typeof(int), "vVal");
+
+            var c298 = Expression.Variable(typeof(int), "C"); // (Y - 16) * 298
+            var d = Expression.Variable(typeof(int), "D"); // U - 128
+            var e = Expression.Variable(typeof(int), "E"); // V - 128
+
+            // YUV -> RGB
+            // R = clamp(( [298 * ] C           + 409 * E + 128) >> 8)
+            // G = clamp(( [298 * ] C - 100 * D - 208 * E + 128) >> 8)
+            // B = clamp(( [298 * ] C + 516 * D           + 128) >> 8)
+            var expressions = new [] {
+                Expression.Assign(yVal, Expression.Convert(Expression.ArrayAccess(inBuffer, inPosition), typeof(int))),
+                Expression.Assign(uVal, Expression.Convert(Expression.ArrayAccess(inBuffer, uPos), typeof(int))),
+                Expression.Assign(vVal, Expression.Convert(Expression.ArrayAccess(inBuffer, Expression.Add(uPos, Expression.Constant(1))), typeof(int))),
+                Expression.Assign(c298, Expression.Multiply(Expression.Constant(298), Expression.Subtract(yVal, Expression.Constant(16)))),
+                Expression.Assign(d, Expression.Subtract(uVal, i128)),
+                Expression.Assign(e, Expression.Subtract(vVal, i128)),
+                Expression.Assign(color.RedChannel, GenerateClamp(Expression.RightShift(Expression.Add(Expression.Add(c298, Expression.Multiply(Expression.Constant(409), e)), i128), i8))),
+                Expression.Assign(color.GreenChannel, GenerateClamp(Expression.RightShift(Expression.Subtract(Expression.Subtract(c298, Expression.Multiply(Expression.Constant(100), d)), Expression.Add(Expression.Multiply(Expression.Constant(208), e), i128)), i8))),
+                Expression.Assign(color.BlueChannel, GenerateClamp(Expression.RightShift(Expression.Add(Expression.Add(c298, Expression.Multiply(Expression.Constant(516), d)), i128), i8))),
+                Expression.Assign(color.AlphaChannel, Expression.Constant(255u)),
+            };
+
+            return Expression.Block(
+                new[] { yVal, uVal, vVal, c298, d, e },
+                expressions
+            );
+        }
+
+        private static Expression GenerateClamp(Expression value)
+        {
+            // (uint)((value < 0) ? 0 : ((value > 255) ? 255 : value))
+            return Expression.Convert(
+                Expression.Condition(
+                    Expression.LessThan(value, Expression.Constant(0)),
+                    Expression.Constant(0),
+                    Expression.Condition(
+                        Expression.GreaterThan(value, Expression.Constant(255)),
+                        Expression.Constant(255),
+                        value
+                    )
+                ),
+                typeof(uint)
+            );
         }
 
         /// <summary>
@@ -610,7 +689,7 @@ namespace Antmicro.Renode.Backends.Display
                 var shift = (sbyte)(-bitOffset + additionalShift);
 
                 // optimization
-                if ((mask >> shift) == (0xFF >> shift))
+                if((mask >> shift) == (0xFF >> shift))
                 {
                     mask = 0xFF;
                 }
@@ -626,19 +705,8 @@ namespace Antmicro.Renode.Backends.Display
             return result.ToArray();
         }
 
-        private struct TransformationDescriptor
-        {
-            public TransformationDescriptor(sbyte shift, byte mask, byte usedBits) : this()
-            {
-                ShiftBits = shift;
-                MaskBits = mask;
-                UsedBits = usedBits;
-            }
-
-            public sbyte ShiftBits { get; private set; }
-            public byte  MaskBits  { get; private set; }
-            public byte  UsedBits  { get; private set; }
-        }
+        private static readonly ConcurrentDictionary<Tuple<BufferDescriptor, BufferDescriptor>, IPixelConverter> convertersCache = new ConcurrentDictionary<Tuple<BufferDescriptor, BufferDescriptor>, IPixelConverter>();
+        private static readonly ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
 
         private class PixelConverter : IPixelConverter
         {
@@ -660,6 +728,7 @@ namespace Antmicro.Renode.Backends.Display
             }
 
             public PixelFormat Input { get; private set; }
+
             public PixelFormat Output { get; private set; }
 
             private readonly ConvertDelegate converter;
@@ -690,17 +759,13 @@ namespace Antmicro.Renode.Backends.Display
             }
 
             public PixelFormat BackBuffer { get; private set; }
+
             public PixelFormat FrontBuffer { get; private set; }
+
             public PixelFormat Output { get; private set; }
 
             private readonly BlendDelegate blender;
         }
-
-        private static ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter> convertersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat?, Pixel>, IPixelConverter>();
-        private static ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
-
-        private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer);
-        private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
 
         private class PixelDescriptor
         {
@@ -718,12 +783,39 @@ namespace Antmicro.Renode.Backends.Display
             public ParameterExpression AlphaChannel;
         }
 
-        private class BufferDescriptor
+        private struct BufferDescriptor
         {
             public PixelFormat ColorFormat { get; set; }
+
             public Endianess DataEndianness { get; set; }
+
             public PixelFormat? ClutColorFormat { get; set; }
+
             public Pixel FixedColor { get; set; } // for A4 and A8 modes
+
+            public int? Pitch { get; set; }
+
+            public int? Height { get; set; }
         }
+
+        private struct TransformationDescriptor
+        {
+            public TransformationDescriptor(sbyte shift, byte mask, byte usedBits) : this()
+            {
+                ShiftBits = shift;
+                MaskBits = mask;
+                UsedBits = usedBits;
+            }
+
+            public sbyte ShiftBits { get; private set; }
+
+            public byte MaskBits { get; private set; }
+
+            public byte UsedBits { get; private set; }
+        }
+
+        private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer);
+
+        private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
     }
 }

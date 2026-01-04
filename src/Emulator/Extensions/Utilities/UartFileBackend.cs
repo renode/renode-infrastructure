@@ -1,18 +1,18 @@
 ﻿//
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.IO;
-using System.Text;
-using Antmicro.Renode.Core.Structure;
+
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Logging;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Extensions.Utilities
 {
@@ -32,7 +32,7 @@ namespace Antmicro.Renode.Extensions.Utilities
             emulation.ExternalsManager.AddExternal(new UartFileBackend(path, uart, immediateFlush), name);
         }
 
-        public static void CloseFileBackend(this IUART uart, string path)
+        public static void CloseFileBackend(this IUART _, string path)
         {
             var emulation = EmulationManager.Instance.CurrentEmulation;
             var name = ExternalNamePrefix + Path.GetFullPath(path);
@@ -50,6 +50,7 @@ namespace Antmicro.Renode.Extensions.Utilities
         private const string ExternalNamePrefix = "__uart_file_backend__";
     }
 
+    [Transient]
     public class UartFileBackend : IExternal, IDisposable
     {
         public UartFileBackend(SequencedFilePath path, IUART uart, bool immediateFlush = false)

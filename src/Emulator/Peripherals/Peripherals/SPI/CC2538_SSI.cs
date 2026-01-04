@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -179,19 +180,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                         || (rxFifoOverrunInterrupt.Value && rxFifoOverrunInterruptMask.Value));
         }
 
-        private DoubleWordRegisterCollection registers;
-        private CircularBuffer<byte> rxFifo;
-        private CircularBuffer<byte> txFifo;
+        private readonly DoubleWordRegisterCollection registers;
+        private readonly CircularBuffer<byte> rxFifo;
+        private readonly CircularBuffer<byte> txFifo;
 
-        private IFlagRegisterField enabled;
+        private readonly IFlagRegisterField enabled;
 
-        private IFlagRegisterField rxFifoOverrunInterruptMask;
-        private IFlagRegisterField rxFifoInterruptMask;
-        private IFlagRegisterField txFifoInterruptMask;
+        private readonly IFlagRegisterField rxFifoOverrunInterruptMask;
+        private readonly IFlagRegisterField rxFifoInterruptMask;
+        private readonly IFlagRegisterField txFifoInterruptMask;
 
-        private IFlagRegisterField rxFifoOverrunInterrupt;
-        private IFlagRegisterField rxFifoInterrupt;
-        private IFlagRegisterField txFifoInterrupt;
+        private readonly IFlagRegisterField rxFifoOverrunInterrupt;
+        private readonly IFlagRegisterField rxFifoInterrupt;
+        private readonly IFlagRegisterField txFifoInterrupt;
 
         private const int FifoCapacity = 16;
 

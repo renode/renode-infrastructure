@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Logging;
@@ -65,6 +66,15 @@ namespace Antmicro.Renode.Core
         {
             GetOrCreateGenerator().NextBytes(buffer);
         }
+
+        public ulong NextUlong()
+        {
+            byte[] buffer = new byte[8];
+            NextBytes(buffer);
+            return BitConverter.ToUInt64(buffer, 0);
+        }
+
+        private static int baseSeed = new Random().Next();
 
         private RandomGenerator GetGeneratorForCurentThread()
         {
@@ -132,8 +142,6 @@ namespace Antmicro.Renode.Core
 
         private readonly HashSet<RandomGenerator> serializedGenerators = new HashSet<RandomGenerator>(); // we initialize the collection to simplify the rest of the code
         private readonly object locker;
-
-        private static int baseSeed = new Random().Next();
 
         private class RandomGenerator
         {

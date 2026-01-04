@@ -5,13 +5,14 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
@@ -77,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             .WithTaggedFlag("TXC", 6)
             .WithFlag(7, mode: FieldMode.Read, valueProviderCallback: (_) => !txBuffer.Any(), name: "TXBL")
             .WithFlag(8, mode: FieldMode.Read, valueProviderCallback: (_) => rxBuffer.Any(), name: "RXDATAV")
-            .WithFlag(9, mode: FieldMode.Read, valueProviderCallback: (_) => rxBuffer.Count >= maxRxBufferBytes, name: "RXFULL");
+            .WithFlag(9, mode: FieldMode.Read, valueProviderCallback: (_) => rxBuffer.Count >= MaxRxBufferBytes, name: "RXFULL");
 
         protected DoubleWordRegister GenerateClockDivisionRegister() => new DoubleWordRegister(this)
             .WithTag("DIV", 0, 9)
@@ -127,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 valueProviderCallback: (irq, __) => interruptsManager.IsSet(irq) && interruptsManager.IsEnabled(interrupt: irq),
                 writeCallback: (irq, prevValue, newValue) =>
                 {
-                    if (newValue)
+                    if(newValue)
                     {
                         interruptsManager.ClearInterrupt(irq);
                     }
@@ -177,31 +178,31 @@ namespace Antmicro.Renode.Peripherals.I2C
             {
                 switch(c)
                 {
-                    case Command.SendStartCondition:
-                        OnStartCommand();
-                        break;
+                case Command.SendStartCondition:
+                    OnStartCommand();
+                    break;
 
-                    case Command.SendStopCondition:
-                        OnStopCommand();
-                        break;
+                case Command.SendStopCondition:
+                    OnStopCommand();
+                    break;
 
-                    case Command.SendAck:
-                        OnAckCommand();
-                        break;
+                case Command.SendAck:
+                    OnAckCommand();
+                    break;
 
-                    case Command.SendNotAck:
-                        this.Log(LogLevel.Noisy, "Send NACK");
-                        interruptsManager.SetInterrupt(Interrupt.MasterStopCondition);
-                        break;
+                case Command.SendNotAck:
+                    this.Log(LogLevel.Noisy, "Send NACK");
+                    interruptsManager.SetInterrupt(Interrupt.MasterStopCondition);
+                    break;
 
-                    case Command.ClearTransmitBufferAndShiftRegister:
-                        this.Log(LogLevel.Noisy, "Cleared TX buffer");
-                        txBuffer.Clear();
-                        break;
+                case Command.ClearTransmitBufferAndShiftRegister:
+                    this.Log(LogLevel.Noisy, "Cleared TX buffer");
+                    txBuffer.Clear();
+                    break;
 
-                    default:
-                        this.Log(LogLevel.Warning, "Received unsupported command: {0}", c);
-                        break;
+                default:
+                    this.Log(LogLevel.Warning, "Received unsupported command: {0}", c);
+                    break;
                 }
             }
         }
@@ -221,23 +222,23 @@ namespace Antmicro.Renode.Peripherals.I2C
             interruptsManager.SetInterrupt(Interrupt.StartCondition);
             switch(txBuffer.Count)
             {
-                case 0:
-                    // the first byte contains device address and R/W flag; we have to wait for it
-                    waitingForAddressByte = true;
-                    interruptsManager.SetInterrupt(Interrupt.BusHold);
-                    // TODO: here we should also set I2Cn_STATE to 0x57 according to p.442
-                    break;
-                case 1:
-                    // there is a byte address waiting already in the buffer
-                    HandleAddressByte();
-                    break;
-                default:
-                    // there is a byte address waiting already in the buffer, along with some data
-                    HandleAddressByte();
-                    // Clear TXBL, as some data is already present in the buffer
-                    interruptsManager.ClearInterrupt(interrupt: Interrupt.TransmitBufferLevel);
-                    HandleDataByte();
-                    break;
+            case 0:
+                // the first byte contains device address and R/W flag; we have to wait for it
+                waitingForAddressByte = true;
+                interruptsManager.SetInterrupt(Interrupt.BusHold);
+                // TODO: here we should also set I2Cn_STATE to 0x57 according to p.442
+                break;
+            case 1:
+                // there is a byte address waiting already in the buffer
+                HandleAddressByte();
+                break;
+            default:
+                // there is a byte address waiting already in the buffer, along with some data
+                HandleAddressByte();
+                // Clear TXBL, as some data is already present in the buffer
+                interruptsManager.ClearInterrupt(interrupt: Interrupt.TransmitBufferLevel);
+                HandleDataByte();
+                break;
             }
         }
 
@@ -335,7 +336,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void LoadRxData(int count)
         {
-            var spaceLeft = Math.Max(0, maxRxBufferBytes - rxBuffer.Count);
+            var spaceLeft = Math.Max(0, MaxRxBufferBytes - rxBuffer.Count);
             if(spaceLeft == 0)
             {
                 this.Log(LogLevel.Warning, "Requesting read but no space left in RX buffer");
@@ -386,7 +387,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private readonly Queue<byte> txBuffer;
         private readonly Queue<byte> rxBuffer;
         private readonly InterruptManager<Interrupt> interruptsManager;
-        private const int maxRxBufferBytes = 2;
+        private const int MaxRxBufferBytes = 2;
 
         private enum Registers
         {

@@ -24,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.Network
         public string PrettyString => $"Clause45Address {{ DeviceAddress: {DeviceAddress}, RegisterAddress: {RegisterAddress} }}";
 
         public byte DeviceAddress { get; }
+
         public ushort RegisterAddress { get; }
     }
 }

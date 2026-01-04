@@ -7,6 +7,7 @@
 //
 using System;
 using System.Text;
+
 using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Logging
@@ -52,4 +53,3 @@ namespace Antmicro.Renode.Logging
         }
     }
 }
-

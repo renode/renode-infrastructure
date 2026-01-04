@@ -9,7 +9,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+
 using Antmicro.Renode.Core.Structure;
+
 using PacketDotNet;
 using PacketDotNet.Utils;
 
@@ -27,26 +29,26 @@ namespace Antmicro.Renode.Network
             frame = null;
             switch(crcMode)
             {
-                case CRCMode.NoOperation:
-                    if(data.Length >= MinFrameSizeWithoutCRC)
-                    {
-                        frame = new EthernetFrame(data);
-                        return true;
-                    }
-                    return false;
-                case CRCMode.Add:
-                case CRCMode.Replace:
-                case CRCMode.Keep:
-                    if(data.Length >= MinFrameSizeWithoutCRC + CRCLength)
-                    {
-                        var noCrcData = crcMode == CRCMode.Add ? data : data.Take(data.Length - CRCLength).ToArray();
-                        var crc = (crcMode == CRCMode.Keep ? data.Skip(data.Length - CRCLength) : ComputeCRC(noCrcData)).ToArray();
-                        frame = new EthernetFrame(noCrcData, crc);
-                        return true;
-                    }
-                    return false;
-                default:
-                    throw new ArgumentException("Illegal value", "crcMode");
+            case CRCMode.NoOperation:
+                if(data.Length >= MinFrameSizeWithoutCRC)
+                {
+                    frame = new EthernetFrame(data);
+                    return true;
+                }
+                return false;
+            case CRCMode.Add:
+            case CRCMode.Replace:
+            case CRCMode.Keep:
+                if(data.Length >= MinFrameSizeWithoutCRC + CRCLength)
+                {
+                    var noCrcData = crcMode == CRCMode.Add ? data : data.Take(data.Length - CRCLength).ToArray();
+                    var crc = (crcMode == CRCMode.Keep ? data.Skip(data.Length - CRCLength) : ComputeCRC(noCrcData)).ToArray();
+                    frame = new EthernetFrame(noCrcData, crc);
+                    return true;
+                }
+                return false;
+            default:
+                throw new ArgumentException("Illegal value", "crcMode");
             }
         }
 
@@ -54,6 +56,20 @@ namespace Antmicro.Renode.Network
         {
             return CompareCRC(GetCRCFromPacket(data), CalculateCRCFromPayload(data));
         }
+
+        // note: the length 18 covers only:
+        // * mac destination (6)
+        // * mac source (6)
+        // * 802.1Q tag (4)
+        // * ether type or length (2)
+        // and is chosen so that Packet .NET doesn't crash
+        // when parsing the packet;
+        // according to the ethernet specs the packet must
+        // be at least 64 bits long, but since not all
+        // ethernet models in Renode support automatic
+        // padding the selected value is a compromise
+        public static int MinFrameSizeWithoutCRC = 18;
+        public static int CRCLength = 4;
 
         public void FillWithChecksums(EtherType[] supportedEtherTypes, IPProtocolType[] supportedIpProtocolTypes, bool updateEthernetCrc = true)
         {
@@ -125,28 +141,9 @@ namespace Antmicro.Renode.Network
             }
         }
 
-        // note: the length 18 covers only:
-        // * mac destination (6)
-        // * mac source (6)
-        // * 802.1Q tag (4)
-        // * ether type or length (2)
-        // and is chosen so that Packet .NET doesn't crash
-        // when parsing the packet;
-        // according to the ethernet specs the packet must
-        // be at least 64 bits long, but since not all
-        // ethernet models in Renode support automatic
-        // padding the selected value is a compromise
-        public static int MinFrameSizeWithoutCRC = 18;
-        public static int CRCLength = 4;
         // 1500 byte upper layer IP packet with 14 byte frame header and 4 byte frame trailer
         public static readonly int MaximumFrameSize = 1518;
         public static readonly int RuntPacketMaximumSize = 63;
-
-        private EthernetFrame(byte[] data, byte[] crc = null)
-        {
-            this.crc = crc;
-            this.UnderlyingPacket = (EthernetPacket)Packet.ParsePacket(LinkLayers.Ethernet, data);
-        }
 
         private static IEnumerable<byte> ComputeCRC(byte[] data, int? lenght = null)
         {
@@ -168,6 +165,12 @@ namespace Antmicro.Renode.Network
         private static bool CompareCRC(IEnumerable<byte> receivedCrc, IEnumerable<byte> computedCrc)
         {
             return receivedCrc.SequenceEqual(computedCrc);
+        }
+
+        private EthernetFrame(byte[] data, byte[] crc = null)
+        {
+            this.crc = crc;
+            this.UnderlyingPacket = (EthernetPacket)Packet.ParsePacket(LinkLayers.Ethernet, data);
         }
 
         private byte[] crc;

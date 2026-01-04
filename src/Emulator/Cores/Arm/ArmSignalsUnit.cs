@@ -41,6 +41,168 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
     public class ArmSignalsUnit : IPeripheral, ISignalsUnit
     {
+        public void FillConfigurationStateStruct(IntPtr allocatedStructPointer, Arm cpu)
+        {
+            var registeredCPU = GetRegisteredCPU(cpu);
+            registeredCPU.FillConfigurationStateStruct(allocatedStructPointer);
+        }
+
+        public void SetSignalStateForCPU(ArmSignals armSignal, bool state, ICPU cpu)
+        {
+            var signal = signals[armSignal];
+            AssertSignalCPUIndexed(signal, inSetMethod: true);
+
+            var cpuIndex = GetRegisteredCPU(cpu).Index;
+            signal.SetState(cpuIndex, state);
+        }
+
+        public void SetSignalStateForCPU(string name, bool state, ICPU cpu)
+        {
+            SetSignalStateForCPU(signals.Parse(name), state, cpu);
+        }
+
+        public void SetSignalState(ArmSignals armSignal, bool state, uint index)
+        {
+            var signal = signals[armSignal];
+            AssertSignalNotCPUIndexed(signal, inSetMethod: true);
+
+            signal.SetState(checked((byte)index), state);
+        }
+
+        public void SetSignalState(string name, bool state, uint index)
+        {
+            SetSignalState(signals.Parse(name), state, index);
+        }
+
+        public void SetSignalFromAddress(ArmSignals armSignal, ulong address)
+        {
+            var signal = signals[armSignal];
+            AssertSignalNotCPUIndexed(signal, inSetMethod: true);
+
+            signal.SetFromAddress(AddressWidth, address);
+        }
+
+        // Convenience methods for signals which are meant to hold top bits of address.
+        // There's no need to check if such a signal was chosen, a RecoverableException
+        // is thrown if the signal can't hold the given address.
+        public void SetSignalFromAddress(string name, ulong address)
+        {
+            SetSignalFromAddress(signals.Parse(name), address);
+        }
+
+        public void SetSignal(ArmSignals armSignal, ulong value)
+        {
+            var signal = signals[armSignal];
+            AssertSignalNotCPUIndexed(signal, inSetMethod: true);
+
+            signal.Value = value;
+        }
+
+        public void SetSignal(string name, ulong value)
+        {
+            SetSignal(signals.Parse(name), value);
+        }
+
+        public void ResetSignals()
+        {
+            signals.Reset();
+        }
+
+        public void Reset()
+        {
+            // Intentionally left blank. Signal values should be preserved across machine resets.
+        }
+
+        // Called in Arm constructors if ArmSignalsUnit passed.
+        public void RegisterCPU(Arm cpu)
+        {
+            lock(registeredCPUs)
+            {
+                AssertCPUModelIsSupported(cpu.Model);
+
+                // Bit offset for this CPU in CPU-indexed signals.
+                var cpuIndex = registeredCPUs.Count;
+                registeredCPUs[cpu] = new RegisteredCPU(machine, cpu, this, cpuIndex);
+                signals.SetCPUIndexedSignalsWidth((uint)registeredCPUs.Count);
+            }
+
+            cpu.StateChanged += (_, oldState, __) =>
+            {
+                if(oldState == EmulationCPUState.InReset)
+                {
+                    if(unitType == UnitType.CortexR8)
+                    {
+                        lock(registeredCPUs)
+                        {
+                            if(firstSCURegistration is NullRegistrationPoint && !scuRegisteredAtBus)
+                            {
+                                RegisterSCU();
+                                scuRegisteredAtBus = true;
+                            }
+                        }
+                    }
+                    registeredCPUs[cpu].OnCPUOutOfReset();
+                };
+            };
+        }
+
+        public bool IsSignalEnabledForCPU(ArmSignals armSignal, ICPU cpu)
+        {
+            var signal = signals[armSignal];
+            AssertSignalCPUIndexed(signal, inSetMethod: false);
+
+            var cpuIndex = GetRegisteredCPU(cpu).Index;
+            return signals[armSignal].IsEnabled(cpuIndex);
+        }
+
+        public bool IsSignalEnabledForCPU(string name, ICPU cpu)
+        {
+            return IsSignalEnabledForCPU(signals.Parse(name), cpu);
+        }
+
+        public bool IsSignalEnabled(ArmSignals armSignal)
+        {
+            var signal = signals[armSignal];
+            AssertSignalNotCPUIndexed(signal, inSetMethod: false);
+
+            return signal.IsEnabled();
+        }
+
+        public bool IsSignalEnabled(string name)
+        {
+            return IsSignalEnabled(signals.Parse(name));
+        }
+
+        public ulong GetSignal(ArmSignals armSignal)
+        {
+            var signal = signals[armSignal];
+            AssertSignalNotCPUIndexed(signal, inSetMethod: false);
+
+            return signal.Value;
+        }
+
+        public ulong GetSignal(string name)
+        {
+            return GetSignal(signals.Parse(name));
+        }
+
+        public ulong GetAddress(ArmSignals armSignal)
+        {
+            var signal = signals[armSignal];
+            AssertSignalNotCPUIndexed(signal, inSetMethod: false);
+
+            return signal.GetAddress(AddressWidth);
+        }
+
+        public ulong GetAddress(string name)
+        {
+            return GetAddress(signals.Parse(name));
+        }
+
+        public uint AddressWidth { get; } = 32;
+
+        public IEnumerable<ICPU> RegisteredCPUs => registeredCPUs.Keys;
+
         protected ArmSignalsUnit(IMachine machine, UnitType unitType, ArmSnoopControlUnit snoopControlUnit = null)
         {
             this.machine = machine;
@@ -61,166 +223,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 throw new ConstructionException($"{nameof(snoopControlUnit)} can't be used in {unitType}SignalsUnit");
             }
         }
-
-        public void FillConfigurationStateStruct(IntPtr allocatedStructPointer, Arm cpu)
-        {
-            var registeredCPU = GetRegisteredCPU(cpu);
-            registeredCPU.FillConfigurationStateStruct(allocatedStructPointer);
-        }
-
-        public ulong GetAddress(string name)
-        {
-            return GetAddress(signals.Parse(name));
-        }
-
-        public ulong GetAddress(ArmSignals armSignal)
-        {
-            var signal = signals[armSignal];
-            AssertSignalNotCPUIndexed(signal, inSetMethod: false);
-
-            return signal.GetAddress(AddressWidth);
-        }
-
-        public ulong GetSignal(string name)
-        {
-            return GetSignal(signals.Parse(name));
-        }
-
-        public ulong GetSignal(ArmSignals armSignal)
-        {
-            var signal = signals[armSignal];
-            AssertSignalNotCPUIndexed(signal, inSetMethod: false);
-
-            return signal.Value;
-        }
-
-        public bool IsSignalEnabled(string name)
-        {
-            return IsSignalEnabled(signals.Parse(name));
-        }
-
-        public bool IsSignalEnabled(ArmSignals armSignal)
-        {
-            var signal = signals[armSignal];
-            AssertSignalNotCPUIndexed(signal, inSetMethod: false);
-
-            return signal.IsEnabled();
-        }
-
-        public bool IsSignalEnabledForCPU(string name, ICPU cpu)
-        {
-            return IsSignalEnabledForCPU(signals.Parse(name), cpu);
-        }
-
-        public bool IsSignalEnabledForCPU(ArmSignals armSignal, ICPU cpu)
-        {
-            var signal = signals[armSignal];
-            AssertSignalCPUIndexed(signal, inSetMethod: false);
-
-            var cpuIndex = GetRegisteredCPU(cpu).Index;
-            return signals[armSignal].IsEnabled(cpuIndex);
-        }
-
-        // Called in Arm constructors if ArmSignalsUnit passed.
-        public void RegisterCPU(Arm cpu)
-        {
-            lock(registeredCPUs)
-            {
-                AssertCPUModelIsSupported(cpu.Model);
-
-                // Bit offset for this CPU in CPU-indexed signals.
-                var cpuIndex = registeredCPUs.Count;
-                registeredCPUs[cpu] = new RegisteredCPU(machine, cpu, this, cpuIndex);
-                signals.SetCPUIndexedSignalsWidth((uint)registeredCPUs.Count);
-            }
-
-            cpu.StateChanged += (_, oldState, __) => {
-                if(oldState == CPUState.InReset)
-                {
-                    if(unitType == UnitType.CortexR8)
-                    {
-                        lock(registeredCPUs)
-                        {
-                            if(firstSCURegistration is NullRegistrationPoint && !scuRegisteredAtBus)
-                            {
-                                RegisterSCU();
-                                scuRegisteredAtBus = true;
-                            }
-                        }
-                    }
-                    registeredCPUs[cpu].OnCPUOutOfReset();
-                };
-            };
-        }
-
-        public void Reset()
-        {
-            // Intentionally left blank. Signal values should be preserved across machine resets.
-        }
-
-        public void ResetSignals()
-        {
-            signals.Reset();
-        }
-
-        public void SetSignal(string name, ulong value)
-        {
-            SetSignal(signals.Parse(name), value);
-        }
-
-        public void SetSignal(ArmSignals armSignal, ulong value)
-        {
-            var signal = signals[armSignal];
-            AssertSignalNotCPUIndexed(signal, inSetMethod: true);
-
-            signal.Value = value;
-        }
-
-        // Convenience methods for signals which are meant to hold top bits of address.
-        // There's no need to check if such a signal was chosen, a RecoverableException
-        // is thrown if the signal can't hold the given address.
-        public void SetSignalFromAddress(string name, ulong address)
-        {
-            SetSignalFromAddress(signals.Parse(name), address);
-        }
-
-        public void SetSignalFromAddress(ArmSignals armSignal, ulong address)
-        {
-            var signal = signals[armSignal];
-            AssertSignalNotCPUIndexed(signal, inSetMethod: true);
-
-            signal.SetFromAddress(AddressWidth, address);
-        }
-
-        public void SetSignalState(string name, bool state, uint index)
-        {
-            SetSignalState(signals.Parse(name), state, index);
-        }
-
-        public void SetSignalState(ArmSignals armSignal, bool state, uint index)
-        {
-            var signal = signals[armSignal];
-            AssertSignalNotCPUIndexed(signal, inSetMethod: true);
-
-            signal.SetState(checked((byte)index), state);
-        }
-
-        public void SetSignalStateForCPU(string name, bool state, ICPU cpu)
-        {
-            SetSignalStateForCPU(signals.Parse(name), state, cpu);
-        }
-
-        public void SetSignalStateForCPU(ArmSignals armSignal, bool state, ICPU cpu)
-        {
-            var signal = signals[armSignal];
-            AssertSignalCPUIndexed(signal, inSetMethod: true);
-
-            var cpuIndex = GetRegisteredCPU(cpu).Index;
-            signal.SetState(cpuIndex, state);
-        }
-
-        public uint AddressWidth { get; } = 32;
-        public IEnumerable<ICPU> RegisteredCPUs => registeredCPUs.Keys;
 
         private void AssertCPUModelIsSupported(string cpuModel)
         {
@@ -341,7 +343,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void OnSnoopControlUnitAdded(Signal<ArmSignals> peripheralsBase, IBusRegistration busRegistration)
         {
-            var context = busRegistration.CPU;
+            var context = busRegistration.Initiator as ICPU;
             if(context != null && !registeredCPUs.ContainsKey(context))
             {
                 this.DebugLog("Ignoring {0} registration for CPU unregistered in {1}: {2}",
@@ -550,7 +552,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     ? new BusMultiRegistration(newAddress, size, region, cpu)
                     : new BusRangeRegistration(newAddress, size, cpu: cpu);
 
-                if(registrationPoint.CPU == cpu)
+                if(registrationPoint.Initiator == cpu)
                 {
                     if(newRegistration is BusMultiRegistration newMultiRP)
                     {
@@ -571,12 +573,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             private bool TryGetSingleBusRegistered<T>(string region, out IBusRegistered<IBusPeripheral> busRegistered) where T : IBusPeripheral
             {
                 busRegistered = null;
-                var busRegisteredEnumerable = machine.SystemBus.GetRegisteredPeripherals(cpu).Where(_busRegistered => _busRegistered.Peripheral is T);
+                var busRegisteredEnumerable = machine.SystemBus.GetRegisteredPeripherals(cpu).Where(registered => registered.Peripheral is T);
 
                 if(busRegisteredEnumerable.Any() && !string.IsNullOrEmpty(region))
                 {
                     busRegisteredEnumerable = busRegisteredEnumerable.Where(
-                        _busRegistered => _busRegistered.RegistrationPoint is BusMultiRegistration multiRegistration
+                        registered => registered.RegistrationPoint is BusMultiRegistration multiRegistration
                         && multiRegistration.ConnectionRegionName == region
                     );
                 }
@@ -584,7 +586,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 // Choose cpu-local registrations if there are still multiple matching ones.
                 if(busRegisteredEnumerable.Count() > 1)
                 {
-                    busRegisteredEnumerable = busRegisteredEnumerable.Where(_busRegistered => _busRegistered.RegistrationPoint.CPU == cpu);
+                    busRegisteredEnumerable = busRegisteredEnumerable.Where(registered => registered.RegistrationPoint.Initiator == cpu);
                 }
 
                 var count = (uint)busRegisteredEnumerable.Count();
@@ -676,7 +678,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private class SignalsDictionary<TEnum>
-            where TEnum: struct
+            where TEnum : struct
         {
             public SignalsDictionary()
             {
@@ -727,7 +729,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 if(!signalNames.TryGetValue(name, out var signal) && !Enum.TryParse(name, ignoreCase: true, out signal))
                 {
-                    var allNames = signalNames.Keys.Select(_name => $"{_name} ({signalNames[_name]})");
+                    var allNames = signalNames.Keys.Select(sig => $"{sig} ({signalNames[sig]})");
                     throw new RecoverableException(
                         $"No such signal: '{name}'\n" +
                         $"Available signals are:\n * {string.Join("\n * ", allNames)}"
@@ -760,7 +762,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private class Signal<TEnum>
-            where TEnum: struct
+            where TEnum : struct
         {
             public Signal(IPeripheral parent, TEnum signal, uint width, ulong resetValue = 0x0)
             {
@@ -836,8 +838,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             public string Name { get; }
+
             public ulong ResetValue { get => resetValue; set => SetValue(ref resetValue, value); }
+
             public virtual ulong Value { get => value; set => SetValue(ref this.value, value); }
+
             public uint Width
             {
                 get => width;
@@ -880,7 +885,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private class SignalWithImmediateEffect<TEnum> : Signal<TEnum>
-            where TEnum: struct
+            where TEnum : struct
         {
             public static SignalWithImmediateEffect<TEnum> CreateInput(IPeripheral parent, TEnum signal, uint width,
                             Action<ulong, ulong> setter, bool callSetterAtInitAndReset = false, ulong resetValue = 0)
@@ -899,21 +904,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     throw new ConstructionException("Getter cannot be null for output signal with immediate effect.");
                 }
                 return new SignalWithImmediateEffect<TEnum>(parent, signal, width, getter);
-            }
-
-            private SignalWithImmediateEffect(IPeripheral parent, TEnum signal, uint width, Func<ulong, ulong> getter = null,
-                            Action<ulong, ulong> setter = null, bool callSetterAtInitAndReset = false, ulong resetValue = 0)
-                            : base(parent, signal, width, resetValue)
-            {
-                if(getter != null && setter != null)
-                {
-                    throw new ConstructionException("Signal cannot have both getter and setter");
-                }
-                this.callSetterAtInitAndReset = callSetterAtInitAndReset;
-                this.getter = getter;
-                this.setter = setter;
-
-                Reset();
             }
 
             public override void Reset()
@@ -940,6 +930,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     base.Value = value;
                     setter?.Invoke(oldValue, value);
                 }
+            }
+
+            private SignalWithImmediateEffect(IPeripheral parent, TEnum signal, uint width, Func<ulong, ulong> getter = null,
+                            Action<ulong, ulong> setter = null, bool callSetterAtInitAndReset = false, ulong resetValue = 0)
+                            : base(parent, signal, width, resetValue)
+            {
+                if(getter != null && setter != null)
+                {
+                    throw new ConstructionException("Signal cannot have both getter and setter");
+                }
+                this.callSetterAtInitAndReset = callSetterAtInitAndReset;
+                this.getter = getter;
+                this.setter = setter;
+
+                Reset();
             }
 
             private readonly bool callSetterAtInitAndReset;

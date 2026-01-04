@@ -5,8 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Time;
@@ -37,6 +38,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public long Size => 0x4000;
+
         public GPIO IRQ { get; }
 
         private void UpdateInterrupts()
@@ -45,7 +47,9 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(interrupt);
         }
 
+#pragma warning disable IDE0060
         private void DefineRegisters(long oscillatorFrequency, bool hasRealTimeInterrupt, bool hasLifetimeTimer, bool supportsTimersChaining)
+#pragma warning restore IDE0060
         {
             var moduleControl = Registers.ModuleControl.Define(this)
                 .WithReservedBits(3, 29)
@@ -150,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 .WithReservedBits(1, 31)
                 .WithFlag(0, name: "InterruptFlag",
                     valueProviderCallback: _ => clockChannel.InterruptFlag,
-                    writeCallback: (_, value) => { if(value) clockChannel.InterruptFlag = false; } )
+                    writeCallback: (_, value) => { if(value) clockChannel.InterruptFlag = false; })
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
 
@@ -205,8 +209,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 ChainMode = false;
             }
 
-            public event Action OnInterrupt;
-
             public bool Enabled
             {
                 get => timerEnabled;
@@ -251,10 +253,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            private readonly LimitTimer underlyingTimer;
+            public event Action OnInterrupt;
 
             private bool chainMode;
             private bool timerEnabled;
+
+            private readonly LimitTimer underlyingTimer;
         }
 
         private enum Registers

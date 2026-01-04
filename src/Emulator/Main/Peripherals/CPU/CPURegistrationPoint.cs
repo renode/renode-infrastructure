@@ -6,31 +6,31 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core.Structure;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public class CPURegistrationPoint : IRegistrationPoint
+    public class CPURegistrationPoint : IRegistrationPoint, IJsonSerializable
     {
         public CPURegistrationPoint(int? slot = null)
         {
             Slot = slot;
         }
 
-        public string PrettyString
+        public Object SerializeJson()
         {
-            get
+            return new
             {
-                return ToString();
-            }
+                Type = "CPU",
+                Value = Slot
+            };
         }
 
         public override string ToString()
         {
             return string.Format("Slot: {0}", Slot);
         }
-
-        public int? Slot { get; private set; }
 
         public override bool Equals(object obj)
         {
@@ -42,7 +42,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             return Slot == other.Slot;
         }
-        
 
         public override int GetHashCode()
         {
@@ -51,7 +50,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return Slot.GetHashCode();
             }
         }
-        
+
+        public string PrettyString
+        {
+            get
+            {
+                return ToString();
+            }
+        }
+
+        public int? Slot { get; private set; }
     }
 }
-

@@ -1,12 +1,12 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
-// 
+//
 
 using System.Collections.Generic;
-using System.IO;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -19,29 +19,6 @@ namespace Antmicro.Renode.Peripherals.Sound
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public abstract class LiteX_I2S : BasicDoubleWordPeripheral, IKnownSize
     {
-        protected LiteX_I2S(IMachine machine, DataFormat format, uint sampleWidth, uint samplingRate, uint fifoIrqThreshold = 256) : base(machine)
-        {
-            if(format != DataFormat.Standard)
-            {
-                throw new ConstructionException("Only Standard format is supported at the moment");
-            }
-
-            if(fifoIrqThreshold > fifoDepth)
-            {
-                throw new ConstructionException($"Wrong fifo IRQ threshold value: {fifoIrqThreshold}. Should be in range 0 - {fifoDepth}");
-            }
-
-            this.fifoIrqThreshold = fifoIrqThreshold;
-            this.dataFormat = format;
-            this.samplingRate = samplingRate;
-            this.sampleWidth = sampleWidth;
-
-            buffer = new Queue<uint>();
-            IRQ = new GPIO();
-            DefineRegisters();
-            UpdateInterrupts();
-        }
-
         public override void Reset()
         {
             base.Reset();
@@ -51,14 +28,14 @@ namespace Antmicro.Renode.Peripherals.Sound
         }
 
         [ConnectionRegion("buffer")]
-        public void WriteToBuffer(long offset, uint value)
+        public void WriteToBuffer(long _, uint value)
         {
             // HW allows to access FIFO from any offset
             TryEnqueueSample(value);
         }
 
         [ConnectionRegion("buffer")]
-        public uint ReadFromBuffer(long offset)
+        public uint ReadFromBuffer(long _)
         {
             // HW allows to access FIFO from any offset
             if(!TryDequeueSample(out var res))
@@ -73,19 +50,42 @@ namespace Antmicro.Renode.Peripherals.Sound
 
         public GPIO IRQ { get; }
 
+        protected LiteX_I2S(IMachine machine, DataFormat format, uint sampleWidth, uint samplingRate, uint fifoIrqThreshold = 256) : base(machine)
+        {
+            if(format != DataFormat.Standard)
+            {
+                throw new ConstructionException("Only Standard format is supported at the moment");
+            }
+
+            if(fifoIrqThreshold > FifoDepth)
+            {
+                throw new ConstructionException($"Wrong fifo IRQ threshold value: {fifoIrqThreshold}. Should be in range 0 - {FifoDepth}");
+            }
+
+            this.fifoIrqThreshold = fifoIrqThreshold;
+            this.dataFormat = format;
+            this.samplingRate = samplingRate;
+            this.sampleWidth = sampleWidth;
+
+            buffer = new Queue<uint>();
+            IRQ = new GPIO();
+            DefineRegisters();
+            UpdateInterrupts();
+        }
+
         protected bool TryEnqueueSample(uint sample)
         {
             this.Log(LogLevel.Noisy, "Trying to enqueue a sample: 0x{0:X}", sample);
 
             lock(buffer)
             {
-                if(buffer.Count >= fifoDepth)
+                if(buffer.Count >= FifoDepth)
                 {
                     this.Log(LogLevel.Warning, "FIFO overflow, a sample will be lost");
-                    
+
                     errorEventPending.Value = true;
                     UpdateInterrupts();
-                    
+
                     return false;
                 }
 
@@ -218,7 +218,7 @@ namespace Antmicro.Renode.Peripherals.Sound
         private readonly uint sampleWidth;
         private readonly uint samplingRate;
 
-        private const int fifoDepth = 512;
+        private const int FifoDepth = 512;
 
         public enum DataFormat
         {

@@ -5,7 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using NUnit.Framework;
 
 namespace Antmicro.Renode.PeripheralsTests
@@ -20,4 +19,3 @@ namespace Antmicro.Renode.PeripheralsTests
         }
     }
 }
-

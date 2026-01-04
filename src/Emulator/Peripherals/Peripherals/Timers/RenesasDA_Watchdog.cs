@@ -1,39 +1,31 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     public sealed class RenesasDA_Watchdog : BasicDoubleWordPeripheral, IKnownSize
     {
-        public RenesasDA_Watchdog(IMachine machine, long frequency, IDoubleWordPeripheral nvic) : base(machine)
+        public RenesasDA_Watchdog(IMachine machine, long frequency, NVIC nvic) : base(machine)
         {
             IRQ = new GPIO();
-            // Type comparison like this is required due to NVIC model being in another project
-            if(nvic.GetType().FullName != "Antmicro.Renode.Peripherals.IRQControllers.NVIC")
-            {
-                throw new ConstructionException($"{nvic.GetType()} is invalid type for NVIC");
-            }
             this.nvic = nvic;
 
-            ticker = new LimitTimer(machine.ClockSource, frequency, this, "watchdog", TickerDefaultValue, Direction.Descending, enabled: true, eventEnabled: true);
-            ticker.Divider = 320;
-
+            ticker = new LimitTimer(machine.ClockSource, frequency, this, "watchdog", TickerDefaultValue, Direction.Descending, enabled: true, eventEnabled: true, divider: 320);
             ticker.LimitReached += LimitReachedAction;
 
             Registers.Value.Define(this, resetValue: 0x1FFF)
                 .WithValueField(14, 18, out writeLockFilter, name: "WDOG_WEN")
                 .WithFlag(13, FieldMode.Read, name: "WDOG_VAL_NEG",
-                    valueProviderCallback: _ => 
+                    valueProviderCallback: _ =>
                     {
                         if(nonMaskableInterruptReset.Value)
                         {
@@ -89,6 +81,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             resetRequested = false;
         }
 
+        public long Size => 0x10;
+
+        public GPIO IRQ { get; }
+
         // Frozen keeps the value even if it effectively doesn't freeze the ticker due to `NMI_RST` or
         // `WDOG_FREEZE_EN` so changing them might lead to immediate freeze if frozen is set. Datasheet
         // isn't clear on what happens in such cases but this behavior seems reasonable.
@@ -140,9 +136,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public long Size => 0x10;
-        public GPIO IRQ { get; }
-
         private void SetTickerValue(ulong value)
         {
             IRQ.Unset();
@@ -152,7 +145,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 ticker.Value = value;
                 ticker.Limit = 0x0;
             }
-            else 
+            else
             {
                 // By default two triggers are needed, at 0x0 and negative 0x10.
                 // Shift the value by TickerShift to handle both cases as non-negative values.
@@ -174,7 +167,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 ticker.Limit = 0x0;
                 ticker.Value = TickerShift;
                 // Send NMI to NVIC
-                ((dynamic)nvic).SetPendingIRQ(2);
+                nvic.SetPendingIRQ(2);
             }
             else
             {
@@ -189,19 +182,19 @@ namespace Antmicro.Renode.Peripherals.Timers
         private bool frozen;
         private bool resetRequested;
 
-        private readonly LimitTimer ticker;
-        private readonly IDoubleWordPeripheral nvic;
+        private readonly IValueRegisterField writeLockFilter;
+        private readonly IFlagRegisterField watchdogFreezeEnabled;
+        private readonly IFlagRegisterField nonMaskableInterruptReset;
 
-        private IValueRegisterField writeLockFilter;
-        private IFlagRegisterField watchdogFreezeEnabled;
-        private IFlagRegisterField nonMaskableInterruptReset;
+        private readonly LimitTimer ticker;
+        private readonly NVIC nvic;
 
         // In hardware it counts down from 0x1fff to negative 0x10. Mock the negative range by starting from +0x10.
         private const ulong TickerShift = 0x10;
         private const ulong TickerDefaultValue = 0x1fff + TickerShift;
         private const ulong WriteEnabled = 0;
 
-        private enum Registers: long
+        private enum Registers : long
         {
             Value = 0x0,
             Control = 0x4,

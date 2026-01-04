@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
@@ -16,7 +17,6 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
@@ -71,6 +71,16 @@ namespace Antmicro.Renode.Peripherals.CAN
             StartTransmitThread();
         }
 
+        public void SendFrameToHost(uint id, string data, bool extendedFormat = false, bool remoteFrame = false, bool fdFormat = false, bool bitRateSwitch = false)
+        {
+            OnFrameReceived(new CANMessageFrame(id, Misc.HexStringToByteArray(data), extendedFormat, remoteFrame, fdFormat, bitRateSwitch));
+        }
+
+        public void SendFrameToMachine(uint id, string data, bool extendedFormat = false, bool remoteFrame = false, bool fdFormat = false, bool bitRateSwitch = false)
+        {
+            FrameSent?.Invoke(new CANMessageFrame(id, Misc.HexStringToByteArray(data), extendedFormat, remoteFrame, fdFormat, bitRateSwitch));
+        }
+
         public void Reset()
         {
             // intentionally left empty
@@ -83,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             byte[] frame;
             try
             {
-                frame = message.ToSocketCAN(true);
+                frame = message.ToSocketCAN();
             }
             catch(RecoverableException e)
             {
@@ -159,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
                 buffer.AddRange(data);
 
-                if(!buffer.TryDecodeAsSocketCANFrame(out var frame, false))
+                if(!buffer.TryDecodeAsSocketCANFrame(out var frame))
                 {
                     // not enough bytes
                     continue;
@@ -178,13 +188,14 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
         }
 
-        private int canSocket;
         [Transient]
         private CancellationTokenSource cancellationTokenSource;
         [Transient]
         private Thread thread;
 
-        private int maximumTransmissionUnit;
+        private readonly int canSocket;
+
+        private readonly int maximumTransmissionUnit;
 
         // PF_CAN
         private const int ProtocolFamilyCan = 29;

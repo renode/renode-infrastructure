@@ -6,10 +6,9 @@
 //
 using System;
 using System.Linq;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
-using Antmicro.Migrant;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -17,16 +16,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public CombinedInput(int numberOfInputs)
         {
-           inputStates = new bool[numberOfInputs];
-           OutputLine = new GPIO();
-           
-           Reset();
+            inputStates = new bool[numberOfInputs];
+            OutputLine = new GPIO();
+
+            Reset();
         }
 
         public void Reset()
         {
-           Array.Clear(inputStates, 0, inputStates.Length);
-           OutputLine.Unset();
+            Array.Clear(inputStates, 0, inputStates.Length);
+            OutputLine.Unset();
         }
 
         public void OnGPIO(int number, bool value)
@@ -40,10 +39,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             inputStates[number] = value;
             OutputLine.Set(inputStates.Any(x => x));
         }
-        
-        public GPIO OutputLine { get; } 
+
+        public GPIO OutputLine { get; }
 
         private readonly bool[] inputStates;
     }
 }
-

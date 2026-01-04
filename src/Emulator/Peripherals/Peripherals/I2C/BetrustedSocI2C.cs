@@ -6,11 +6,12 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
-using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Core.Structure;
+
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 
 // This model is a reimplementation of the OpenCoresI2C module.
@@ -33,14 +34,12 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithReservedBits(16, 16)
                     .WithValueField(0, 16, FieldMode.Read | FieldMode.Write)
                 },
-
                 {(long)Registers.Control, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
                     .WithFlag(7, out enabled)
                     .WithTag("Interrupt enable", 6, 1)
                     .WithReservedBits(0, 6)
                 },
-
                 {(long)Registers.Transmit, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
                     .WithValueField(0, 8, out transmitBuffer, FieldMode.Write)
@@ -57,12 +56,10 @@ namespace Antmicro.Renode.Peripherals.I2C
                         }
                     })
                 },
-
                 {(long)Registers.Receive, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
                     .WithValueField(0, 8, out receiveBuffer, FieldMode.Read)
                 },
-
                 {(long)Registers.Status, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
                     .WithFlag(7, out receivedAckFromSlaveNegated, FieldMode.Read)
@@ -72,25 +69,21 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => false, name: "Transfer in progress")
                     .WithFlag(0, out i2cIntIrqStatus, FieldMode.Read)
                 },
-
                 {(long)Registers.EventStatus, new DoubleWordRegister(this)
                     .WithReservedBits(2, 30)
                     .WithFlag(1, FieldMode.Read, name: "TX_RX_DONE_STATUS", valueProviderCallback: _ => txRxDoneIrqStatus)
                     .WithFlag(0, FieldMode.Read, name: "I2C_INT_STATUS", valueProviderCallback: _ => i2cIntIrqStatus.Value)
                 },
-
                 {(long)Registers.EventPending, new DoubleWordRegister(this)
                     .WithReservedBits(2, 30)
                     .WithFlag(1, out txRxDoneIrqPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "TX_RX_DONE_PENDING", changeCallback: (_, __) => UpdateInterrupts())
                     .WithFlag(0, out i2cIntIrqPending, FieldMode.Read | FieldMode.WriteOneToClear, name: "I2C_INT_PENDING", changeCallback: (_, __) => UpdateInterrupts())
                 },
-
                 {(long)Registers.EventEnable, new DoubleWordRegister(this)
                     .WithReservedBits(2, 30)
                     .WithFlag(1, out txRxDoneIrqEnabled, name: "TX_RX_DONE_ENABLE", changeCallback: (_, __) => UpdateInterrupts())
                     .WithFlag(0, out i2cIntIrqEnabled, name: "I2C_INT_ENABLE", changeCallback: (_, __) => UpdateInterrupts())
                 },
-
                 {(long)Registers.Command, new DoubleWordRegister(this)
                     .WithReservedBits(8, 24)
                     .WithFlag(7, out generateStartCondition, FieldMode.Write)
@@ -169,18 +162,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             UpdateInterrupts();
         }
 
-        private void FinishTransaction()
-        {
-            machine.ClockSource.TryRemoveClockEntry(FinishTransaction);
-            if(shouldSendTxRxIrq)
-            {
-                shouldSendTxRxIrq = false;
-                txRxDoneIrqStatus = true;
-                UpdateInterrupts();
-                txRxDoneIrqStatus = false;
-            }
-        }
-
         public override void Reset()
         {
             registers.Reset();
@@ -199,6 +180,22 @@ namespace Antmicro.Renode.Peripherals.I2C
             registers.Write(offset, value);
         }
 
+        public GPIO IRQ { get; }
+
+        public long Size => 0x1000;
+
+        private void FinishTransaction()
+        {
+            machine.ClockSource.TryRemoveClockEntry(FinishTransaction);
+            if(shouldSendTxRxIrq)
+            {
+                shouldSendTxRxIrq = false;
+                txRxDoneIrqStatus = true;
+                UpdateInterrupts();
+                txRxDoneIrqStatus = false;
+            }
+        }
+
         private void UpdateInterrupts()
         {
             if(i2cIntIrqStatus.Value && i2cIntIrqEnabled.Value)
@@ -212,10 +209,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             // this.Log(LogLevel.Noisy, "    Setting status: {0}, enabled: {1}, pending: {2}", txRxDoneIrqStatus, txRxDoneIrqEnabled.Value, txRxDoneIrqPending.Value);
             IRQ.Set(i2cIntIrqPending.Value || txRxDoneIrqPending.Value);
         }
-
-        public GPIO IRQ { get; }
-
-        public long Size => 0x1000;
 
         private bool TryResolveSelectedSlave(out II2CPeripheral selectedSlave)
         {
@@ -277,8 +270,16 @@ namespace Antmicro.Renode.Peripherals.I2C
             UpdateInterrupts();
         }
 
+        private bool txRxDoneIrqStatus;
+        private bool shouldSendTxRxIrq;
+        private ClockEntry irqTimeoutCallback;
+
         private bool transactionInProgress;
         private II2CPeripheral selectedSlave;
+        private readonly IFlagRegisterField i2cIntIrqEnabled;
+        private readonly IFlagRegisterField i2cIntIrqPending;
+        private readonly IFlagRegisterField txRxDoneIrqEnabled;
+        private readonly IFlagRegisterField txRxDoneIrqPending;
 
         private readonly Queue<byte> dataToSlave;
         private readonly Queue<byte> dataFromSlave;
@@ -287,18 +288,11 @@ namespace Antmicro.Renode.Peripherals.I2C
         private readonly IFlagRegisterField readFromSlave;
         private readonly IFlagRegisterField writeToSlave;
         private readonly IFlagRegisterField i2cIntIrqStatus;
-        private IFlagRegisterField i2cIntIrqEnabled;
-        private IFlagRegisterField i2cIntIrqPending;
-        private bool txRxDoneIrqStatus;
-        private bool shouldSendTxRxIrq;
-        private IFlagRegisterField txRxDoneIrqEnabled;
-        private IFlagRegisterField txRxDoneIrqPending;
         private readonly IFlagRegisterField enabled;
         private readonly IFlagRegisterField receivedAckFromSlaveNegated;
         private readonly IFlagRegisterField generateStartCondition;
         private readonly IFlagRegisterField generateStopCondition;
         private readonly DoubleWordRegisterCollection registers;
-        private ClockEntry irqTimeoutCallback;
 
         private const int IrqTimeout = 5;
 

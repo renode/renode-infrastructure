@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections.Generic;
+
 using Antmicro.Renode.Backends.Display;
 
 namespace Antmicro.Renode.Peripherals.DMA
@@ -64,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             return result;
         }
 
-        private static Dictionary<Dma2DColorMode, PixelFormat> cache;
+        private static readonly Dictionary<Dma2DColorMode, PixelFormat> cache;
     }
 
     internal static class Dma2DAlphaModeExtensions
@@ -73,15 +74,14 @@ namespace Antmicro.Renode.Peripherals.DMA
         {
             switch(mode)
             {
-                case Dma2DAlphaMode.NoModification:
-                    return PixelBlendingMode.NoModification;
-                case Dma2DAlphaMode.Replace:
-                    return PixelBlendingMode.Replace;
-                case Dma2DAlphaMode.Combine:
-                    return PixelBlendingMode.Multiply;
+            case Dma2DAlphaMode.NoModification:
+                return PixelBlendingMode.NoModification;
+            case Dma2DAlphaMode.Replace:
+                return PixelBlendingMode.Replace;
+            case Dma2DAlphaMode.Combine:
+                return PixelBlendingMode.Multiply;
             }
             return PixelBlendingMode.NoModification;
         }
     }
 }
-

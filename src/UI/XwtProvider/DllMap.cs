@@ -1,11 +1,10 @@
 //
-// Copyright (c) 2025 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -45,13 +44,13 @@ namespace Antmicro.Renode.UI
             string xmlPath = Path.Combine(Path.GetDirectoryName(assemblyLocation), Path.GetFileNameWithoutExtension(assemblyLocation) + ".dll.config");
             mappedLibName = null;
 
-            if (!File.Exists(xmlPath))
+            if(!File.Exists(xmlPath))
             {
                 return false;
             }
 
-            var currOsAttr = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "osx" : 
-                             RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "windows" : 
+            var currOsAttr = RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "osx" :
+                             RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "windows" :
                              RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "linux" : null;
 
             XElement root = XElement.Load(xmlPath);
@@ -63,7 +62,7 @@ namespace Antmicro.Renode.UI
                 select el
             ).SingleOrDefault();
 
-            if (map != null)
+            if(map != null)
             {
                 mappedLibName = map.Attribute("target").Value;
             }

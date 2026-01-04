@@ -5,19 +5,20 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using Antmicro.Renode.Peripherals.Bus;
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using System.Collections.Generic;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
-    public class MPFS_QSPI: NullRegistrationPointPeripheralContainer<Micron_MT25Q>, IDoubleWordPeripheral, IKnownSize
+    public class MPFS_QSPI : NullRegistrationPointPeripheralContainer<Micron_MT25Q>, IDoubleWordPeripheral, IKnownSize
     {
         public MPFS_QSPI(IMachine machine, uint size) : base(machine)
         {
@@ -45,7 +46,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(16, out x4Enabled, name: "FLAGS4X")
                     .WithTag("CLKRATE", 24, 4)
                 },
-
                 {(long)Registers.Frames, new DoubleWordRegister(this)
                     .WithValueField(0, 16, writeCallback: (_, value) =>
                         {
@@ -77,7 +77,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                         RefreshInterrupt();
                     })
                 },
-
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
                     .WithFlag(0, out txDoneInterruptEnabled, name: "TXDONE")
                     .WithFlag(1, out rxDoneInterruptEnabled, name: "RXDONE")
@@ -87,24 +86,21 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithFlag(5, name: "TXFIFOFULL") //we keep the value, but not do anything with it, as this never happens
                     .WithChangeCallback((_, __) => RefreshInterrupt())
                 },
-
                 {(long)Registers.Status, new DoubleWordRegister(this)
                     .WithFlag(0, out txDone, FieldMode.WriteOneToClear | FieldMode.Read, name: "TXDONE")
                     .WithFlag(1, out rxDone, FieldMode.WriteOneToClear | FieldMode.Read, name: "RXDONE")
-                    .WithFlag(2, valueProviderCallback: _ => IsRxAvailable(), name: "RXAVAILABLE")
-                    .WithFlag(3, valueProviderCallback: _ => true, name: "TXAVAILABLE")
-                    .WithFlag(4, valueProviderCallback: _ => !IsRxAvailable(), name: "RXFIFOEMPTY")
-                    .WithFlag(5, valueProviderCallback: _ => false, name: "TXFIFOFULL")
+                    .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => IsRxAvailable(), name: "RXAVAILABLE")
+                    .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => true, name: "TXAVAILABLE")
+                    .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => !IsRxAvailable(), name: "RXFIFOEMPTY")
+                    .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => false, name: "TXFIFOFULL")
                     .WithReservedBits(6, 1)
-                    .WithFlag(7, valueProviderCallback: _ => true, name: "READY")
-                    .WithFlag(8, valueProviderCallback: _ => x4Enabled.Value, name: "FLAGSX4")
+                    .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "READY")
+                    .WithFlag(8, FieldMode.Read, valueProviderCallback: _ => x4Enabled.Value, name: "FLAGSX4")
                     .WithWriteCallback((_, __) => RefreshInterrupt())
                 },
-
                 {(long)Registers.UpperAddress, new DoubleWordRegister(this)
                     .WithValueField(0, 8, out upperAddress, name: "ADDRUP")
                 },
-
                 {(long)Registers.RxData1, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Read,
                         valueProviderCallback: _ =>
@@ -117,11 +113,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                         name: "RXDATA")
                     .WithWriteCallback((_, __) => RefreshInterrupt())
                 },
-
                 {(long)Registers.TxData1, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Write, writeCallback: (_, val) => HandleByte((uint)val), name: "TXDATA")
                 },
-
                 {(long)Registers.RxData4, new DoubleWordRegister(this)
                 // The documentation is ambiguous on this register.
                 // It says 4 bytes must be read from the FIFO, but does not state precisely what happens
@@ -146,7 +140,6 @@ namespace Antmicro.Renode.Peripherals.SPI
                     name: "RXDATA4")
                     .WithWriteCallback((_, __) => RefreshInterrupt())
                 },
-
                 {(long)Registers.TxData4, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Write,
                         writeCallback: (_, val) =>
@@ -195,6 +188,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         public GPIO IRQ { get; }
+
         public long Size { get; }
 
         private void TryReceive(byte data)
@@ -340,6 +334,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
+        private uint totalBytes;
+        private uint bytesToSkip;
+        private uint idleCycles;
+        private int bytesSent;
+        private readonly object locker;
 
         private readonly Queue<byte> receiveFifo = new Queue<byte>();
         private readonly DoubleWordRegisterCollection registers;
@@ -356,15 +355,9 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IFlagRegisterField txAvailableInterruptEnabled;
         private readonly IFlagRegisterField rxFifoEmptyInterruptEnabled;
 
-        private uint totalBytes;
-        private uint bytesToSkip;
-        private uint idleCycles;
-        private int bytesSent;
-
         //Registers are aliased every 256 bytes
         private const int RegisterAliasSize = 256;
         private const uint MinimumSize = (uint)Registers.FramesUpper + 4;
-        private object locker;
 
         private enum XIPAddressBytes
         {

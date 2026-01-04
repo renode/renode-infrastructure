@@ -1,21 +1,21 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
-using System.IO;
-using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
 using Antmicro.Renode.Core;
-using Antmicro.Renode.Time;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
@@ -42,45 +42,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             this.machine = machine;
         }
 
-        public void FeedAccelerationSample(decimal x, decimal y, decimal z, uint repeat = 1)
-        {
-            FeedAccelerationSampleInner(x, y, z, keepOnReset: true, repeat: repeat);
-        }
-
-        [OnRESDSample(SampleType.Acceleration)]
-        [BeforeRESDSample(SampleType.Acceleration)]
-        private void HandleAccelerationSample(AccelerationSample sample, TimeInterval timestamp)
-        {
-            if(sample != null)
-            {
-                // Divide by 10^6 as RESD specification says AccelerationSamples are in μg,
-                // while the peripheral's measurement unit is g.
-                FeedAccelerationSampleInner(
-                    sample.AccelerationX / 1e6m,
-                    sample.AccelerationY / 1e6m,
-                    sample.AccelerationZ / 1e6m,
-                    keepOnReset: false
-                );
-            }
-            else
-            {
-                FeedAccelerationSampleInner(
-                    DefaultAccelerationX,
-                    DefaultAccelerationY,
-                    DefaultAccelerationZ,
-                    keepOnReset: false
-                );
-            }
-        }
-
-        [AfterRESDSample(SampleType.Acceleration)]
-        private void HandleAccelerationSampleEnded(AccelerationSample sample, TimeInterval timestamp)
-        {
-            feederThread?.Stop();
-            feederThread = null;
-            accelerationFifo.KeepFifoOnReset = true;
-        }
-
         public void FeedAccelerationSamplesFromRESD(string path, uint channel = 0, ulong startTime = 0,
             RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0,
             RESDType type = RESDType.Normal)
@@ -100,8 +61,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             feederThread?.Stop();
             feederThread = resdStream.StartSampleFeedThread(this,
                 SampleRate,
-                startTime: startTime
+                startTime: startTime,
+                shouldStop: false
             );
+            isAfterStream = false;
         }
 
         public void FeedAccelerationSample(string path)
@@ -170,32 +133,43 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return result;
         }
 
-        public decimal AccelerationX
+        public void FeedAccelerationSample(decimal x, decimal y, decimal z, uint repeat = 1)
         {
-            get => CurrentSample.X;
+            FeedAccelerationSampleInner(x, y, z, keepOnReset: true, repeat: repeat);
+        }
+
+        public ByteRegisterCollection RegistersCollection { get; }
+
+        public GPIO Interrupt2 { get; }
+
+        public GPIO Interrupt1 { get; }
+
+        public decimal Temperature
+        {
+            get => temperature;
             set
             {
-                if(IsAccelerationOutOfRange(value))
+                if(IsTemperatureOutOfRange(value))
                 {
                     return;
                 }
-                CurrentSample.X = value;
-                this.Log(LogLevel.Noisy, "AccelerationX set to {0}", value);
+                temperature = value;
+                this.Log(LogLevel.Noisy, "Temperature set to {0}", temperature);
                 UpdateInterrupts();
             }
         }
 
-        public decimal AccelerationY
+        public decimal DefaultAccelerationZ
         {
-            get => CurrentSample.Y;
+            get => DefaultSample.Z;
             set
             {
                 if(IsAccelerationOutOfRange(value))
                 {
                     return;
                 }
-                CurrentSample.Y = value;
-                this.Log(LogLevel.Noisy, "AccelerationY set to {0}", value);
+                DefaultSample.Z = value;
+                this.Log(LogLevel.Noisy, "DefaultAccelerationZ set to {0}", value);
                 UpdateInterrupts();
             }
         }
@@ -230,6 +204,51 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        public uint SampleRate
+        {
+            get => sampleRate;
+            private set
+            {
+                sampleRate = value;
+                if(feederThread != null)
+                {
+                    feederThread.Frequency = sampleRate;
+                }
+                this.Log(LogLevel.Debug, "Sampling rate set to {0}", SampleRate);
+                SampleRateChanged?.Invoke(value);
+            }
+        }
+
+        public decimal AccelerationY
+        {
+            get => CurrentSample.Y;
+            set
+            {
+                if(IsAccelerationOutOfRange(value))
+                {
+                    return;
+                }
+                CurrentSample.Y = value;
+                this.Log(LogLevel.Noisy, "AccelerationY set to {0}", value);
+                UpdateInterrupts();
+            }
+        }
+
+        public decimal AccelerationX
+        {
+            get => CurrentSample.X;
+            set
+            {
+                if(IsAccelerationOutOfRange(value))
+                {
+                    return;
+                }
+                CurrentSample.X = value;
+                this.Log(LogLevel.Noisy, "AccelerationX set to {0}", value);
+                UpdateInterrupts();
+            }
+        }
+
         public decimal DefaultAccelerationY
         {
             get => DefaultSample.Y;
@@ -245,52 +264,47 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public decimal DefaultAccelerationZ
+        public Vector3DSample DefaultSample { get; } = new Vector3DSample();
+
+        [OnRESDSample(SampleType.Acceleration)]
+        [BeforeRESDSample(SampleType.Acceleration)]
+        private void HandleAccelerationSample(AccelerationSample sample, TimeInterval _)
         {
-            get => DefaultSample.Z;
-            set
+            if(sample != null)
             {
-                if(IsAccelerationOutOfRange(value))
-                {
-                    return;
-                }
-                DefaultSample.Z = value;
-                this.Log(LogLevel.Noisy, "DefaultAccelerationZ set to {0}", value);
-                UpdateInterrupts();
+                // Divide by 10^6 as RESD specification says AccelerationSamples are in μg,
+                // while the peripheral's measurement unit is g.
+                FeedAccelerationSampleInner(
+                    sample.AccelerationX / 1e6m,
+                    sample.AccelerationY / 1e6m,
+                    sample.AccelerationZ / 1e6m,
+                    keepOnReset: false
+                );
+            }
+            else
+            {
+                FeedAccelerationSampleInner(
+                    DefaultAccelerationX,
+                    DefaultAccelerationY,
+                    DefaultAccelerationZ,
+                    keepOnReset: false
+                );
             }
         }
 
-        public decimal Temperature
+        [AfterRESDSample(SampleType.Acceleration)]
+        private void HandleAccelerationSampleEnded(AccelerationSample sample, TimeInterval timestamp)
         {
-            get => temperature;
-            set
+            if(isAfterStream)
             {
-                if(IsTemperatureOutOfRange(value))
-                {
-                    return;
-                }
-                temperature = value;
-                this.Log(LogLevel.Noisy, "Temperature set to {0}", temperature);
-                UpdateInterrupts();
+                feederThread?.Stop();
+                feederThread = null;
+                accelerationFifo.KeepFifoOnReset = true;
+                isAfterStream = false;
+                return;
             }
-        }
-
-        public GPIO Interrupt1 { get; }
-        public GPIO Interrupt2 { get; }
-        public ByteRegisterCollection RegistersCollection { get; }
-        public uint SampleRate
-        {
-            get => sampleRate;
-            private set
-            {
-                sampleRate = value;
-                if(feederThread != null)
-                {
-                    feederThread.Frequency = sampleRate;
-                }
-                this.Log(LogLevel.Debug, "Sampling rate set to {0}", SampleRate);
-                SampleRateChanged?.Invoke(value);
-            }
+            HandleAccelerationSample(sample, timestamp);
+            isAfterStream = true;
         }
 
         private void FeedMultiFrequencyAccelerationSamplesFromRESD(string path, ulong startTime)
@@ -406,40 +420,40 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 {
                     switch(status)
                     {
-                        case RESDStreamStatus.OK:
+                    case RESDStreamStatus.OK:
+                    {
+                        if(blockNumber < resdStream.CurrentBlockNumber)
                         {
-                            if(blockNumber < resdStream.CurrentBlockNumber)
+                            // We received the first sample from the next block in the RESD stream
+                            // as a result of internal RESD operation, not due to a triggered event
+                            if(fifoModeSelection.Value == FIFOModeSelection.FIFOMode)
                             {
-                                // We received the first sample from the next block in the RESD stream 
-                                // as a result of internal RESD operation, not due to a triggered event
-                                if(fifoModeSelection.Value == FIFOModeSelection.FIFOMode)
-                                {
-                                    // In FIFO mode we don't allow automatic passtrough to the next block,
-                                    // because it would interfere with event driven FIFOModeEntered logic.
-                                    goto case RESDStreamStatus.BeforeStream;
-                                }
-                                resetCurrentBlockStats(resdStream.CurrentBlock.SamplesCount);
-                                blockNumber = (int)resdStream.CurrentBlockNumber;
-                                this.Log(LogLevel.Noisy, "Beginning of the new RESD block ({0}Hz) with the number {1}", sampleRate, blockNumber);
+                                // In FIFO mode we don't allow automatic passtrough to the next block,
+                                // because it would interfere with event driven FIFOModeEntered logic.
+                                goto case RESDStreamStatus.BeforeStream;
                             }
+                            resetCurrentBlockStats(resdStream.CurrentBlock.SamplesCount);
+                            blockNumber = (int)resdStream.CurrentBlockNumber;
+                            this.Log(LogLevel.Noisy, "Beginning of the new RESD block ({0}Hz) with the number {1}", sampleRate, blockNumber);
+                        }
 
-                            numberOfSampleInBlock++;
-                            previousSample = sample;
-                            this.Log(LogLevel.Noisy, "Fed current sample from the RESD block ({0}Hz) with the number {1}: {2} at {3} ({4}/{5})", sampleRate, blockNumber, previousSample, ts, numberOfSampleInBlock, samplesInBlock);
-                            break;
-                        }
-                        case RESDStreamStatus.BeforeStream:
-                        {
-                            repeatCounter++;
-                            this.Log(LogLevel.Noisy, "Repeated the last sample from the previous RESD block ({0}Hz) with the number {1}: {2} at {3} - {4} times", sampleRate, blockNumber, previousSample, ts, repeatCounter);
-                            break;
-                        }
-                        case RESDStreamStatus.AfterStream:
-                        {
-                            repeatCounter++;
-                            this.Log(LogLevel.Noisy, "No more samples in the RESD stream for the sample rate {0}Hz. Repeated the last sample from the previous RESD block with the number {1}: {2} at {3} - {4} times", sampleRate, blockNumber, previousSample, ts, repeatCounter);
-                            break;
-                        }
+                        numberOfSampleInBlock++;
+                        previousSample = sample;
+                        this.Log(LogLevel.Noisy, "Fed current sample from the RESD block ({0}Hz) with the number {1}: {2} at {3} ({4}/{5})", sampleRate, blockNumber, previousSample, ts, numberOfSampleInBlock, samplesInBlock);
+                        break;
+                    }
+                    case RESDStreamStatus.BeforeStream:
+                    {
+                        repeatCounter++;
+                        this.Log(LogLevel.Noisy, "Repeated the last sample from the previous RESD block ({0}Hz) with the number {1}: {2} at {3} - {4} times", sampleRate, blockNumber, previousSample, ts, repeatCounter);
+                        break;
+                    }
+                    case RESDStreamStatus.AfterStream:
+                    {
+                        repeatCounter++;
+                        this.Log(LogLevel.Noisy, "No more samples in the RESD stream for the sample rate {0}Hz. Repeated the last sample from the previous RESD block with the number {1}: {2} at {3} - {4} times", sampleRate, blockNumber, previousSample, ts, repeatCounter);
+                        break;
+                    }
                     }
                     previousRESDStreamStatus = status;
 
@@ -517,36 +531,36 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     {
                         switch(outDataRate.Value)
                         {
-                            case DataRateConfig.HighPerformanceLowPower1_6Hz:
-                                SampleRate = 2;
-                                break;
-                            case DataRateConfig.HighPerformanceLowPower12_5Hz:
-                                SampleRate = 13;
-                                break;
-                            case DataRateConfig.HighPerformanceLowPower25Hz:
-                                SampleRate = 25;
-                                break;
-                            case DataRateConfig.HighPerformanceLowPower50Hz:
-                                SampleRate = 50;
-                                break;
-                            case DataRateConfig.HighPerformanceLowPower100Hz:
-                                SampleRate = 100;
-                                break;
-                            case DataRateConfig.HighPerformanceLowPower200Hz:
-                                SampleRate = 200;
-                                break;
-                            case DataRateConfig.HighPerformanceLowPower400Hz:
-                                SampleRate = 400;
-                                break;
-                            case DataRateConfig.HighPerformanceLowPower800Hz:
-                                SampleRate = 800;
-                                break;
-                            case DataRateConfig.HighPerformanceLowPower1600Hz:
-                                SampleRate = 1600;
-                                break;
-                            default:
-                                SampleRate = 0;
-                                break;
+                        case DataRateConfig.HighPerformanceLowPower1_6Hz:
+                            SampleRate = 2;
+                            break;
+                        case DataRateConfig.HighPerformanceLowPower12_5Hz:
+                            SampleRate = 13;
+                            break;
+                        case DataRateConfig.HighPerformanceLowPower25Hz:
+                            SampleRate = 25;
+                            break;
+                        case DataRateConfig.HighPerformanceLowPower50Hz:
+                            SampleRate = 50;
+                            break;
+                        case DataRateConfig.HighPerformanceLowPower100Hz:
+                            SampleRate = 100;
+                            break;
+                        case DataRateConfig.HighPerformanceLowPower200Hz:
+                            SampleRate = 200;
+                            break;
+                        case DataRateConfig.HighPerformanceLowPower400Hz:
+                            SampleRate = 400;
+                            break;
+                        case DataRateConfig.HighPerformanceLowPower800Hz:
+                            SampleRate = 800;
+                            break;
+                        case DataRateConfig.HighPerformanceLowPower1600Hz:
+                            SampleRate = 1600;
+                            break;
+                        default:
+                            SampleRate = 0;
+                            break;
                         }
                     }, name: "Output data rate and mode selection (ODR)");
 
@@ -772,7 +786,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithFlag(5, out eventInterruptEnable, name: "Enable interrupts (INTERRUPTS_ENABLE)")
                 .WithTaggedFlag("Signal routing (INT2_ON_INT1)", 6)
                 .WithTaggedFlag("Switches between latched and pulsed mode for data ready interrupt (DRDY_PULSED)", 7)
-                .WithChangeCallback((_,__) => UpdateInterrupts());
+                .WithChangeCallback((_, __) => UpdateInterrupts());
         }
 
         private void RegistersAutoIncrement()
@@ -816,7 +830,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private bool IsTemperatureOutOfRange(decimal temperature)
         {
             // This range protects from the overflow of the short variables in the 'Convert' function.
-            if (temperature < MinTemperature || temperature > MaxTemperature)
+            if(temperature < MinTemperature || temperature > MaxTemperature)
             {
                 this.Log(LogLevel.Warning, "Temperature {0} is out of range, use value from the range <{1:F2};{2:F2}>", temperature, MinTemperature, MaxTemperature);
                 return true;
@@ -827,7 +841,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private bool IsAccelerationOutOfRange(decimal acceleration)
         {
             // This range protects from the overflow of the short variables in the 'Convert' function.
-            if (acceleration < MinAcceleration || acceleration > MaxAcceleration)
+            if(acceleration < MinAcceleration || acceleration > MaxAcceleration)
             {
                 this.Log(LogLevel.Warning, "Acceleration {0} is out of range, use value from the range <{1:F2};{2:F2}>", acceleration, MinAcceleration, MaxAcceleration);
                 return true;
@@ -913,66 +927,74 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             switch(fullScale.Value)
             {
-                case FullScaleSelect.FullScale4g:
-                    scaleDivider = 8;
-                    break;
-                case FullScaleSelect.FullScale8g:
-                    scaleDivider = 16;
-                    break;
-                case FullScaleSelect.FullScale16g:
-                    scaleDivider = 32;
-                    break;
-                default:
-                    scaleDivider = 4;
-                    break;
+            case FullScaleSelect.FullScale4g:
+                scaleDivider = 8;
+                break;
+            case FullScaleSelect.FullScale8g:
+                scaleDivider = 16;
+                break;
+            case FullScaleSelect.FullScale16g:
+                scaleDivider = 32;
+                break;
+            default:
+                scaleDivider = 4;
+                break;
             }
         }
 
-        public Vector3DSample DefaultSample { get; } = new Vector3DSample();
         private Vector3DSample CurrentSample { get; set; } = new Vector3DSample();
+
         private decimal SelfTestAccelerationOffset =>
             SelfTestAcceleration * (selfTestMode.Value == SelfTestMode.PositiveSign ? 1 : selfTestMode.Value == SelfTestMode.NegativeSign ? -1 : 0);
+
         private decimal ReportedAccelerationX => AccelerationX + SelfTestAccelerationOffset;
+
         private decimal ReportedAccelerationY => AccelerationY + SelfTestAccelerationOffset;
+
         private decimal ReportedAccelerationZ => AccelerationZ + SelfTestAccelerationOffset;
 
         private decimal ReportedTemperature => Temperature - TemperatureBias;
 
         private bool FifoThresholdReached => fifoThreshold.Value != 0 && accelerationFifo.SamplesCount >= fifoThreshold.Value;
+
         private bool FifoFull => accelerationFifo.Full;
+
         private bool FifoOverrunOccurred => accelerationFifo.OverrunOccurred;
 
-        private IFlagRegisterField autoIncrement;
-        private IFlagRegisterField[] readyEnabledAcceleration;
-        private IFlagRegisterField[] fifoThresholdEnabled;
-        private IFlagRegisterField[] fifoFullEnabled;
         // Interrupt on overrun is only avaliable on INT2
         private IFlagRegisterField fifoOverrunEnabled;
-        private IFlagRegisterField readyEnabledTemperature;
+        private RESDStream<AccelerationSample> resdStream;
+
+        private IManagedThread feederThread;
+        private int scaleDivider;
+        private State state;
+
+        private Registers regAddress;
+        private uint sampleRate;
+        private IEnumRegisterField<SelfTestMode> selfTestMode;
+        private IEnumRegisterField<FullScaleSelect> fullScale;
+        private IEnumRegisterField<FIFOModeSelection> fifoModeSelection;
+        private IEnumRegisterField<ModeSelection> modeSelection;
+        private IEnumRegisterField<DataRateConfig> outDataRate;
+        private IEnumRegisterField<LowPowerModeSelection> lowPowerModeSelection;
+        private IValueRegisterField fifoThreshold;
         // This flag controls whether 6D, tap, fall, etc. interrupts are enabled and is not a global
         // flag for all interrupts (FIFO and others)
         private IFlagRegisterField eventInterruptEnable;
-        private IValueRegisterField fifoThreshold;
-        private IEnumRegisterField<LowPowerModeSelection> lowPowerModeSelection;
-        private IEnumRegisterField<DataRateConfig> outDataRate;
-        private IEnumRegisterField<ModeSelection> modeSelection;
-        private IEnumRegisterField<FIFOModeSelection> fifoModeSelection;
-        private IEnumRegisterField<FullScaleSelect> fullScale;
-        private IEnumRegisterField<SelfTestMode> selfTestMode;
-        private uint sampleRate;
-
-        private Registers regAddress;
-        private State state;
-        private int scaleDivider;
-
-        private IManagedThread feederThread;
-        private RESDStream<AccelerationSample> resdStream;
-
-        private event Action<uint> SampleRateChanged;
-        // This event is used in MultiFrequency RESD to precisely match RESD behavior with FIFO operation
-        private event Action<uint> FIFOModeEntered;
+        private IFlagRegisterField readyEnabledTemperature;
+        private bool isAfterStream;
 
         private decimal temperature;
+
+        private IFlagRegisterField autoIncrement;
+        private readonly IFlagRegisterField[] readyEnabledAcceleration;
+        private readonly IFlagRegisterField[] fifoThresholdEnabled;
+        private readonly IFlagRegisterField[] fifoFullEnabled;
+
+        private event Action<uint> SampleRateChanged;
+
+        // This event is used in MultiFrequency RESD to precisely match RESD behavior with FIFO operation
+        private event Action<uint> FIFOModeEntered;
 
         private readonly LIS2DW12_FIFO accelerationFifo;
         private readonly IMachine machine;
@@ -1130,13 +1152,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
             public bool KeepFifoOnReset { get; set; }
 
             public uint SamplesCount => (uint)Math.Min(queue.Count, Capacity);
+
             public bool Disabled => Mode == FIFOModeSelection.Bypass && !KeepFifoOnReset;
+
             public bool Empty => SamplesCount == 0;
+
             public bool Full => SamplesCount >= Capacity;
 
             public FIFOModeSelection Mode => owner.fifoModeSelection.Value;
 
             public bool OverrunOccurred { get; private set; }
+
             public Vector3DSample Sample => latestSample ?? owner.DefaultSample;
 
             public event Action OnOverrun;

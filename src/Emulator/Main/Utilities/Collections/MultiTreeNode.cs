@@ -6,9 +6,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System;
 
 namespace Antmicro.Renode.Utilities.Collections
 {

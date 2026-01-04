@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 
@@ -91,10 +92,10 @@ namespace Antmicro.Renode.Peripherals
 
         private class IrqState
         {
+            public uint EffectiveValue { get { return Value & Mask; } }
+
             public uint Value;
             public uint Mask;
-
-            public uint EffectiveValue { get { return Value & Mask; } }
         }
 
         private class FlagState

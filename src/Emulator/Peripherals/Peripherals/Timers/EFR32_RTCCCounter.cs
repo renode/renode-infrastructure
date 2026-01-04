@@ -4,10 +4,11 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
-using System;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -49,6 +50,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 TrySyncTime();
                 return coreTimer.Value;
             }
+
             set
             {
                 coreTimer.Value = value;
@@ -152,8 +154,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         public interface ICCChannel
         {
             CCChannelMode Mode { get; set; }
+
             CCChannelComparisonBase ComparisonBase { get; set; }
+
             ulong CompareValue { get; set; }
+
             event Action CompareReached;
         }
 

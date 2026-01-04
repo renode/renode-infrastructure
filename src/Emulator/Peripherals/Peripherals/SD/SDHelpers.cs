@@ -1,11 +1,12 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Linq;
+
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Utilities;
 
@@ -59,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.SD
                     {
                         continue;
                     }
-                    
+
                     if(TryFindParameters(capacity, possibleBlockSize, out var result))
                     {
                         return result;
@@ -70,30 +71,30 @@ namespace Antmicro.Renode.Peripherals.SD
             // We should never reach here.
             throw new InvalidOperationException($"Could not calculate capacity parameters for given arguments: capacity={capacity}, blockSize={blockSize}");
         }
-        
+
         private static bool TryFindParameters(long capacity, BlockLength blockSize, out SDCapacityParameters parameters)
         {
             switch(TypeFromCapacity((ulong)capacity))
             {
-                case CardType.StandardCapacity_SC:
-                    return TryFindParametersStandardCapacity(capacity, blockSize, out parameters);
-                    
-                case CardType.HighCapacity_HC:
-                case CardType.ExtendedCapacity_XC:
-                    return TryFindParametersHighCapacity(capacity, blockSize, out parameters);
+            case CardType.StandardCapacity_SC:
+                return TryFindParametersStandardCapacity(capacity, blockSize, out parameters);
 
-                default:
-                    // unsupported type
-                    parameters = default(SDCapacityParameters);
-                    return false;
+            case CardType.HighCapacity_HC:
+            case CardType.ExtendedCapacity_XC:
+                return TryFindParametersHighCapacity(capacity, blockSize, out parameters);
+
+            default:
+                // unsupported type
+                parameters = default(SDCapacityParameters);
+                return false;
             }
         }
 
         private static bool TryFindParametersStandardCapacity(long capacity, BlockLength blockSize, out SDCapacityParameters parameters)
         {
             // cSize has only 12 bits, hence the limit
-            const int MaxCSizeValue = (1 << 12) - 1;
-            
+            const int maxCSizeValue = (1 << 12) - 1;
+
             var numberOfBlocks = (int)(capacity >> (int)blockSize);
 
             foreach(var multiplierEncoded in Enum.GetValues(typeof(SizeMultiplier))
@@ -107,9 +108,9 @@ namespace Antmicro.Renode.Peripherals.SD
                     // we are looking for the highest possible multiplier that is lower-or-equal than numberOfBlocks
                     continue;
                 }
-                
+
                 var cSize = (long)(numberOfBlocks / multiplierValue) - 1;
-                if(cSize > MaxCSizeValue)
+                if(cSize > maxCSizeValue)
                 {
                     // if for the highest possible multiplier cSize is still too high,
                     // checking smaller multipliers won't help; we can back-off immediately
@@ -123,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.SD
             parameters = default(SDCapacityParameters);
             return false;
         }
-        
+
         private static bool TryFindParametersHighCapacity(long capacity, BlockLength blockSize, out SDCapacityParameters parameters)
         {
             // block sizes other than 512 are not allowed in the HC/XC modes
@@ -132,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 parameters = default(SDCapacityParameters);
                 return false;
             }
-                
+
             var cSize = (capacity / 1024 / 512) - 1;
 
             // for HC/XC cards multiplier is not used
@@ -140,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.SD
             return true;
         }
     }
-    
+
     public enum SizeMultiplier
     {
         Multiplier4 = 0,
@@ -165,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.SD
     public enum BlockLength
     {
         Block512 = 9,
-        Block1024 = 10, 
+        Block1024 = 10,
         Block2048 = 11,
         // other values are reserved
         Undefined = int.MaxValue
@@ -186,16 +187,18 @@ namespace Antmicro.Renode.Peripherals.SD
         }
 
         public BlockLength BlockSize { get; }
+
         public SizeMultiplier Multiplier { get; }
+
         public long DeviceSize { get; }
 
-        public long MemoryCapacity 
+        public long MemoryCapacity
         {
             get
             {
                 // HC/XC SD cards do not use Multiplier to describe size
                 // but calculate the it by simply multiplying `DeviceSize + 1` by 512Kb;
-                // we internally mark this by setting Multipler to Undefined 
+                // we internally mark this by setting Multipler to Undefined
                 if(Multiplier == SizeMultiplier.Undefined)
                 {
                     DebugHelper.Assert(BlockSize == BlockLength.Block512);
@@ -207,7 +210,5 @@ namespace Antmicro.Renode.Peripherals.SD
                 }
             }
         }
-
-
     }
 }

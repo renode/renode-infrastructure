@@ -6,6 +6,7 @@
 //
 
 using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -105,6 +106,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly WindowMMUBusController busController;
         private readonly DoubleWordRegisterCollection registers;
 
+        private const int MaxWindowsCount = ((int)Registers.RangeEndBase) / 8;
+
         private enum Registers
         {
             RangeStartBase = 0x0,
@@ -112,7 +115,5 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             OffsetBase = 0x800,
             PrivilegesBase = 0xC00,
         }
-
-        private const int MaxWindowsCount = ((int)Registers.RangeEndBase) / 8;
     }
 }

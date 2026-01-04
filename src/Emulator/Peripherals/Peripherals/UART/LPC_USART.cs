@@ -5,12 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
@@ -60,13 +59,13 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 switch(parityMode)
                 {
-                    case ParityMode.Odd:
-                        return Parity.Odd;
-                    case ParityMode.Even:
-                        return Parity.Even;
-                    case ParityMode.NoParity:
-                    case ParityMode.Reserved:
-                        return Parity.None;
+                case ParityMode.Odd:
+                    return Parity.Odd;
+                case ParityMode.Even:
+                    return Parity.Even;
+                case ParityMode.NoParity:
+                case ParityMode.Reserved:
+                    return Parity.None;
                 }
                 throw new Exception("Unreachable");
             }
@@ -128,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("RXPOL", 22)
                 .WithTaggedFlag("TXPOL", 23)
                 .WithReservedBits(24, 8);
-            
+
             Registers.Control.Define(this)
                 .WithReservedBits(0, 1)
                 .WithTaggedFlag("TXBRKEN", 1)
@@ -141,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(10, 6)
                 .WithTaggedFlag("AUTOBAUD", 16)
                 .WithReservedBits(17, 15);
-            
+
             Registers.Status.Define(this)
                 .WithReservedBits(0, 1)
                 .WithTaggedFlag("RXIDLE", 1)
@@ -369,15 +368,15 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             switch(txFifoLevelTriggerPoint.Value)
             {
-                case 0b0000:
-                    return Count == (int)FifoCount.Empty;
-                case 0b0001:
-                    return Count == (int)FifoCount.OneEntry;
-                case 0b1111:
-                    return Count <= (int)FifoCount.NoLongerFull;
-                default:
-                    this.Log(LogLevel.Warning, "Encountered unexpected TX FIFO trigger level point.");
-                    return false;
+            case 0b0000:
+                return Count == (int)FifoCount.Empty;
+            case 0b0001:
+                return Count == (int)FifoCount.OneEntry;
+            case 0b1111:
+                return Count <= (int)FifoCount.NoLongerFull;
+            default:
+                this.Log(LogLevel.Warning, "Encountered unexpected TX FIFO trigger level point.");
+                return false;
             }
         }
 
@@ -385,15 +384,15 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             switch(rxFifoLevelTriggerPoint.Value)
             {
-                case 0b0000:
-                    return Count >= (int)FifoCount.OneEntry;
-                case 0b0001:
-                    return Count >= (int)FifoCount.TwoEntries;
-                case 0b1111:
-                    return Count == (int)FifoCount.Full;
-                default:
-                    this.Log(LogLevel.Warning, "Encountered unexpected RX FIFO trigger level point.");
-                    return false;
+            case 0b0000:
+                return Count >= (int)FifoCount.OneEntry;
+            case 0b0001:
+                return Count >= (int)FifoCount.TwoEntries;
+            case 0b1111:
+                return Count == (int)FifoCount.Full;
+            default:
+                this.Log(LogLevel.Warning, "Encountered unexpected RX FIFO trigger level point.");
+                return false;
             }
         }
 
@@ -436,6 +435,29 @@ namespace Antmicro.Renode.Peripherals.UART
                 peripheralSelectId.Value = FlexcommPeripheralNotSelected;
             }
         }
+
+        private bool TxLevelInterruptStatus
+        {
+            get => txFifoLevelInterruptEnable.Value && GetTxFifoTriggerLevelStatus();
+        }
+
+        private bool RxLevelInterruptStatus
+        {
+            get => rxFifoLevelInterruptEnable.Value && GetRxFifoTriggerLevelStatus();
+        }
+
+        private IValueRegisterField rxFifoLevelTriggerPoint;
+        private IValueRegisterField txFifoLevelTriggerPoint;
+        private IValueRegisterField peripheralSelectId;
+        private IFlagRegisterField peripheralSelectLock;
+        private IFlagRegisterField rxFifoLevelInterruptEnable;
+        private IFlagRegisterField txFifoLevelTriggerEnable;
+        private IValueRegisterField baudDivider;
+        private IFlagRegisterField txFifoLevelInterruptEnable;
+
+        private IFlagRegisterField transmitDisable;
+        private IFlagRegisterField rxFifoLevelTriggerEnable;
+        private IValueRegisterField oversampleSelection;
 
         private bool stopBits;
         private ParityMode parityMode;

@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         In = 0x1
     }
 
-    public enum URBCommand: uint
+    public enum URBCommand : uint
     {
         URBRequest = 0x1,
         Unlink = 0x2,

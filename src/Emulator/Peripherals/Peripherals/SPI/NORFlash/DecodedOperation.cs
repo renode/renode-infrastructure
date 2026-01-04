@@ -1,8 +1,8 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
-//  This file is licensed under the MIT License.
-//  Full license text is available in 'licenses/MIT.txt'.
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
@@ -18,12 +18,14 @@ namespace Antmicro.Renode.Peripherals.SPI.NORFlash
         public uint ExecutionAddress;
         public int CommandBytesHandled;
         public int DummyBytesRemaining;
+
         public int AddressLength
         {
             get
             {
                 return addressLength;
             }
+
             set
             {
                 addressLength = value;

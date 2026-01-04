@@ -5,8 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 namespace Antmicro.Renode.Peripherals.DMA
 {
     public class Place
@@ -23,7 +21,9 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
 
         public ulong? Address { get; private set; }
+
         public byte[] Array { get; private set; }
+
         public int? StartIndex { get; private set; }
 
         public static implicit operator Place(ulong address)
@@ -32,4 +32,3 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
     }
 }
-

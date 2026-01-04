@@ -1,15 +1,16 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Text;
-using Antmicro.Renode.Peripherals.CPU;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text;
+
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Utilities.GDB
 {
@@ -24,6 +25,11 @@ namespace Antmicro.Renode.Utilities.GDB
         public static PacketData ErrorReply(Error err = Error.Unknown)
         {
             return new PacketData(string.Format("E{0}", (int)err));
+        }
+
+        public static PacketData ErrorReply(String errText)
+        {
+            return new PacketData(string.Format("E.{0}", errText));
         }
 
         public static PacketData AbortReply(int signal)
@@ -52,6 +58,10 @@ namespace Antmicro.Renode.Utilities.GDB
             return new PacketData(string.Format("T05{0}:{1};thread:{2:X2};", reason.GetStopReason(),
                                                 !address.HasValue ? string.Empty : string.Format("{0:X2}", address), cpuId));
         }
+
+        public static PacketData Success { get; private set; }
+
+        public static PacketData Empty { get; private set; }
 
         public PacketData(string data)
         {
@@ -121,10 +131,8 @@ namespace Antmicro.Renode.Utilities.GDB
             return Mnemonic;
         }
 
-        public static PacketData Success { get; private set; }
-        public static PacketData Empty { get; private set; }
-
         public IEnumerable<byte> RawDataAsBinary { get; private set; }
+
         public IEnumerable<byte> DataAsBinary { get; private set; }
 
         public string DataAsString
@@ -146,14 +154,14 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public string Mnemonic { get; private set; }
 
-        private const byte EscapeOffset = 0x20;
-        private const byte EscapeSymbol = (byte)'}';
-        private const int DataAsStringLimit = 100;
-
         private string cachedString;
         private bool escapeNextByte;
         private readonly List<byte> rawBytes;
         private readonly List<byte> bytes;
+
+        private const byte EscapeOffset = 0x20;
+        private const byte EscapeSymbol = (byte)'}';
+        private const int DataAsStringLimit = 100;
     }
 
     public enum Error : int

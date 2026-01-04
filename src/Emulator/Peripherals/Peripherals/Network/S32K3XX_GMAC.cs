@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,8 +12,10 @@ namespace Antmicro.Renode.Peripherals.Network
     public class S32K3XX_GMAC : SynopsysDWCEthernetQualityOfService
     {
         public S32K3XX_GMAC(IMachine machine, long systemClockFrequency, ICPU cpuContext = null)
-            : base(machine, systemClockFrequency, cpuContext)
+            : base(machine, systemClockFrequency, cpuContext, BusWidth.Bits64, rxQueueSize: DMAQueueSize, txQueueSize: DMAQueueSize, dmaChannelCount: 3)
         {
+            IPVersion = 0x52;
+            UserIPVersion = 0x10;
             Reset();
         }
 
@@ -49,22 +51,21 @@ namespace Antmicro.Renode.Peripherals.Network
         public override long Size => 0x1300;
 
         public GPIO Channel0TX => dmaChannels[0].TxIRQ;
+
         public GPIO Channel0RX => dmaChannels[0].RxIRQ;
+
         public GPIO Channel1TX => dmaChannels[1].TxIRQ;
+
         public GPIO Channel1RX => dmaChannels[1].RxIRQ;
+
         public GPIO Channel2TX => dmaChannels[2].TxIRQ;
+
         public GPIO Channel2RX => dmaChannels[2].RxIRQ;
 
         // Base model configuration:
-        protected override long[] DMAChannelOffsets => new long[]
-        {
-            (long)Registers.DMAChannel0Control - (long)Registers.DMAMode,
-            (long)Registers.DMAChannel1Control - (long)Registers.DMAMode,
-            (long)Registers.DMAChannel2Control - (long)Registers.DMAMode,
-        };
-        protected override BusWidth DMABusWidth => BusWidth.Bits64;
-        protected override int RxQueueSize => 16384;
         protected override bool SeparateDMAInterrupts => true;
+
+        private const int DMAQueueSize = 16384;
 
         private enum Registers
         {

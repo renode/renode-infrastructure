@@ -9,13 +9,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
@@ -23,18 +24,59 @@ namespace Antmicro.Renode.Peripherals.Sensors
     {
         public LIS2DS12()
         {
+            samplesFifo = new Queue<Vector3DSample>();
             RegistersCollection = new ByteRegisterCollection(this);
             IRQ = new GPIO();
             DefineRegisters();
         }
 
-        public void FinishTransmission(){}
+        public void FeedSample(decimal x, decimal y, decimal z, int repeat = 1)
+        {
+            lock(samplesFifo)
+            {
+                if(repeat < 0)
+                {
+                    samplesFifoReload = () => FeedSampleInner(x, y, z);
+                    samplesFifoReload();
+                }
+                else
+                {
+                    FeedSampleInner(x, y, z, repeat);
+                    samplesFifoReload = null;
+                }
+            }
+        }
+
+        public void FeedSample(string path, int repeat = 1)
+        {
+            bufferedSamples = ParseSamplesFile(path);
+
+            lock(samplesFifo)
+            {
+                if(repeat < 0)
+                {
+                    samplesFifoReload = () => FeedSampleInner(bufferedSamples);
+                    samplesFifoReload();
+                }
+                else
+                {
+                    FeedSampleInner(bufferedSamples, repeat);
+                    samplesFifoReload = null;
+                    bufferedSamples = null;
+                }
+            }
+        }
+
+        public void FinishTransmission() { }
 
         public void Reset()
         {
             RegistersCollection.Reset();
             IRQ.Set(false);
             regAddress = 0;
+            AccelerationX = 0;
+            AccelerationY = 0;
+            AccelerationZ = 0;
         }
 
         public void Write(byte[] data)
@@ -62,6 +104,25 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 this.Log(LogLevel.Noisy, "Preparing to read register {0} (0x{0:X})", regAddress);
                 readyPending.Value = true;
                 UpdateInterrupts();
+                if(regAddress == Registers.DataOutXLow)
+                {
+                    lock(samplesFifo)
+                    {
+                        // Try to dequeue the next sample from the queue, otherwise keep the last value.
+                        if(samplesFifo.TryDequeue(out var currentSample))
+                        {
+                            AccelerationX = currentSample.X;
+                            AccelerationY = currentSample.Y;
+                            AccelerationZ = currentSample.Z;
+
+                            if(samplesFifoReload != null && samplesFifo.Count == 0)
+                            {
+                                // Reload queue with the repeated collection of samples.
+                                samplesFifoReload();
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -85,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             get => accelarationX;
             set
             {
-                if (!IsAccelerationOutOfRange(value))
+                if(!IsAccelerationOutOfRange(value))
                 {
                     accelarationX = value;
                     this.Log(LogLevel.Noisy, "AccelerationX set to {0}", accelarationX);
@@ -98,7 +159,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             get => accelarationY;
             set
             {
-                if (!IsAccelerationOutOfRange(value))
+                if(!IsAccelerationOutOfRange(value))
                 {
                     accelarationY = value;
                     this.Log(LogLevel.Noisy, "AccelerationY set to {0}", accelarationY);
@@ -111,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             get => accelarationZ;
             set
             {
-                if (!IsAccelerationOutOfRange(value))
+                if(!IsAccelerationOutOfRange(value))
                 {
                     accelarationZ = value;
                     this.Log(LogLevel.Noisy, "AccelerationZ set to {0}", accelarationZ);
@@ -122,6 +183,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public decimal Temperature { get; set; }
 
         public GPIO IRQ { get; }
+
         public ByteRegisterCollection RegistersCollection { get; }
 
         private void DefineRegisters()
@@ -208,21 +270,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
             decimal gain = SensorSensitivity;
             switch(fullScale.Value)
             {
-                case (uint)FullScaleSelect.fullScale2g:
-                    gain = SensorSensitivity;
-                    break;
-                case (uint)FullScaleSelect.fullScale16g:
-                    gain = 8 * SensorSensitivity;
-                    break;
-                case (uint)FullScaleSelect.fullScale4g:
-                    gain = 2 * SensorSensitivity;
-                    break;
-                case (uint)FullScaleSelect.fullScale8g:
-                    gain = 4 * SensorSensitivity;
-                    break;
-                default:
-                    gain = SensorSensitivity;
-                    break;
+            case (uint)FullScaleSelect.fullScale2g:
+                gain = SensorSensitivity;
+                break;
+            case (uint)FullScaleSelect.fullScale16g:
+                gain = 8 * SensorSensitivity;
+                break;
+            case (uint)FullScaleSelect.fullScale4g:
+                gain = 2 * SensorSensitivity;
+                break;
+            case (uint)FullScaleSelect.fullScale8g:
+                gain = 4 * SensorSensitivity;
+                break;
+            default:
+                gain = SensorSensitivity;
+                break;
             }
             return gain;
         }
@@ -230,7 +292,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private bool IsAccelerationOutOfRange(decimal acceleration)
         {
             // This range protects from the overflow of the short variables in the 'Convert' function.
-            if (acceleration < MinAcceleration || acceleration > MaxAcceleration)
+            if(acceleration < MinAcceleration || acceleration > MaxAcceleration)
             {
                 this.Log(LogLevel.Warning, "Acceleration is out of range, use value from the range <-19.5;19.5>");
                 return true;
@@ -283,6 +345,71 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return tempAsByte;
         }
 
+        private IEnumerable<Vector3DSample> ParseSamplesFile(string path)
+        {
+            var localQueue = new Queue<Vector3DSample>();
+            var lineNumber = 0;
+
+            try
+            {
+                using(var reader = File.OpenText(path))
+                {
+                    var line = "";
+                    while((line = reader.ReadLine()) != null)
+                    {
+                        ++lineNumber;
+                        var numbers = line.Split(new [] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(a => a.Trim()).ToArray();
+
+                        if(numbers.Length != 3
+                                || !decimal.TryParse(numbers[0], out var x)
+                                || !decimal.TryParse(numbers[1], out var y)
+                                || !decimal.TryParse(numbers[2], out var z))
+                        {
+                            throw new RecoverableException($"Wrong data file format at line {lineNumber}: {line}");
+                        }
+                        localQueue.Enqueue(new Vector3DSample(x, y, z));
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                if(e is RecoverableException)
+                {
+                    throw;
+                }
+
+                throw new RecoverableException($"There was a problem when reading samples file: {e.Message}");
+            }
+
+            return localQueue;
+        }
+
+        private void FeedSampleInner(decimal x, decimal y, decimal z, int repeat = 1)
+        {
+            lock(samplesFifo)
+            {
+                var sample = new Vector3DSample(x, y, z);
+                for(var i = 0; i < repeat; i++)
+                {
+                    samplesFifo.Enqueue(sample);
+                }
+            }
+        }
+
+        private void FeedSampleInner(IEnumerable<Vector3DSample> samples, int repeat = 1)
+        {
+            lock(samplesFifo)
+            {
+                for(var i = 0; i < repeat; i++)
+                {
+                    samplesFifo.EnqueueRange(samples);
+                }
+            }
+        }
+
+        private Action samplesFifoReload;
+        private IEnumerable<Vector3DSample> bufferedSamples;
+
         private IFlagRegisterField readyPending;
         private IFlagRegisterField readyEnabled;
         private IFlagRegisterField highFreqDataRateMode;
@@ -293,6 +420,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private decimal accelarationX;
         private decimal accelarationY;
         private decimal accelarationZ;
+
+        private readonly Queue<Vector3DSample> samplesFifo;
 
         private const decimal MinAcceleration = -19.5m;
         private const decimal MaxAcceleration = 19.5m;

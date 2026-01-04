@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -50,8 +51,11 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
         public long Size => 0x1000;
+
         public GPIO ErrorIRQ { get; }
 
         private Dictionary<long, DoubleWordRegister> DefineRegisters()
@@ -125,16 +129,6 @@ namespace Antmicro.Renode.Peripherals.DMA
         private const int BlockCount = 2;
         private const int ChannelsPerBlock = 8;
         private const int ChannelCount = BlockCount * ChannelsPerBlock;
-
-        private enum ControlRegisters
-        {
-            Control             = 0x00, // DCTRL_n_m/n_mS
-            StatusEnabled       = 0x10, // DCTRL_n_m/n_mS
-            StatusError         = 0x14, // DSTAT_ER_n_m/n_mS
-            StatusInterrupted   = 0x18, // DSTAT_END_n_m/n_mS
-            StatusTerminalCount = 0x1C, // DSTAT_TC_n_m/n_mS
-            StatusSuspend       = 0x20, // DSTAT_SUS_n_m/n_mS
-        }
 
         private class Channel
         {
@@ -398,20 +392,24 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             public GPIO IRQ { get; }
+
             public bool Enabled => dmaEnabled.Value;
+
             public bool Error => dmaError.Value;
+
             public bool EndInterrupt => endInterrupt.Value;
+
             public bool TerminalCount => terminalCount.Value;
 
             private TransferType ConvertToTransferType(ulong value)
             {
-                const ulong MaxTransferSize = (ulong)TransferType.QuadWord;
+                const ulong maxTransferSize = (ulong)TransferType.QuadWord;
                 ulong transferWordSize = value + 1;
-                if(transferWordSize > MaxTransferSize)
+                if(transferWordSize > maxTransferSize)
                 {
                     parent.ErrorLog("{0}: Transfer size set to {1}, but the maximum supported transfer size is {2}. Clamping to {2}",
-                        logPrefix, transferWordSize, MaxTransferSize);
-                    transferWordSize = MaxTransferSize;
+                        logPrefix, transferWordSize, maxTransferSize);
+                    transferWordSize = maxTransferSize;
                 }
 
                 return (TransferType)transferWordSize;
@@ -429,23 +427,23 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 switch(dmaMode.Value)
                 {
-                    case DMAMode.Register:
-                    {
-                        dmaEnabled.Value = true;
-                        var bank = registerSetSelect.Value ? 1 : 0;
-                        currentSourceAddress = nextSourceAddresses[bank].Value;
-                        currentDestinationAddress = nextDestinationAddresses[bank].Value;
-                        currentTransactionByte = nextTransactionBytes[bank].Value;
-                        break;
-                    }
-                    case DMAMode.Link:
-                        parent.ErrorLog("{0}: {1} DMA mode is currently not supported, triggering an error", logPrefix, nameof(DMAMode.Link));
-                        dmaEnabled.Value = false;
-                        dmaError.Value = true;
-                        UpdateInterrupts();
-                        return;
-                    default:
-                        throw new Exception("unreachable");
+                case DMAMode.Register:
+                {
+                    dmaEnabled.Value = true;
+                    var bank = registerSetSelect.Value ? 1 : 0;
+                    currentSourceAddress = nextSourceAddresses[bank].Value;
+                    currentDestinationAddress = nextDestinationAddresses[bank].Value;
+                    currentTransactionByte = nextTransactionBytes[bank].Value;
+                    break;
+                }
+                case DMAMode.Link:
+                    parent.ErrorLog("{0}: {1} DMA mode is currently not supported, triggering an error", logPrefix, nameof(DMAMode.Link));
+                    dmaEnabled.Value = false;
+                    dmaError.Value = true;
+                    UpdateInterrupts();
+                    return;
+                default:
+                    throw new Exception("unreachable");
                 }
             }
 
@@ -456,6 +454,27 @@ namespace Antmicro.Renode.Peripherals.DMA
                 parent.UpdateErrorInterrupt();
             }
 
+            private DoubleWordRegister statusRegister;
+            private IFlagRegisterField endInterrupt;
+
+            private IFlagRegisterField terminalCount;
+            private IEnumRegisterField<DMAMode> dmaMode;
+            private IFlagRegisterField performFullTransfer;
+            private IFlagRegisterField dmaEnabled;
+            private IFlagRegisterField registerSetEnable;
+            private IFlagRegisterField registerSetSwitch;
+            private IFlagRegisterField endInterruptMask;
+            private IFlagRegisterField registerSetSelect;
+            private IFlagRegisterField sourceAddressCounting;
+            private TransferType destinationTransferType;
+            private TransferType sourceTransferType;
+            private ICPU requestingCpu;
+            private ulong currentTransactionByte;
+            private ulong currentDestinationAddress;
+            private ulong currentSourceAddress;
+            private IFlagRegisterField destinationAddressCounting;
+            private IFlagRegisterField dmaError;
+
             private readonly RenesasRZG_DMAC parent;
             private readonly DmaEngine dma;
             private readonly string logPrefix;
@@ -463,27 +482,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             private readonly IValueRegisterField[] nextSourceAddresses;
             private readonly IValueRegisterField[] nextDestinationAddresses;
             private readonly IValueRegisterField[] nextTransactionBytes;
-
-            private DoubleWordRegister statusRegister;
-            private ulong currentSourceAddress;
-            private ulong currentDestinationAddress;
-            private ulong currentTransactionByte;
-            private ICPU requestingCpu;
-            private TransferType sourceTransferType;
-            private TransferType destinationTransferType;
-            private IFlagRegisterField sourceAddressCounting;
-            private IFlagRegisterField destinationAddressCounting;
-            private IFlagRegisterField registerSetSelect;
-            private IFlagRegisterField registerSetSwitch;
-            private IFlagRegisterField registerSetEnable;
-            private IFlagRegisterField dmaEnabled;
-            private IFlagRegisterField performFullTransfer;
-            private IEnumRegisterField<DMAMode> dmaMode;
-
-            private IFlagRegisterField terminalCount;
-            private IFlagRegisterField endInterrupt;
-            private IFlagRegisterField endInterruptMask;
-            private IFlagRegisterField dmaError;
 
             private const int AddressRegisterBanks = 2;
 
@@ -512,6 +510,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                 NextLinkAddress             = 0x38, // NXLA_n/nS
                 CurrentLinkAddress          = 0x3C, // CRLA_n/nS
             }
+        }
+
+        private enum ControlRegisters
+        {
+            Control             = 0x00, // DCTRL_n_m/n_mS
+            StatusEnabled       = 0x10, // DCTRL_n_m/n_mS
+            StatusError         = 0x14, // DSTAT_ER_n_m/n_mS
+            StatusInterrupted   = 0x18, // DSTAT_END_n_m/n_mS
+            StatusTerminalCount = 0x1C, // DSTAT_TC_n_m/n_mS
+            StatusSuspend       = 0x20, // DSTAT_SUS_n_m/n_mS
         }
     }
 }

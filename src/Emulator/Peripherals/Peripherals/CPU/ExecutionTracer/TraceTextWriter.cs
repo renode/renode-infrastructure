@@ -5,12 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Collections.Generic;
+
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.CPU.Disassembler;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
@@ -50,30 +49,30 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     switch(format)
                     {
-                        case TraceFormat.PC:
-                            stringBuilder.AppendFormat("0x{0:X}\n", result.PC);
-                            break;
+                    case TraceFormat.PC:
+                        stringBuilder.AppendFormat("0x{0:X}\n", result.PC);
+                        break;
 
-                        case TraceFormat.Opcode:
-                            stringBuilder.AppendFormat("0x{0}\n", result.OpcodeString.ToUpper());
-                            break;
+                    case TraceFormat.Opcode:
+                        stringBuilder.AppendFormat("0x{0}\n", result.OpcodeString.ToUpper());
+                        break;
 
-                        case TraceFormat.PCAndOpcode:
-                            stringBuilder.AppendFormat("0x{0:X}: 0x{1}\n", result.PC, result.OpcodeString.ToUpper());
-                            break;
+                    case TraceFormat.PCAndOpcode:
+                        stringBuilder.AppendFormat("0x{0:X}: 0x{1}\n", result.PC, result.OpcodeString.ToUpper());
+                        break;
 
-                        case TraceFormat.Disassembly:
-                            var symbol = AttachedCPU.Bus.FindSymbolAt(pc, AttachedCPU);
-                            var disassembly = result.ToString().Replace("\t", " ");
-                            if(symbol != null)
-                            {
-                                stringBuilder.AppendFormat("{0, -60} [{1}]\n", disassembly, symbol);
-                            }
-                            else
-                            {
-                                stringBuilder.AppendFormat("{0}\n", disassembly);
-                            }
-                            break;
+                    case TraceFormat.Disassembly:
+                        var symbol = AttachedCPU.Bus.FindSymbolAt(pc, AttachedCPU);
+                        var disassembly = result.ToString().Replace("\t", " ");
+                        if(symbol != null)
+                        {
+                            stringBuilder.AppendFormat("{0, -60} [{1}]\n", disassembly, symbol);
+                        }
+                        else
+                        {
+                            stringBuilder.AppendFormat("{0}\n", disassembly);
+                        }
+                        break;
                     }
                     while(hasAdditionalData && (nextAdditionalData.PC == pcVirtual))
                     {
