@@ -4,29 +4,28 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class S32KXX_ModeEntryModule : BasicDoubleWordPeripheral, IKnownSize
     {
-        public S32KXX_ModeEntryModule(IMachine machine, ICPU core0,
-            ICPU core1 = null, ICPU core2 = null, ICPU core3 = null, ICPU core4 = null, ICPU core5 = null)
-            : base(machine)
+        public S32KXX_ModeEntryModule(IMachine machine, ICPU[] cores) : base(machine)
         {
-            cores = new ICPU[]
+            if(cores.Length > NumberOfCores)
             {
-                core0,
-                core1,
-                core2,
-                core3,
-                core4,
-                core5
-            };
+                throw new ConstructionException(
+                    $"Specified {cores.Length} cores but the maximum allowed number of cores is {NumberOfCores}");
+            }
+            this.cores = cores;
+            Array.Resize(ref this.cores, NumberOfCores);
+
             cofbsStatus = new uint[][]
             {
                 new uint[2],
@@ -99,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(3, 29);
 
             var coreSize = Registers.Partition0Core1ProcessConfiguration - Registers.Partition0Core0ProcessConfiguration;
-            foreach(var index in Enumerable.Range(0, cores.Length).Where(x => x != 2))
+            foreach(var index in Enumerable.Range(0, NumberOfCores).Where(x => x != 2))
             {
                 var offset = index * coreSize;
                 (Registers.Partition0Core0ProcessConfiguration + offset).Define(this)
@@ -115,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             // Currently only a single core configuration is supported.
             // To mimics the initial state of a system, halted cores reports waiting for interrupt.
-            Registers.Partition0Core0Status.DefineMany(this, (uint)cores.Length, stepInBytes: (uint)coreSize, setup: (reg, index) => reg
+            Registers.Partition0Core0Status.DefineMany(this, NumberOfCores, stepInBytes: (uint)coreSize, setup: (reg, index) => reg
                 .WithFlag(0, name: $"CCS (Core{index} Clock Process Status)",
                     valueProviderCallback: (_) => !(cores[index]?.IsHalted ?? true)
                 )
@@ -125,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 )
             );
 
-            Registers.Partition0Core0Address.DefineMany(this, (uint)cores.Length, stepInBytes: (uint)coreSize, setup: (reg, index) => reg
+            Registers.Partition0Core0Address.DefineMany(this, NumberOfCores, stepInBytes: (uint)coreSize, setup: (reg, index) => reg
                 .WithReservedBits(0, 2)
                 .WithValueField(2, 30, out coreStartAddress[index], name: $"ADDR (Core{index} Boot Address)")
             );
