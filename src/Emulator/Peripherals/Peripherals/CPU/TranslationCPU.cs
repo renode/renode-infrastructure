@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -1793,8 +1793,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.Log(LogLevel.Error, "MMU fault - the address 0x{0:X} is not specified in any of the existing ranges", address);
             }
-            var shouldRetry = mmuFaultHook?.Invoke(address, (AccessType)accessType, windowId, isFirstTry) ?? false;
-            return shouldRetry ? 1 : 0;
+            var result = mmuFaultHook?.Invoke(address, (AccessType)accessType, windowId, isFirstTry) ?? ExternalMmuResult.Fault;
+            return (int)result;
         }
 
         [Export]

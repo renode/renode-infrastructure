@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -64,6 +64,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         AfterInternal = 3,
     }
 
+    // Must match the same enum on the C side
+    public enum ExternalMmuResult
+    {
+        NoFault = 0,
+        Fault = 1,
+        ExternalAbort = 2,
+    }
+
     // windowId is null if the address was not found in any of the defined windows
-    public delegate bool ExternalMmuFaultHook(ulong address, AccessType accessType, ulong? windowId, bool firstTry);
+    public delegate ExternalMmuResult ExternalMmuFaultHook(ulong address, AccessType accessType, ulong? windowId, bool firstTry);
 }

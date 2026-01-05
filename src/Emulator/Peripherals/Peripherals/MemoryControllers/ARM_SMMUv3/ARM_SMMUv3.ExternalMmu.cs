@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             return result;
         }
 
-        private bool MmuFaultHook(ulong faultAddress, AccessType accessType, ulong? faultyWindowId, bool firstTry)
+        private ExternalMmuResult MmuFaultHook(ulong faultAddress, AccessType accessType, ulong? faultyWindowId, bool firstTry)
         {
             if(!firstTry)
             {
@@ -86,7 +86,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 {
                     smmu.SignalPermissionFaultEvent(cpu, faultAddress, accessType);
                 }
-                return false;
+                return ExternalMmuResult.Fault;
             }
 
             smmu.NoisyLog("MMU fault 0x{0:x} {1} win={2}", faultAddress, accessType, faultyWindowId);
@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             var pageWindow = smmu.GetWindowFromPageTable(faultAddress, cpu, accessType);
             if(pageWindow == null)
             {
-                return false;
+                return ExternalMmuResult.Fault;
             }
 
             var windowId = cpu.AcquireExternalMmuWindow(Privilege.All);
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             cpu.SetMmuWindowEnd(windowId, pageWindow.End);
             cpu.SetMmuWindowAddend(windowId, (ulong)pageWindow.Offset);
             cpu.SetMmuWindowPrivileges(windowId, BusAccessPrivilegesToExternalMmuWindowPrivileges(pageWindow.Privileges));
-            return true;
+            return ExternalMmuResult.NoFault;
         }
 
         private bool enabled;

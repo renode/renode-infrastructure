@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     this.TriggerInterrupt();
                     throw new CpuAbortException("Mmu fault occured. This must be handled properly");
                 }
-                return false;
+                return ExternalMmuResult.Fault;
             });
         }
 
