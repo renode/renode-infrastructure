@@ -209,6 +209,12 @@ namespace Antmicro.Renode.Peripherals.SD
                 result = readContext.Data.AsByteArray(readContext.Offset, size);
                 Array.Reverse(result);
                 readContext.Move(size * 8);
+                // Requests with finite data automatically go to transfer state when finished
+                if(readContext.Offset >= readContext.Data.Length)
+                {
+                    state = SDCardState.Transfer;
+                    readContext.Data = null;
+                }
             }
             else
             {
