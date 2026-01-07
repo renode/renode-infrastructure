@@ -26,6 +26,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             this.cores = cores;
             Array.Resize(ref this.cores, NumberOfCores);
 
+            for(var coreIdx = 0; coreIdx < NumberOfCores; coreIdx++)
+            {
+                if(this.cores[coreIdx] is TranslationCPU core)
+                {
+                    var innerIdx = coreIdx;
+                    core?.AddHookAtWfiStateChange(val => wfiStatus[innerIdx] = val);
+                }
+            }
+
             cofbsStatus = new uint[][]
             {
                 new uint[2],
@@ -40,6 +49,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             base.Reset();
             Initialize();
+            for(var coreIdx = 0; coreIdx < NumberOfCores; coreIdx++)
+            {
+                wfiStatus[coreIdx] = false;
+            }
         }
 
         public long Size => 0x4000;
@@ -120,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 )
                 .WithReservedBits(1, 30)
                 .WithFlag(31, name: "WFI (WaitForInterruptStatus)",
-                    valueProviderCallback: (_) => cores[index]?.IsHalted ?? false
+                    valueProviderCallback: (_) => wfiStatus[index]
                 )
             );
 
@@ -174,6 +187,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IValueRegisterField[] coreStartAddress = new IValueRegisterField[NumberOfCores];
         private readonly IFlagRegisterField[] coreClockStarted = new IFlagRegisterField[NumberOfCores];
 
+        private readonly bool[] wfiStatus = new bool[NumberOfCores];
         private readonly uint[][] cofbsStatus;
         private readonly ICPU[] cores;
         private const uint PartitionCount = 3;
