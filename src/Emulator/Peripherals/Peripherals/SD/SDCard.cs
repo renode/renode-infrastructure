@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -20,9 +20,11 @@ using static Antmicro.Renode.Utilities.BitHelper;
 
 namespace Antmicro.Renode.Peripherals.SD
 {
-    // Features NOT supported:
-    // * Toggling selected state
-    // * RCA (relative card address) filtering
+    // Only Spec v1.01 is supported.
+    // Spec v1.01 features NOT supported:
+    // * The following commands: CMD4, CMD15, CMD27, CMD32, CMD33, CMD38, CMD56, ACMD6, ACMD22, ACMD23, ACMD42
+    // * Respect of selected state
+    // * RCA (relative card address) filtering other than CMD7
     // As a result any SD controller with more than one SD card attached at the same time might not work properly.
     // Card type (SC/HC/XC/UC) is determined based on the provided capacity
     public class SDCard : ISPIPeripheral, IDisposable
@@ -613,6 +615,9 @@ namespace Antmicro.Renode.Peripherals.SD
 
                 state = SDCardState.Standby;
 
+                // CMD7 requires us to come up with a new address each invocation
+                CardAddress += 1;
+
                 var status = CardStatus.AsUInt32();
                 return BitHelper.BitConcatenator.New()
                     .StackAbove(status, 13, 0)
@@ -634,20 +639,29 @@ namespace Antmicro.Renode.Peripherals.SD
                     // this command is not supported in the SPI mode
                     break;
                 }
-
-                // this is a toggle command:
-                // Select is used to start a transfer;
-                // Deselct is used to abort the active transfer
-                switch(state)
+                ushort rca = (ushort)(arg >> 16);
+                // If the argument RCA matches our RCA, go to transfer or programming mode, otherwise go to standby or disconnected mode (RCA 0 always does the latter)
+                if(rca == CardAddress && rca != 0)
                 {
-                case SDCardState.Standby:
-                    state = SDCardState.Transfer;
-                    break;
-
-                case SDCardState.Transfer:
-                case SDCardState.Programming:
-                    state = SDCardState.Standby;
-                    break;
+                    if(state == SDCardState.Standby)
+                    {
+                        state = SDCardState.Transfer;
+                    }
+                    else if(state == SDCardState.Disconnect)
+                    {
+                        state = SDCardState.Programming;
+                    }
+                }
+                else
+                {
+                    if(state == SDCardState.Transfer)
+                    {
+                        state = SDCardState.Standby;
+                    }
+                    else if(state == SDCardState.Programming)
+                    {
+                        state = SDCardState.Disconnect;
+                    }
                 }
 
                 return CardStatus;
