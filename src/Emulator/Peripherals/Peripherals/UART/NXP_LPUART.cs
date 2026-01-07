@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -298,6 +298,11 @@ namespace Antmicro.Renode.Peripherals.UART
                     }, name: "RXCOUNT / Receive Counter")
                     .WithReservedBits(27, 5)
                     .WithWriteCallback((_, __) => UpdateGPIOOutputs())
+                );
+
+                registersMap.Add(FifoRegistersOffset + (long)FifoRegs.DataReadOnly, new DoubleWordRegister(this)
+                    .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => TryGetCharacter(out var ch, peek: true) ? ch : (byte)0, name: "DATA")
+                    .WithReservedBits(16, 16)
                 );
             }
 
@@ -654,6 +659,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             Fifo = 0x0,
             Watermark = 0x4,
+            DataReadOnly = 0x8,
         }
     }
 }
