@@ -1722,7 +1722,7 @@
     <Compile Include="Emulator/Main/Utilities/DebugAssert.cs" />
     <Compile Include="Emulator/Main/Core/Structure/NullRegistrationPointPeripheralContainer.cs" />
     <Compile Include="Emulator/Main/Core/Structure/IPeripheralContainer.cs" />
-    <Compile Include="Emulator/Main/Core/Structure/IPeripheralRegister.cs" />
+    <Compile Include="Emulator/Main/Core/Structure/IRegisterablePeripheral.cs" />
     <Compile Include="Emulator/Main/Backends/Display/IPixelConverter.cs" />
     <Compile Include="Emulator/Main/Backends/Display/IPixelBlender.cs" />
     <Compile Include="Emulator/Main/Backends/Display/Pixel.cs" />

@@ -9,9 +9,9 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.UnitTests.Mocks
 {
-    public class AmbiguousRegister : IPeripheralRegister<IDoubleWordPeripheral, BusPointRegistration>, IPeripheralRegister<IDoubleWordPeripheral, DoublePointRegistration>,
-        IPeripheralRegister<IDoubleWordPeripheral, IMockRegistrationPoint1>, IPeripheralRegister<IDoubleWordPeripheral, IMockRegistrationPoint2>,
-        IPeripheralRegister<IBytePeripheral, DoublePointRegistration>
+    public class AmbiguousRegister : IRegisterablePeripheral<IDoubleWordPeripheral, BusPointRegistration>, IRegisterablePeripheral<IDoubleWordPeripheral, DoublePointRegistration>,
+        IRegisterablePeripheral<IDoubleWordPeripheral, IMockRegistrationPoint1>, IRegisterablePeripheral<IDoubleWordPeripheral, IMockRegistrationPoint2>,
+        IRegisterablePeripheral<IBytePeripheral, DoublePointRegistration>
     {
         public void Register(IDoubleWordPeripheral peripheral, DoublePointRegistration registrationPoint)
         {

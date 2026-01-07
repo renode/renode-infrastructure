@@ -19,7 +19,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class RenesasRZG_CPG_SYSC : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IPeripheralRegister<RenesasRZG_Watchdog, NumberRegistrationPoint<byte>>
+    public class RenesasRZG_CPG_SYSC : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, IRegisterablePeripheral<RenesasRZG_Watchdog, NumberRegistrationPoint<byte>>
     {
         public RenesasRZG_CPG_SYSC(ICPU cpu0 = null, ICPU cpu1 = null, CortexM cpu_m33 = null)
         {

@@ -18,9 +18,9 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     [Icon("gpio")]
-    public abstract class BaseGPIOPort : INumberedGPIOOutput, IPeripheralRegister<IGPIOReceiver, NullRegistrationPoint>,
-        IPeripheralRegister<IGPIOSender, NullRegistrationPoint>, IPeripheralRegister<IGPIOReceiver, NumberRegistrationPoint<int>>,
-        IPeripheral, IGPIOReceiver, IPeripheralRegister<IGPIOSender, NumberRegistrationPoint<int>>
+    public abstract class BaseGPIOPort : INumberedGPIOOutput, IRegisterablePeripheral<IGPIOReceiver, NullRegistrationPoint>,
+        IRegisterablePeripheral<IGPIOSender, NullRegistrationPoint>, IRegisterablePeripheral<IGPIOReceiver, NumberRegistrationPoint<int>>,
+        IPeripheral, IGPIOReceiver, IRegisterablePeripheral<IGPIOSender, NumberRegistrationPoint<int>>
     {
         public virtual void OnGPIO(int number, bool value)
         {

@@ -165,7 +165,7 @@ namespace Antmicro.Renode.Utilities
             var ifaces = attachableTo.GetInterfaces()
                 .Where(i =>
                     i.IsGenericType &&
-                    i.GetGenericTypeDefinition() == typeof(Antmicro.Renode.Core.Structure.IPeripheralRegister<,>))
+                    i.GetGenericTypeDefinition() == typeof(Antmicro.Renode.Core.Structure.IRegisterablePeripheral<,>))
                 .Select(i => i.GetGenericArguments()[0]).Distinct();
 
             return foundPeripherals

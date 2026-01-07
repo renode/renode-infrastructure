@@ -16,7 +16,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
-    public class EHCIHostController : IDoubleWordPeripheral, IPeripheralRegister<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>, IDisposable
+    public class EHCIHostController : IDoubleWordPeripheral, IRegisterablePeripheral<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>, IDisposable
     {
         public EHCIHostController(IMachine machine, uint ehciBaseAddress = 0x100, uint capabilityRegistersLength = 0x40, uint numberOfPorts = 1, uint? ulpiBaseAddress = 0x170)
         {

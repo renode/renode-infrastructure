@@ -9,7 +9,7 @@ using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.UnitTests.Mocks
 {
-    public class EmptyInterestingType : IPeripheralRegister<ICPU, NullRegistrationPoint>
+    public class EmptyInterestingType : IRegisterablePeripheral<ICPU, NullRegistrationPoint>
     {
         // note: Register and Unregister methods are empty, because the purpose of this type is to test
         // casting of types (that is why this type does not implement IPeripheral) and they will not be used

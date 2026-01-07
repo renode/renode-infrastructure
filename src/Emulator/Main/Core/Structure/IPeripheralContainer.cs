@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Core.Structure
     /// Interface for objects that allow registering peripherals and addressing/querying for them.
     /// </summary>
     public interface IPeripheralContainer<TPeripheral, TRegistrationPoint> :
-        IPeripheralRegister<TPeripheral, TRegistrationPoint>
+        IRegisterablePeripheral<TPeripheral, TRegistrationPoint>
         where TPeripheral : IPeripheral where TRegistrationPoint : IRegistrationPoint
     {
         IEnumerable<TRegistrationPoint> GetRegistrationPoints(TPeripheral peripheral);

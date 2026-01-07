@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     public static class MassStorageExtensions
     {
-        public static void PendriveFromFile(this IMachine machine, string file, string name, IPeripheralRegister<IUSBPeripheral, USBRegistrationPoint> attachTo, byte port, bool persistent = true)
+        public static void PendriveFromFile(this IMachine machine, string file, string name, IRegisterablePeripheral<IUSBPeripheral, USBRegistrationPoint> attachTo, byte port, bool persistent = true)
         {
             // TODO: note that port is here (or is nondefault) only due to bug/deficiency in EHCI
             // i.e. that one cannot register by first free port

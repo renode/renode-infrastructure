@@ -11,7 +11,7 @@ using Antmicro.Renode.Core.Structure;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
-    public interface IUSBHubBase : IPeripheralRegister<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>
+    public interface IUSBHubBase : IRegisterablePeripheral<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>
     {
         event Action <uint> Connected ;
 

@@ -17,7 +17,7 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals
 {
-    public class HiFive_PWM : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IPeripheralRegister<IGPIOReceiver, NumberRegistrationPoint<int>>
+    public class HiFive_PWM : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRegisterablePeripheral<IGPIOReceiver, NumberRegistrationPoint<int>>
     {
         public HiFive_PWM(IMachine machine, uint frequency = 16000000)
         {

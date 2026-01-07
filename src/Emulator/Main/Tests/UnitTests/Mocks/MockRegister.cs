@@ -14,7 +14,7 @@ using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.UnitTests.Mocks
 {
-    public class MockRegister : IPeripheralRegister<ICPU, NullRegistrationPoint>, IDoubleWordPeripheral, IKnownSize
+    public class MockRegister : IRegisterablePeripheral<ICPU, NullRegistrationPoint>, IDoubleWordPeripheral, IKnownSize
     {
         public MockRegister(IMachine machine)
         {

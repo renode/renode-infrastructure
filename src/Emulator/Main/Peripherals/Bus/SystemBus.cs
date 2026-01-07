@@ -1200,7 +1200,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             Register(peripheral, (BusRangeRegistration)registrationPoint);
         }
 
-        void IPeripheralRegister<IBusPeripheral, BusMultiRegistration>.Unregister(IBusPeripheral peripheral)
+        void IRegisterablePeripheral<IBusPeripheral, BusMultiRegistration>.Unregister(IBusPeripheral peripheral)
         {
             Unregister(peripheral);
         }

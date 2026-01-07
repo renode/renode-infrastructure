@@ -549,7 +549,7 @@ namespace Antmicro.Renode.Config.Devices
                 //TODO: nongeneric version
                 var parent = parents.Single(x => x.Key == parentName).Value;
                 var connections = device.Connections[parentName];
-                var ifaces = parent.GetType().GetInterfaces().Where(x => IsSpecializationOfRawGeneric(typeof(IPeripheralRegister<,>), x)).ToList();
+                var ifaces = parent.GetType().GetInterfaces().Where(x => IsSpecializationOfRawGeneric(typeof(IRegisterablePeripheral<,>), x)).ToList();
                 var ifaceCandidates = ifaces
                     .Where(x => x.GetGenericArguments()[0].IsAssignableFrom(device.Peripheral.GetType()))
                     .OrderBy(x => typeof(NullRegistrationPoint).IsAssignableFrom(x.GetGenericArguments()[1])) // Use the null registration point last

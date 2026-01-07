@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     // It manages internal connections between peripherals and eDMAs.
     // It doesn't occupy memory space, but it's represented as an independent block in the platform file.
-    public class IMXRT700_DmaMux : IPeripheral, IPeripheralRegister<IMXRT700_eDMA, NumberRegistrationPoint<int>>, ILocalGPIOReceiver
+    public class IMXRT700_DmaMux : IPeripheral, IRegisterablePeripheral<IMXRT700_eDMA, NumberRegistrationPoint<int>>, ILocalGPIOReceiver
     {
         public IMXRT700_DmaMux()
         {

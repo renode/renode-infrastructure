@@ -19,7 +19,7 @@ using Antmicro.Renode.UserInterface;
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
     [Icon("usb")]
-    public class ISP1761 : IDoubleWordPeripheral, IPeripheralRegister<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>, IPCIPeripheral
+    public class ISP1761 : IDoubleWordPeripheral, IRegisterablePeripheral<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>, IPCIPeripheral
     {
         public ISP1761(IMachine machine)
         {

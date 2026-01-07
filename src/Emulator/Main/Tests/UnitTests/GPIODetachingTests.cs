@@ -57,7 +57,7 @@ namespace Antmicro.Renode.UnitTests
             machine.SystemBus.Register(gpioReceiverMock, new BusRangeRegistration(0x10, 0x10));
 
             //act
-            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(gpioReceiverMock);
+            ((IRegisterablePeripheral<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(gpioReceiverMock);
 
             //assert
             var connections = gpioByNumberConnectorPeripheralMock.Connections;
@@ -82,7 +82,7 @@ namespace Antmicro.Renode.UnitTests
             machine.SystemBus.Register(gpioReceiverMock3, new BusRangeRegistration(0x30, 0x10));
 
             //act
-            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(gpioReceiverMock);
+            ((IRegisterablePeripheral<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(gpioReceiverMock);
 
             //assert
             var connections = gpioByNumberConnectorPeripheralMock.Connections;
@@ -103,7 +103,7 @@ namespace Antmicro.Renode.UnitTests
             gpioSender.Irq.Connect(gpioReceiverMock, 1);
 
             //act
-            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(gpioReceiverMock);
+            ((IRegisterablePeripheral<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(gpioReceiverMock);
             //assert
             Assert.IsFalse(gpioSender.Irq.IsConnected);
         }
@@ -131,7 +131,7 @@ namespace Antmicro.Renode.UnitTests
             a.Connections[1].Connect(c, 2);
 
             //act
-            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(b);
+            ((IRegisterablePeripheral<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(b);
             var aConnections = a.Connections;
             var bConnections = b.Connections;
 
@@ -165,7 +165,7 @@ namespace Antmicro.Renode.UnitTests
             a.Connections[0].Connect(c, 1);
             Assert.True(a.Connections[0].Endpoints.Count(x => x.Receiver == c && x.Number == 1) == 1);
 
-            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(c);
+            ((IRegisterablePeripheral<IBusPeripheral, BusRangeRegistration>)machine.SystemBus).Unregister(c);
 
             Assert.True(a.Connections[0].Endpoints.Count == 1);
             Assert.True(a.Connections[0].Endpoints[0].Receiver == b);

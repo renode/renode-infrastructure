@@ -16,7 +16,7 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class ZynqMP_IPI : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IPeripheralRegister<ZynqMP_PlatformManagementUnit, NullRegistrationPoint>
+    public class ZynqMP_IPI : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRegisterablePeripheral<ZynqMP_PlatformManagementUnit, NullRegistrationPoint>
     {
         public static long GetRegisterOffset(ChannelId channelId, RegisterOffset registerOffset)
         {

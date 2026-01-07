@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Core.Structure
     /// NOTE: This exists along IPeripheralContainer because some objects handle more than
     /// one TRegistrationPoint for a given TPeripheral.
     /// </summary>
-    public interface IPeripheralRegister<TPeripheral, TRegistrationPoint> : ICovariantPeripheralRegister<TPeripheral, TRegistrationPoint>
+    public interface IRegisterablePeripheral<TPeripheral, TRegistrationPoint> : ICovariantRegisterablePeripheral<TPeripheral, TRegistrationPoint>
         where TPeripheral : IPeripheral where TRegistrationPoint : IRegistrationPoint
     {
         void Register(TPeripheral peripheral, TRegistrationPoint registrationPoint);
@@ -23,8 +23,8 @@ namespace Antmicro.Renode.Core.Structure
     }
 
     // this interface is needed for `IRegisterController` which describes controller of 'any' register
-    // that is encoded as IPeripheralRegister<IPerhipheral, IRegistrationPoint> (that's why we need out)
-    public interface ICovariantPeripheralRegister<out TPeripheral, out TRegistrationPoint> : IEmulationElement
+    // that is encoded as IRegisterablePeripheral<IPerhipheral, IRegistrationPoint> (that's why we need out)
+    public interface ICovariantRegisterablePeripheral<out TPeripheral, out TRegistrationPoint> : IEmulationElement
         where TPeripheral : IPeripheral where TRegistrationPoint : IRegistrationPoint
     {
     }

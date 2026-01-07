@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     /// <see cref="Cluster"/> could be a generic class to accept any types derived from <see cref="ICPU"/>,
     /// but we wouldn't be able to use it in the platform description file (REPL), so it has a concrete type.
     /// </summary>
-    public class Cluster : IPeripheralRegister<ICluster<TranslationCPU>, NullRegistrationPoint>, IPeripheralRegister<TranslationCPU, NullRegistrationPoint>, ICluster<TranslationCPU>, IHaltable
+    public class Cluster : IRegisterablePeripheral<ICluster<TranslationCPU>, NullRegistrationPoint>, IRegisterablePeripheral<TranslationCPU, NullRegistrationPoint>, ICluster<TranslationCPU>, IHaltable
     {
         public Cluster(IMachine machine)
         {

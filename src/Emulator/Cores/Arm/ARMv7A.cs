@@ -17,7 +17,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public class ARMv7A : Arm, IARMSingleSecurityStateCPU, IPeripheralRegister<ARM_GenericTimer, NullRegistrationPoint>
+    public class ARMv7A : Arm, IARMSingleSecurityStateCPU, IRegisterablePeripheral<ARM_GenericTimer, NullRegistrationPoint>
     {
         public ARMv7A(IMachine machine, string cpuType, uint cpuId = 0, ARM_GenericInterruptController genericInterruptController = null, Endianess endianness = Endianess.LittleEndian)
             : base(cpuType, machine, cpuId, endianness)

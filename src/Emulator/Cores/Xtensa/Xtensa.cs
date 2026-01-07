@@ -19,7 +19,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class Xtensa : TranslationCPU, IPeripheralRegister<SemihostingUart, NullRegistrationPoint>
+    public partial class Xtensa : TranslationCPU, IRegisterablePeripheral<SemihostingUart, NullRegistrationPoint>
     {
         public Xtensa(string cpuType, IMachine machine, uint cpuId = 0, ulong frequency = 10000000)
                 : base(cpuId, cpuType, machine, Endianess.LittleEndian)

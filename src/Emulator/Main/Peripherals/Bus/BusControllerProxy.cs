@@ -399,19 +399,19 @@ namespace Antmicro.Renode.Peripherals.Bus
             ParentController.ChangePeripheralAccessCondition(peripheral, newCondition, oldCondition);
         }
 
-        void IPeripheralRegister<IBusPeripheral, BusMultiRegistration>.Unregister(IBusPeripheral peripheral)
+        void IRegisterablePeripheral<IBusPeripheral, BusMultiRegistration>.Unregister(IBusPeripheral peripheral)
         {
-            ((IPeripheralRegister<IBusPeripheral, BusMultiRegistration>)ParentController).Unregister(peripheral);
+            ((IRegisterablePeripheral<IBusPeripheral, BusMultiRegistration>)ParentController).Unregister(peripheral);
         }
 
-        void IPeripheralRegister<IBusPeripheral, BusRangeRegistration>.Unregister(IBusPeripheral peripheral)
+        void IRegisterablePeripheral<IBusPeripheral, BusRangeRegistration>.Unregister(IBusPeripheral peripheral)
         {
-            ((IPeripheralRegister<IBusPeripheral, BusRangeRegistration>)ParentController).Unregister(peripheral);
+            ((IRegisterablePeripheral<IBusPeripheral, BusRangeRegistration>)ParentController).Unregister(peripheral);
         }
 
-        void IPeripheralRegister<IBusPeripheral, BusParametrizedRegistration>.Unregister(IBusPeripheral peripheral)
+        void IRegisterablePeripheral<IBusPeripheral, BusParametrizedRegistration>.Unregister(IBusPeripheral peripheral)
         {
-            ((IPeripheralRegister<IBusPeripheral, BusParametrizedRegistration>)ParentController).Unregister(peripheral);
+            ((IRegisterablePeripheral<IBusPeripheral, BusParametrizedRegistration>)ParentController).Unregister(peripheral);
         }
 
         public void Unregister(IPeripheral peripheral)

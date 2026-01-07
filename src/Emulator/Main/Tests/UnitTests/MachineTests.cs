@@ -113,7 +113,7 @@ namespace Antmicro.Renode.UnitTests
             }
         }
 
-        public sealed class Mother : IPeripheralRegister<IPeripheral, NullRegistrationPoint>, IDoubleWordPeripheral
+        public sealed class Mother : IRegisterablePeripheral<IPeripheral, NullRegistrationPoint>, IDoubleWordPeripheral
         {
             public Mother(IMachine machine)
             {
