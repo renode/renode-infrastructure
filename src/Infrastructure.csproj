@@ -807,6 +807,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/SD/SunxiMMC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SD/STM32SDMMC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SD/STM32FSDMMC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/SD/STM32HSDMMC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/SunxiHighSpeedTimer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SD/MMCController.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SD/SDCard.cs" />
