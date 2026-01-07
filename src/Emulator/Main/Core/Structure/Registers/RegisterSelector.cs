@@ -37,6 +37,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
+        public void ShadowReload()
+        {
+            foreach(var c in conditionalRegisters)
+            {
+                c.Register.ShadowReload();
+            }
+        }
+
         public void AddRegister(IPeripheralRegister<T> register, Func<bool> condition)
         {
             if(conditionalRegisters.Any(r => r.Condition == null))

@@ -252,6 +252,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
+        public void ShadowReload()
+        {
+            foreach(var register in registers.Values)
+            {
+                register.ShadowReload();
+            }
+        }
+
         /// <summary>
         /// Adds hook which will be executed before any value has been read from the register.
         /// First argument of the callback is the same as the provided offset.

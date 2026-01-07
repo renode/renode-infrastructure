@@ -522,7 +522,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     changeCallback?.Invoke(oldValue, value);
                 }
-            }, valueProviderCallback, softResettable, name);
+            }, valueProviderCallback, null, softResettable, name);
             flagField = ff;
             return register;
         }

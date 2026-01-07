@@ -93,6 +93,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
             CallHandlers(writeCallbacks, FromUlong(oldValue), FromUlong(newValue));
         }
 
+        protected override void CallShadowReloadHandlers(ulong oldValue, ulong newValue)
+        {
+            CallHandlers(shadowReloadCallbacks, FromUlong(oldValue), FromUlong(newValue));
+        }
 
         protected abstract T FromUlong(ulong value);
 
@@ -231,6 +235,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         void Write(long offset, T value);
 
         void Reset();
+
+        void ShadowReload();
     }
 
     /// <summary>
@@ -301,11 +307,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
         public IFlagRegisterField DefineFlagField(int position, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<bool, bool> readCallback = null,
-            Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, bool softResettable = true,
+            Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, Action<bool, bool> shadowReloadCallback = null, bool softResettable = true,
             string name = null)
         {
             ThrowIfRangeIllegal(position, 1, name);
-            var field = new FlagRegisterField(this, position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            var field = new FlagRegisterField(this, position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, shadowReloadCallback, name);
             registerFields.Add(field);
             if(!softResettable)
             {
@@ -332,12 +338,12 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
         public IValueRegisterField DefineValueField(int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<ulong, ulong> readCallback = null,
-            Action<ulong, ulong> writeCallback = null, Action<ulong, ulong> changeCallback = null, Func<ulong, ulong> valueProviderCallback = null, bool softResettable = true,
+            Action<ulong, ulong> writeCallback = null, Action<ulong, ulong> changeCallback = null, Func<ulong, ulong> valueProviderCallback = null, Action<ulong, ulong> shadowReloadCallback = null, bool softResettable = true,
             string name = null)
         {
             ThrowIfRangeIllegal(position, width, name);
             ThrowIfZeroWidth(position, width, name);
-            var field = new ValueRegisterField(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            var field = new ValueRegisterField(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, shadowReloadCallback, name);
             registerFields.Add(field);
             if(!softResettable)
             {
@@ -364,13 +370,13 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
         public IEnumRegisterField<TEnum> DefineEnumField<TEnum>(int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<TEnum, TEnum> readCallback = null,
-            Action<TEnum, TEnum> writeCallback = null, Action<TEnum, TEnum> changeCallback = null, Func<TEnum, TEnum> valueProviderCallback = null, bool softResettable = true,
+            Action<TEnum, TEnum> writeCallback = null, Action<TEnum, TEnum> changeCallback = null, Func<TEnum, TEnum> valueProviderCallback = null, Action<TEnum, TEnum> shadowReloadCallback = null, bool softResettable = true,
             string name = null)
             where TEnum : struct, IConvertible
         {
             ThrowIfRangeIllegal(position, width, name);
             ThrowIfZeroWidth(position, width, name);
-            var field = new EnumRegisterField<TEnum>(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            var field = new EnumRegisterField<TEnum>(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, shadowReloadCallback, name);
             registerFields.Add(field);
             if(!softResettable)
             {
@@ -397,7 +403,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="softResettable">Indicates whether the field should be cleared by soft reset.</param>
         /// <param name="name">Ignored parameter, for convenience. Treat it as a comment.</param>
         public IPacketRegisterField<TPacket> DefinePacketField<TPacket>(int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<TPacket, TPacket> readCallback = null,
-            Action<TPacket, TPacket> writeCallback = null, Action<TPacket, TPacket> changeCallback = null, Func<TPacket, TPacket> valueProviderCallback = null, bool softResettable = true,
+            Action<TPacket, TPacket> writeCallback = null, Action<TPacket, TPacket> changeCallback = null, Func<TPacket, TPacket> valueProviderCallback = null, Action<TPacket, TPacket> shadowReloadCallback = null, bool softResettable = true,
             string name = null)
             where TPacket : struct
         {
@@ -412,7 +418,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
                 throw new ArgumentException($"Field width ({width} bits) is larger than the packet {typeof(TPacket)} width ({pktBits} bits)");
             }
-            var field = new PacketRegisterField<TPacket>(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, name);
+            var field = new PacketRegisterField<TPacket>(this, position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, shadowReloadCallback, name);
             registerFields.Add(field);
             if(!softResettable)
             {
@@ -420,6 +426,28 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
             RecalculateFieldMask();
             return field;
+        }
+
+        public void ShadowReload()
+        {
+            var oldValue = UnderlyingShadowValue;
+            UnderlyingShadowValue = UnderlyingValue;
+            var newValue = UnderlyingShadowValue;
+
+            foreach(var field in registerFields)
+            {
+                var oldFieldValue = BitHelper.GetValue(oldValue, field.Position, field.Width);
+                var newFieldValue = BitHelper.GetValue(newValue, field.Position, field.Width);
+                field.CallShadowReloadHandler(oldFieldValue, newFieldValue);
+
+                if(oldFieldValue == newFieldValue)
+                {
+                    continue;
+                }
+                parent.NoisyLog($"{field.Name}: reloaded shadow from {oldFieldValue:x} to {newFieldValue:x}");
+            }
+
+            CallShadowReloadHandlers(oldValue, UnderlyingShadowValue);
         }
 
         public int RegisterWidth { get; }
@@ -603,7 +631,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         protected abstract void CallChangeHandlers(ulong oldValue, ulong newValue);
 
+        protected abstract void CallShadowReloadHandlers(ulong oldValue, ulong newValue);
+
         protected ulong UnderlyingValue;
+
+        protected ulong UnderlyingShadowValue;
 
         /// <summary>
         /// Returns information about tag writes. Extracted as a method to allow future lazy evaluation.
