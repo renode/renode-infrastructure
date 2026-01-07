@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             IRQ = new GPIO();
 
-            PeriodIntervalTimer = new LimitTimer(machine.ClockSource, 32768, this, nameof(PeriodIntervalTimer), int.MaxValue); // long.MaxValue couses crashes
+            PeriodIntervalTimer = new LimitTimer(machine.ClockSource, 32768, this, nameof(PeriodIntervalTimer), int.MaxValue);
             PeriodIntervalTimer.Value = 0x00000000;
             PeriodIntervalTimer.AutoUpdate = true;
             PeriodIntervalTimer.LimitReached += PeriodIntervalTimerAlarmHandler;
