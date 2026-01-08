@@ -175,11 +175,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                 .WithFlag(5, out halt, name: "HALT")
                 .WithFlag(6, out globalChannelLinkingControl, name: "GCLC")
                 .WithTaggedFlag("GMRC", 7)
-                .WithTaggedFlag("ECX", 8) // Minor loops are atomic during emulation, so cancellation is immediate. 
+                .WithTaggedFlag("ECX", 8) // Minor loops are atomic during emulation, so cancellation is immediate.
                 .WithTaggedFlag("CX", 9) // Same as above.
                 .WithReservedBits(10, 6)
                 .WithReservedBits(16, 8)
-                .WithTag("ACTIVE_ID", 24, 4) // Software never observes ACTIVE bit 1 during emulation. 
+                .WithTag("ACTIVE_ID", 24, 4) // Software never observes ACTIVE bit 1 during emulation.
                 .WithReservedBits(28, 3)
                 .WithFlag(31, FieldMode.Read, valueProviderCallback: _ =>
                 {
