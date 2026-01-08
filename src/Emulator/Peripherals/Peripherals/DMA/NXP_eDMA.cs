@@ -18,7 +18,7 @@ using Channel = Antmicro.Renode.Peripherals.DMA.NXP_eDMA_Channels.Channel;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public partial class NXP_eDMA : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IHasOwnLife, IGPIOReceiver
+    public class NXP_eDMA : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IHasOwnLife, IGPIOReceiver
     {
         public NXP_eDMA(IMachine machine, int numberOfChannels) : base(machine)
         {

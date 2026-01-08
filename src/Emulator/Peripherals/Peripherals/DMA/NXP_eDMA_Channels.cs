@@ -19,18 +19,20 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class NXP_eDMA_Channels : IDoubleWordPeripheral, IWordPeripheral, IKnownSize
     {
-        public NXP_eDMA_Channels(IMachine machine, NXP_eDMA parent, uint count, int firstChannel = 0, long channelSize = 0x1000, bool hasMuxingRegisters = true)
+        public NXP_eDMA_Channels(IMachine machine, NXP_eDMA dma, uint count, int firstChannel = 0, long channelSize = 0x1000, bool hasMuxingRegisters = true)
         {
             Count = count;
             FirstChannelNumber = firstChannel;
             ChannelSize = channelSize;
+            this.dma = dma;
 
             channels = new Channel[count];
 
+            var sysbus = machine.GetSystemBus(this);
             for(var i = 0; i < count; ++i)
             {
-                channels[i] = new Channel(machine, parent, firstChannel + i, hasMuxingRegisters);
-                parent.SetChannel(firstChannel + i, channels[i]);
+                channels[i] = new Channel(sysbus, this, firstChannel + i, hasMuxingRegisters);
+                dma.SetChannel(firstChannel + i, channels[i]);
             }
         }
 
@@ -73,18 +75,19 @@ namespace Antmicro.Renode.Peripherals.DMA
         public IEnumerable<Channel> Channels => channels;
 
         private readonly Channel[] channels;
+        private readonly NXP_eDMA dma;
 
-        public class Channel : IDoubleWordPeripheral, IWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>
+        public class Channel : IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>
         {
-            public Channel(IMachine machine, NXP_eDMA parent, int channelNumber, bool hasMuxingRegisters = true)
+            public Channel(IBusController sysbus, NXP_eDMA_Channels channels, int channelNumber, bool hasMuxingRegisters = true)
             {
-                sysbus = machine.GetSystemBus(this);
-                this.parent = parent;
+                this.sysbus = sysbus;
+                this.channels = channels;
                 dmaEngine = new DmaEngine(sysbus);
                 IRQ = new GPIO();
                 ChannelNumber = channelNumber;
-                dwRegisters = new DoubleWordRegisterCollection(this);
-                wRegisters = new WordRegisterCollection(this);
+                dwRegisters = new DoubleWordRegisterCollection(channels);
+                wRegisters = new WordRegisterCollection(channels);
 
                 DefineRegisters(hasMuxingRegisters);
             }
@@ -122,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 if(!enableDMARequest.Value && !enableAsynchronousDMARequest.Value)
                 {
                     // It's not an error condition, as it's an intended programmed behavior.
-                    parent.DebugLog("CH{0}: Hardware request is currently disabled by channel configuration", ChannelNumber);
+                    channels.dma.DebugLog("CH{0}: Hardware request is currently disabled by channel configuration", ChannelNumber);
                     return;
                 }
                 ExecuteTransfer(true);
@@ -288,7 +291,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 if(tcd.EnableLinkWhenMajorLoopComplete)
                 {
-                    parent.LinkChannel(ChannelNumber, tcd.MajorLoopLinkChannelNumber);
+                    channels.dma.LinkChannel(ChannelNumber, tcd.MajorLoopLinkChannelNumber);
                 }
 
                 var errors = CheckForConfigurationErrorsAtMajorLoopCompletion(tcd);
@@ -325,14 +328,14 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private bool ExecuteMinorLoop()
             {
-                if(!parent.IsTransferAllowed())
+                if(!channels.dma.IsTransferAllowed())
                 {
-                    parent.WarningLog("CH{0}: Transfer won't be executed, because debug or halt feature is active", ChannelNumber);
+                    channels.dma.WarningLog("CH{0}: Transfer won't be executed, because debug or halt feature is active", ChannelNumber);
                     return false;
                 }
 
                 tcd = FetchTCDFromLocalMemory();
-                parent.DebugLog("CH{0}: Fetched TCD: {1}", ChannelNumber, tcd);
+                channels.dma.DebugLog("CH{0}: Fetched TCD: {1}", ChannelNumber, tcd);
                 var errors = CheckForConfigurationErrorsAtActivation(tcd);
 
                 if(errors != ErrorFlags.NoError)
@@ -367,7 +370,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     incrementWriteAddress: true
                 );
 
-                parent.DebugLog("CH{0}: Executing transfer from 0x{1:X} ({2}) to 0x{3:X} ({4}), size {5}B", ChannelNumber, request.Source.Address, request.ReadTransferType, request.Destination.Address, request.WriteTransferType, request.Size);
+                channels.dma.DebugLog("CH{0}: Executing transfer from 0x{1:X} ({2}) to 0x{3:X} ({4}), size {5}B", ChannelNumber, request.Source.Address, request.ReadTransferType, request.Destination.Address, request.WriteTransferType, request.Size);
                 var response = dmaEngine.IssueCopy(request, context);
 
                 // Minor loop completion
@@ -407,7 +410,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     if(tcd.EnableLinkCITER)
                     {
-                        parent.LinkChannel(ChannelNumber, tcd.MinorLoopLinkChannelNumberELinkYesCITER);
+                        channels.dma.LinkChannel(ChannelNumber, tcd.MinorLoopLinkChannelNumberELinkYesCITER);
                     }
                 }
 
@@ -419,7 +422,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 channelError.Value = errors;
                 if(errors != ErrorFlags.NoError)
                 {
-                    parent.ReportErrorOnChannel(ChannelNumber);
+                    channels.dma.ReportErrorOnChannel(ChannelNumber);
                     if(enableErrorInterrupt.Value)
                     {
                         interruptRequest.Value = true;
@@ -547,12 +550,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithWriteCallback((_, __) => UpdateInterrupts());
 
                 Registers.ChannelSystemBus.Define(dwRegisters, 0x00008001, name: "CHn_SBR")
-                    .WithTag("MID", 0, 5)
+                    .WithValueField(0, 5, out initiatorId, FieldMode.Read, name: "MID")
                     .WithReservedBits(5, 9)
                     .WithTaggedFlag("SEC", 14)
                     .WithTaggedFlag("PAL", 15)
-                    .WithTaggedFlag("EMI", 16)
-                    .WithReservedBits(17, 15);
+                    .WithFlag(16, out enableInitiatorIdReplication, name: "EMI")
+                    .WithTag("ATTR", 17, 3)
+                    .WithReservedBits(20, 12);
 
                 // All fields are marked as RW, because from the software perspective arbitration rules are respected during emulation.
                 // Channel preemption and arbitration configuration is ignored, because all DMA transfers finish immediately during emulation.
@@ -573,9 +577,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                                 return;
                             }
 
-                            if(parent.TryGetChannelBySlot((int)value, out var occupiedChannelNumber))
+                            if(channels.dma.TryGetChannelBySlot((int)value, out var occupiedChannelNumber))
                             {
-                                parent.WarningLog("CH{0}: Trying to select a peripheral slot already occupied by CH{1}", ChannelNumber, occupiedChannelNumber);
+                                channels.dma.WarningLog("CH{0}: Trying to select a peripheral slot already occupied by CH{1}", ChannelNumber, occupiedChannelNumber);
                                 return;
                             }
 
@@ -630,7 +634,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     {
                         if(val)
                         {
-                            parent.DebugLog("CH{0}: Channel started by a software initiated service request", ChannelNumber);
+                            channels.dma.DebugLog("CH{0}: Channel started by a software initiated service request", ChannelNumber);
                             ExecuteTransfer();
                         }
                     }, name: "START")
@@ -660,6 +664,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField channelDone;
             private IEnumRegisterField<ErrorFlags> channelError;
             private IFlagRegisterField interruptRequest;
+            private IValueRegisterField initiatorId;
+            private IFlagRegisterField enableInitiatorIdReplication;
 
             private TransferControlDescriptorLocal tcd;
             private TransferControlDescriptor tcdInMemory = new TransferControlDescriptor();
@@ -667,31 +673,10 @@ namespace Antmicro.Renode.Peripherals.DMA
             private readonly DoubleWordRegisterCollection dwRegisters;
             private readonly WordRegisterCollection wRegisters;
             private readonly IBusController sysbus;
-            private readonly NXP_eDMA parent;
             private readonly DmaEngine dmaEngine;
+            private readonly NXP_eDMA_Channels channels;
 
             private const int TransferControlDescriptorSize = 32;
-
-            public enum Registers
-            {
-                ChannelControlAndStatus = 0x00,
-                ChannelErrorStatus = 0x04,
-                ChannelInterruptStatus = 0x08,
-                ChannelSystemBus = 0x0C,
-                ChannelPriority = 0x10,
-                ChannelMultiplexorConfiguration = 0x14,
-                TCDSourceAddress = 0x20,
-                TCDSignedSourceAddressOffset = 0x24,
-                TCDTransferAttributes = 0x26,
-                TCDTransferSize = 0x28,
-                TCDLastSourceAddressAdjustment = 0x2C,
-                TCDDestinationAddress = 0x30,
-                TCDSignedDestinationAddressOffset = 0x34,
-                TCDCurrentMajorLoopCount = 0x36,
-                TCDLastDestinationAddressAdjustment = 0x38,
-                TCDControlAndStatus = 0x3C,
-                TCDBeginningMajorLoopCount = 0x3E,
-            }
 
             [Flags]
             public enum ErrorFlags
@@ -967,6 +952,27 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 private const int MinorLoopOffsetFieldWidth = 20;
             }
+        }
+
+        public enum Registers
+        {
+            ChannelControlAndStatus = 0x00,
+            ChannelErrorStatus = 0x04,
+            ChannelInterruptStatus = 0x08,
+            ChannelSystemBus = 0x0C,
+            ChannelPriority = 0x10,
+            ChannelMultiplexorConfiguration = 0x14,
+            TCDSourceAddress = 0x20,
+            TCDSignedSourceAddressOffset = 0x24,
+            TCDTransferAttributes = 0x26,
+            TCDTransferSize = 0x28,
+            TCDLastSourceAddressAdjustment = 0x2C,
+            TCDDestinationAddress = 0x30,
+            TCDSignedDestinationAddressOffset = 0x34,
+            TCDCurrentMajorLoopCount = 0x36,
+            TCDLastDestinationAddressAdjustment = 0x38,
+            TCDControlAndStatus = 0x3C,
+            TCDBeginningMajorLoopCount = 0x3E,
         }
     }
 }
