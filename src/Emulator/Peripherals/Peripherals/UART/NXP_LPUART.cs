@@ -340,7 +340,7 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 if(!IsDataRegister(offset))
                 {
-                    this.Log(LogLevel.Warning, "Trying to read byte from {0} (0x{0:X}), not supported", offset);
+                    this.Log(LogLevel.Warning, "Trying to write byte {0} to {1} (0x{1:X}), not supported", value, offset);
                     return;
                 }
 
