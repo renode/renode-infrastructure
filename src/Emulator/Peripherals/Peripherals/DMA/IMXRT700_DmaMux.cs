@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     // It manages internal connections between peripherals and eDMAs.
     // It doesn't occupy memory space, but it's represented as an independent block in the platform file.
-    public class IMXRT700_DmaMux : IPeripheral, IRegisterablePeripheral<IMXRT700_eDMA, NumberRegistrationPoint<int>>, ILocalGPIOReceiver
+    public class IMXRT700_DmaMux : IPeripheral, IRegisterablePeripheral<NXP_eDMA, NumberRegistrationPoint<int>>, ILocalGPIOReceiver
     {
         public IMXRT700_DmaMux()
         {
@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
-        public void Register(IMXRT700_eDMA dma, NumberRegistrationPoint<int> id)
+        public void Register(NXP_eDMA dma, NumberRegistrationPoint<int> id)
         {
             var duplicate = receivers.Values.FirstOrDefault(x => x.DMA == dma);
             if(duplicate != null)
@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             receiver.RegisterDMA(dma);
         }
 
-        public void Unregister(IMXRT700_eDMA dma)
+        public void Unregister(NXP_eDMA dma)
         {
             var receiver = receivers.Values.FirstOrDefault(x => x.DMA == dma);
             if(receiver != null)
@@ -116,14 +116,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
-            public void RegisterDMA(IMXRT700_eDMA dma)
+            public void RegisterDMA(NXP_eDMA dma)
             {
                 // If we are invoked by the parent class, then we have already confirmed the condition below is true.
                 DebugHelper.Assert(DMA == null);
                 DMA = dma;
             }
 
-            public void UnregisterDMA(IMXRT700_eDMA dma)
+            public void UnregisterDMA(NXP_eDMA dma)
             {
                 // If we are invoked by the parent class, then we have already confirmed the condition below is true.
                 DebugHelper.Assert(dma == DMA);
@@ -137,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public int Index { get; }
 
-            public IMXRT700_eDMA DMA { get; private set; }
+            public NXP_eDMA DMA { get; private set; }
 
             private readonly Dictionary<int, bool> slotsEnabledState = new Dictionary<int, bool>();
         }

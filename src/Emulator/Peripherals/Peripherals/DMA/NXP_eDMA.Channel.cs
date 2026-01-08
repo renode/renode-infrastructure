@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,11 +16,11 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public partial class IMXRT700_eDMA
+    public partial class NXP_eDMA
     {
         private class Channel : IDoubleWordPeripheral, IWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize
         {
-            public Channel(IMXRT700_eDMA parent, int channelNumber)
+            public Channel(NXP_eDMA parent, int channelNumber)
             {
                 this.parent = parent;
                 IRQ = new GPIO();
@@ -604,7 +604,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private ICPU context;
             private readonly DoubleWordRegisterCollection dwRegisters;
             private readonly WordRegisterCollection wRegisters;
-            private readonly IMXRT700_eDMA parent;
+            private readonly NXP_eDMA parent;
 
             private const int TransferControlDescriptorSize = 32;
 

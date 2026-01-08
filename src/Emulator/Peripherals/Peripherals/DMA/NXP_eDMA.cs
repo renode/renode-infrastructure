@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,9 +15,9 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public partial class IMXRT700_eDMA : BasicDoubleWordPeripheral, IWordPeripheral, IKnownSize, INumberedGPIOOutput
+    public partial class NXP_eDMA : BasicDoubleWordPeripheral, IWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
-        public IMXRT700_eDMA(IMachine machine, int numberOfChannels) : base(machine)
+        public NXP_eDMA(IMachine machine, int numberOfChannels) : base(machine)
         {
             if(numberOfChannels < MinimumNumberOfChannels || numberOfChannels > MaximumNumberOfChannels)
             {
