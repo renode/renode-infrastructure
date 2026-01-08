@@ -193,8 +193,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 .WithTaggedFlag("CX", 9) // Same as above.
                 .WithReservedBits(10, 6)
                 .WithReservedBits(16, 8)
-                .WithTag("ACTIVE_ID", 24, 4) // Software never observes ACTIVE bit 1 during emulation.
-                .WithReservedBits(28, 3)
+                .WithTag("ACTIVE_ID", 24, 5) // Software never observes ACTIVE bit 1 during emulation.
+                .WithReservedBits(29, 2)
                 .WithFlag(31, FieldMode.Read, valueProviderCallback: _ =>
                 {
                     // Transfers are immediate so eDMA is always idle from the software perspective.
@@ -207,10 +207,11 @@ namespace Antmicro.Renode.Peripherals.DMA
             Registers.ManagementPageErrorStatus.Define(this, name: "MP_ES")
                 .WithEnumField<DoubleWordRegister, Channel.ErrorFlags>(0, 8, out channelError, FieldMode.Read, name: "DBE|SBE|SGE|NCE|DOE|DAE|SOE|SAE")
                 .WithTaggedFlag("ECX", 8)
-                .WithReservedBits(9, 7)
+                .WithTaggedFlag("UCE", 9)
+                .WithReservedBits(10, 6)
                 .WithReservedBits(16, 8)
-                .WithValueField(24, 4, out errorChannelNumber, FieldMode.Read, name: "ERRCHN")
-                .WithReservedBits(28, 3)
+                .WithValueField(24, 5, out errorChannelNumber, FieldMode.Read, name: "ERRCHN")
+                .WithReservedBits(29, 2)
                 .WithFlag(31, FieldMode.Read, valueProviderCallback: _ =>
                 {
                     return channels[(int)errorChannelNumber.Value].Errors != Channel.ErrorFlags.NoError;

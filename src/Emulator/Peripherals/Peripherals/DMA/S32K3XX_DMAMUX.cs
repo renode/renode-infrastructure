@@ -14,7 +14,7 @@ using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public class S32K3XX_DMAMUX : BasicBytePeripheral, IKnownSize, INumberedGPIOOutput
+    public class S32K3XX_DMAMUX : BasicBytePeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput
     {
         public S32K3XX_DMAMUX(IMachine machine, uint numberOfSlots = 64, uint numberOfChannels = 16, uint numberOfChannelsWithEnable = 4)
             : base(machine)

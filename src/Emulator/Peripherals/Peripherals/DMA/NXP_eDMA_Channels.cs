@@ -615,8 +615,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // See CurrentMajorIterationCountELinkNo.
                 Registers.TCDCurrentMajorLoopCount.Define(wRegisters, name: "TCDn_CITER_ELINK")
                     .WithValueField(0, 9, out tcdInMemory.CITER_ELINKYES, name: "CITER")
-                    .WithValueField(9, 4, out tcdInMemory.CITERLINKCH, name: "LINKCH")
-                    .WithValueField(13, 2, out tcdInMemory.CITERRESERVED, name: "RESERVED")
+                    .WithValueField(9, 5, out tcdInMemory.CITERLINKCH, name: "LINKCH")
+                    .WithValueField(14, 1, out tcdInMemory.CITERRESERVED, name: "RESERVED")
                     .WithFlag(15, out tcdInMemory.CITERELINK, name: "ELINK");
 
                 Registers.TCDLastDestinationAddressAdjustment.Define(dwRegisters, name: "TCDn_DLAST_SGA")
@@ -638,16 +638,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(5, out tcdInMemory.MAJORELINK, name: "MAJORELINK")
                     .WithFlag(6, out tcdInMemory.EEOP, name: "EEOP")
                     .WithFlag(7, out tcdInMemory.ESDA, name: "ESDA")
-                    .WithValueField(8, 4, out tcdInMemory.MAJORLINKCH, name: "MAJORLINKCH")
-                    .WithReservedBits(12, 2)
+                    .WithValueField(8, 5, out tcdInMemory.MAJORLINKCH, name: "MAJORLINKCH")
+                    .WithReservedBits(13, 1)
                     .WithValueField(14, 2, out tcdInMemory.BWC, name: "BWC")
                     .WithWriteCallback((_, __) => UpdateInterrupts());
 
                 // Layout for TCDn_BITER_ELINKYES. TCDn_BITER_ELINKNO merges BITER, LINKCH and RESERVED into BITER.
                 Registers.TCDBeginningMajorLoopCount.Define(wRegisters, name: "TCDn_BITER_ELINK")
                     .WithValueField(0, 9, out tcdInMemory.BITER_ELINKYES, name: "BITER")
-                    .WithValueField(9, 4, out tcdInMemory.BITERLINKCH, name: "LINKCH")
-                    .WithValueField(13, 2, out tcdInMemory.BITERRESERVED, name: "RESERVED")
+                    .WithValueField(9, 5, out tcdInMemory.BITERLINKCH, name: "LINKCH")
+                    .WithValueField(14, 1, out tcdInMemory.BITERRESERVED, name: "RESERVED")
                     .WithFlag(15, out tcdInMemory.BITERELINK, name: "ELINK");
             }
 
@@ -808,9 +808,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                 public short DestinationAddressSignedOffset;
                 [PacketField, Offset(doubleWords: 5, bits: 16), Width(bits: 9)]
                 public ushort CurrentMajorIterationCountELinkYes;
-                [PacketField, Offset(doubleWords: 5, bits: 25), Width(bits: 4)]
+                [PacketField, Offset(doubleWords: 5, bits: 25), Width(bits: 5)]
                 public ushort MinorLoopLinkChannelNumberELinkYesCITER;
-                [PacketField, Offset(doubleWords: 5, bits: 29), Width(bits: 2)]
+                [PacketField, Offset(doubleWords: 5, bits: 30), Width(bits: 1)]
                 public byte ReservedELinkYesCITER;
                 [PacketField, Offset(doubleWords: 5, bits: 31), Width(bits: 1)]
                 public bool EnableLinkCITER;
@@ -832,15 +832,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                 public bool EnableEndOfPacketProcessing;
                 [PacketField, Offset(doubleWords: 7, bits: 7), Width(bits: 1)]
                 public bool EnableStoreDestinationAddress;
-                [PacketField, Offset(doubleWords: 7, bits: 8), Width(bits: 4)]
+                [PacketField, Offset(doubleWords: 7, bits: 8), Width(bits: 5)]
                 public byte MajorLoopLinkChannelNumber;
+                // bit 13 is reserved
                 [PacketField, Offset(doubleWords: 7, bits: 14), Width(bits: 2)]
                 public byte BandwidthControl;
                 [PacketField, Offset(doubleWords: 7, bits: 16), Width(bits: 9)]
                 public ushort StartingMajorIterationCountELinkYes;
-                [PacketField, Offset(doubleWords: 7, bits: 25), Width(bits: 4)]
+                [PacketField, Offset(doubleWords: 7, bits: 25), Width(bits: 5)]
                 public ushort MinorLoopLinkChannelNumberELinkYesBITER;
-                [PacketField, Offset(doubleWords: 7, bits: 29), Width(bits: 2)]
+                [PacketField, Offset(doubleWords: 7, bits: 30), Width(bits: 1)]
                 public byte ReservedELinkYesBITER;
                 [PacketField, Offset(doubleWords: 7, bits: 31), Width(bits: 1)]
                 public bool EnableLinkBITER;
@@ -855,8 +856,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     set
                     {
                         CurrentMajorIterationCountELinkYes = BitHelper.GetValue(value, 0, 9);
-                        MinorLoopLinkChannelNumberELinkYesCITER = BitHelper.GetValue(value, 9, 4);
-                        ReservedELinkYesCITER = (byte)BitHelper.GetValue((ushort)value, 13, 2);
+                        MinorLoopLinkChannelNumberELinkYesCITER = BitHelper.GetValue(value, 9, 5);
+                        ReservedELinkYesCITER = (byte)BitHelper.GetValue((ushort)value, 14, 1);
                     }
                 }
 
@@ -864,14 +865,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     get
                     {
-                        return (ushort)(ReservedELinkYesBITER << 13 | MinorLoopLinkChannelNumberELinkYesBITER << 9 | StartingMajorIterationCountELinkYes);
+                        return (ushort)(ReservedELinkYesBITER << 14 | MinorLoopLinkChannelNumberELinkYesBITER << 9 | StartingMajorIterationCountELinkYes);
                     }
 
                     set
                     {
                         StartingMajorIterationCountELinkYes = BitHelper.GetValue(value, 0, 9);
-                        MinorLoopLinkChannelNumberELinkYesBITER = BitHelper.GetValue(value, 9, 4);
-                        ReservedELinkYesBITER = (byte)BitHelper.GetValue(value, 13, 2);
+                        MinorLoopLinkChannelNumberELinkYesBITER = BitHelper.GetValue(value, 9, 5);
+                        ReservedELinkYesBITER = (byte)BitHelper.GetValue(value, 14, 2);
                     }
                 }
 
