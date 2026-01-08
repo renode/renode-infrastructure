@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -16,13 +17,70 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public partial class NXP_eDMA
+    public class NXP_eDMA_Channels : IDoubleWordPeripheral, IWordPeripheral, IKnownSize
     {
-        private class Channel : IDoubleWordPeripheral, IWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>, IKnownSize
+        public NXP_eDMA_Channels(IMachine machine, NXP_eDMA parent, uint count, int firstChannel = 0, long channelSize = 0x1000)
         {
-            public Channel(NXP_eDMA parent, int channelNumber)
+            Count = count;
+            FirstChannelNumber = firstChannel;
+            ChannelSize = channelSize;
+
+            channels = new Channel[count];
+
+            for(var i = 0; i < count; ++i)
             {
+                channels[i] = new Channel(machine, parent, firstChannel + i);
+                parent.SetChannel(firstChannel + i, channels[i]);
+            }
+        }
+
+        public void Reset()
+        {
+            foreach(var channel in channels)
+            {
+                channel.Reset();
+            }
+        }
+
+        public uint ReadDoubleWord(long offset)
+        {
+            return channels[offset / ChannelSize].ReadDoubleWord(offset % ChannelSize);
+        }
+
+        public void WriteDoubleWord(long offset, uint value)
+        {
+            channels[offset / ChannelSize].WriteDoubleWord(offset % ChannelSize, value);
+        }
+
+        public ushort ReadWord(long offset)
+        {
+            return channels[offset / ChannelSize].ReadWord(offset % ChannelSize);
+        }
+
+        public void WriteWord(long offset, ushort value)
+        {
+            channels[offset / ChannelSize].WriteWord(offset % ChannelSize, value);
+        }
+
+        public long Size => ChannelSize * Count;
+
+        public uint Count { get; }
+
+        public long ChannelSize { get; }
+
+        public int FirstChannelNumber { get; }
+
+        public IEnumerable<Channel> Channels => channels;
+
+        private readonly Channel[] channels;
+
+        public class Channel : IDoubleWordPeripheral, IWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>
+        {
+            public Channel(IMachine machine, NXP_eDMA parent, int channelNumber)
+            {
+                sysbus = machine.GetSystemBus(this);
                 this.parent = parent;
+                dmaEngine = new DmaEngine(sysbus);
                 IRQ = new GPIO();
                 ChannelNumber = channelNumber;
                 dwRegisters = new DoubleWordRegisterCollection(this);
@@ -81,20 +139,18 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             WordRegisterCollection IProvidesRegisterCollection<WordRegisterCollection>.RegistersCollection => wRegisters;
 
-            public long Size => 0x1000;
-
             public GPIO IRQ { get; }
 
             public int ChannelNumber { get; }
 
-            public ChannelError Errors => channelError.Value;
+            public ErrorFlags Errors => channelError.Value;
 
             public int ServiceRequestSource => (int)serviceRequestSource.Value;
 
             // A configuration error is an illegal setting in the transfer control descriptor.
-            private static ChannelError CheckForConfigurationErrorsAtActivation(TransferControlDescriptorLocal tcd)
+            private static ErrorFlags CheckForConfigurationErrorsAtActivation(TransferControlDescriptorLocal tcd)
             {
-                var errors = ChannelError.NoError;
+                var errors = ErrorFlags.NoError;
                 // A configuration error is reported when an inconsistent state is represented by one of these factors:
                 // • Starting source or destination address
                 // • Source or destination offsets
@@ -107,49 +163,49 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 if(tcd.SourceAddress % sourceTransferSize != 0)
                 {
-                    errors |= ChannelError.SourceAddress;
+                    errors |= ErrorFlags.SourceAddress;
                 }
                 if(tcd.SourceAddressSignedOffset % sourceTransferSize != 0)
                 {
-                    errors |= ChannelError.SourceOffset;
+                    errors |= ErrorFlags.SourceOffset;
                 }
                 if(tcd.DestinationAddress % destinationTransferSize != 0)
                 {
-                    errors |= ChannelError.DestinationAddress;
+                    errors |= ErrorFlags.DestinationAddress;
                 }
                 if(tcd.DestinationAddressSignedOffset % destinationTransferSize != 0)
                 {
-                    errors |= ChannelError.DestinationOffset;
+                    errors |= ErrorFlags.DestinationOffset;
                 }
 
                 return errors;
             }
 
             // A scatter/gather configuration error is reported when the scatter/gather operation begins at major loop completion.
-            private static ChannelError CheckForConfigurationErrorsAtMajorLoopCompletion(TransferControlDescriptorLocal tcd)
+            private static ErrorFlags CheckForConfigurationErrorsAtMajorLoopCompletion(TransferControlDescriptorLocal tcd)
             {
-                var errors = ChannelError.NoError;
+                var errors = ErrorFlags.NoError;
 
                 if(tcd.EnableScatterGatherProcessing)
                 {
                     if(tcd.LastDestinationAddressAdjustmentOrScatterGatherAddress % TransferControlDescriptorSize != 0)
                     {
                         // The scatter/gather address is not aligned on a 32-byte boundary.
-                        errors |= ChannelError.ScatterGatherConfiguration;
+                        errors |= ErrorFlags.ScatterGatherConfiguration;
                     }
                 }
 
                 return errors;
             }
 
-            private static ChannelError CheckForConfigurationErrorsAtMinorLoopCompletion(TransferControlDescriptorLocal tcd)
+            private static ErrorFlags CheckForConfigurationErrorsAtMinorLoopCompletion(TransferControlDescriptorLocal tcd)
             {
-                var errors = ChannelError.NoError;
+                var errors = ErrorFlags.NoError;
 
                 // The minor loop byte count must be a multiple of the source and destination transfer sizes.
                 if(tcd.NBytes % (int)Math.Max(tcd.SourceDataTransferSizeInBytes, tcd.DestinationDataTransferSizeInBytes) != 0)
                 {
-                    errors |= ChannelError.NbytesCiterConfiguration;
+                    errors |= ErrorFlags.NbytesCiterConfiguration;
                 }
 
                 if(tcd.EnableLinkCITER || tcd.EnableLinkBITER)
@@ -158,7 +214,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     {
                         // The ELINK field does not equal for CITER and BITER or
                         // the LINKCH field does not equal for CITER and BITER.
-                        errors |= ChannelError.NbytesCiterConfiguration;
+                        errors |= ErrorFlags.NbytesCiterConfiguration;
                     }
                 }
 
@@ -167,7 +223,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private ICPU GetCurrentCPUOrNull()
             {
-                if(!parent.sysbus.TryGetCurrentCPU(out var cpu))
+                if(!sysbus.TryGetCurrentCPU(out var cpu))
                 {
                     return null;
                 }
@@ -219,7 +275,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 if(tcd.EnableStoreDestinationAddress)
                 {
-                    parent.sysbus.WriteDoubleWord(tcd.LastSourceAddressAdjustmentOrStoreDADDRAddress, tcd.DestinationAddress, context);
+                    sysbus.WriteDoubleWord(tcd.LastSourceAddressAdjustmentOrStoreDADDRAddress, tcd.DestinationAddress, context);
                 }
                 else
                 {
@@ -235,7 +291,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
 
                 var errors = CheckForConfigurationErrorsAtMajorLoopCompletion(tcd);
-                if(errors != ChannelError.NoError)
+                if(errors != ErrorFlags.NoError)
                 {
                     ReportErrors(errors);
                     return;
@@ -256,7 +312,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         incrementWriteAddress: true
                     );
 
-                    var resp = parent.dmaEngine.IssueCopy(req, context);
+                    var resp = dmaEngine.IssueCopy(req, context);
                     tcd = Packet.Decode<TransferControlDescriptorLocal>(data);
                     UpdateTCDInLocalMemory(tcd);
                 }
@@ -278,7 +334,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 parent.DebugLog("CH{0}: Fetched TCD: {1}", ChannelNumber, tcd);
                 var errors = CheckForConfigurationErrorsAtActivation(tcd);
 
-                if(errors != ChannelError.NoError)
+                if(errors != ErrorFlags.NoError)
                 {
                     // The first transfer is initiated on the internal bus, unless a configuration error is detected
                     ReportErrors(errors);
@@ -311,7 +367,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 );
 
                 parent.DebugLog("CH{0}: Executing transfer from 0x{1:X} ({2}) to 0x{3:X} ({4}), size {5}B", ChannelNumber, request.Source.Address, request.ReadTransferType, request.Destination.Address, request.WriteTransferType, request.Size);
-                var response = parent.dmaEngine.IssueCopy(request, context);
+                var response = dmaEngine.IssueCopy(request, context);
 
                 // Minor loop completion
                 tcd.SourceAddress = (uint)response.ReadAddress;
@@ -341,7 +397,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 UpdateTCDInLocalMemory(tcd);
 
                 errors = CheckForConfigurationErrorsAtMinorLoopCompletion(tcd);
-                if(errors != ChannelError.NoError)
+                if(errors != ErrorFlags.NoError)
                 {
                     ReportErrors(errors);
                     // Error prevents channel linking, but doesn't block other actions if the major iteration count was exhausted, so do not return here.
@@ -357,10 +413,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return true;
             }
 
-            private void ReportErrors(ChannelError errors)
+            private void ReportErrors(ErrorFlags errors)
             {
                 channelError.Value = errors;
-                if(errors != ChannelError.NoError)
+                if(errors != ErrorFlags.NoError)
                 {
                     parent.ReportErrorOnChannel(ChannelNumber);
                     if(enableErrorInterrupt.Value)
@@ -475,12 +531,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(31, FieldMode.WriteOneToClear | FieldMode.Read, valueProviderCallback: _ =>
                     {
                         // This field is the logical OR of each error interrupt field (ERR).
-                        return channelError.Value != ChannelError.NoError;
+                        return channelError.Value != ErrorFlags.NoError;
                     }, writeCallback: (_, val) =>
                     {
                         if(val)
                         {
-                            channelError.Value = ChannelError.NoError;
+                            channelError.Value = ErrorFlags.NoError;
                         }
                     }, name: "ERR");
 
@@ -595,7 +651,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField enableAsynchronousDMARequest;
             private IFlagRegisterField enableErrorInterrupt;
             private IFlagRegisterField channelDone;
-            private IEnumRegisterField<ChannelError> channelError;
+            private IEnumRegisterField<ErrorFlags> channelError;
             private IFlagRegisterField interruptRequest;
             private IValueRegisterField serviceRequestSource;
 
@@ -604,11 +660,13 @@ namespace Antmicro.Renode.Peripherals.DMA
             private ICPU context;
             private readonly DoubleWordRegisterCollection dwRegisters;
             private readonly WordRegisterCollection wRegisters;
+            private readonly IBusController sysbus;
             private readonly NXP_eDMA parent;
+            private readonly DmaEngine dmaEngine;
 
             private const int TransferControlDescriptorSize = 32;
 
-            private enum Registers
+            public enum Registers
             {
                 ChannelControlAndStatus = 0x00,
                 ChannelErrorStatus = 0x04,
@@ -628,280 +686,280 @@ namespace Antmicro.Renode.Peripherals.DMA
                 TCDControlAndStatus = 0x3C,
                 TCDBeginningMajorLoopCount = 0x3E,
             }
-        }
 
-        private struct TransferControlDescriptor
-        {
-            public IValueRegisterField SADDR;
-            public IValueRegisterField SOFF;
-            public IValueRegisterField DSIZE;
-            public IValueRegisterField DMOD;
-            public IValueRegisterField SSIZE;
-            public IValueRegisterField SMOD;
-            public IValueRegisterField NBYTES;
-            public IFlagRegisterField DMLOE;
-            public IFlagRegisterField SMLOE;
-            public IValueRegisterField MLOFF;
-            public IValueRegisterField SLAST_SDA;
-            public IValueRegisterField DADDR;
-            public IValueRegisterField DOFF;
-            public IValueRegisterField CITER_ELINKYES;
-            public IFlagRegisterField CITERELINK;
-            public IValueRegisterField CITERLINKCH;
-            public IValueRegisterField CITERRESERVED;
-            public IValueRegisterField DLAST_SGA;
-            public IFlagRegisterField START;
-            public IFlagRegisterField INTMAJOR;
-            public IFlagRegisterField INTHALF;
-            public IFlagRegisterField DREQ;
-            public IFlagRegisterField ESG;
-            public IFlagRegisterField MAJORELINK;
-            public IFlagRegisterField EEOP;
-            public IFlagRegisterField ESDA;
-            public IValueRegisterField MAJORLINKCH;
-            public IValueRegisterField BWC;
-            public IValueRegisterField BITER_ELINKYES;
-            public IValueRegisterField BITERLINKCH;
-            public IValueRegisterField BITERRESERVED;
-            public IFlagRegisterField BITERELINK;
-        }
-
-        [LeastSignificantByteFirst]
-        private struct TransferControlDescriptorLocal
-        {
-            public override string ToString()
+            [Flags]
+            public enum ErrorFlags
             {
-                var mloff = (DestinationMinorLoopOffsetEnable || SourceMinorLoopOffsetEnable) ? MinorLoopOffset : 0;
-                return ""
-                    + $"SADDR=0x{SourceAddress:X},"
-                    + $"SOFF=0x{SourceAddressSignedOffset:X}={SourceAddressSignedOffset},"
-                    + $"DSIZE={DestinationDataTransferSize},"
-                    + $"DMOD={DestinationAddressModulo},"
-                    + $"SSIZE={SourceDataTransferSize},"
-                    + $"SMOD={SourceAddressModulo},"
-                    + $"NBYTES=0x{NBytes:X}={NBytes},"
-                    + $"DMLOE={DestinationMinorLoopOffsetEnable},"
-                    + $"SMLOE={SourceMinorLoopOffsetEnable},"
-                    + $"MLOFF=0x{mloff:X}={(int)MinorLoopOffsetSignExtended},"
-                    + $"SLAST_SDA=0x{LastSourceAddressAdjustmentOrStoreDADDRAddress:X}={LastSourceAddressAdjustmentOrStoreDADDRAddress},"
-                    + $"DADDR=0x{DestinationAddress:X},"
-                    + $"DOFF=0x{DestinationAddressSignedOffset:X}={DestinationAddressSignedOffset},"
-                    + $"CITER={CurrentMajorIterationCount},"
-                    + $"CITERELINK={EnableLinkCITER},"
-                    + $"CITERLINKCH={(EnableLinkCITER ? MinorLoopLinkChannelNumberELinkYesCITER : 0)},"
-                    + $"DLAST_SGA=0x{LastDestinationAddressAdjustmentOrScatterGatherAddress:X}={LastDestinationAddressAdjustmentOrScatterGatherAddress},"
-                    + $"START={ChannelStart},"
-                    + $"INTMAJOR={EnableInterruptIfMajorCounterComplete},"
-                    + $"INTHALF={EnableInterruptIfMajorCounterHalfComplete},"
-                    + $"DREQ={DisableRequest},"
-                    + $"ESG={EnableScatterGatherProcessing},"
-                    + $"MAJORELINK={EnableLinkWhenMajorLoopComplete},"
-                    + $"EEOP={EnableEndOfPacketProcessing},"
-                    + $"ESDA=0x{EnableStoreDestinationAddress},"
-                    + $"MAJORLINKCH={MajorLoopLinkChannelNumber},"
-                    + $"BWC={BandwidthControl},"
-                    + $"BITER={StartingMajorIterationCount},"
-                    + $"BITERELINK={EnableLinkBITER},"
-                    + $"BITERLINKCH={(EnableLinkBITER ? MinorLoopLinkChannelNumberELinkYesBITER : 0)}"
-                ;
+                NoError = 0,
+                DestinationBus = 1 << 0,                // DBE
+                SourceBus = 1 << 1,                     // SBE
+                ScatterGatherConfiguration = 1 << 2,    // SGE
+                NbytesCiterConfiguration = 1 << 3,      // NCE
+                DestinationOffset = 1 << 4,             // DOE
+                DestinationAddress = 1 << 5,            // DAE
+                SourceOffset = 1 << 6,                  // SOE
+                SourceAddress = 1 << 7                  // SAE
             }
 
-            [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 32)]
-            public uint SourceAddress;
-            [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 16)]
-            public short SourceAddressSignedOffset;
-            [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 3)]
-            public byte DestinationDataTransferSize;
-            [PacketField, Offset(doubleWords: 1, bits: 19), Width(bits: 5)]
-            public byte DestinationAddressModulo;
-            [PacketField, Offset(doubleWords: 1, bits: 24), Width(bits: 3)]
-            public byte SourceDataTransferSize;
-            [PacketField, Offset(doubleWords: 1, bits: 27), Width(bits: 5)]
-            public byte SourceAddressModulo;
-            [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 10)]
-            public uint NBytesWithMinorLoopOffsets;
-            [PacketField, Offset(doubleWords: 2, bits: 10), Width(bits: MinorLoopOffsetFieldWidth)]
-            public uint MinorLoopOffset;
-            [PacketField, Offset(doubleWords: 2, bits: 30), Width(bits: 1)]
-            public bool DestinationMinorLoopOffsetEnable;
-            [PacketField, Offset(doubleWords: 2, bits: 31), Width(bits: 1)]
-            public bool SourceMinorLoopOffsetEnable;
-            [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
-            public uint LastSourceAddressAdjustmentOrStoreDADDRAddress;
-            [PacketField, Offset(doubleWords: 4, bits: 0), Width(bits: 32)]
-            public uint DestinationAddress;
-            [PacketField, Offset(doubleWords: 5, bits: 0), Width(bits: 16)]
-            public short DestinationAddressSignedOffset;
-            [PacketField, Offset(doubleWords: 5, bits: 16), Width(bits: 9)]
-            public ushort CurrentMajorIterationCountELinkYes;
-            [PacketField, Offset(doubleWords: 5, bits: 25), Width(bits: 4)]
-            public ushort MinorLoopLinkChannelNumberELinkYesCITER;
-            [PacketField, Offset(doubleWords: 5, bits: 29), Width(bits: 2)]
-            public byte ReservedELinkYesCITER;
-            [PacketField, Offset(doubleWords: 5, bits: 31), Width(bits: 1)]
-            public bool EnableLinkCITER;
-            [PacketField, Offset(doubleWords: 6, bits: 0), Width(bits: 32)]
-            public uint LastDestinationAddressAdjustmentOrScatterGatherAddress;
-            [PacketField, Offset(doubleWords: 7, bits: 0), Width(bits: 1)]
-            public bool ChannelStart;
-            [PacketField, Offset(doubleWords: 7, bits: 1), Width(bits: 1)]
-            public bool EnableInterruptIfMajorCounterComplete;
-            [PacketField, Offset(doubleWords: 7, bits: 2), Width(bits: 1)]
-            public bool EnableInterruptIfMajorCounterHalfComplete;
-            [PacketField, Offset(doubleWords: 7, bits: 3), Width(bits: 1)]
-            public bool DisableRequest;
-            [PacketField, Offset(doubleWords: 7, bits: 4), Width(bits: 1)]
-            public bool EnableScatterGatherProcessing;
-            [PacketField, Offset(doubleWords: 7, bits: 5), Width(bits: 1)]
-            public bool EnableLinkWhenMajorLoopComplete;
-            [PacketField, Offset(doubleWords: 7, bits: 6), Width(bits: 1)]
-            public bool EnableEndOfPacketProcessing;
-            [PacketField, Offset(doubleWords: 7, bits: 7), Width(bits: 1)]
-            public bool EnableStoreDestinationAddress;
-            [PacketField, Offset(doubleWords: 7, bits: 8), Width(bits: 4)]
-            public byte MajorLoopLinkChannelNumber;
-            [PacketField, Offset(doubleWords: 7, bits: 14), Width(bits: 2)]
-            public byte BandwidthControl;
-            [PacketField, Offset(doubleWords: 7, bits: 16), Width(bits: 9)]
-            public ushort StartingMajorIterationCountELinkYes;
-            [PacketField, Offset(doubleWords: 7, bits: 25), Width(bits: 4)]
-            public ushort MinorLoopLinkChannelNumberELinkYesBITER;
-            [PacketField, Offset(doubleWords: 7, bits: 29), Width(bits: 2)]
-            public byte ReservedELinkYesBITER;
-            [PacketField, Offset(doubleWords: 7, bits: 31), Width(bits: 1)]
-            public bool EnableLinkBITER;
-
-            private ushort CurrentMajorIterationCountELinkNo
+            private struct TransferControlDescriptor
             {
-                get
-                {
-                    return (ushort)(ReservedELinkYesCITER << 13 | MinorLoopLinkChannelNumberELinkYesCITER << 9 | CurrentMajorIterationCountELinkYes);
-                }
-
-                set
-                {
-                    CurrentMajorIterationCountELinkYes = BitHelper.GetValue(value, 0, 9);
-                    MinorLoopLinkChannelNumberELinkYesCITER = BitHelper.GetValue(value, 9, 4);
-                    ReservedELinkYesCITER = (byte)BitHelper.GetValue((ushort)value, 13, 2);
-                }
+                public IValueRegisterField SADDR;
+                public IValueRegisterField SOFF;
+                public IValueRegisterField DSIZE;
+                public IValueRegisterField DMOD;
+                public IValueRegisterField SSIZE;
+                public IValueRegisterField SMOD;
+                public IValueRegisterField NBYTES;
+                public IFlagRegisterField DMLOE;
+                public IFlagRegisterField SMLOE;
+                public IValueRegisterField MLOFF;
+                public IValueRegisterField SLAST_SDA;
+                public IValueRegisterField DADDR;
+                public IValueRegisterField DOFF;
+                public IValueRegisterField CITER_ELINKYES;
+                public IFlagRegisterField CITERELINK;
+                public IValueRegisterField CITERLINKCH;
+                public IValueRegisterField CITERRESERVED;
+                public IValueRegisterField DLAST_SGA;
+                public IFlagRegisterField START;
+                public IFlagRegisterField INTMAJOR;
+                public IFlagRegisterField INTHALF;
+                public IFlagRegisterField DREQ;
+                public IFlagRegisterField ESG;
+                public IFlagRegisterField MAJORELINK;
+                public IFlagRegisterField EEOP;
+                public IFlagRegisterField ESDA;
+                public IValueRegisterField MAJORLINKCH;
+                public IValueRegisterField BWC;
+                public IValueRegisterField BITER_ELINKYES;
+                public IValueRegisterField BITERLINKCH;
+                public IValueRegisterField BITERRESERVED;
+                public IFlagRegisterField BITERELINK;
             }
 
-            private ushort StartingMajorIterationCountELinkNo
+            [LeastSignificantByteFirst]
+            private struct TransferControlDescriptorLocal
             {
-                get
+                public override string ToString()
                 {
-                    return (ushort)(ReservedELinkYesBITER << 13 | MinorLoopLinkChannelNumberELinkYesBITER << 9 | StartingMajorIterationCountELinkYes);
+                    var mloff = (DestinationMinorLoopOffsetEnable || SourceMinorLoopOffsetEnable) ? MinorLoopOffset : 0;
+                    return ""
+                        + $"SADDR=0x{SourceAddress:X},"
+                        + $"SOFF=0x{SourceAddressSignedOffset:X}={SourceAddressSignedOffset},"
+                        + $"DSIZE={DestinationDataTransferSize},"
+                        + $"DMOD={DestinationAddressModulo},"
+                        + $"SSIZE={SourceDataTransferSize},"
+                        + $"SMOD={SourceAddressModulo},"
+                        + $"NBYTES=0x{NBytes:X}={NBytes},"
+                        + $"DMLOE={DestinationMinorLoopOffsetEnable},"
+                        + $"SMLOE={SourceMinorLoopOffsetEnable},"
+                        + $"MLOFF=0x{mloff:X}={(int)MinorLoopOffsetSignExtended},"
+                        + $"SLAST_SDA=0x{LastSourceAddressAdjustmentOrStoreDADDRAddress:X}={LastSourceAddressAdjustmentOrStoreDADDRAddress},"
+                        + $"DADDR=0x{DestinationAddress:X},"
+                        + $"DOFF=0x{DestinationAddressSignedOffset:X}={DestinationAddressSignedOffset},"
+                        + $"CITER={CurrentMajorIterationCount},"
+                        + $"CITERELINK={EnableLinkCITER},"
+                        + $"CITERLINKCH={(EnableLinkCITER ? MinorLoopLinkChannelNumberELinkYesCITER : 0)},"
+                        + $"DLAST_SGA=0x{LastDestinationAddressAdjustmentOrScatterGatherAddress:X}={LastDestinationAddressAdjustmentOrScatterGatherAddress},"
+                        + $"START={ChannelStart},"
+                        + $"INTMAJOR={EnableInterruptIfMajorCounterComplete},"
+                        + $"INTHALF={EnableInterruptIfMajorCounterHalfComplete},"
+                        + $"DREQ={DisableRequest},"
+                        + $"ESG={EnableScatterGatherProcessing},"
+                        + $"MAJORELINK={EnableLinkWhenMajorLoopComplete},"
+                        + $"EEOP={EnableEndOfPacketProcessing},"
+                        + $"ESDA=0x{EnableStoreDestinationAddress},"
+                        + $"MAJORLINKCH={MajorLoopLinkChannelNumber},"
+                        + $"BWC={BandwidthControl},"
+                        + $"BITER={StartingMajorIterationCount},"
+                        + $"BITERELINK={EnableLinkBITER},"
+                        + $"BITERLINKCH={(EnableLinkBITER ? MinorLoopLinkChannelNumberELinkYesBITER : 0)}"
+                    ;
                 }
 
-                set
-                {
-                    StartingMajorIterationCountELinkYes = BitHelper.GetValue(value, 0, 9);
-                    MinorLoopLinkChannelNumberELinkYesBITER = BitHelper.GetValue(value, 9, 4);
-                    ReservedELinkYesBITER = (byte)BitHelper.GetValue(value, 13, 2);
-                }
-            }
+                [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits: 32)]
+                public uint SourceAddress;
+                [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits: 16)]
+                public short SourceAddressSignedOffset;
+                [PacketField, Offset(doubleWords: 1, bits: 16), Width(bits: 3)]
+                public byte DestinationDataTransferSize;
+                [PacketField, Offset(doubleWords: 1, bits: 19), Width(bits: 5)]
+                public byte DestinationAddressModulo;
+                [PacketField, Offset(doubleWords: 1, bits: 24), Width(bits: 3)]
+                public byte SourceDataTransferSize;
+                [PacketField, Offset(doubleWords: 1, bits: 27), Width(bits: 5)]
+                public byte SourceAddressModulo;
+                [PacketField, Offset(doubleWords: 2, bits: 0), Width(bits: 10)]
+                public uint NBytesWithMinorLoopOffsets;
+                [PacketField, Offset(doubleWords: 2, bits: 10), Width(bits: MinorLoopOffsetFieldWidth)]
+                public uint MinorLoopOffset;
+                [PacketField, Offset(doubleWords: 2, bits: 30), Width(bits: 1)]
+                public bool DestinationMinorLoopOffsetEnable;
+                [PacketField, Offset(doubleWords: 2, bits: 31), Width(bits: 1)]
+                public bool SourceMinorLoopOffsetEnable;
+                [PacketField, Offset(doubleWords: 3, bits: 0), Width(bits: 32)]
+                public uint LastSourceAddressAdjustmentOrStoreDADDRAddress;
+                [PacketField, Offset(doubleWords: 4, bits: 0), Width(bits: 32)]
+                public uint DestinationAddress;
+                [PacketField, Offset(doubleWords: 5, bits: 0), Width(bits: 16)]
+                public short DestinationAddressSignedOffset;
+                [PacketField, Offset(doubleWords: 5, bits: 16), Width(bits: 9)]
+                public ushort CurrentMajorIterationCountELinkYes;
+                [PacketField, Offset(doubleWords: 5, bits: 25), Width(bits: 4)]
+                public ushort MinorLoopLinkChannelNumberELinkYesCITER;
+                [PacketField, Offset(doubleWords: 5, bits: 29), Width(bits: 2)]
+                public byte ReservedELinkYesCITER;
+                [PacketField, Offset(doubleWords: 5, bits: 31), Width(bits: 1)]
+                public bool EnableLinkCITER;
+                [PacketField, Offset(doubleWords: 6, bits: 0), Width(bits: 32)]
+                public uint LastDestinationAddressAdjustmentOrScatterGatherAddress;
+                [PacketField, Offset(doubleWords: 7, bits: 0), Width(bits: 1)]
+                public bool ChannelStart;
+                [PacketField, Offset(doubleWords: 7, bits: 1), Width(bits: 1)]
+                public bool EnableInterruptIfMajorCounterComplete;
+                [PacketField, Offset(doubleWords: 7, bits: 2), Width(bits: 1)]
+                public bool EnableInterruptIfMajorCounterHalfComplete;
+                [PacketField, Offset(doubleWords: 7, bits: 3), Width(bits: 1)]
+                public bool DisableRequest;
+                [PacketField, Offset(doubleWords: 7, bits: 4), Width(bits: 1)]
+                public bool EnableScatterGatherProcessing;
+                [PacketField, Offset(doubleWords: 7, bits: 5), Width(bits: 1)]
+                public bool EnableLinkWhenMajorLoopComplete;
+                [PacketField, Offset(doubleWords: 7, bits: 6), Width(bits: 1)]
+                public bool EnableEndOfPacketProcessing;
+                [PacketField, Offset(doubleWords: 7, bits: 7), Width(bits: 1)]
+                public bool EnableStoreDestinationAddress;
+                [PacketField, Offset(doubleWords: 7, bits: 8), Width(bits: 4)]
+                public byte MajorLoopLinkChannelNumber;
+                [PacketField, Offset(doubleWords: 7, bits: 14), Width(bits: 2)]
+                public byte BandwidthControl;
+                [PacketField, Offset(doubleWords: 7, bits: 16), Width(bits: 9)]
+                public ushort StartingMajorIterationCountELinkYes;
+                [PacketField, Offset(doubleWords: 7, bits: 25), Width(bits: 4)]
+                public ushort MinorLoopLinkChannelNumberELinkYesBITER;
+                [PacketField, Offset(doubleWords: 7, bits: 29), Width(bits: 2)]
+                public byte ReservedELinkYesBITER;
+                [PacketField, Offset(doubleWords: 7, bits: 31), Width(bits: 1)]
+                public bool EnableLinkBITER;
 
-            private uint NBytesWithoutMinorLoopOffsets
-            {
-                get
+                private ushort CurrentMajorIterationCountELinkNo
                 {
-                    return MinorLoopOffset << 10 | NBytesWithMinorLoopOffsets;
-                }
-
-                set
-                {
-                    NBytesWithMinorLoopOffsets = BitHelper.GetValue((uint)value, 0, 10);
-                    MinorLoopOffset = BitHelper.GetValue((uint)value, 10, 20);
-                }
-            }
-
-            public uint NBytes
-            {
-                get
-                {
-                    return SourceMinorLoopOffsetEnable ? NBytesWithMinorLoopOffsets : NBytesWithoutMinorLoopOffsets;
-                }
-
-                set
-                {
-                    if(SourceMinorLoopOffsetEnable)
+                    get
                     {
-                        NBytesWithMinorLoopOffsets = value;
+                        return (ushort)(ReservedELinkYesCITER << 13 | MinorLoopLinkChannelNumberELinkYesCITER << 9 | CurrentMajorIterationCountELinkYes);
                     }
-                    else
+
+                    set
                     {
-                        NBytesWithoutMinorLoopOffsets = value;
+                        CurrentMajorIterationCountELinkYes = BitHelper.GetValue(value, 0, 9);
+                        MinorLoopLinkChannelNumberELinkYesCITER = BitHelper.GetValue(value, 9, 4);
+                        ReservedELinkYesCITER = (byte)BitHelper.GetValue((ushort)value, 13, 2);
                     }
                 }
-            }
 
-            public uint MinorLoopOffsetSignExtended
-            {
-                get
+                private ushort StartingMajorIterationCountELinkNo
                 {
-                    return BitHelper.SignExtend(MinorLoopOffset, MinorLoopOffsetFieldWidth);
-                }
-            }
-
-            public ushort CurrentMajorIterationCount
-            {
-                get
-                {
-                    return EnableLinkCITER ? CurrentMajorIterationCountELinkYes : CurrentMajorIterationCountELinkNo;
-                }
-
-                set
-                {
-                    if(EnableLinkCITER)
+                    get
                     {
-                        CurrentMajorIterationCountELinkYes = value;
+                        return (ushort)(ReservedELinkYesBITER << 13 | MinorLoopLinkChannelNumberELinkYesBITER << 9 | StartingMajorIterationCountELinkYes);
                     }
-                    else
+
+                    set
                     {
-                        CurrentMajorIterationCountELinkNo = value;
+                        StartingMajorIterationCountELinkYes = BitHelper.GetValue(value, 0, 9);
+                        MinorLoopLinkChannelNumberELinkYesBITER = BitHelper.GetValue(value, 9, 4);
+                        ReservedELinkYesBITER = (byte)BitHelper.GetValue(value, 13, 2);
                     }
                 }
-            }
 
-            public ushort StartingMajorIterationCount
-            {
-                get
+                private uint NBytesWithoutMinorLoopOffsets
                 {
-                    return EnableLinkBITER ? StartingMajorIterationCountELinkYes : StartingMajorIterationCountELinkNo;
-                }
-
-                set
-                {
-                    if(EnableLinkBITER)
+                    get
                     {
-                        StartingMajorIterationCountELinkYes = value;
+                        return MinorLoopOffset << 10 | NBytesWithMinorLoopOffsets;
                     }
-                    else
+
+                    set
                     {
-                        StartingMajorIterationCountELinkNo = value;
+                        NBytesWithMinorLoopOffsets = BitHelper.GetValue((uint)value, 0, 10);
+                        MinorLoopOffset = BitHelper.GetValue((uint)value, 10, 20);
                     }
                 }
+
+                public uint NBytes
+                {
+                    get
+                    {
+                        return SourceMinorLoopOffsetEnable ? NBytesWithMinorLoopOffsets : NBytesWithoutMinorLoopOffsets;
+                    }
+
+                    set
+                    {
+                        if(SourceMinorLoopOffsetEnable)
+                        {
+                            NBytesWithMinorLoopOffsets = value;
+                        }
+                        else
+                        {
+                            NBytesWithoutMinorLoopOffsets = value;
+                        }
+                    }
+                }
+
+                public uint MinorLoopOffsetSignExtended
+                {
+                    get
+                    {
+                        return BitHelper.SignExtend(MinorLoopOffset, MinorLoopOffsetFieldWidth);
+                    }
+                }
+
+                public ushort CurrentMajorIterationCount
+                {
+                    get
+                    {
+                        return EnableLinkCITER ? CurrentMajorIterationCountELinkYes : CurrentMajorIterationCountELinkNo;
+                    }
+
+                    set
+                    {
+                        if(EnableLinkCITER)
+                        {
+                            CurrentMajorIterationCountELinkYes = value;
+                        }
+                        else
+                        {
+                            CurrentMajorIterationCountELinkNo = value;
+                        }
+                    }
+                }
+
+                public ushort StartingMajorIterationCount
+                {
+                    get
+                    {
+                        return EnableLinkBITER ? StartingMajorIterationCountELinkYes : StartingMajorIterationCountELinkNo;
+                    }
+
+                    set
+                    {
+                        if(EnableLinkBITER)
+                        {
+                            StartingMajorIterationCountELinkYes = value;
+                        }
+                        else
+                        {
+                            StartingMajorIterationCountELinkNo = value;
+                        }
+                    }
+                }
+
+                public int SourceDataTransferSizeInBytes => 1 << SourceDataTransferSize; // power of two
+
+                public int DestinationDataTransferSizeInBytes => 1 << DestinationDataTransferSize; // power of two
+
+                private const int MinorLoopOffsetFieldWidth = 20;
             }
-
-            public int SourceDataTransferSizeInBytes => 1 << SourceDataTransferSize; // power of two
-
-            public int DestinationDataTransferSizeInBytes => 1 << DestinationDataTransferSize; // power of two
-
-            private const int MinorLoopOffsetFieldWidth = 20;
-        }
-
-        [Flags]
-        private enum ChannelError
-        {
-            NoError = 0,
-            DestinationBus = 1 << 0,                // DBE
-            SourceBus = 1 << 1,                     // SBE
-            ScatterGatherConfiguration = 1 << 2,    // SGE
-            NbytesCiterConfiguration = 1 << 3,      // NCE
-            DestinationOffset = 1 << 4,             // DOE
-            DestinationAddress = 1 << 5,            // DAE
-            SourceOffset = 1 << 6,                  // SOE
-            SourceAddress = 1 << 7                  // SAE
         }
     }
 }
