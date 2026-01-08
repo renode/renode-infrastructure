@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class NXP_eDMA_Channels : IDoubleWordPeripheral, IWordPeripheral, IKnownSize
     {
-        public NXP_eDMA_Channels(IMachine machine, NXP_eDMA parent, uint count, int firstChannel = 0, long channelSize = 0x1000)
+        public NXP_eDMA_Channels(IMachine machine, NXP_eDMA parent, uint count, int firstChannel = 0, long channelSize = 0x1000, bool hasMuxingRegisters = true)
         {
             Count = count;
             FirstChannelNumber = firstChannel;
@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             for(var i = 0; i < count; ++i)
             {
-                channels[i] = new Channel(machine, parent, firstChannel + i);
+                channels[i] = new Channel(machine, parent, firstChannel + i, hasMuxingRegisters);
                 parent.SetChannel(firstChannel + i, channels[i]);
             }
         }
@@ -76,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public class Channel : IDoubleWordPeripheral, IWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<WordRegisterCollection>
         {
-            public Channel(IMachine machine, NXP_eDMA parent, int channelNumber)
+            public Channel(IMachine machine, NXP_eDMA parent, int channelNumber, bool hasMuxingRegisters = true)
             {
                 sysbus = machine.GetSystemBus(this);
                 this.parent = parent;
@@ -86,7 +86,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 dwRegisters = new DoubleWordRegisterCollection(this);
                 wRegisters = new WordRegisterCollection(this);
 
-                DefineRegisters();
+                DefineRegisters(hasMuxingRegisters);
             }
 
             public void Reset()
@@ -502,7 +502,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 tcdInMemory.BITERELINK.Value = tcd.EnableLinkBITER;
             }
 
-            private void DefineRegisters()
+            private void DefineRegisters(bool hasMuxingRegisters)
             {
                 Registers.ChannelControlAndStatus.Define(dwRegisters, name: "CHn_CSR")
                     .WithFlag(0, out enableDMARequest, name: "ERQ")
@@ -562,25 +562,28 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(30, name: "DPA")
                     .WithFlag(31, name: "ECP");
 
-                Registers.ChannelMultiplexorConfiguration.Define(dwRegisters, name: "CHn_MUX")
-                    .WithValueField(0, 7, writeCallback: (_, value) =>
-                    {
-                        ServiceRequestSource = 0;
-                        if(value == 0)
+                if(hasMuxingRegisters)
+                {
+                    Registers.ChannelMultiplexorConfiguration.Define(dwRegisters, name: "CHn_MUX")
+                        .WithValueField(0, 7, writeCallback: (_, value) =>
                         {
-                            return;
-                        }
+                            ServiceRequestSource = 0;
+                            if(value == 0)
+                            {
+                                return;
+                            }
 
-                        if(parent.TryGetChannelBySlot((int)value, out var occupiedChannelNumber))
-                        {
-                            parent.WarningLog("CH{0}: Trying to select a peripheral slot already occupied by CH{1}", ChannelNumber, occupiedChannelNumber);
-                            return;
-                        }
+                            if(parent.TryGetChannelBySlot((int)value, out var occupiedChannelNumber))
+                            {
+                                parent.WarningLog("CH{0}: Trying to select a peripheral slot already occupied by CH{1}", ChannelNumber, occupiedChannelNumber);
+                                return;
+                            }
 
-                        ServiceRequestSource = (int)value;
-                    }, name: "SRC")
-                    .WithReservedBits(7, 25);
-                ServiceRequestSource = 0;
+                            ServiceRequestSource = (int)value;
+                        }, name: "SRC")
+                        .WithReservedBits(7, 25);
+                    ServiceRequestSource = 0;
+                }
 
                 Registers.TCDSourceAddress.Define(dwRegisters, name: "TCDn_SADDR")
                     .WithValueField(0, 32, out tcdInMemory.SADDR, name: "SADDR");

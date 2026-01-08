@@ -160,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return;
             }
 
-            var channelsWithMuxing = channels[0].ServiceRequestSource.HasValue;
+            var channelsWithMuxing = channels[0]?.ServiceRequestSource.HasValue ?? false;
 
             for(var i = 0; i < NumberOfChannels; ++i)
             {
