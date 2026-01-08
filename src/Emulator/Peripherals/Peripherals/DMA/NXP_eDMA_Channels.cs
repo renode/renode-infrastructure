@@ -91,6 +91,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public void Reset()
             {
+                ServiceRequestSource = 0;
                 dwRegisters.Reset();
                 wRegisters.Reset();
                 IRQ.Unset();
@@ -145,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public ErrorFlags Errors => channelError.Value;
 
-            public int ServiceRequestSource => (int)serviceRequestSource.Value;
+            public int? ServiceRequestSource { get; private set; }
 
             // A configuration error is an illegal setting in the transfer control descriptor.
             private static ErrorFlags CheckForConfigurationErrorsAtActivation(TransferControlDescriptorLocal tcd)
@@ -562,21 +563,24 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(31, name: "ECP");
 
                 Registers.ChannelMultiplexorConfiguration.Define(dwRegisters, name: "CHn_MUX")
-                    .WithValueField(0, 7, out serviceRequestSource, writeCallback: (_, val) =>
+                    .WithValueField(0, 7, writeCallback: (_, value) =>
                     {
-                        if(val == 0)
+                        ServiceRequestSource = 0;
+                        if(value == 0)
                         {
                             return;
                         }
-                        var sourceUsed = parent.IsPeripheralSlotOccupied(ChannelNumber, (int)val, out var occupiedChannelNumber);
-                        if(sourceUsed)
+
+                        if(parent.TryGetChannelBySlot((int)value, out var occupiedChannelNumber))
                         {
-                            parent.WarningLog("CH{0}: Trying to select a peripheral slot already occupied by CH{occupiedChannelNumber}", ChannelNumber, occupiedChannelNumber);
-                            // Attempts to write a value already in use force the field's value to 0.
-                            serviceRequestSource.Value = 0;
+                            parent.WarningLog("CH{0}: Trying to select a peripheral slot already occupied by CH{1}", ChannelNumber, occupiedChannelNumber);
+                            return;
                         }
+
+                        ServiceRequestSource = (int)value;
                     }, name: "SRC")
                     .WithReservedBits(7, 25);
+                ServiceRequestSource = 0;
 
                 Registers.TCDSourceAddress.Define(dwRegisters, name: "TCDn_SADDR")
                     .WithValueField(0, 32, out tcdInMemory.SADDR, name: "SADDR");
@@ -653,7 +657,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField channelDone;
             private IEnumRegisterField<ErrorFlags> channelError;
             private IFlagRegisterField interruptRequest;
-            private IValueRegisterField serviceRequestSource;
 
             private TransferControlDescriptorLocal tcd;
             private TransferControlDescriptor tcdInMemory = new TransferControlDescriptor();

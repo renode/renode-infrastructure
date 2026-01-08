@@ -18,7 +18,7 @@ using Channel = Antmicro.Renode.Peripherals.DMA.NXP_eDMA_Channels.Channel;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public partial class NXP_eDMA : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IHasOwnLife
+    public partial class NXP_eDMA : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IHasOwnLife, IGPIOReceiver
     {
         public NXP_eDMA(IMachine machine, int numberOfChannels) : base(machine)
         {
@@ -52,16 +52,25 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public bool IsPaused => false;
 
-        public void HandlePeripheralRequest(int slot)
+        public void OnGPIO(int channel, bool value)
         {
-            var channel = channels.FirstOrDefault(x => x.ServiceRequestSource == slot);
-            if(channel == null)
+            if(channel < 0 || channel >= MaximumNumberOfChannels)
             {
-                this.WarningLog("No channel configured for peripheral slot {0}", slot);
+                this.WarningLog("Channel {0} is outside of allowed range  0-{1}", channel, MaximumNumberOfChannels - 1);
                 return;
             }
+            if(!value)
+            {
+                return;
+            }
+            channels[channel].HardwareServiceRequest();
+        }
 
-            channel.HardwareServiceRequest();
+        public bool TryGetChannelBySlot(int slot, out int channelNumber)
+        {
+            var channel = channels.FirstOrDefault(x => x.ServiceRequestSource == slot)?.ChannelNumber;
+            channelNumber = channel ?? default(int);
+            return channel.HasValue;
         }
 
         public void SetChannel(int channelNumber, Channel channel)
@@ -117,18 +126,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             channels[linkedChannelNumber].ChannelLinkInternalRequest();
         }
 
-        public bool IsPeripheralSlotOccupied(int askingChannelNumber, int slot, out int occupiedChannelNumber)
-        {
-            occupiedChannelNumber = -1;
-            // SRC in CHn_MUX must be unique across channels (with the exception of SRC=0)
-            var channel = channels.FirstOrDefault(x => x.ChannelNumber != askingChannelNumber && x.ServiceRequestSource == slot);
-            if(channel != null)
-            {
-                occupiedChannelNumber = channel.ChannelNumber;
-            }
-            return channel != null;
-        }
-
         public long Size => 0x1000;
 
         public IReadOnlyDictionary<int, IGPIO> Connections
@@ -137,6 +134,15 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 AssertChannels();
                 return connections;
+            }
+        }
+
+        public bool ProvidesWithMuxingConfiguration
+        {
+            get
+            {
+                AssertChannels();
+                return channels[0].ServiceRequestSource != null;
             }
         }
 
@@ -153,13 +159,21 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 return;
             }
+
+            var channelsWithMuxing = channels[0].ServiceRequestSource.HasValue;
+
             for(var i = 0; i < NumberOfChannels; ++i)
             {
                 if(channels[i] == null)
                 {
                     throw new RecoverableException($"Channel {i} not registered");
                 }
+                if(channelsWithMuxing != channels[i].ServiceRequestSource.HasValue)
+                {
+                    throw new RecoverableException($"Mixed multiplexing detected, channel {i} does not match with previous channels");
+                }
             }
+
             channelsChecked = true;
         }
 

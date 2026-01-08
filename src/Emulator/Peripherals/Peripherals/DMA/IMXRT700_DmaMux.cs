@@ -33,6 +33,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public void Register(NXP_eDMA dma, NumberRegistrationPoint<int> id)
         {
+            if(!dma.ProvidesWithMuxingConfiguration)
+            {
+                throw new RegistrationException($"eDMA is not configured to provide multiplexing information, set 'hasMuxingRegisters' to true when creating '{nameof(NXP_eDMA_Channels)}'");
+            }
             var duplicate = receivers.Values.FirstOrDefault(x => x.DMA == dma);
             if(duplicate != null)
             {
@@ -110,10 +114,18 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
                 // No need to check return value - if key is not present in dictionary, a default disabled state is assumed.
                 slotsEnabledState.TryGetValue(number, out var enabled);
-                if(enabled)
+                if(!enabled)
                 {
-                    DMA?.HandlePeripheralRequest(number);
+                    return;
                 }
+
+                if(!DMA.TryGetChannelBySlot(number, out var channel))
+                {
+                    this.WarningLog("No channel configured for peripheral slot {0}", number);
+                    return;
+                }
+
+                DMA.OnGPIO(channel, value);
             }
 
             public void RegisterDMA(NXP_eDMA dma)
