@@ -23,11 +23,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {(long)Registers.StatusRegister1, new ByteRegister(this)
                     .WithTaggedFlag("BUSY", 0)
                     .WithFlag(1, out writeEnabled, name: "WEL (Write Enable Latch)")
-                    .WithTaggedFlag("BP0 (Block Protect 0)", 2)
-                    .WithTaggedFlag("BP1 (Block Protect 1)", 3)
-                    .WithTaggedFlag("BP2 (Block Protect 2)", 4)
-                    .WithTaggedFlag("BP3 (Block Protect 3)", 5)
-                    .WithTaggedFlag("BP4 (Block Protect 4)", 6)
+                    .WithEnumField(2, 5, out blockProtectBits, name: "BP0-BP4 (Block Protect Bits)")
                     .WithFlag(7, out statusRegisterProtect0, name: "SRP0 (Status Register Protect 0)")
                 },
                 {(long)Registers.StatusRegister2, new ByteRegister(this)
@@ -44,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithTaggedFlag("DLP (Data Learning Pattern)", 0)
                     .WithTaggedFlag("DC (Dummy Cycle)", 1)
                     .WithTaggedFlag("WPS (Write Project Scheme)", 2)
-                    .WithTag("MPM (Multi Page Mode)", 3, 2)
+                    .WithEnumField(3, 2, out pageSizeBits, name: "MPM (Multi Page Mode)")
                     .WithReservedBits(5, 2)
                     .WithTaggedFlag("HOLD/RST (Hold of Reset)", 7)
                 }
@@ -152,6 +148,65 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public GPIO WriteProtect { get; } = new GPIO();
 
+        public Range? ProtectedRange
+        {
+            get
+            {
+                if(((uint)blockProtectBits.Value & BlockProtectNoneMask) == (uint)BlockProtect.None)
+                {
+                    return null;
+                }
+                if(((uint)blockProtectBits.Value & BlockProtectAllMask) == (uint)BlockProtect.All)
+                {
+                    return new Range(0, MaxFlashSize);
+                }
+
+                switch(blockProtectBits.Value)
+                {
+                case BlockProtect.Lower4KB:
+                    return new Range(0x0, (ulong)4.KB());
+                case BlockProtect.Lower8KB:
+                    return new Range(0x0, (ulong)8.KB());
+                case BlockProtect.Lower16KB:
+                    return new Range(0x0, (ulong)16.KB());
+                case BlockProtect.Lower32KB:
+                    return new Range(0x0, (ulong)32.KB());
+                case BlockProtect.Lower64KB:
+                    return new Range(0x0, (ulong)64.KB());
+                case BlockProtect.Lower128KB:
+                    return new Range(0x0, (ulong)128.KB());
+                case BlockProtect.Lower256KB:
+                    return new Range(0x0, (ulong)256.KB());
+                case BlockProtect.Lower512KB:
+                    return new Range(0x0, (ulong)512.KB());
+                case BlockProtect.Lower1MB:
+                    return new Range(0x0, (ulong)1.MB());
+                case BlockProtect.Upper4KB:
+                    return new Range(MaxFlashSize - (ulong)4.KB(), (ulong)4.KB());
+                case BlockProtect.Upper8KB:
+                    return new Range(MaxFlashSize - (ulong)8.KB(), (ulong)8.KB());
+                case BlockProtect.Upper16KB:
+                    return new Range(MaxFlashSize - (ulong)16.KB(), (ulong)16.KB());
+                case BlockProtect.Upper32KB_1:
+                case BlockProtect.Upper32KB_2:
+                    return new Range(MaxFlashSize - (ulong)32.KB(), (ulong)32.KB());
+                case BlockProtect.Upper64KB:
+                    return new Range(MaxFlashSize - (ulong)64.KB(), (ulong)64.KB());
+                case BlockProtect.Upper128KB:
+                    return new Range(MaxFlashSize - (ulong)128.KB(), (ulong)128.KB());
+                case BlockProtect.Upper256KB:
+                    return new Range(MaxFlashSize - (ulong)256.KB(), (ulong)256.KB());
+                case BlockProtect.Upper512KB:
+                    return new Range(MaxFlashSize - (ulong)512.KB(), (ulong)512.KB());
+                case BlockProtect.Upper1MB:
+                    return new Range(MaxFlashSize - (ulong)1.MB(), (ulong)1.MB());
+                default:
+                    this.ErrorLog("Invalid block protect configuration.");
+                    return null;
+                }
+            }
+        }
+
         private void WriteStatusRegister(Registers register, byte data)
         {
             if(statusRegisterProtect1.Value || (statusRegisterProtect0.Value && !WriteProtect.IsSet))
@@ -189,10 +244,53 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private readonly ByteRegisterCollection registers;
         private readonly MappedMemory underlyingMemory;
+        private readonly IEnumRegisterField<BlockProtect> blockProtectBits;
+        private readonly IEnumRegisterField<PageSize> pageSizeBits;
         private readonly IFlagRegisterField statusRegisterProtect0;
         private readonly IFlagRegisterField statusRegisterProtect1;
         private readonly IFlagRegisterField writeEnabled;
         private readonly IFlagRegisterField enableQuad;
+        private const uint BlockProtectAllMask = 0x6;
+        private const uint BlockProtectNoneMask = 0x7;
+
+        private const ulong MaxFlashSize = 0x200000;
+
+        public enum BlockProtect : uint
+        {
+            Upper64KB = 1,
+            Upper128KB = 2,
+            Upper256KB = 3,
+            Upper512KB = 4,
+            Upper1MB = 5,
+            // [8:6] Reserved
+            Lower64KB = 9,
+            Lower128KB = 10,
+            Lower256KB = 11,
+            Lower512KB = 12,
+            Lower1MB = 13,
+            // [16:14] Rederved
+            Upper4KB = 17,
+            Upper8KB = 18,
+            Upper16KB = 19,
+            // [24:21] Reserved
+            Lower4KB = 25,
+            Lower8KB = 26,
+            Lower16KB = 27,
+            Lower32KB = 28,
+            // these contain possible "don't care bits"
+            None = 0,
+            All = 6,
+            Upper32KB_1 = 20,
+            Upper32KB_2 = 21
+        }
+
+        private enum PageSize : uint
+        {
+            _256Bytes = 0,
+            _512Bytes = 1,
+            _1024Bytes = 2
+            // Reserved = 3
+        }
 
         private enum Commands : byte
         {
