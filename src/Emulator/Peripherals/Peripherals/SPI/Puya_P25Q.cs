@@ -11,6 +11,9 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Utilities;
+
+using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
@@ -18,6 +21,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public Puya_P25Q(MappedMemory underlyingMemory)
         {
+            addressBuffer = new List<byte>();
             var registerMap = new Dictionary<long, ByteRegister>
             {
                 {(long)Registers.StatusRegister1, new ByteRegister(this)
@@ -111,6 +115,10 @@ namespace Antmicro.Renode.Peripherals.SPI
             case Commands.WriteConfigureRegister:
                 WriteConfigureRegister(data);
                 break;
+            case Commands.PageProgram:
+            case Commands.QuadPageProgram:
+                WriteUnderlyingMemory(data);
+                break;
             default:
                 if(Enum.IsDefined(typeof(Commands), currentCommand.Value))
                 {
@@ -129,6 +137,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             this.NoisyLog("Transmission finished.");
             currentCommand = null;
+            addressBuffer.Clear();
+            temporaryAddress = 0x0;
             if(resetWriteEnable)
             {
                 writeEnabled.Value = false;
@@ -238,7 +248,71 @@ namespace Antmicro.Renode.Peripherals.SPI
             registers.Write((long)Registers.Configure, data);
         }
 
+        private void WriteUnderlyingMemory(byte data)
+        {
+            if(!writeEnabled.Value)
+            {
+                this.ErrorLog("Attempted to perform a Page Program operation while flash is in write-disabled state. Operation will be ignored");
+                return;
+            }
+
+            if(addressBuffer.Count < AddressByteCount)
+            {
+                this.NoisyLog("Accumulating address bytes.");
+                addressBuffer.Add(data);
+                if(addressBuffer.Count == AddressByteCount)
+                {
+                    temporaryAddress = BitHelper.ToUInt32(addressBuffer.ToArray(), 0, AddressByteCount, true);
+                    this.NoisyLog("Calculated address for memory write operation: 0x {0:X}", temporaryAddress);
+                }
+                return;
+            }
+
+            var protectedRange = ProtectedRange;
+            if(protectedRange.HasValue && protectedRange.Value.Contains(temporaryAddress))
+            {
+                this.ErrorLog("Attempted to perform a Page Program operation on a protected block. Operation will be ignored");
+                return;
+            }
+
+            this.NoisyLog("Writing 0x{1:X} to address 0x{0:X}", temporaryAddress, data);
+            underlyingMemory.WriteByte(temporaryAddress, data);
+            var currentPage = temporaryAddress / PageProgramSize;
+            var nextPage = (temporaryAddress + 1) / PageProgramSize;
+            if(nextPage == currentPage)
+            {
+                temporaryAddress++;
+            }
+            else
+            {
+                // Address should wrap around to the start of the page
+                // when attempting to cross the page boundary
+                temporaryAddress = currentPage * PageProgramSize;
+            }
+            resetWriteEnable = true;
+        }
+
+        private uint PageProgramSize
+        {
+            get
+            {
+                switch(pageSizeBits.Value)
+                {
+                case PageSize._256Bytes:
+                    return DefaultPageProgramSize;
+                case PageSize._512Bytes:
+                    return DefaultPageProgramSize << 1;
+                case PageSize._1024Bytes:
+                    return DefaultPageProgramSize << 2;
+                default:
+                    this.ErrorLog("Invalid page program size configuration, returning 0.");
+                    return 0;
+                }
+            }
+        }
+
         private Commands? currentCommand;
+        private uint temporaryAddress;
         private bool resetWriteEnable;
         private bool resetEnabled;
 
@@ -250,6 +324,10 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly IFlagRegisterField statusRegisterProtect1;
         private readonly IFlagRegisterField writeEnabled;
         private readonly IFlagRegisterField enableQuad;
+        private readonly List<byte> addressBuffer;
+
+        private const int AddressByteCount = 3;
+        private const uint DefaultPageProgramSize = 256;
         private const uint BlockProtectAllMask = 0x6;
         private const uint BlockProtectNoneMask = 0x7;
 
