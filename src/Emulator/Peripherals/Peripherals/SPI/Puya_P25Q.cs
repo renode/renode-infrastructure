@@ -107,45 +107,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 returnValue = registers.Read((long)Registers.Configure);
                 break;
             case Commands.WriteStatusRegister:
-                if(statusRegisterProtect1.Value || (statusRegisterProtect0.Value && !WriteProtect.IsSet))
-                {
-                    this.WarningLog("Trying to write status register while SRP is enabled. Operation will be ignored.");
-                    break;
-                }
-                if(!writeEnabled.Value)
-                {
-                    this.WarningLog("Attempted to perform a Write Status operation while flash is in write-disabled state. Operation will be ignored.");
-                    break;
-                }
-                registers.Write((long)Registers.StatusRegister1, data);
-                resetWriteEnable = true;
+                WriteStatusRegister(Registers.StatusRegister1, data);
                 break;
             case Commands.WriteStatusRegister2:
-                if(statusRegisterProtect1.Value || (statusRegisterProtect0.Value && !WriteProtect.IsSet))
-                {
-                    this.WarningLog("Trying to write status register while SRP is enabled. Operation will be ignored.");
-                    break;
-                }
-                if(!writeEnabled.Value)
-                {
-                    this.WarningLog("Attempted to perform a Write Status operation while flash is in write-disabled state. Operation will be ignored.");
-                    break;
-                }
-                registers.Write((long)Registers.StatusRegister2, data);
-                resetWriteEnable = true;
+                WriteStatusRegister(Registers.StatusRegister2, data);
                 break;
             case Commands.WriteConfigureRegister:
-                if(statusRegisterProtect1.Value || (statusRegisterProtect0.Value && !WriteProtect.IsSet))
-                {
-                    this.WarningLog("Trying to write configure register while SRP is enabled. Operation will be ignored.");
-                    break;
-                }
-                if(!writeEnabled.Value)
-                {
-                    this.WarningLog("Attempted to perform a Write Configure operation while flash is in write-disabled state. Operation will be ignored.");
-                    break;
-                }
-                registers.Write((long)Registers.Configure, data);
+                WriteConfigureRegister(data);
                 break;
             default:
                 if(Enum.IsDefined(typeof(Commands), currentCommand.Value))
@@ -183,6 +151,37 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         public GPIO WriteProtect { get; } = new GPIO();
+
+        private void WriteStatusRegister(Registers register, byte data)
+        {
+            if(statusRegisterProtect1.Value || (statusRegisterProtect0.Value && !WriteProtect.IsSet))
+            {
+                this.WarningLog("Trying to write status register while SRP is enabled. Operation will be ignored.");
+                return;
+            }
+            if(!writeEnabled.Value)
+            {
+                this.WarningLog("Attempted to perform a Write Status operation while flash is in write-disabled state. Operation will be ignored.");
+                return;
+            }
+            registers.Write((long)register, data);
+            resetWriteEnable = true;
+        }
+
+        private void WriteConfigureRegister(byte data)
+        {
+            if(statusRegisterProtect1.Value || (statusRegisterProtect0.Value && !WriteProtect.IsSet))
+            {
+                this.WarningLog("Trying to write configure register while SRP is enabled. Operation will be ignored.");
+                return;
+            }
+            if(!writeEnabled.Value)
+            {
+                this.WarningLog("Attempted to perform a Write Configure operation while flash is in write-disabled state. Operation will be ignored.");
+                return;
+            }
+            registers.Write((long)Registers.Configure, data);
+        }
 
         private Commands? currentCommand;
         private bool resetWriteEnable;
