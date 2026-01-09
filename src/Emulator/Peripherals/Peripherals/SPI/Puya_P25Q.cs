@@ -119,6 +119,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             case Commands.QuadPageProgram:
                 WriteUnderlyingMemory(data);
                 break;
+            case Commands.SectorErase4K:
+            case Commands.BlockErase32K:
+            case Commands.BlockErase64K:
+                EraseUnderlyingMemory(currentCommand.Value, data);
+                break;
             default:
                 if(Enum.IsDefined(typeof(Commands), currentCommand.Value))
                 {
@@ -290,6 +295,54 @@ namespace Antmicro.Renode.Peripherals.SPI
                 temporaryAddress = currentPage * PageProgramSize;
             }
             resetWriteEnable = true;
+        }
+
+        private void EraseUnderlyingMemory(Commands command, byte data)
+        {
+            if(!writeEnabled.Value)
+            {
+                this.ErrorLog("Attempted to perform a Block Erase operation while flash is in write-disabled state. Operation will be ignored");
+                return;
+            }
+
+            if(addressBuffer.Count < AddressByteCount)
+            {
+                this.NoisyLog("Accumulating address bytes.");
+                addressBuffer.Add(data);
+                if(addressBuffer.Count != AddressByteCount)
+                {
+                    return;
+                }
+            }
+
+            var address = BitHelper.ToUInt32(addressBuffer.ToArray(), 0, AddressByteCount, true);
+            this.NoisyLog("Calculated address for memory erase operation: 0x {0:X}", address);
+
+            var protectedRange = ProtectedRange;
+            if(protectedRange.HasValue && protectedRange.Value.Contains(address))
+            {
+                this.ErrorLog("Attempted to perform a Block Erase operation on a protected block. Operation will be ignored");
+                return;
+            }
+
+            var size = 0;
+            switch(command)
+            {
+            case Commands.SectorErase4K:
+                size = 4.KB();
+                break;
+            case Commands.BlockErase32K:
+                size = 32.KB();
+                break;
+            case Commands.BlockErase64K:
+                size = 64.KB();
+                break;
+            default:
+                this.ErrorLog("Encountered invalid size of requested memory erase operation.");
+                return;
+            }
+            underlyingMemory.SetRange(address, size, 0xFF);
+            writeEnabled.Value = false;
         }
 
         private uint PageProgramSize
