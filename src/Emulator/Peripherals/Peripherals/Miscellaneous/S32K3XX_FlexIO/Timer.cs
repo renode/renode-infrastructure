@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 
 using static Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIO;
 
@@ -61,6 +62,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
         public TimerStopBit StopBit => stopBit.Value;
 
         public TimerStartBit StartBit => startBit.Value;
+
+        public uint NumberOfBitsInWord
+        {
+            get
+            {
+                switch(Mode)
+                {
+                case TimerMode.DualBaud:
+                    return ((Compare >> 8) + 1) / 2;
+                case TimerMode.DualWord:
+                    return ((Compare & 0xff) + 1) / 2;
+                case TimerMode.Single:
+                case TimerMode.Disabled:
+                    return (Compare + 1) / 2;
+                default:
+                    owner.WarningLog(
+                        "{0} is not defined for {1} mode, returning 0",
+                        nameof(NumberOfBitsInWord),
+                        Mode
+                    );
+                    return 0;
+                }
+            }
+        }
 
         public uint Compare
         {
