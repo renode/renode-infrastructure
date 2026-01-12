@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -10,6 +10,7 @@ using System;
 
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Backends.Terminals
@@ -18,6 +19,10 @@ namespace Antmicro.Renode.Backends.Terminals
     {
         public static void CreateServerSocketTerminal(this Emulation emulation, int port, string name, bool telnetMode = true, bool flushOnConnect = false)
         {
+            if(port < 0 || port > 65535)
+            {
+                throw new RecoverableException("Port must be between 0 and 65535");
+            }
             emulation.ExternalsManager.AddExternal(new ServerSocketTerminal(port, telnetMode, flushOnConnect), name);
         }
     }
