@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ using Antmicro.Renode.Peripherals.UART;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class S32K3XX_FlexIO_UART : IUART, IEndpoint
+    public class S32K3XX_FlexIO_UART : IUART, IUART<ushort>, IUART<uint>, IEndpoint
     {
         public S32K3XX_FlexIO_UART(uint? rxShifterId = null, uint? txShifterId = null)
         {
@@ -43,6 +43,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 transmitter = new UARTTransmitter(this, shifter);
                 transmitter.CharReceived += val => CharReceived?.Invoke(val);
+                transmitter.WordReceived += val => WordCharReceived?.Invoke(val);
+                transmitter.DoubleWordReceived += val => DoubleWordCharReceived?.Invoke(val);
             }
 
             if(errors.Count > 0)
@@ -67,6 +69,26 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             receiver.WriteChar(value);
         }
 
+        public void WriteChar(ushort value)
+        {
+            if(receiver == null)
+            {
+                this.Log(LogLevel.Warning, "The UART doesn't support receiving, no shifter set");
+                return;
+            }
+            receiver.WriteChar(value);
+        }
+
+        public void WriteChar(uint value)
+        {
+            if(receiver == null)
+            {
+                this.Log(LogLevel.Warning, "The UART doesn't support receiving, no shifter set");
+                return;
+            }
+            receiver.WriteChar(value);
+        }
+
         public uint BaudRate => LogWarningWhenDirectionsDiffer(GetBaudRate(receiver), GetBaudRate(transmitter), "BaudRate") ?? 0;
 
         public Bits StopBits => LogWarningWhenDirectionsDiffer(receiver?.StopBits, transmitter?.StopBits, "StopBits") ?? Bits.None;
@@ -75,6 +97,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         [field: Transient]
         public event Action<byte> CharReceived;
+
+        [event: Transient]
+        event Action<ushort> IUART<ushort>.CharReceived
+        {
+            add => WordCharReceived += value;
+            remove => WordCharReceived -= value;
+        }
+
+        [event: Transient]
+        event Action<uint> IUART<uint>.CharReceived
+        {
+            add => DoubleWordCharReceived += value;
+            remove => DoubleWordCharReceived -= value;
+        }
 
         private bool TryReserveShifter(S32K3XX_FlexIO flexIO, uint? id, out Shifter shifter, IList<string> errors, string parameterName)
         {
@@ -117,5 +153,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private readonly uint? rxShifterId;
         private readonly uint? txShifterId;
+
+        private event Action<ushort> WordCharReceived;
+
+        private event Action<uint> DoubleWordCharReceived;
     }
 }

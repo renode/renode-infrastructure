@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,9 +15,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public void WriteChar(byte value)
         {
             LogWarnings();
-
             // The input data is shifted into the buffer from the left side (MSB).
             shifter.OnDataReceive((uint)value << 24);
+        }
+
+        public void WriteChar(ushort value)
+        {
+            LogWarnings();
+            // The input data is shifted into the buffer from the left side (MSB).
+            shifter.OnDataReceive((uint)value << 16);
+        }
+
+        public void WriteChar(uint value)
+        {
+            LogWarnings();
+            shifter.OnDataReceive(value);
         }
 
         protected override void LogSpecificWarnings()
