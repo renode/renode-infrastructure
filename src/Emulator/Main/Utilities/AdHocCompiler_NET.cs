@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -50,6 +50,7 @@ namespace Antmicro.Renode.Utilities
                 references: references,
                 options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,
                     optimizationLevel: OptimizationLevel.Release,
+                    allowUnsafe: true,
                     assemblyIdentityComparer: DesktopAssemblyIdentityComparer.Default)).Emit(outputFilePath);
 
             if(!result.Success)
