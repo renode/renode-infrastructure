@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -58,6 +58,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         protected abstract string WarningPrefix { get; }
 
+        protected readonly IEmulationElement owner;
+
         protected readonly Shifter shifter;
         protected const uint Compare8bitShift = 2 * 8 - 1;
         protected const uint ShifterStopBitConfiguration = 0b11;
@@ -82,7 +84,5 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         private bool warningsShown;
-
-        private readonly IEmulationElement owner;
     }
 }
