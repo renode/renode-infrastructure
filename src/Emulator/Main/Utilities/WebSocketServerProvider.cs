@@ -215,6 +215,8 @@ namespace Antmicro.Renode.Utilities
             this.listenerContext = listenerContext;
             this.webSocket = socket;
             this.sharedData = sharedData;
+            this.DataBlockReceived += (data) => sharedData.DataBlockReceived?.Invoke(this, data);
+            this.DataReceived += (data) => sharedData.DataReceived?.Invoke(this, data);
             BufferSize = 4096;
             cancellationToken = new CancellationTokenSource();
             cancellationToken.Token.Register(() => this.sharedData.Disconnected?.Invoke(this));
@@ -261,6 +263,10 @@ namespace Antmicro.Renode.Utilities
         }
 
         public int BufferSize { get; private set; }
+
+        public event Action<byte[]> DataBlockReceived;
+
+        public event Action<int> DataReceived;
 
         private async Task AsyncReader()
         {
@@ -309,16 +315,13 @@ namespace Antmicro.Renode.Utilities
                 }
 
                 var fixedBuffer = buffer.Take(totalBytes).ToArray();
-                sharedData.DataBlockReceived?.Invoke(this, fixedBuffer);
+                DataBlockReceived.Invoke(fixedBuffer);
 
-                var dataReceived = sharedData.DataReceived;
-                if(dataReceived != null)
+                foreach(var b in fixedBuffer)
                 {
-                    foreach(var b in fixedBuffer)
-                    {
-                        dataReceived(this, (int)b);
-                    }
+                    DataReceived((int)b);
                 }
+
             }
 
             if(!cancellationToken.IsCancellationRequested)
