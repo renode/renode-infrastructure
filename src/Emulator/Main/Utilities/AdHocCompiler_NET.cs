@@ -25,7 +25,9 @@ namespace Antmicro.Renode.Utilities
             // With .NET Core and above, one must explicitly specify a .dll extension for output assembly
             var outputFilePath = Path.ChangeExtension(tempFilePath, ".dll");
             var outputFileName = Path.GetFileName(outputFilePath);
-            var options = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp9);
+            var options = CSharpParseOptions.Default
+                .WithLanguageVersion(LanguageVersion.CSharp9)
+                .WithPreprocessorSymbols("NET");
 
             var parsedSyntaxTrees = new List<SyntaxTree> { };
 
