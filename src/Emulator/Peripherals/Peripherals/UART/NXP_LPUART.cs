@@ -416,7 +416,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public BufferState BufferState { get; private set; }
 
-        public long Size => 0x30;
+        public long Size => 0x800;
 
         public GPIO IRQ { get; }
 
