@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.12)
 
 project (virt LANGUAGES C)
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(DEBUG_DEF "-DDEBUG -DDEBUG_ON -g3")
+endif()
+
 option (PROFILING_BUILD "Build optimized for profiling" OFF)
 if(PROFILING_BUILD)
     message(STATUS "Profiling enhancements are enabled")
