@@ -1406,6 +1406,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/AndesATCRTC100.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/EgisET171_AOSMU.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/EgisET171_SMU2.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/UART/FT9001_USART.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Emulator/Main/Utilities/Packets/Packet.cs" />
