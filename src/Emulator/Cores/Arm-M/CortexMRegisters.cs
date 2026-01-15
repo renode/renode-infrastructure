@@ -232,6 +232,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public RegistersGroup D { get; private set; }
 
+        public RegistersGroup S { get; private set; }
+
 #pragma warning disable SA1508
         protected override void InitializeRegisters()
         {
@@ -275,6 +277,46 @@ namespace Antmicro.Renode.Peripherals.CPU
                 indexValueMapD.Keys,
                 i => GetRegister((int)indexValueMapD[i]),
                 (i, v) => SetRegister((int)indexValueMapD[i], v));
+
+            var indexValueMapS = new Dictionary<int, CortexMRegisters>
+            {
+                { 0, CortexMRegisters.S0 },
+                { 1, CortexMRegisters.S1 },
+                { 2, CortexMRegisters.S2 },
+                { 3, CortexMRegisters.S3 },
+                { 4, CortexMRegisters.S4 },
+                { 5, CortexMRegisters.S5 },
+                { 6, CortexMRegisters.S6 },
+                { 7, CortexMRegisters.S7 },
+                { 8, CortexMRegisters.S8 },
+                { 9, CortexMRegisters.S9 },
+                { 10, CortexMRegisters.S10 },
+                { 11, CortexMRegisters.S11 },
+                { 12, CortexMRegisters.S12 },
+                { 13, CortexMRegisters.S13 },
+                { 14, CortexMRegisters.S14 },
+                { 15, CortexMRegisters.S15 },
+                { 16, CortexMRegisters.S16 },
+                { 17, CortexMRegisters.S17 },
+                { 18, CortexMRegisters.S18 },
+                { 19, CortexMRegisters.S19 },
+                { 20, CortexMRegisters.S20 },
+                { 21, CortexMRegisters.S21 },
+                { 22, CortexMRegisters.S22 },
+                { 23, CortexMRegisters.S23 },
+                { 24, CortexMRegisters.S24 },
+                { 25, CortexMRegisters.S25 },
+                { 26, CortexMRegisters.S26 },
+                { 27, CortexMRegisters.S27 },
+                { 28, CortexMRegisters.S28 },
+                { 29, CortexMRegisters.S29 },
+                { 30, CortexMRegisters.S30 },
+                { 31, CortexMRegisters.S31 },
+            };
+            S = new RegistersGroup(
+                indexValueMapS.Keys,
+                i => GetRegister((int)indexValueMapS[i]),
+                (i, v) => SetRegister((int)indexValueMapS[i], v));
 
         }
 #pragma warning restore SA1508
@@ -351,6 +393,38 @@ namespace Antmicro.Renode.Peripherals.CPU
             { CortexMRegisters.D30,  new CPURegister(72, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D30" }) },
             { CortexMRegisters.D31,  new CPURegister(73, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D31" }) },
             { CortexMRegisters.FPSCR,  new CPURegister(74, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FPSCR" }) },
+            { CortexMRegisters.S0,  new CPURegister(75, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S0" }) },
+            { CortexMRegisters.S1,  new CPURegister(76, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S1" }) },
+            { CortexMRegisters.S2,  new CPURegister(77, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S2" }) },
+            { CortexMRegisters.S3,  new CPURegister(78, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S3" }) },
+            { CortexMRegisters.S4,  new CPURegister(79, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S4" }) },
+            { CortexMRegisters.S5,  new CPURegister(80, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S5" }) },
+            { CortexMRegisters.S6,  new CPURegister(81, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S6" }) },
+            { CortexMRegisters.S7,  new CPURegister(82, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S7" }) },
+            { CortexMRegisters.S8,  new CPURegister(83, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S8" }) },
+            { CortexMRegisters.S9,  new CPURegister(84, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S9" }) },
+            { CortexMRegisters.S10,  new CPURegister(85, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S10" }) },
+            { CortexMRegisters.S11,  new CPURegister(86, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S11" }) },
+            { CortexMRegisters.S12,  new CPURegister(87, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S12" }) },
+            { CortexMRegisters.S13,  new CPURegister(88, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S13" }) },
+            { CortexMRegisters.S14,  new CPURegister(89, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S14" }) },
+            { CortexMRegisters.S15,  new CPURegister(90, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S15" }) },
+            { CortexMRegisters.S16,  new CPURegister(91, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S16" }) },
+            { CortexMRegisters.S17,  new CPURegister(92, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S17" }) },
+            { CortexMRegisters.S18,  new CPURegister(93, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S18" }) },
+            { CortexMRegisters.S19,  new CPURegister(94, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S19" }) },
+            { CortexMRegisters.S20,  new CPURegister(95, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S20" }) },
+            { CortexMRegisters.S21,  new CPURegister(96, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S21" }) },
+            { CortexMRegisters.S22,  new CPURegister(97, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S22" }) },
+            { CortexMRegisters.S23,  new CPURegister(98, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S23" }) },
+            { CortexMRegisters.S24,  new CPURegister(99, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S24" }) },
+            { CortexMRegisters.S25,  new CPURegister(100, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S25" }) },
+            { CortexMRegisters.S26,  new CPURegister(101, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S26" }) },
+            { CortexMRegisters.S27,  new CPURegister(102, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S27" }) },
+            { CortexMRegisters.S28,  new CPURegister(103, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S28" }) },
+            { CortexMRegisters.S29,  new CPURegister(104, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S29" }) },
+            { CortexMRegisters.S30,  new CPURegister(105, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S30" }) },
+            { CortexMRegisters.S31,  new CPURegister(106, 32, isGeneral: false, isReadonly: false, aliases: new [] { "S31" }) },
         };
     }
 
@@ -420,5 +494,37 @@ namespace Antmicro.Renode.Peripherals.CPU
         D29 = 71,
         D30 = 72,
         D31 = 73,
+        S0 = 75,
+        S1 = 76,
+        S2 = 77,
+        S3 = 78,
+        S4 = 79,
+        S5 = 80,
+        S6 = 81,
+        S7 = 82,
+        S8 = 83,
+        S9 = 84,
+        S10 = 85,
+        S11 = 86,
+        S12 = 87,
+        S13 = 88,
+        S14 = 89,
+        S15 = 90,
+        S16 = 91,
+        S17 = 92,
+        S18 = 93,
+        S19 = 94,
+        S20 = 95,
+        S21 = 96,
+        S22 = 97,
+        S23 = 98,
+        S24 = 99,
+        S25 = 100,
+        S26 = 101,
+        S27 = 102,
+        S28 = 103,
+        S29 = 104,
+        S30 = 105,
+        S31 = 106,
     }
 }
