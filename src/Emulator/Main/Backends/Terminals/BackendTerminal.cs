@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -12,6 +12,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Backends.Terminals
 {
@@ -120,10 +121,7 @@ namespace Antmicro.Renode.Backends.Terminals
 
         private void HandleExternalTimeDomainEvent<T>(Action<T> handler, T handlerValue)
         {
-            if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
-            {
-                vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
-            }
+            var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
             machine.HandleTimeDomainEvent(handler, handlerValue, vts);
         }
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,6 +13,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
@@ -123,11 +124,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     continue;
                 }
 
-                if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
-                {
-                    // e.g. when the sender is a SLIP radio
-                    vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
-                }
+                var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
 
                 var packetCopy = packet.ToArray();
                 if(radioHooks.TryGetValue(receiver, out var hook))

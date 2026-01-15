@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,6 +9,7 @@ using System;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -103,13 +104,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 IRQ.Set(value);
                 return;
             }
-            if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
-            {
-                // this is almost always the case, but maybe someday we'll be able to press the
-                // button by a machine-controlled actuator
-                vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
-            }
 
+            var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
             machine.HandleTimeDomainEvent(IRQ.Set, value, vts);
         }
     }

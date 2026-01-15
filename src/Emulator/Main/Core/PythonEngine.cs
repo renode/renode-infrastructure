@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -194,6 +194,7 @@ namespace Antmicro.Renode.Core
             "clr.ImportExtensions(Antmicro.Renode.Core.Extensions.FileLoaderExtensions)",
             "import Antmicro.Renode.Logging.LogLevel as LogLevel",
             "clr.ImportExtensions(Antmicro.Renode.Peripherals.Bus.BusControllerExtensions)",
+            "clr.ImportExtensions(Antmicro.Renode.Utilities.TimeDomainExtensions)",
         };
 
         private const string MonitorTypeName = "Antmicro.Renode.UserInterface.Monitor";

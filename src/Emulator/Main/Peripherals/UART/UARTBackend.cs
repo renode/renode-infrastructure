@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -13,8 +13,8 @@ using System.Threading.Tasks;
 
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 
 using AntShell.Terminal;
@@ -131,12 +131,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void ByteRead(int b)
         {
-            if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
-            {
-                // it happens when writing from uart analyzer
-                vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
-            }
-
+            var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
             UART.GetMachine().HandleTimeDomainEvent(UART.WriteChar, (byte)b, vts);
         }
 

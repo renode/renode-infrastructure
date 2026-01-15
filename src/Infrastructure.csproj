@@ -1998,6 +1998,7 @@
     <Compile Include="Emulator/Main/Peripherals/UART/IDelayableUART.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/GPIOPort/AndesATCGPIO100.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/Crypto/EgisET171Crypto.cs" />
+    <Compile Include="Emulator/Main/Utilities/TimeDomainExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">

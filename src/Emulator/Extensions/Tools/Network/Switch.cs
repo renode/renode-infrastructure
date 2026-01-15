@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -17,6 +17,7 @@ using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Network;
 using Antmicro.Renode.Time;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Tools.Network
 {
@@ -151,11 +152,7 @@ namespace Antmicro.Renode.Tools.Network
                     ? ifaces.Where(x => (x.PromiscuousMode && x.Interface != sender) || x.Interface == destIface)
                     : ifaces.Where(x => x.Interface != sender);
 
-                if(!TimeDomainsManager.Instance.TryGetVirtualTimeStamp(out var vts))
-                {
-                    // it happens when sending from tap interface
-                    vts = new TimeStamp(default(TimeInterval), EmulationManager.ExternalWorld);
-                }
+                var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
 
                 foreach(var iface in interestingIfaces)
                 {
