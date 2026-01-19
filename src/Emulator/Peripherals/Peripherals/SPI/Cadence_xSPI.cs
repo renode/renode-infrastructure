@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -233,6 +233,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                         valueProviderCallback: _ => commandPayload[5],
                         writeCallback: (_, val) => commandPayload[5] = (uint)val
                     )
+                },
+                {(long)Registers.CommandStatusPointer, new DoubleWordRegister(this)
+                    .WithReservedBits(3,29)
+                    .WithTag("threadSelect", 0, 3)
                 },
                 {(long)Registers.CommandStatus, new DoubleWordRegister(this)
                     .WithValueField(16,16, name: "dataFromDev",
