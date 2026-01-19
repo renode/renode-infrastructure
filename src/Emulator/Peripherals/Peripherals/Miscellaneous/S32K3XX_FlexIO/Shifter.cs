@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 
@@ -22,8 +23,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             var statusFlags = Interrupt.BuildRegisters(owner, count, "ShifterStatus", Registers.ShifterStatus, Registers.ShifterStatusInterruptEnable);
             var errorFlags = Interrupt.BuildRegisters(owner, count, "ShifterError", Registers.ShifterError, Registers.ShifterErrorInterruptEnable);
 
+            var dmaRegister = Registers.ShifterStatusDMAEnable.Define(owner)
+                .WithReservedBits(count, 32 - count)
+                .WithFlags(0, count, out var dmaEnableFlags, name: "SSDE");
+
             return Enumerable.Range(0, count)
-                .Select(index => BuildShifter(owner, index, statusFlags[index], errorFlags[index], timersManager))
+                .Select(index => BuildShifter(owner, index, statusFlags[index], errorFlags[index], dmaEnableFlags[index], timersManager))
                 .ToList().AsReadOnly();
         }
 
@@ -54,6 +59,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
 
         public override string Name => $"Shifter{Identifier}";
 
+        public GPIO DMA { get; } = new GPIO();
+
         public Interrupt Status { get; }
 
         public Interrupt Error { get; }
@@ -79,7 +86,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
 
         public event Action ControlOrConfigurationChanged;
 
-        private static Shifter BuildShifter(IResourceBlockOwner owner, int index, Interrupt status, Interrupt error,
+        private static Shifter BuildShifter(IResourceBlockOwner owner, int index, Interrupt status, Interrupt error, IFlagRegisterField dmaEnabledFlag,
             ResourceBlocksManager<Timer> timersManager)
         {
             Shifter shifter = null;
@@ -132,7 +139,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
                 timerPolarityField,
                 modeField,
                 stopBitField,
-                startBitField
+                startBitField,
+                dmaEnabledFlag
             );
             return shifter;
         }
@@ -154,7 +162,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             Interrupt status, Interrupt error,
             IValueRegisterField buffer,
             IValueRegisterField timerSelect, IEnumRegisterField<ShifterPolarity> timerPolarity, IEnumRegisterField<ShifterMode> mode,
-            IValueRegisterField stopBit, IValueRegisterField startBit) : base(owner, identifier)
+            IValueRegisterField stopBit, IValueRegisterField startBit, IFlagRegisterField dmaEnabled) : base(owner, identifier)
         {
             this.timersManager = timersManager;
             Status = status;
@@ -166,9 +174,40 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             this.mode = mode;
             this.stopBit = stopBit;
             this.startBit = startBit;
+            this.dmaEnabled = dmaEnabled;
+
+            dmaEnabled.ChangeCallback += (_, __) => UpdateDmaState();
+            Status.FlagChanged += _ => UpdateDmaState();
 
             Status.MaskedFlagChanged += OnInterruptChange;
             Error.MaskedFlagChanged += OnInterruptChange;
+        }
+
+        private void UpdateDmaState()
+        {
+            if(dmaInProgress)
+            {
+                return;
+            }
+
+            dmaInProgress = true;
+            while(DmaState)
+            {
+                owner.DebugLog("Shifter {0}: Setting DMA to true", Identifier);
+                dmaPerformedTransfer = false;
+                DMA.Set();
+                if(!dmaPerformedTransfer)
+                {
+                    break;
+                }
+                else
+                {
+                    owner.DebugLog("Shifter {0}: Setting DMA to false", Identifier);
+                    DMA.Unset();
+                }
+            }
+            dmaInProgress = false;
+            dmaPerformedTransfer = false;
         }
 
         private void OnControlOrConfigurationChange()
@@ -191,6 +230,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
                 owner.Log(LogLevel.Warning, "Writing data (0x{0:X}) to the buffer of the shifter with ID {1} that isn't in the transmit mode", data, Identifier);
                 return;
             }
+            dmaPerformedTransfer = dmaInProgress;
 
             Status.SetFlag(false);
             DataTransmitted?.Invoke(data);
@@ -203,6 +243,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
                 owner.Log(LogLevel.Warning, "Reading data from the buffer of the shifter with ID {0} that isn't in the receive mode", Identifier);
                 return;
             }
+            dmaPerformedTransfer = dmaInProgress;
 
             // Discard read value from the buffer.
             if(receiveBuffer.Count > 0)
@@ -222,6 +263,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             Status.SetFlag(hasMoreData);
         }
 
+        private bool DmaState => dmaEnabled.Value && Status.Flag;
+
+        private bool dmaInProgress;
+        private bool dmaPerformedTransfer;
+
         private readonly ResourceBlocksManager<Timer> timersManager;
         private readonly IValueRegisterField buffer;
         private readonly Queue<uint> receiveBuffer = new Queue<uint>();
@@ -230,6 +276,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
         private readonly IEnumRegisterField<ShifterMode> mode;
         private readonly IValueRegisterField stopBit;
         private readonly IValueRegisterField startBit;
+        private readonly IFlagRegisterField dmaEnabled;
     }
 
     public enum ShifterPolarity
