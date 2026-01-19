@@ -1196,7 +1196,6 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_ScrambledMemory.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/OpenTitan_ClockManager.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/GenericSpiFlash.cs" />
-    <Compile Include="Emulator/Peripherals/Peripherals/SPI/GenericSpiFlash_SFDP.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/Macronix_MX25R.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/QuectelModem.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Network/Quectel_BC660K.cs" />
@@ -1927,6 +1926,12 @@
     <Compile Include="Emulator/Main/Peripherals/Network/EmulatedNetworkService.cs" />
     <Compile Include="Emulator/Main/Peripherals/Network/IEmulatedNetworkService.cs" />
     <Compile Include="Emulator/Main/Peripherals/Network/EchoService.cs" />
+    <Compile Include="Emulator/Main/Peripherals/SPI/ISFDPPeripheral.cs"/>
+    <Compile Include="Emulator/Main/Peripherals/SPI/SFDP/FourByteCommandsSupportParameter.cs"/>
+    <Compile Include="Emulator/Main/Peripherals/SPI/SFDP/JedecParameter.cs"/>
+    <Compile Include="Emulator/Main/Peripherals/SPI/SFDP/SFDPData.cs"/>
+    <Compile Include="Emulator/Main/Peripherals/SPI/SFDP/SFDPParameter.cs"/>
+    <Compile Include="Emulator/Main/Peripherals/SPI/SFDP/UnrecognizedParameter.cs"/>
     <Compile Include="Emulator/Main/Utilities/ICanLoadFiles.cs" />
     <Compile Include="Emulator/Main/Peripherals/Network/Clause45Address.cs" />
     <Compile Include="Emulator/Main/Network/CRCMode.cs" />

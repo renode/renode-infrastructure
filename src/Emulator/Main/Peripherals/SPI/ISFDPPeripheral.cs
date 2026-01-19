@@ -4,9 +4,9 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-namespace Antmicro.Renode.SFDPNS
+namespace Antmicro.Renode.Peripherals.SPI
 {
-    public interface ISFDPPeripheral
+    public interface ISFDPPeripheral : IPeripheral
     {
         byte[] SFDPSignature { get; set; }
     }
