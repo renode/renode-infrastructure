@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -107,17 +107,11 @@ namespace Antmicro.Renode.Utilities
 
         public int ConnectionsCount => connections.Count;
 
-        public bool IsAnythingReceiving => connectionsSharedData.DataReceived != null && connectionsSharedData.DataBlockReceived != null;
+        public bool IsAnythingReceiving => connectionsSharedData.DataBlockReceived != null;
 
         public IReadOnlyList<WebSocketConnection> Connections => connections;
 
         public event Action<WebSocketConnection, List<string>> NewConnection;
-
-        public event Action<WebSocketConnection, int> DataReceived
-        {
-            add => connectionsSharedData.DataReceived += value;
-            remove => connectionsSharedData.DataReceived -= value;
-        }
 
         public event Action<WebSocketConnection, byte[]> DataBlockReceived
         {
@@ -202,7 +196,6 @@ namespace Antmicro.Renode.Utilities
 
     public class WebSocketConnectionSharedData
     {
-        public Action<WebSocketConnection, int> DataReceived;
         public Action<WebSocketConnection, byte[]> DataBlockReceived;
         public Action<WebSocketConnection> Disconnected;
         public string Endpoint;
@@ -216,7 +209,6 @@ namespace Antmicro.Renode.Utilities
             this.webSocket = socket;
             this.sharedData = sharedData;
             this.DataBlockReceived += (data) => sharedData.DataBlockReceived?.Invoke(this, data);
-            this.DataReceived += (data) => sharedData.DataReceived?.Invoke(this, data);
             BufferSize = 4096;
             cancellationToken = new CancellationTokenSource();
             cancellationToken.Token.Register(() => this.sharedData.Disconnected?.Invoke(this));
@@ -266,8 +258,6 @@ namespace Antmicro.Renode.Utilities
 
         public event Action<byte[]> DataBlockReceived;
 
-        public event Action<int> DataReceived;
-
         private async Task AsyncReader()
         {
             var size = BufferSize;
@@ -316,12 +306,6 @@ namespace Antmicro.Renode.Utilities
 
                 var fixedBuffer = buffer.Take(totalBytes).ToArray();
                 DataBlockReceived.Invoke(fixedBuffer);
-
-                foreach(var b in fixedBuffer)
-                {
-                    DataReceived((int)b);
-                }
-
             }
 
             if(!cancellationToken.IsCancellationRequested)

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,9 +13,12 @@ namespace Antmicro.Renode.Utilities
         public WebSocketIOSource(string endpoint)
         {
             server = new WebSocketSingleConnectionServer(endpoint, true);
-            server.DataReceived += (sender, b) =>
+            server.DataBlockReceived += (sender, bytes) =>
             {
-                ByteRead(b);
+                foreach(var b in bytes)
+                {
+                    ByteRead(b);
+                }
             };
 
             server.Start();
