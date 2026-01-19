@@ -1156,6 +1156,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/OpenTitan_SpiHost.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/OpenTitan_SpiDevice.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/SPI/Cadence_SPI.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/SPI/Cadence_xSPI_HWLayer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/IMX_GPTimer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Sensors/MAX86171.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Sensors/TMP103.cs" />
