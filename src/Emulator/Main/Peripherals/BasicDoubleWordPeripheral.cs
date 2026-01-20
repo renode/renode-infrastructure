@@ -10,16 +10,18 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 
 namespace Antmicro.Renode.Peripherals
 {
-    public abstract class BasicDoubleWordPeripheral : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>
+    public abstract class BasicDoubleWordPeripheral : IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IHasMappedRegisters
     {
         public BasicDoubleWordPeripheral(IMachine machine)
         {
             this.machine = machine;
             sysbus = machine.GetSystemBus(this);
             RegistersCollection = new DoubleWordRegisterCollection(this);
+            mapper = new RegisterMapper(this.GetType());
         }
 
         public virtual void Reset()
@@ -37,10 +39,13 @@ namespace Antmicro.Renode.Peripherals
             RegistersCollection.Write(offset, value);
         }
 
+        public virtual string OffsetToString(long offset) => mapper.ToString(offset);
+
         public DoubleWordRegisterCollection RegistersCollection { get; private set; }
 
         protected readonly IMachine machine;
         protected readonly IBusController sysbus;
+        protected readonly RegisterMapper mapper;
     }
 
     public static class BasicDoubleWordPeripheralExtensions
