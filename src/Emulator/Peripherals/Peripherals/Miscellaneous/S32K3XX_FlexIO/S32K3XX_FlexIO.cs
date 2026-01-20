@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,15 +8,17 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Extensions;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class S32K3XX_FlexIO : BasicDoubleWordPeripheral, IPeripheralContainer<IEndpoint, NullRegistrationPoint>, IKnownSize,
+    public class S32K3XX_FlexIO : BasicDoubleWordPeripheral, IBytePeripheral, IPeripheralContainer<IEndpoint, NullRegistrationPoint>, IKnownSize,
         IResourceBlockOwner
     {
         public S32K3XX_FlexIO(IMachine machine) : base(machine)
@@ -52,6 +54,29 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             inReset.Value = false;
             enabled.Value = false;
             InternalReset();
+        }
+
+        public byte ReadByte(long offset)
+        {
+            // The TRM says that only 32-bit accesses are allowed, but DMA drivers are using 8-bit accesses
+            if(IsShifterBufferOffset(offset))
+            {
+                return this.ReadByteUsingDoubleWord(offset);
+            }
+
+            this.WarningLog("Reading byte from this peripheral outside of Shifter buffers is not supported, returning 0");
+            return 0;
+        }
+
+        public void WriteByte(long offset, byte value)
+        {
+            // The TRM says that only 32-bit accesses are allowed, but DMA drivers are using 8-bit accesses
+            if(IsShifterBufferOffset(offset))
+            {
+                this.WriteByteUsingDoubleWord(offset, value);
+            }
+
+            this.WarningLog("Writing byte to this peripheral is not supported");
         }
 
         public IEnumerable<NullRegistrationPoint> GetRegistrationPoints(IEndpoint peripheral)
@@ -205,6 +230,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 IRQ.Set(newValue);
             }
         }
+
+        private bool IsShifterBufferOffset(long offset) =>
+            (long)Registers.ShifterBuffer0 <= offset && offset < (long)(Registers.ShifterBuffer7 + 4);
 
         private IEnumerable<ResourceBlock> ResourceBlocks => shifters.Concat<ResourceBlock>(timers);
 
