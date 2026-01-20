@@ -11,6 +11,8 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 
+using static Antmicro.Renode.Peripherals.Bus.WindowMMUBusController;
+
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
     public sealed class ARM_SMMUv3ExternalMmu : ExternalMmuBase, ISMMUv3StreamController, IDisposable
@@ -53,6 +55,10 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 enabled = value;
                 cpu.EnableExternalWindowMmu(value ? SmmuPosition : ExternalMmuPosition.None);
                 InvalidateTlb();
+                if(!enabled)
+                {
+                    skippedLastFault = false;
+                }
             }
         }
 
@@ -77,8 +83,26 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
         private ExternalMmuResult MmuFaultHook(ulong faultAddress, AccessType accessType, ulong? faultyWindowId, bool firstTry)
         {
+            // Simplified description of the flow used for signaling asynchronous aborts:
+            // * SMMU transaction faults, an event is recorded if requested and the instruction
+            //   that caused the fault is restarted.
+            // * Restarting the instruction allows the CPU to service the event queue interrupt
+            //   if it is pending.
+            // * After returning from the interrupt (or immediately if no interrupt is pending)
+            //   the faulting instruction is reexecuted, so it should fault again and this time
+            //   an external abort is triggered on the CPU.
+            // * If a different SMMU fault happens before the external abort is triggered on the CPU
+            //   the external abort is triggered immediately.
+
             if(!firstTry)
             {
+                if(skippedLastFault)
+                {
+                    // Second fault happend while accessing the same address - signal an external abort.
+                    skippedLastFault = false;
+                    return ExternalMmuResult.ExternalAbort;
+                }
+
                 // Permission fault happens when access is invalid, but a window was found.
                 // If window was not found this is a different kind of fault (e.g. translation fault),
                 // which is signaled in `GetWindowFromPageTable`
@@ -86,15 +110,25 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 {
                     smmu.SignalPermissionFaultEvent(cpu, faultAddress, accessType);
                 }
-                return ExternalMmuResult.Fault;
+
+                // No fault is requested here to allow the CPU to service the Event IRQ signal.
+                // This is to simulate an asynchronous external data/prefetch abort exception.
+                skippedLastFault = true;
+                return ExternalMmuResult.NoFault;
             }
 
             smmu.NoisyLog("MMU fault 0x{0:x} {1} win={2}", faultAddress, accessType, faultyWindowId);
 
-            var pageWindow = smmu.GetWindowFromPageTable(faultAddress, cpu, accessType);
+            MMUWindow pageWindow = null;
+            // Don't enqueue events if the last fault was skipped to prevent
+            // the same event from being enqueued twice.
+            using(smmu.BlockEventQueues(block: skippedLastFault))
+            {
+                pageWindow = smmu.GetWindowFromPageTable(faultAddress, cpu, accessType);
+            }
             if(pageWindow == null)
             {
-                return ExternalMmuResult.Fault;
+                return ExternalMmuResult.ExternalAbort;
             }
 
             var windowId = cpu.AcquireExternalMmuWindow(Privilege.All);
@@ -106,6 +140,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
         }
 
         private bool enabled;
+        private bool skippedLastFault;
 
         private readonly ARM_SMMUv3 smmu;
         private readonly ICPUWithExternalMmu cpu;
