@@ -96,7 +96,9 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(19, out receiverOverrun, FieldMode.Read | FieldMode.WriteOneToClear, name: "OR / Receiver Overrun Flag")
                 .WithTaggedFlag("IDLE / Idle Line Flag", 20)
                 // Despite the name below flag should be set when Watermark level is exceeded
-                .WithFlag(21, FieldMode.Read, valueProviderCallback: _ => BufferState == BufferState.Ready, name: "RDRF / Receive Data Register Full")
+                .WithFlag(21, FieldMode.Read,
+                    valueProviderCallback: _ => (BufferState == BufferState.Ready || BufferState == BufferState.Full),
+                    name: "RDRF / Receive Data Register Full")
                 .WithFlag(22, FieldMode.Read, valueProviderCallback: _ => txQueue.Count == 0, name: "TC / Transmission Complete Flag")
                 .WithFlag(23, out transmitDataRegisterEmpty, FieldMode.Read, name: "TDRE / Transmission Data Register Empty Flag")
                 .WithTaggedFlag("RAF / Receiver Active Flag", 24)
@@ -162,6 +164,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         }
                         else
                         {
+                            UpdateBufferState();
                             OnBufferStateChanged();
                         }
                         return b;
@@ -474,7 +477,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private void UpdateInterrupt()
         {
             var rxUnderflow = receiveFifoUnderflowEnabled.Value && receiveFifoUnderflowInterrupt.Value;
-            var rx = receiverInterruptEnabled.Value && BufferState == BufferState.Ready; // Watermark level exceeded
+            var rx = receiverInterruptEnabled.Value && (BufferState == BufferState.Ready || BufferState == BufferState.Full); // Watermark level exceeded
             var linBreak = linBreakDetect.Value && linBreakDetectInterruptEnable.Value;
             var rxOverrun = overrunInterruptEnable.Value && receiverOverrun.Value;
             var rxRequest = rxUnderflow || rx || linBreak || rxOverrun;
@@ -578,6 +581,7 @@ namespace Antmicro.Renode.Peripherals.UART
             if(count >= rxMaxBytes)
             {
                 BufferState = BufferState.Full;
+                return;
             }
             BufferState = BufferState.Ready;
         }
