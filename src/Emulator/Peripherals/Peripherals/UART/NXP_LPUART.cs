@@ -404,7 +404,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
                 base.WriteChar(data);
                 UpdateBufferState();
-                UpdateInterrupt();
+                UpdateGPIOOutputs();
             }
         }
 
