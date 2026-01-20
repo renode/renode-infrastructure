@@ -429,12 +429,22 @@ namespace Antmicro.Renode.Logging
 
         public static void LogUnhandledRead(this IPeripheral peripheral, long offset)
         {
-            peripheral.Log(LogLevel.Warning, "Unhandled read from offset 0x{0:X}.", offset);
+            var registerName = "";
+            if(peripheral is IHasMappedRegisters mapped)
+            {
+                registerName = $" ({mapped.OffsetToString(offset)})";
+            }
+            peripheral.Log(LogLevel.Warning, "Unhandled read from offset 0x{0:X}{1}.", offset, registerName);
         }
 
         public static void LogUnhandledWrite(this IPeripheral peripheral, long offset, ulong value)
         {
-            peripheral.Log(LogLevel.Warning, "Unhandled write to offset 0x{0:X}, value 0x{1:X}.", offset, value);
+            var registerName = "";
+            if(peripheral is IHasMappedRegisters mapped)
+            {
+                registerName = $" ({mapped.OffsetToString(offset)})";
+            }
+            peripheral.Log(LogLevel.Warning, "Unhandled write to offset 0x{0:X}{1}, value 0x{2:X}.", offset, registerName, value);
         }
 
         public static bool PrintFullName { get; set; }
