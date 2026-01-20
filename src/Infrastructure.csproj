@@ -1719,6 +1719,7 @@
     <Compile Include="Emulator/Main/Core/IGPIORedirector.cs" />
     <Compile Include="Emulator/Main/Utilities/SudoTools.cs" />
     <Compile Include="Emulator/Main/Utilities/Collections/Interval.cs" />
+    <Compile Include="Emulator/Main/Utilities/Collections/MonoUInt128.cs" />
     <Compile Include="Emulator/Main/Utilities/Collections/MultiValueDictionary.cs" />
     <Compile Include="Emulator/Main/Foreign/Player.cs" />
     <Compile Include="Emulator/Main/Foreign/RecordEntry.cs" />
