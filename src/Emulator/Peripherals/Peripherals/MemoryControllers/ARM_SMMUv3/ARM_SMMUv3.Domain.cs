@@ -29,6 +29,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             public void Reset()
             {
                 Enabled = false;
+                BlockEventQueue = false;
             }
 
             public void CreateQueues()
@@ -59,6 +60,11 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             public void SignalEvent(Event ev, bool record = true)
             {
+                if(BlockEventQueue)
+                {
+                    return;
+                }
+
                 if(!EventQueueEnable.Value || !record)
                 {
                     if(record)
@@ -110,6 +116,8 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 GlobalErrorIRQ.Set(globalError);
                 // EventQueueIRQ is Blink()'ed so don't set it here
             }
+
+            public bool BlockEventQueue { get; set; }
 
             public SecurityState SecurityState { get; }
 

@@ -393,6 +393,17 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
             });
         }
 
+        public IDisposable BlockEventQueues(bool block)
+        {
+            nonSecureDomain.BlockEventQueue = block;
+            secureDomain.BlockEventQueue = block;
+            return DisposableWrapper.New(() =>
+            {
+                nonSecureDomain.BlockEventQueue = false;
+                secureDomain.BlockEventQueue = false;
+            });
+        }
+
         public GPIO NonSecureGlobalErrorIRQ => nonSecureDomain.GlobalErrorIRQ;
 
         public GPIO SecureGlobalErrorIRQ => secureDomain.GlobalErrorIRQ;
