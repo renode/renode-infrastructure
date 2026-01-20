@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -53,7 +53,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
 
         public bool MaskedFlag => flag.Value && mask.Value;
 
+        public bool Flag => flag.Value;
+
         public event Action<bool> MaskedFlagChanged;
+
+        public event Action<bool> FlagChanged;
 
         private Interrupt(IFlagRegisterField flag, IFlagRegisterField mask)
         {
@@ -79,6 +83,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
         private void HandleChange(bool previousFlag, bool previousMask)
         {
             var previousMasked = previousFlag && previousMask;
+            if(previousFlag != flag.Value)
+            {
+                FlagChanged?.Invoke(flag.Value);
+            }
             if(previousMasked != MaskedFlag)
             {
                 MaskedFlagChanged?.Invoke(MaskedFlag);
