@@ -470,8 +470,11 @@ namespace Antmicro.Renode.Utilities.Packets
 
                 var intermediate = 0UL;
                 var bitWidth = field.BitWidth ?? 0;
-
-                if(type == typeof(int))
+                if(field.GetValue(packet) == null)
+                {
+                    // leave intermediate as 0
+                }
+                else if(type == typeof(int))
                 {
                     var v = (int)field.GetValue(packet);
                     intermediate = field.IsLSBFirst ? (uint)v : BitHelper.ReverseBytes((uint)v);
