@@ -54,6 +54,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
 
                 Limit = autoReloadValue;
+                this.Log(LogLevel.Noisy, "IRQ pending");
+                updateInterruptFlag = true;
 
                 for(var i = 0; i < NumberOfCCChannels; ++i)
                 {
@@ -78,8 +80,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     // 2 of central-aligned modes should raise IRQ only on overflow/underflow, hence it happens 2 times less often
                     var centerAlignedUnbalancedMode = (centerAlignedMode.Value == CenterAlignedMode.CenterAligned1) || (centerAlignedMode.Value == CenterAlignedMode.CenterAligned2);
-                    this.Log(LogLevel.Noisy, "IRQ pending");
-                    updateInterruptFlag = true;
                     repetitionsLeft = 1u + (uint)repetitionCounter.Value * (centerAlignedUnbalancedMode ? 2u : 1u);
                     UpdateInterrupts();
                 }
