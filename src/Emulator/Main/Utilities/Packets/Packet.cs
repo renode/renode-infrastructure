@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -69,6 +69,14 @@ namespace Antmicro.Renode.Utilities.Packets
         {
             var success = TryDecode(typeof(T), data, out var tryResult, ref dataOffset);
             result = (T)tryResult;
+            return success;
+        }
+
+        public static bool TryDecodeInto<T>(IList<byte> data, ref T target, int dataOffset = 0)
+        {
+            var tryTarget = (object)target;
+            var success = TryDecodeInto(typeof(T), data, ref tryTarget, ref dataOffset);
+            target = (T)tryTarget;
             return success;
         }
 
@@ -168,19 +176,26 @@ namespace Antmicro.Renode.Utilities.Packets
 
         private static bool TryDecode(Type t, IList<byte> data, out object result, ref int offset)
         {
+            return TryDecode(t, data, out result, ref offset);
+        }
+
+        private static bool TryDecodeInto(Type t, IList<byte> data, ref object target, ref int offset)
+        {
             var startOffset = offset;
             if(offset < 0)
             {
                 throw new ArgumentException("Offset cannot be less than zero", nameof(offset));
             }
-
-            result = Activator.CreateInstance(t);
+            if(target == null)
+            {
+                target = Activator.CreateInstance(t);
+            }
 
             var fieldsAndProperties = GetFieldsAndProperties(t);
 
             foreach(var field in fieldsAndProperties)
             {
-                if(!field.IsPresent(result))
+                if(!field.IsPresent(target))
                 {
                     continue;
                 }
@@ -248,7 +263,7 @@ namespace Antmicro.Renode.Utilities.Packets
 
                     Buffer.BlockCopy(source, 0, v, 0, width);
 
-                    field.SetValue(result, v);
+                    field.SetValue(target, v);
                     offset += width;
                     continue;
                 }
@@ -262,7 +277,7 @@ namespace Antmicro.Renode.Utilities.Packets
                         return false;
                     }
 
-                    field.SetValue(result, nestedPacket);
+                    field.SetValue(target, nestedPacket);
                     continue;
                 }
 
@@ -299,11 +314,11 @@ namespace Antmicro.Renode.Utilities.Packets
                     v = BitHelper.GetValue(v, 0, field.BitWidth ?? 32);
                     if(type == typeof(int))
                     {
-                        field.SetValue(result, (int)v);
+                        field.SetValue(target, (int)v);
                     }
                     else
                     {
-                        field.SetValue(result, v);
+                        field.SetValue(target, v);
                     }
                 }
                 else if(type == typeof(short) || type == typeof(ushort))
@@ -317,11 +332,11 @@ namespace Antmicro.Renode.Utilities.Packets
                     v = (ushort)BitHelper.GetValue(v, 0, field.BitWidth ?? 16);
                     if(type == typeof(short))
                     {
-                        field.SetValue(result, (short)v);
+                        field.SetValue(target, (short)v);
                     }
                     else
                     {
-                        field.SetValue(result, v);
+                        field.SetValue(target, v);
                     }
                 }
                 else if(type == typeof(byte) || type == typeof(sbyte))
@@ -330,11 +345,11 @@ namespace Antmicro.Renode.Utilities.Packets
                     v = BitHelper.GetValue(v, 0, field.BitWidth ?? 8);
                     if(type == typeof(sbyte))
                     {
-                        field.SetValue(result, (sbyte)v);
+                        field.SetValue(target, (sbyte)v);
                     }
                     else
                     {
-                        field.SetValue(result, v);
+                        field.SetValue(target, v);
                     }
                 }
                 else if(type == typeof(long) || type == typeof(ulong))
@@ -347,16 +362,16 @@ namespace Antmicro.Renode.Utilities.Packets
                     v = BitHelper.GetValue(v, 0, field.BitWidth ?? 64);
                     if(type == typeof(long))
                     {
-                        field.SetValue(result, (long)v);
+                        field.SetValue(target, (long)v);
                     }
                     else
                     {
-                        field.SetValue(result, v);
+                        field.SetValue(target, v);
                     }
                 }
                 else if(type == typeof(bool))
                 {
-                    field.SetValue(result, BitHelper.IsBitSet(intermediate, 0));
+                    field.SetValue(target, BitHelper.IsBitSet(intermediate, 0));
                 }
                 else
                 {
@@ -454,8 +469,11 @@ namespace Antmicro.Renode.Utilities.Packets
 
                 var intermediate = 0UL;
                 var bitWidth = field.BitWidth ?? 0;
-
-                if(type == typeof(int))
+                if(field.GetValue(packet) == null)
+                {
+                    // leave intermediate as 0
+                }
+                else if(type == typeof(int))
                 {
                     var v = (int)field.GetValue(packet);
                     intermediate = field.IsLSBFirst ? (uint)v : BitHelper.ReverseBytes((uint)v);
@@ -531,16 +549,15 @@ namespace Antmicro.Renode.Utilities.Packets
             return offset - startingOffset;
         }
 
-        private static ulong GetOptionalFieldPresenceBitmap(Type t, object obj)
+        private static MonoUInt128 GetOptionalFieldPresenceBitmap(Type t, object obj)
         {
             if(obj == null)
             {
-                return ulong.MaxValue;
+                return MonoUInt128.MaxValue;
             }
-
             var items = GetFieldsAndProperties(t);
-            var bitmap = 0UL;
-            var bit = 1UL;
+            var bitmap = MonoUInt128.Zero;
+            var bit = MonoUInt128.One;
             foreach(var item in items.Where(x => x.IsOptional))
             {
                 if(item.IsPresent(obj))
@@ -548,9 +565,9 @@ namespace Antmicro.Renode.Utilities.Packets
                     bitmap |= bit;
                 }
                 bit <<= 1;
-                if(bit == 0)
+                if(bit.IsZero)
                 {
-                    throw new ArgumentException($"{t.Name} has too many optional fields ({items.Length}), maximum is 64");
+                    throw new ArgumentException($"{t.Name} has too many optional fields ({items.Length}), maximum is 128");
                 }
             }
             return bitmap;
@@ -595,7 +612,7 @@ namespace Antmicro.Renode.Utilities.Packets
         }
 
         // Separate function to prevent unintentional context capture when using a lambda, which completely destroys caching.
-        private static int CalculateBitLengthCacheGenerator(Type t, ulong optionalFieldPresence)
+        private static int CalculateBitLengthCacheGenerator(Type t, MonoUInt128 optionalFieldPresence)
         {
             t = Nullable.GetUnderlyingType(t) ?? t;
             t = t.IsEnum ? t.GetEnumUnderlyingType() : t;
@@ -608,12 +625,12 @@ namespace Antmicro.Renode.Utilities.Packets
 
             var maxOffset = 0;
             var offset = 0;
-            var optionalBit = 1UL;
+            var optionalBit = MonoUInt128.One;
             foreach(var element in fieldsAndProperties)
             {
                 if(element.IsOptional)
                 {
-                    var isPresent = (optionalFieldPresence & optionalBit) != 0;
+                    var isPresent = !(optionalFieldPresence & optionalBit).IsZero;
                     optionalBit <<= 1;
                     if(!isPresent)
                     {
@@ -675,18 +692,18 @@ namespace Antmicro.Renode.Utilities.Packets
         }
 
         // Separate function for the same reasons as CalculateLengthCacheGenerator
-        private static int CalculateOffsetGenerator(Type t, ulong optionalFieldPresence, string fieldName)
+        private static int CalculateOffsetGenerator(Type t, MonoUInt128 optionalFieldPresence, string fieldName)
         {
             var fieldsAndProperties = GetFieldsAndProperties(t);
 
             var maxOffset = 0;
             var offset = 0;
-            var optionalBit = 1UL;
+            var optionalBit = MonoUInt128.One;
             foreach(var element in fieldsAndProperties)
             {
                 if(element.IsOptional)
                 {
-                    var isPresent = (optionalFieldPresence & optionalBit) != 0;
+                    var isPresent = (optionalFieldPresence & optionalBit).IsZero;
                     optionalBit <<= 1;
                     if(!isPresent)
                     {
@@ -729,18 +746,18 @@ namespace Antmicro.Renode.Utilities.Packets
             public FieldPropertyInfoWrapper(FieldInfo info)
             {
                 fieldInfo = info;
-                presentProperty = GetPresentProperty(info);
+                GetPresentMethod(info, out presentMethod, out presentArgs);
             }
 
             public FieldPropertyInfoWrapper(PropertyInfo info)
             {
                 propertyInfo = info;
-                presentProperty = GetPresentProperty(info);
+                GetPresentMethod(info, out presentMethod, out presentArgs);
             }
 
             public bool IsPresent(object o)
             {
-                return (bool)(presentProperty?.GetValue(o) ?? true);
+                return presentMethod == null || (bool)presentMethod.Invoke(o, presentArgs);
             }
 
             public object GetValue(object o)
@@ -776,7 +793,7 @@ namespace Antmicro.Renode.Utilities.Packets
             public bool IsLSBFirst => ((MemberInfo)fieldInfo ?? propertyInfo).DeclaringType.GetCustomAttribute<LeastSignificantByteFirst>(true) != null
                     || GetAttribute<LeastSignificantByteFirst>() != null;
 
-            public bool IsOptional => presentProperty != null;
+            public bool IsOptional => presentMethod != null;
 
             public int? ByteOffset => (int?)GetAttribute<OffsetAttribute>()?.OffsetInBytes;
 
@@ -887,25 +904,52 @@ namespace Antmicro.Renode.Utilities.Packets
 
             public string ElementName => fieldInfo?.Name ?? propertyInfo.Name;
 
-            private static FieldPropertyInfoWrapper GetPresentProperty(MemberInfo info)
+            private bool GetPresentMethod(MemberInfo info, out MethodInfo foundMethod, out object[] foundArgs)
             {
-                if(info.GetCustomAttributes<PresentIfAttribute>().FirstOrDefault()?.ConditionPropertyName is string name)
+                foundMethod = null;
+                foundArgs = Array.Empty<object>();
+                var type = info.DeclaringType;
+                var attr = info.GetCustomAttributes<PresentIfAttribute>().FirstOrDefault();
+                if(attr == null)
                 {
-                    if(info.DeclaringType.GetProperty(name) is PropertyInfo pi)
-                    {
-                        return new FieldPropertyInfoWrapper(pi);
-                    }
-                    if(info.DeclaringType.GetField(name) is FieldInfo fi)
-                    {
-                        return new FieldPropertyInfoWrapper(fi);
-                    }
+                    return false;
                 }
-                return null;
+                var methodName = attr.MethodName;
+                var args = attr.Args;
+
+                var method = type.GetMethod(
+                    methodName,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+                );
+
+                if(method == null)
+                {
+                    throw new MissingMethodException(type.FullName, methodName);
+                }
+
+                if(method.ReturnType != typeof(bool))
+                {
+                    throw new InvalidOperationException(
+                        $"Method '{methodName}' must return bool.");
+                }
+
+                var parameters = method.GetParameters();
+                if(parameters.Length != args.Length)
+                {
+                    throw new TargetParameterCountException(
+                        $"Method '{methodName}' expected {parameters.Length} arguments, but got {args.Length}.");
+                }
+
+                foundMethod = method;
+                foundArgs = args;
+
+                return true;
             }
 
             private readonly FieldInfo fieldInfo;
             private readonly PropertyInfo propertyInfo;
-            private readonly FieldPropertyInfoWrapper presentProperty;
+            private readonly MethodInfo presentMethod;
+            private readonly object[] presentArgs;
         }
     }
 }

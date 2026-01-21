@@ -1734,6 +1734,20 @@ namespace Antmicro.Renode.Utilities
             return ConcatIterator(head, tail, true);
         }
 
+        public static bool TryFirst<T>(this IEnumerable<T> source, Func<T, bool> predicate, out T result)
+        {
+            foreach(var item in source)
+            {
+                if(predicate(item))
+                {
+                    result = item;
+                    return true;
+                }
+            }
+            result = default;
+            return false;
+        }
+
         public static bool IsOnOsX
         {
             get

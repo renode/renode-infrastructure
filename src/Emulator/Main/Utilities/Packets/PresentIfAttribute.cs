@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -23,11 +23,14 @@ namespace Antmicro.Renode.Utilities.Packets
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
     public sealed class PresentIfAttribute : Attribute
     {
-        public PresentIfAttribute(string conditionName)
+        public PresentIfAttribute(string methodName, params object[] args)
         {
-            this.ConditionPropertyName = conditionName;
+            this.MethodName = methodName;
+            this.Args = args;
         }
 
-        public string ConditionPropertyName { get; }
+        public object[] Args { get; }
+
+        public string MethodName { get; }
     }
 }

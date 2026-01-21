@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,13 +12,14 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.SPI.NORFlash;
+using Antmicro.Renode.Peripherals.SPI.SFDP;
 using Antmicro.Renode.Utilities;
 
 using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public partial class GenericSpiFlash : ISPIPeripheral, IGPIOReceiver
+    public class GenericSpiFlash : ISPIPeripheral, IGPIOReceiver, ISFDPPeripheral
     {
         public GenericSpiFlash(MappedMemory underlyingMemory, byte manufacturerId, byte memoryType, byte? capacityCode = null,
             bool writeStatusCanSetWriteEnable = true, byte extendedDeviceId = DefaultExtendedDeviceID,
@@ -66,11 +67,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             deviceData = GetDeviceData();
 
-            SFDPSignature = (new SFDP(
-                new Dictionary<uint, SFDPParameter>
-                {
-                    [0x18] = new JEDECParameter(4.KB(), underlyingMemory.Size, 256, (byte)Commands.SubsectorErase4kb)
-                }
+            SFDPSignature = (new SFDPData(
+                    new KeyValuePair<uint, JedecParameter>(0x18u, new JedecParameter(4.KB(), underlyingMemory.Size, 256, (byte)Commands.SubsectorErase4kb))
             )).Bytes;
         }
 

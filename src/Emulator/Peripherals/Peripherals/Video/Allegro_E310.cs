@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -1284,33 +1284,25 @@ namespace Antmicro.Renode.Peripherals.Video
             // Variable length data based on RequestOptions, all fields optional
             // omitted fields take 0 space shifting the layout of the rest
 
-            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasSceneChangeDelay))]
+            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasRequestOption), EncodingRequestOption.SceneChange)]
             public uint? SceneChangeDelay;
 
-            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasRcGopParameters))]
+            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasRequestOption), EncodingRequestOption.UpdateRcGopParameters)]
             public RateControlGopParameters? RateControlGopParameters;
 
-            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasSetQp))]
+            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasRequestOption), EncodingRequestOption.SetQp)]
             public short? Qp;
 
-            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasInputResolution))]
+            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasRequestOption), EncodingRequestOption.SetInputResolution)]
             public Dimension? InputResolution;
 
-            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasInputResolution))]
+            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasRequestOption), EncodingRequestOption.SetInputResolution)]
             public sbyte? LfBetaOffset;
 
-            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasInputResolution))]
+            [PacketField, Align(doubleWords: 1), PresentIf(nameof(HasRequestOption), EncodingRequestOption.SetInputResolution)]
             public sbyte? LfTcOffset;
 
-            public bool HasSceneChangeDelay => RequestOptions.HasFlag(EncodingRequestOption.SceneChange);
-
-            public bool HasRcGopParameters => RequestOptions.HasFlag(EncodingRequestOption.UpdateRcGopParameters);
-
-            public bool HasSetQp => RequestOptions.HasFlag(EncodingRequestOption.SetQp);
-
-            public bool HasInputResolution => RequestOptions.HasFlag(EncodingRequestOption.SetInputResolution);
-
-            public bool HasLfOffsets => RequestOptions.HasFlag(EncodingRequestOption.SetLfOffsets);
+            public bool HasRequestOption(EncodingRequestOption option) => RequestOptions.HasFlag(option);
         }
 
         [LeastSignificantByteFirst, Width(bytes: 80)]
