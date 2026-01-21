@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,11 +25,17 @@ namespace Antmicro.Renode.Peripherals.Storage
     {
         public UFSDevice(int logicalUnits, ulong logicalBlockSize, ulong blockCount,
                 string manufacturerName = "01234567", string productName = "0123456789ABCDEF", string serialNumber = "SomeSerialNumber",
-                string oemID = "SomeOemID", string productRevisionLevel = "0123")
+                string oemID = "SomeOemID", string productRevisionLevel = "0123",
+                ulong[] logicalUnitBlockCounts = null)
         {
             if(logicalUnits <= 1 || logicalUnits > MaxLogicalUnits)
             {
                 throw new ConstructionException($"Minimum one and maximum {MaxLogicalUnits} logical units are allowed.");
+            }
+
+            if(logicalUnitBlockCounts?.Length > logicalUnits)
+            {
+                throw new ConstructionException($"Requested creation of {logicalUnits} logical units, but {logicalUnitBlockCounts.Length} block counts were provided.");
             }
 
             if(!Misc.IsPowerOfTwo(logicalBlockSize) || logicalBlockSize < MinimumLogicalBlockSize)
@@ -68,8 +74,21 @@ namespace Antmicro.Renode.Peripherals.Storage
             }
 
             LogicalUnits = logicalUnits;
-            LogicalBlockCount = blockCount;
+            DefaultLogicalUnitBlockCount = blockCount;
             LogicalBlockSize = logicalBlockSize;
+
+            this.LogicalUnitBlockCounts = new ulong[LogicalUnits];
+            for(var i = 0; i < LogicalUnits; i++)
+            {
+                if(i < logicalUnitBlockCounts?.Length)
+                {
+                    LogicalUnitBlockCounts[i] = logicalUnitBlockCounts[i];
+                }
+                else
+                {
+                    LogicalUnitBlockCounts[i] = blockCount;
+                }
+            }
 
             MaxInBufferSize = MaxAllowedInBufferSize; // number of 512-byte units
             MaxOutBufferSize = MaxAllowedOutBufferSize; // number of 512-byte units
@@ -90,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             dataBackends = new Stream[LogicalUnits];
             for(int i = 0; i < LogicalUnits; i++)
             {
-                dataBackends[i] = DataStorage.CreateInTemporaryFile(size: (long)logicalBlockSize * (long)blockCount);
+                dataBackends[i] = DataStorage.CreateInTemporaryFile(size: (long)logicalBlockSize * (long)LogicalUnitBlockCounts[i]);
             }
             InitConfiguration();
         }
@@ -221,7 +240,9 @@ namespace Antmicro.Renode.Peripherals.Storage
 
         public string SerialNumber { get; }
 
-        public ulong LogicalBlockCount { get; }
+        public ulong DefaultLogicalUnitBlockCount { get; }
+
+        public ulong[] LogicalUnitBlockCounts { get; }
 
         public string ProductName { get; }
 
@@ -890,7 +911,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 bMaxNumberLU: LogicalUnits <= 8 ? (byte)0x0 : (byte)0x1
             );
             InitUnitDescriptors(
-                qPhyMemResourceCount: LogicalBlockCount,
+                qPhyMemResourceCount: DefaultLogicalUnitBlockCount,
                 bLogicalBlockSize: LogicalBlockSizeExponentBase2
             );
             InitRPMBUnitDescriptor();
@@ -1023,7 +1044,7 @@ namespace Antmicro.Renode.Peripherals.Storage
         private void InitUnitDescriptors(
             byte bLUQueueDepth = 0x00, // LU queue not available (shared queuing is used)
             byte bPSASensitive = 0x00, // LU is not sensitive to soldering
-            ulong qPhyMemResourceCount = 8, // Physical Memory Resource Count in units of Logical Block Size
+            ulong qPhyMemResourceCount = 8, // Physical Memory Resource Count in units of Logical Block Size (default for well-known LUNs)
             byte bLargeUnitGranularity_M1 = 0,
             byte bLogicalBlockSize = 0x0c
         )
@@ -1031,6 +1052,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             unitDescriptors = new Dictionary<byte, UnitDescriptor>(capacity: LogicalUnits + WellKnownLUNsNumber);
             for(int i = 0; i < LogicalUnits; i++)
             {
+                var unitMemResourceCount = LogicalUnitBlockCounts[i];
                 var unitDescr = new UnitDescriptor
                 {
                     Length = 0x2d,
@@ -1044,10 +1066,10 @@ namespace Antmicro.Renode.Peripherals.Storage
                     MemoryType = 0x00,
                     DataReliability = 0x00,
                     LogicalBlockSize = bLogicalBlockSize,
-                    LogicalBlockCount = qPhyMemResourceCount,
+                    LogicalBlockCount = unitMemResourceCount,
                     EraseBlockSize = 0x00,
                     ProvisioningType = 0x00,
-                    PhyMemResourceCount = qPhyMemResourceCount,
+                    PhyMemResourceCount = unitMemResourceCount,
                     ContextCapabilities = 0x00,
                     LargeUnitGranularity_M1 = bLargeUnitGranularity_M1,
                     LUNumWriteBoosterBufferAllocUnits = 0x00
