@@ -72,6 +72,14 @@ namespace Antmicro.Renode.Utilities.Packets
             return success;
         }
 
+        public static bool TryDecodeInto<T>(IList<byte> data, ref T target, int dataOffset = 0)
+        {
+            var tryTarget = (object)target;
+            var success = TryDecodeInto(typeof(T), data, ref tryTarget, ref dataOffset);
+            target = (T)tryTarget;
+            return success;
+        }
+
         public static bool TryDecodeSubclass<T>(IList<byte> data, Func<IList<byte>, Type> typeSelector, out T result, int dataOffset = 0)
         {
             var type = typeSelector(data);
@@ -168,19 +176,27 @@ namespace Antmicro.Renode.Utilities.Packets
 
         private static bool TryDecode(Type t, IList<byte> data, out object result, ref int offset)
         {
+            result = null;
+            return TryDecodeInto(t, data, ref result, ref offset);
+        }
+
+        private static bool TryDecodeInto(Type t, IList<byte> data, ref object target, ref int offset)
+        {
             var startOffset = offset;
             if(offset < 0)
             {
                 throw new ArgumentException("Offset cannot be less than zero", nameof(offset));
             }
-
-            result = Activator.CreateInstance(t);
+            if(target == null)
+            {
+                target = Activator.CreateInstance(t);
+            }
 
             var fieldsAndProperties = GetFieldsAndProperties(t);
 
             foreach(var field in fieldsAndProperties)
             {
-                if(!field.IsPresent(result))
+                if(!field.IsPresent(target))
                 {
                     continue;
                 }
@@ -248,7 +264,7 @@ namespace Antmicro.Renode.Utilities.Packets
 
                     Buffer.BlockCopy(source, 0, v, 0, width);
 
-                    field.SetValue(result, v);
+                    field.SetValue(target, v);
                     offset += width;
                     continue;
                 }
@@ -262,7 +278,7 @@ namespace Antmicro.Renode.Utilities.Packets
                         return false;
                     }
 
-                    field.SetValue(result, nestedPacket);
+                    field.SetValue(target, nestedPacket);
                     continue;
                 }
 
@@ -299,11 +315,11 @@ namespace Antmicro.Renode.Utilities.Packets
                     v = BitHelper.GetValue(v, 0, field.BitWidth ?? 32);
                     if(type == typeof(int))
                     {
-                        field.SetValue(result, (int)v);
+                        field.SetValue(target, (int)v);
                     }
                     else
                     {
-                        field.SetValue(result, v);
+                        field.SetValue(target, v);
                     }
                 }
                 else if(type == typeof(short) || type == typeof(ushort))
@@ -317,11 +333,11 @@ namespace Antmicro.Renode.Utilities.Packets
                     v = (ushort)BitHelper.GetValue(v, 0, field.BitWidth ?? 16);
                     if(type == typeof(short))
                     {
-                        field.SetValue(result, (short)v);
+                        field.SetValue(target, (short)v);
                     }
                     else
                     {
-                        field.SetValue(result, v);
+                        field.SetValue(target, v);
                     }
                 }
                 else if(type == typeof(byte) || type == typeof(sbyte))
@@ -330,11 +346,11 @@ namespace Antmicro.Renode.Utilities.Packets
                     v = BitHelper.GetValue(v, 0, field.BitWidth ?? 8);
                     if(type == typeof(sbyte))
                     {
-                        field.SetValue(result, (sbyte)v);
+                        field.SetValue(target, (sbyte)v);
                     }
                     else
                     {
-                        field.SetValue(result, v);
+                        field.SetValue(target, v);
                     }
                 }
                 else if(type == typeof(long) || type == typeof(ulong))
@@ -347,16 +363,16 @@ namespace Antmicro.Renode.Utilities.Packets
                     v = BitHelper.GetValue(v, 0, field.BitWidth ?? 64);
                     if(type == typeof(long))
                     {
-                        field.SetValue(result, (long)v);
+                        field.SetValue(target, (long)v);
                     }
                     else
                     {
-                        field.SetValue(result, v);
+                        field.SetValue(target, v);
                     }
                 }
                 else if(type == typeof(bool))
                 {
-                    field.SetValue(result, BitHelper.IsBitSet(intermediate, 0));
+                    field.SetValue(target, BitHelper.IsBitSet(intermediate, 0));
                 }
                 else
                 {
