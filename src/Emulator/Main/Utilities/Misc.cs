@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -1732,6 +1732,20 @@ namespace Antmicro.Renode.Utilities
                 throw new ArgumentNullException("tail");
             }
             return ConcatIterator(head, tail, true);
+        }
+
+        public static bool TryFirst<T>(this IEnumerable<T> source, Func<T, bool> predicate, out T result)
+        {
+            foreach(var item in source)
+            {
+                if(predicate(item))
+                {
+                    result = item;
+                    return true;
+                }
+            }
+            result = default;
+            return false;
         }
 
         public static bool IsOnOsX
