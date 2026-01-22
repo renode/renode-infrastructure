@@ -360,6 +360,34 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void TestMultiargumentPresentIfMethod()
+        {
+            // The first three bytes determine which optional fields are present in the packet.
+            // `Field1xor2` is present only if the first three bytes contain either 1 or 2 (but not both).
+            // `Field3and4` is present only if the first three bytes contain both 3 and 4.
+
+            var dataHasNone = new byte[] { 0, 1, 2 };
+            var structureHasNone = Packet.Decode<TestStructMultiargPresentIfMethod>(dataHasNone);
+            Assert.AreEqual(null, structureHasNone.Field1xor2);
+            Assert.AreEqual(null, structureHasNone.Field3and4);
+
+            var dataHasField1xor2 = new byte[] { 0, 0, 1, 1 };
+            var structureHasField1xor2 = Packet.Decode<TestStructMultiargPresentIfMethod>(dataHasField1xor2);
+            Assert.AreEqual(1, structureHasField1xor2.Field1xor2);
+            Assert.AreEqual(null, structureHasField1xor2.Field3and4);
+
+            var dataHasField2and3 = new byte[] { 0, 3, 4, 1 };
+            var structureHasField2and3 = Packet.Decode<TestStructMultiargPresentIfMethod>(dataHasField2and3);
+            Assert.AreEqual(null, structureHasField2and3.Field1xor2);
+            Assert.AreEqual(1, structureHasField2and3.Field3and4);
+
+            var dataHasAllFields = new byte[] { 1, 3, 4, 1, 2 };
+            var structureHasAllFields = Packet.Decode<TestStructMultiargPresentIfMethod>(dataHasAllFields);
+            Assert.AreEqual(1, structureHasAllFields.Field1xor2);
+            Assert.AreEqual(2, structureHasAllFields.Field3and4);
+        }
+
+        [Test]
         public void TestPresentIfBitfield()
         {
             // No fields (Mask = 0)
@@ -826,6 +854,28 @@ namespace Antmicro.Renode.UnitTests
 #pragma warning restore 649
         }
 
+        private struct TestStructMultiargPresentIfMethod
+        {
+#pragma warning disable 649
+            [PacketField]
+            public byte Value1;
+            [PacketField]
+            public byte Value2;
+            [PacketField]
+            public byte Value3;
+
+            [PacketField, PresentIf(nameof(HasExaclyIntersection), 1, new byte[]{ 1, 2 })]
+            public byte? Field1xor2;
+
+            [PacketField, PresentIf(nameof(HasExaclyIntersection), 2, new byte[]{ 3, 4 })]
+            public byte? Field3and4;
+
+            public byte[] IntersectingArray => new byte[] { Value1, Value2, Value3 };
+
+            public bool HasExaclyIntersection(int expectedIntersectionCount, byte[] array) => array.Intersect(IntersectingArray).Count() == expectedIntersectionCount;
+#pragma warning restore 649
+        }
+
         [LeastSignificantByteFirst]
         private struct TestStructNestedOptionalParent
         {
@@ -857,6 +907,14 @@ namespace Antmicro.Renode.UnitTests
             One = 1,
             Two,
             Three
+        }
+
+        [Flags]
+        private enum TestFieldEnum : byte
+        {
+            None = 0x0,
+            A = 0x1,
+            B = 0x2,
         }
     }
 }
