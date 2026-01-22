@@ -387,6 +387,39 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(2, structureHasAllFields.Field3and4);
         }
 
+        public void TestDecodeInto()
+        {
+            var data = new byte[] { 1, 2 };
+
+            var targetNoFields = new TestStructDecodeInto { Mask = TestFieldEnum.None };
+            Assert.IsTrue(Packet.TryDecodeInto(data, ref targetNoFields));
+            Assert.AreEqual(targetNoFields.FieldA, null);
+            Assert.AreEqual(targetNoFields.FieldB, null);
+            var encNoFields = Packet.Encode(targetNoFields);
+            Assert.AreEqual(encNoFields, new byte[] { });
+
+            var targetHasA = new TestStructDecodeInto { Mask = TestFieldEnum.A };
+            Assert.IsTrue(Packet.TryDecodeInto(data, ref targetHasA));
+            Assert.AreEqual(targetHasA.FieldA, 1);
+            Assert.AreEqual(targetHasA.FieldB, null);
+            var encHasA = Packet.Encode(targetHasA);
+            Assert.AreEqual(encHasA, new byte[] { 1 });
+
+            var targetHasB = new TestStructDecodeInto { Mask = TestFieldEnum.B };
+            Assert.IsTrue(Packet.TryDecodeInto(data, ref targetHasB));
+            Assert.AreEqual(targetHasB.FieldA, null);
+            Assert.AreEqual(targetHasB.FieldB, 1);
+            var encHasB = Packet.Encode(targetHasB);
+            Assert.AreEqual(encHasB, new byte[] { 1 });
+
+            var targetHasAandB = new TestStructDecodeInto { Mask = TestFieldEnum.A | TestFieldEnum.B };
+            Assert.IsTrue(Packet.TryDecodeInto(data, ref targetHasAandB));
+            Assert.AreEqual(targetHasAandB.FieldA, 1);
+            Assert.AreEqual(targetHasAandB.FieldB, 2);
+            var encHasAandB = Packet.Encode(targetHasAandB);
+            Assert.AreEqual(encHasAandB, new byte[] { 1, 2 });
+        }
+
         [Test]
         public void TestPresentIfBitfield()
         {
@@ -873,6 +906,23 @@ namespace Antmicro.Renode.UnitTests
             public byte[] IntersectingArray => new byte[] { Value1, Value2, Value3 };
 
             public bool HasExaclyIntersection(int expectedIntersectionCount, byte[] array) => array.Intersect(IntersectingArray).Count() == expectedIntersectionCount;
+#pragma warning restore 649
+        }
+
+        [LeastSignificantByteFirst]
+        private struct TestStructDecodeInto
+        {
+#pragma warning disable 649
+            public TestFieldEnum Mask;
+
+            [PacketField, PresentIf(nameof(HasField), TestFieldEnum.A)]
+            public byte? FieldA;
+
+            [PacketField, PresentIf(nameof(HasField), TestFieldEnum.B)]
+            public byte? FieldB;
+
+            public bool HasField(TestFieldEnum flag) => Mask.HasFlag(flag);
+
 #pragma warning restore 649
         }
 
