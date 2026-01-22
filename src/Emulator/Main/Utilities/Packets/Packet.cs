@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -729,18 +729,18 @@ namespace Antmicro.Renode.Utilities.Packets
             public FieldPropertyInfoWrapper(FieldInfo info)
             {
                 fieldInfo = info;
-                presentProperty = GetPresentProperty(info);
+                GetPresentMethod(info, out presentMethod, out presentArgs);
             }
 
             public FieldPropertyInfoWrapper(PropertyInfo info)
             {
                 propertyInfo = info;
-                presentProperty = GetPresentProperty(info);
+                GetPresentMethod(info, out presentMethod, out presentArgs);
             }
 
             public bool IsPresent(object o)
             {
-                return (bool)(presentProperty?.GetValue(o) ?? true);
+                return presentMethod == null || (bool)presentMethod.Invoke(o, presentArgs);
             }
 
             public object GetValue(object o)
@@ -776,7 +776,7 @@ namespace Antmicro.Renode.Utilities.Packets
             public bool IsLSBFirst => ((MemberInfo)fieldInfo ?? propertyInfo).DeclaringType.GetCustomAttribute<LeastSignificantByteFirst>(true) != null
                     || GetAttribute<LeastSignificantByteFirst>() != null;
 
-            public bool IsOptional => presentProperty != null;
+            public bool IsOptional => presentMethod != null;
 
             public int? ByteOffset => (int?)GetAttribute<OffsetAttribute>()?.OffsetInBytes;
 
@@ -887,25 +887,52 @@ namespace Antmicro.Renode.Utilities.Packets
 
             public string ElementName => fieldInfo?.Name ?? propertyInfo.Name;
 
-            private static FieldPropertyInfoWrapper GetPresentProperty(MemberInfo info)
+            private bool GetPresentMethod(MemberInfo info, out MethodInfo foundMethod, out object[] foundArgs)
             {
-                if(info.GetCustomAttributes<PresentIfAttribute>().FirstOrDefault()?.ConditionPropertyName is string name)
+                foundMethod = null;
+                foundArgs = Array.Empty<object>();
+                var type = info.DeclaringType;
+                var attr = info.GetCustomAttributes<PresentIfAttribute>().FirstOrDefault();
+                if(attr == null)
                 {
-                    if(info.DeclaringType.GetProperty(name) is PropertyInfo pi)
-                    {
-                        return new FieldPropertyInfoWrapper(pi);
-                    }
-                    if(info.DeclaringType.GetField(name) is FieldInfo fi)
-                    {
-                        return new FieldPropertyInfoWrapper(fi);
-                    }
+                    return false;
                 }
-                return null;
+                var methodName = attr.MethodName;
+                var args = attr.Args;
+
+                var method = type.GetMethod(
+                    methodName,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+                );
+
+                if(method == null)
+                {
+                    throw new MissingMethodException(type.FullName, methodName);
+                }
+
+                if(method.ReturnType != typeof(bool))
+                {
+                    throw new InvalidOperationException(
+                        $"Method '{methodName}' must return bool.");
+                }
+
+                var parameters = method.GetParameters();
+                if(parameters.Length != args.Length)
+                {
+                    throw new TargetParameterCountException(
+                        $"Method '{methodName}' expected {parameters.Length} arguments, but got {args.Length}.");
+                }
+
+                foundMethod = method;
+                foundArgs = args;
+
+                return true;
             }
 
             private readonly FieldInfo fieldInfo;
             private readonly PropertyInfo propertyInfo;
-            private readonly FieldPropertyInfoWrapper presentProperty;
+            private readonly MethodInfo presentMethod;
+            private readonly object[] presentArgs;
         }
     }
 }

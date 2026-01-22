@@ -785,8 +785,10 @@ namespace Antmicro.Renode.UnitTests
 #pragma warning disable 649
             [PacketField]
             public bool Flag;
-            [PacketField, PresentIf(nameof(Flag))]
+            [PacketField, PresentIf(nameof(HasVal))]
             public uint Val;
+
+            public bool HasVal() => Flag;
 #pragma warning restore 649
         }
 
@@ -796,10 +798,12 @@ namespace Antmicro.Renode.UnitTests
 #pragma warning disable 649
             [PacketField]
             public bool Flag;
-            [PacketField, PresentIf(nameof(Flag))]
+            [PacketField, PresentIf(nameof(HasFlag))]
             public byte Optional;
             [PacketField]
             public byte Last;
+
+            public bool HasFlag() => Flag;
 #pragma warning restore 649
         }
 
@@ -816,9 +820,9 @@ namespace Antmicro.Renode.UnitTests
             [PacketField, PresentIf(nameof(HasB))]
             public byte? FieldB;
 
-            public bool HasA => (Mask & 1) != 0;
+            public bool HasA() => (Mask & 1) != 0;
 
-            public bool HasB => (Mask & 2) != 0;
+            public bool HasB() => (Mask & 2) != 0;
 #pragma warning restore 649
         }
 
