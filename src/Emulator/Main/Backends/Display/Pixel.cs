@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -8,7 +8,7 @@
 //
 namespace Antmicro.Renode.Backends.Display
 {
-    public class Pixel
+    public struct Pixel
     {
         public Pixel(byte red, byte green, byte blue, byte alpha)
         {
@@ -32,12 +32,12 @@ namespace Antmicro.Renode.Backends.Display
             return Alpha << 24 + Red << 16 + Green << 8 + Blue;
         }
 
-        public byte Alpha { get; private set; }
+        public byte Alpha;
 
-        public byte Red { get; private set; }
+        public byte Red;
 
-        public byte Green { get; private set; }
+        public byte Green;
 
-        public byte Blue { get; private set; }
+        public byte Blue;
     }
 }

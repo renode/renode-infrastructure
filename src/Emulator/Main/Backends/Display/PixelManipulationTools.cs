@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Backends.Display
 {
     public static class PixelManipulationTools
     {
-        public static IPixelConverter GetConverter(PixelFormat inputFormat, Endianess inputEndianess, PixelFormat outputFormat, Endianess outputEndianess, int? pitch = null, int? height = null, PixelFormat? clutInputFormat = null, Pixel inputFixedColor = null /* fixed color for A4 and A8 mode */)
+        public static IPixelConverter GetConverter(PixelFormat inputFormat, Endianess inputEndianess, PixelFormat outputFormat, Endianess outputEndianess, int? pitch = null, int? height = null, PixelFormat? clutInputFormat = null, Pixel? inputFixedColor = null /* fixed color for A4 and A8 mode */)
         {
             if(inputFormat.IsPlanar() && (pitch == null || height == null))
             {
@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Backends.Display
                 new PixelConverter(inputFormat, outputFormat, GenerateConvertMethod(inputBufferDescriptor, outputBufferDescriptor)));
         }
 
-        public static IPixelBlender GetBlender(PixelFormat backBuffer, Endianess backBufferEndianess, PixelFormat frontBuffer, Endianess frontBufferEndianes, PixelFormat output, Endianess outputEndianess, PixelFormat? clutForegroundFormat = null, PixelFormat? clutBackgroundFormat = null, Pixel bgFixedColor = null, Pixel fgFixedColor = null)
+        public static IPixelBlender GetBlender(PixelFormat backBuffer, Endianess backBufferEndianess, PixelFormat frontBuffer, Endianess frontBufferEndianes, PixelFormat output, Endianess outputEndianess, PixelFormat? clutForegroundFormat = null, PixelFormat? clutBackgroundFormat = null, Pixel? bgFixedColor = null, Pixel? fgFixedColor = null)
         {
             var blenderConfiguration = Tuple.Create(backBuffer, backBufferEndianess, frontBuffer, frontBufferEndianes, output, outputEndianess, bgFixedColor, fgFixedColor);
             return blendersCache.GetOrAdd(blenderConfiguration, (_) =>
@@ -442,9 +442,9 @@ namespace Antmicro.Renode.Backends.Display
                     if((inputBufferDescriptor.ColorFormat == PixelFormat.A4 || inputBufferDescriptor.ColorFormat == PixelFormat.A8) && inputBufferDescriptor.FixedColor != null)
                     {
                         expressions.Add(Expression.Assign(color.AlphaChannel, colorExpression));
-                        expressions.Add(Expression.Assign(color.RedChannel, Expression.Constant((uint)inputBufferDescriptor.FixedColor.Red)));
-                        expressions.Add(Expression.Assign(color.GreenChannel, Expression.Constant((uint)inputBufferDescriptor.FixedColor.Green)));
-                        expressions.Add(Expression.Assign(color.BlueChannel, Expression.Constant((uint)inputBufferDescriptor.FixedColor.Blue)));
+                        expressions.Add(Expression.Assign(color.RedChannel, Expression.Constant((uint)inputBufferDescriptor.FixedColor.Value.Red)));
+                        expressions.Add(Expression.Assign(color.GreenChannel, Expression.Constant((uint)inputBufferDescriptor.FixedColor.Value.Green)));
+                        expressions.Add(Expression.Assign(color.BlueChannel, Expression.Constant((uint)inputBufferDescriptor.FixedColor.Value.Blue)));
                     }
                     else
                     {
@@ -706,7 +706,7 @@ namespace Antmicro.Renode.Backends.Display
         }
 
         private static readonly ConcurrentDictionary<Tuple<BufferDescriptor, BufferDescriptor>, IPixelConverter> convertersCache = new ConcurrentDictionary<Tuple<BufferDescriptor, BufferDescriptor>, IPixelConverter>();
-        private static readonly ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender> blendersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel, Tuple<Pixel>>, IPixelBlender>();
+        private static readonly ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel?, Tuple<Pixel?>>, IPixelBlender> blendersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel?, Tuple<Pixel?>>, IPixelBlender>();
 
         private class PixelConverter : IPixelConverter
         {
@@ -744,18 +744,18 @@ namespace Antmicro.Renode.Backends.Display
                 this.blender = blender;
             }
 
-            public void Blend(byte[] backBuffer, byte[] frontBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply)
+            public void Blend(byte[] backBuffer, byte[] frontBuffer, ref byte[] output, Pixel? background = null, byte backBufferAlphaMultiplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply)
             {
                 Blend(backBuffer, null, frontBuffer, null, ref output, background, backBufferAlphaMultiplier, backgroundBlendingMode, frontBufferAlphaMultiplayer, foregroundBlendingMode);
             }
 
-            public void Blend(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] output, Pixel background = null, byte backBufferAlphaMultiplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply)
+            public void Blend(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] output, Pixel? background = null, byte backBufferAlphaMultiplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply)
             {
                 if(background == null)
                 {
                     background = new Pixel(0x00, 0x00, 0x00, 0x00);
                 }
-                blender(backBuffer, backClutBuffer, frontBuffer, frontClutBuffer, ref output, background, backBufferAlphaMultiplier, backgroundBlendingMode, frontBufferAlphaMultiplayer, foregroundBlendingMode);
+                blender(backBuffer, backClutBuffer, frontBuffer, frontClutBuffer, ref output, background.Value, backBufferAlphaMultiplier, backgroundBlendingMode, frontBufferAlphaMultiplayer, foregroundBlendingMode);
             }
 
             public PixelFormat BackBuffer { get; private set; }
@@ -791,7 +791,7 @@ namespace Antmicro.Renode.Backends.Display
 
             public PixelFormat? ClutColorFormat { get; set; }
 
-            public Pixel FixedColor { get; set; } // for A4 and A8 modes
+            public Pixel? FixedColor { get; set; } // for A4 and A8 modes
 
             public int? Pitch { get; set; }
 
@@ -816,6 +816,6 @@ namespace Antmicro.Renode.Backends.Display
 
         private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer);
 
-        private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background = null, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
+        private delegate void BlendDelegate(byte[] backBuffer, byte[] backClutBuffer, byte[] frontBuffer, byte[] frontClutBuffer, ref byte[] outBuffer, Pixel background, byte backBufferAlphaMulitplier = 0xFF, PixelBlendingMode backgroundBlendingMode = PixelBlendingMode.Multiply, byte frontBufferAlphaMultiplayer = 0xFF, PixelBlendingMode foregroundBlendingMode = PixelBlendingMode.Multiply);
     }
 }
