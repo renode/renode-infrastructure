@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2011-2017 Fabrice Bellard
- * Copyright (c) 2021-2025 Antmicro <www.antmicro.com>
+ * Copyright (c) 2021-2026 Antmicro <www.antmicro.com>
  *
  * This file is licensed under the MIT License.
  *
@@ -55,6 +55,24 @@
 #define KVM_VCPU_TSC_OFFSET 0
 #endif
 
+static void kvm_filter_out_hypercall_cpuid(struct kvm_cpuid2 *cpuid)
+{
+    bool is_kvm_leaf = false;
+    for(unsigned i = 0; i < cpuid->nent; i += !is_kvm_leaf) {
+        //  Remove CPUID Hypervisor bit.
+        if(cpuid->entries[i].function == 1) {
+            cpuid->entries[i].ecx &= ~(1U << 31);
+        }
+
+        is_kvm_leaf = 0x40000000 <= cpuid->entries[i].function && cpuid->entries[i].function <= 0x400000FF;
+        if(is_kvm_leaf) {
+            //  Remove the KVM leaf by replacing it with the last one and decresing the number of entries.
+            cpuid->entries[i] = cpuid->entries[cpuid->nent - 1];
+            cpuid->nent--;
+        }
+    }
+}
+
 CpuState *cpu;
 __thread struct unwind_state unwind_state;
 static void kvm_set_cpuid(CpuState *s)
@@ -70,6 +88,8 @@ static void kvm_set_cpuid(CpuState *s)
     if(ioctl_with_retry(s->kvm_fd, KVM_GET_SUPPORTED_CPUID, kvm_cpuid) < 0) {
         kvm_abortf("KVM_GET_SUPPORTED_CPUID: %s", strerror(errno));
     }
+
+    kvm_filter_out_hypercall_cpuid(kvm_cpuid);
 
     if(ioctl_with_retry(s->vcpu_fd, KVM_SET_CPUID2, kvm_cpuid) < 0) {
         kvm_abortf("KVM_SET_CPUID2: %s", strerror(errno));
