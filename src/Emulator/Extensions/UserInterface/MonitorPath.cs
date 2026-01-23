@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -23,7 +23,8 @@ namespace Antmicro.Renode.UserInterface
             startingWorkingDirectory = currentWorkingDirectory;
             if(Misc.TryGetRootDirectory(out var rootDirectory))
             {
-                defaultPath = new List<string> { rootDirectory };
+                defaultPath = new Stack<string>();
+                defaultPath.Push(rootDirectory);
             }
             else
             {
@@ -44,16 +45,29 @@ namespace Antmicro.Renode.UserInterface
             return Environment.CurrentDirectory;
         }
 
-        public void Append(string path)
+        public void Prepend(string path)
         {
-            pathEntries.AddRange(GetDirEntries(path));
+            foreach(var entry in GetDirEntries(path))
+            {
+                PushDirectory(path);
+            }
+        }
+
+        public void PushDirectory(string path)
+        {
+            pathEntries.Push(path);
+        }
+
+        public string PopDirectory()
+        {
+            return pathEntries.Pop();
         }
 
         public void Reset()
         {
             Path = DefaultPath;
             workingDirectory.Push(startingWorkingDirectory);
-            Append(CurrentWorkingDirectory);
+            Prepend(CurrentWorkingDirectory);
         }
 
         public String CurrentWorkingDirectory
@@ -89,10 +103,10 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
-        private List<string> GetDirEntries(string path)
+        private Stack<string> GetDirEntries(string path)
         {
-            var split = path.Split(pathSeparator, StringSplitOptions.RemoveEmptyEntries).Distinct();
-            var current = new List<string>();
+            var split = path.Split(pathSeparator, StringSplitOptions.RemoveEmptyEntries).Distinct().Reverse();
+            var current = new Stack<string>();
             foreach(string entry in split)
             {
                 var curentry = entry;//System.IO.Path.Combine(Environment.CurrentDirectory, entry);
@@ -104,13 +118,13 @@ namespace Antmicro.Renode.UserInterface
                 {
                     throw new RecoverableException(String.Format("Entry {0} does not exist or is not a directory.", curentry));
                 }
-                current.Add(curentry);
+                current.Push(curentry);
             }
             return current;
         }
 
-        private List<string> pathEntries = new List<string>();
-        private List<string> defaultPath = new List<string>();
+        private Stack<string> pathEntries = new Stack<string>();
+        private Stack<string> defaultPath = new Stack<string>();
         private readonly Stack<string> workingDirectory = new Stack<string>();
         private readonly string startingWorkingDirectory;
         private readonly char[] pathSeparator = new []{';'};
