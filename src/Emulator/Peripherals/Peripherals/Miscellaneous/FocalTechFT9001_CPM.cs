@@ -22,11 +22,41 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegisters()
         {
             Registers.ClockSwitchConfig.Define(this)
-                .WithFlag(9, name: "CLKSEL_ST_OSC160M", valueProviderCallback: (_) => true);
+                .WithTag("SOC_CLK_SOURCE", 0, 2)
+                .WithFlag(9, name: "CLKSEL_ST_OSC160M", valueProviderCallback: (_) => true); // Flag is also called `CPM_CSWCFGR_OSC320M_SELECT` in a different driver
 
             Registers.OscillatorControlAndStatus.Define(this)
-                .WithTaggedFlag("CLK_EN", 4)
-                .WithFlag(11, name: "OSC320M_STABLE", valueProviderCallback: (_) => true);
+                .WithTaggedFlag("OSC8M_CLK_EN", 0)
+                .WithTaggedFlag("PMU128K_CLK_EN", 1)
+                .WithTaggedFlag("USBPHY240M_CLK_EN", 2)
+                .WithTaggedFlag("OSC320M_CLK_EN", 3)
+                .WithTaggedFlag("OSCEXT_CLK_EN", 4)
+                .WithTaggedFlag("RTC32K_CLK_EN", 5)
+                .WithTaggedFlag("PMU2K_CLK_EN", 6)
+                .WithTaggedFlag("PLLNFC_EN", 7)
+                .WithFlag(8, name: "OSC8M_STABLE", valueProviderCallback: (_) => true)
+                .WithFlag(9, name: "PMU128K_STABLE", valueProviderCallback: (_) => true)
+                .WithFlag(10, name: "USBPHY240M_STABLE", valueProviderCallback: (_) => true)
+                .WithFlag(11, name: "OSC320M_STABLE", valueProviderCallback: (_) => true)
+                .WithFlag(12, name: "OSCEXT_STABLE", valueProviderCallback: (_) => true)
+                .WithFlag(13, name: "RTC32K_STABLE", valueProviderCallback: (_) => true)
+                .WithFlag(14, name: "PMU2K_STABLE", valueProviderCallback: (_) => true)
+                .WithFlag(15, name: "PLLNFC_STABLE", valueProviderCallback: (_) => true);
+
+            Registers.ClockDividerEnable.Define(this)
+                .WithFlag(0, name: "IPS_CLK_DIV_EN") // Not used in model, but driver expects it to keep its value
+                .WithTaggedFlag("AHB3_CLK_DIV_EN", 2)
+                .WithTaggedFlag("ARITH_CLK_DIV_EN", 3)
+                .WithTaggedFlag("MCC_CLK_DIV_EN", 8)
+                .WithTaggedFlag("ADC_CLK_DIV_EN", 10)
+                .WithTaggedFlag("MESH_CLK_DIV_EN", 12)
+                .WithTaggedFlag("TC_CLK_DIV_EN", 13)
+                .WithTaggedFlag("TRACE_CLK_DIV_EN", 14)
+                .WithTaggedFlag("CLKOUT_CLK_DIV_EN", 15)
+                .WithTaggedFlag("I2S_M_CLK_DIV_EN", 22)
+                .WithTaggedFlag("I2S_S_CLK_DIV_EN", 23);
+
+            Registers.ChipConfig.Define(this).Tag("CHIPCFGR", 0, 32);
         }
 
         // Based on https://chromium.googlesource.com/chromiumos/third_party/zephyrproject/+/5874e86ccdd5abb2ecbc390f3a80b23a8c56149a/modules/hal/focaltech_module/focaltech/hal/ft/ft90/ft9001/standard_peripheral/source/drv/inc/cpm_reg.h
