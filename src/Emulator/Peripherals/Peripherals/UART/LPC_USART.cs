@@ -81,6 +81,21 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
+        private bool TxLevelInterruptStatus
+        {
+            get => txFifoLevelInterruptEnable.Value && GetTxFifoTriggerLevelStatus();
+        }
+
+        private bool TxIdleInterruptStatus
+        {
+            get => txIdleInterruptEnable.Value && (Count == (int)FifoCount.Empty);
+        }
+
+        private bool RxLevelInterruptStatus
+        {
+            get => rxFifoLevelInterruptEnable.Value && GetRxFifoTriggerLevelStatus();
+        }
+
         private void DefineRegisters()
         {
             Registers.Configuration.Define(this)
@@ -146,7 +161,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
             Registers.InterruptEnableReadSet.Define(this)
                 .WithReservedBits(0, 3)
-                .WithTaggedFlag("TXIDLEEN", 3)
+                .WithFlag(3, out txIdleInterruptEnable, FieldMode.Read | FieldMode.Set, name: "TXIDLEEN")
                 .WithReservedBits(4, 1)
                 .WithTaggedFlag("DELTACTSEN", 5)
                 .WithTaggedFlag("TXDISEN", 6)
@@ -161,7 +176,14 @@ namespace Antmicro.Renode.Peripherals.UART
 
             Registers.InterruptEnableClear.Define(this)
                 .WithReservedBits(0, 3)
-                .WithTaggedFlag("TXIDLECLR", 3)
+                .WithFlag(3, FieldMode.Write, name: "TXIDLECLR",
+                          writeCallback: (_, val) => {
+                              if (!val)
+                              {
+                                  return;
+                              }
+                              txIdleInterruptEnable.Value = false;
+                          })
                 .WithReservedBits(4, 1)
                 .WithTaggedFlag("DELTACTSCLR", 5)
                 .WithTaggedFlag("TXDISCLR", 6)
@@ -172,7 +194,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("PARITYERRCLR", 14)
                 .WithTaggedFlag("RXNOISECLR", 15)
                 .WithTaggedFlag("ABERRCLR", 16)
-                .WithReservedBits(17, 15);
+                .WithReservedBits(17, 15)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.BaudRateGenerator.Define(this)
                 .WithValueField(0, 16, out baudDivider, name: "BRGVAL")
@@ -180,7 +203,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
             Registers.InterruptStatus.Define(this)
                 .WithReservedBits(0, 3)
-                .WithTaggedFlag("TXIDLE", 3)
+                .WithFlag(3, FieldMode.Read, name: "TXIDLE",
+                          valueProviderCallback: _ => Count == (int)FifoCount.Empty)
                 .WithReservedBits(4, 1)
                 .WithTaggedFlag("DELTACTS", 5)
                 .WithTaggedFlag("TXDISINT", 6)
@@ -374,7 +398,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateInterrupts()
         {
-            var status = TxLevelInterruptStatus || RxLevelInterruptStatus;
+            var status = TxIdleInterruptStatus || TxLevelInterruptStatus || RxLevelInterruptStatus;
             this.Log(LogLevel.Noisy, "IRQ set to {0}.", status);
             IRQ.Set(status);
         }
@@ -443,6 +467,19 @@ namespace Antmicro.Renode.Peripherals.UART
         private const ulong DefaultClockFrequency = 10000000;
         private const ulong FlexcommPeripheralNotSelected = 0x0;
         private const ulong FlexcommPeripheralUsart = 0x1;
+
+        private IFlagRegisterField transmitDisable;
+        private IFlagRegisterField txIdleInterruptEnable;
+        private IFlagRegisterField txFifoLevelInterruptEnable;
+        private IFlagRegisterField rxFifoLevelInterruptEnable;
+        private IFlagRegisterField txFifoLevelTriggerEnable;
+        private IFlagRegisterField rxFifoLevelTriggerEnable;
+        private IFlagRegisterField peripheralSelectLock;
+        private IValueRegisterField peripheralSelectId;
+        private IValueRegisterField txFifoLevelTriggerPoint;
+        private IValueRegisterField rxFifoLevelTriggerPoint;
+        private IValueRegisterField baudDivider;
+        private IValueRegisterField oversampleSelection;
 
         private enum ParityMode
         {
