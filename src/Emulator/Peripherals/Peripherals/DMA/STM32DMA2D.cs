@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                             return;
                         }
 
-                        foregroundClut = new byte[(foregroundClutSizeField.Value + 1) * (uint)foregroundClutColorModeField.Value.ToPixelFormat().GetColorDepth() / 8];
+                        foregroundClut = new byte[foregroundClutColorModeField.Value.ToPixelFormat().GetByteCount(foregroundClutSizeField.Value + 1)];
                         sysbus.ReadBytes(foregroundClutMemoryAddressRegister.Value, foregroundClut.Length, foregroundClut, 0, true);
                     })
                 .WithEnumField(16, 2, out foregroundAlphaMode, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange())
@@ -158,7 +158,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                             return;
                         }
 
-                        backgroundClut = new byte[(backgroundClutSizeField.Value + 1) * (uint)backgroundClutColorModeField.Value.ToPixelFormat().GetColorDepth() / 8];
+                        backgroundClut = new byte[backgroundClutColorModeField.Value.ToPixelFormat().GetByteCount(backgroundClutSizeField.Value + 1)];
                         sysbus.ReadBytes(backgroundClutMemoryAddressRegister.Value, backgroundClut.Length, backgroundClut, 0, true);
                     })
                 .WithEnumField(16, 2, out backgroundAlphaMode, name: "AM", changeCallback: (_, __) => HandlePixelFormatChange())
@@ -214,23 +214,23 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private void HandleOutputBufferSizeChange()
         {
-            var outputFormatColorDepth = outputColorModeField.Value.ToPixelFormat().GetColorDepth() / 8;
-            outputBuffer = new byte[numberOfLineField.Value * pixelsPerLineField.Value * (uint)outputFormatColorDepth];
-            outputLineBuffer = new byte[pixelsPerLineField.Value * (uint)outputFormatColorDepth];
+            var outputFormat = outputColorModeField.Value.ToPixelFormat();
+            outputBuffer = new byte[outputFormat.GetByteCount(numberOfLineField.Value * pixelsPerLineField.Value)];
+            outputLineBuffer = new byte[outputFormat.GetByteCount(pixelsPerLineField.Value)];
         }
 
         private void HandleBackgroundBufferSizeChange()
         {
-            var backgroundFormatColorDepth = backgroundColorModeField.Value.ToPixelFormat().GetColorDepth() / 8;
-            backgroundBuffer = new byte[pixelsPerLineField.Value * numberOfLineField.Value * (uint)backgroundFormatColorDepth];
-            backgroundLineBuffer = new byte[pixelsPerLineField.Value * (uint)backgroundFormatColorDepth];
+            var backgroundFormat = backgroundColorModeField.Value.ToPixelFormat();
+            backgroundBuffer = new byte[backgroundFormat.GetByteCount(pixelsPerLineField.Value * numberOfLineField.Value)];
+            backgroundLineBuffer = new byte[backgroundFormat.GetByteCount(pixelsPerLineField.Value)];
         }
 
         private void HandleForegroundBufferSizeChange()
         {
-            var foregroundFormatColorDepth = foregroundColorModeField.Value.ToPixelFormat().GetColorDepth() / 8;
-            foregroundBuffer = new byte[pixelsPerLineField.Value * numberOfLineField.Value * (uint)foregroundFormatColorDepth];
-            foregroundLineBuffer = new byte[pixelsPerLineField.Value * (uint)foregroundFormatColorDepth];
+            var foregroundFormat = foregroundColorModeField.Value.ToPixelFormat();
+            foregroundBuffer = new byte[foregroundFormat.GetByteCount(pixelsPerLineField.Value * numberOfLineField.Value)];
+            foregroundLineBuffer = new byte[foregroundFormat.GetByteCount(pixelsPerLineField.Value)];
         }
 
         [PostDeserialization]
@@ -265,12 +265,13 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
             case Mode.RegisterToMemory:
                 var colorBytes = BitConverter.GetBytes(outputColorRegister.Value);
-                var colorDepth = outputFormat.GetColorDepth() / 8;
+                // NOTE: `outputFormat` cannot be A4 or L4, therefore we don't have to worry about this being 0
+                var colorDepth = outputFormat.GetByteCount(1);
 
                 // fill area with the color defined in output color register
                 for(var i = 0; i < outputBuffer.Length; i++)
                 {
-                    outputBuffer[i] = colorBytes[i % colorDepth];
+                    outputBuffer[i] = colorBytes[(ulong)i % colorDepth];
                 }
 
                 if(outputLineOffsetField.Value == 0)
@@ -281,11 +282,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                 else
                 {
                     // we have to copy per line
-                    var lineWidth = (int)pixelsPerLineField.Value * outputFormat.GetColorDepth() / 8;
-                    var offset = lineWidth + ((int)outputLineOffsetField.Value * outputFormat.GetColorDepth() / 8);
-                    for(var line = 0; line < (int)numberOfLineField.Value; line++)
+                    var lineWidth = outputFormat.GetByteCount(pixelsPerLineField.Value);
+                    var offset = lineWidth + outputFormat.GetByteCount(outputLineOffsetField.Value);
+                    for(var line = 0u; line < numberOfLineField.Value; line++)
                     {
-                        sysbus.WriteBytes(outputBuffer, (ulong)(outputMemoryAddressRegister.Value + line * offset), line * lineWidth, lineWidth);
+                        sysbus.WriteBytes(outputBuffer, (outputMemoryAddressRegister.Value + line * offset), (int)(line * lineWidth), (long)lineWidth);
                     }
                 }
                 break;
@@ -310,14 +311,15 @@ namespace Antmicro.Renode.Peripherals.DMA
                 else
                 {
                     var backgroundFormat = backgroundColorModeField.Value.ToPixelFormat();
+                    var offset = backgroundFormat.GetByteCount(backgroundLineOffsetField.Value + pixelsPerLineField.Value);
                     DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
                            foregroundLineBuffer,
-                           (int)foregroundLineOffsetField.Value * foregroundFormat.GetColorDepth() / 8,
-                           (int)outputLineOffsetField.Value * outputFormat.GetColorDepth() / 8,
+                           (int)foregroundFormat.GetByteCount(foregroundLineOffsetField.Value),
+                           (int)outputFormat.GetByteCount(outputLineOffsetField.Value),
                            (int)numberOfLineField.Value,
                            (localForegroundBuffer, line) =>
                             {
-                                sysbus.ReadBytes((ulong)(backgroundMemoryAddressRegister.Value + line * (uint)(backgroundLineOffsetField.Value + pixelsPerLineField.Value) * backgroundFormat.GetColorDepth() / 8), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
+                                sysbus.ReadBytes(((ulong)(backgroundMemoryAddressRegister.Value + line * (long)offset)), backgroundLineBuffer.Length, backgroundLineBuffer, 0);
                                 blender.Blend(backgroundLineBuffer, backgroundClut, localForegroundBuffer, foregroundClut, ref outputLineBuffer, null, bgAlpha, bgBlendingMode, fgAlpha, fgBlendingMode);
                                 return outputLineBuffer;
                             });
@@ -341,8 +343,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
                             foregroundLineBuffer,
-                            (int)foregroundLineOffsetField.Value * foregroundFormat.GetColorDepth() / 8,
-                            (int)outputLineOffsetField.Value * outputFormat.GetColorDepth() / 8,
+                            (int)foregroundFormat.GetByteCount(foregroundLineOffsetField.Value),
+                            (int)outputFormat.GetByteCount(outputLineOffsetField.Value),
                             (int)numberOfLineField.Value,
                             (localForegroundBuffer, line) =>
                             {
@@ -364,8 +366,8 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                     DoCopy(foregroundMemoryAddressRegister.Value, outputMemoryAddressRegister.Value,
                                    foregroundLineBuffer,
-                                   (int)foregroundLineOffsetField.Value * foregroundFormat.GetColorDepth() / 8,
-                                   (int)outputLineOffsetField.Value * foregroundFormat.GetColorDepth() / 8,
+                                   (int)foregroundFormat.GetByteCount(foregroundLineOffsetField.Value),
+                                   (int)foregroundFormat.GetByteCount(outputLineOffsetField.Value),
                                    (int)numberOfLineField.Value);
                 }
                 break;

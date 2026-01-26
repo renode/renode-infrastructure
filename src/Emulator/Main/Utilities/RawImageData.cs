@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Utilities
     {
         public RawImageData(byte[] bytes, int width, int height)
         {
-            if(bytes.Length != width * height * PixelFormat.GetColorDepth() / 8)
+            if((ulong)bytes.Length != PixelFormat.GetByteCount((ulong)(width * height)))
             {
                 throw new RecoverableException("Number of bytes does not correspond with specified dimensions.");
             }

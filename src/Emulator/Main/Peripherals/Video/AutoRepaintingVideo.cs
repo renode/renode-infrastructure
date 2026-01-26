@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.Video
             }
 
             var converter = PixelManipulationTools.GetConverter(Format, Endianess, RawImageData.PixelFormat, ELFSharp.ELF.Endianess.BigEndian, Width, Height);
-            var outBuffer = new byte[Width * Height * RawImageData.PixelFormat.GetColorDepth() / 8];
+            var outBuffer = new byte[RawImageData.PixelFormat.GetByteCount((ulong)(Width * Height))];
             converter.Convert(buffer, ref outBuffer);
 
             return new RawImageData(outBuffer, Width, Height);
@@ -140,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
                 if(flag && Width > 0 && Height > 0)
                 {
-                    buffer = new byte[Width * Height * Format.GetColorDepth() / 8];
+                    buffer = new byte[Format.GetByteCount((ulong)(Width * Height))];
 
                     var cc = configurationChanged;
                     if(cc != null)

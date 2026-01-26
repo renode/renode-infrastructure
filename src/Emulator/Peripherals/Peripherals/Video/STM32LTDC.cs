@@ -315,7 +315,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 lock(video.internalLock)
                 {
                     var layerPixelFormat = PixelFormatField.ShadowValue.ToPixelFormat();
-                    LayerBuffer = new byte[video.Width * video.Height * layerPixelFormat.GetColorDepth() / 8];
+                    LayerBuffer = new byte[layerPixelFormat.GetByteCount((ulong)(video.Width * video.Height))];
                     LayerBackgroundBuffer = new byte[LayerBuffer.Length];
 
                     HandleLayerBackgroundColorChange();

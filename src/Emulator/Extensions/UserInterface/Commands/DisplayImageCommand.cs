@@ -55,7 +55,7 @@ namespace Antmicro.Renode.UserInterface.Commands
                 throw new RecoverableException("Width and height must be positive values");
             }
 
-            var bytes = new byte[width * height * RawImageData.PixelFormat.GetColorDepth() / 8];
+            var bytes = new byte[RawImageData.PixelFormat.GetByteCount((ulong)(width * height))];
             for(var i = 0; i < bytes.Length; ++i)
             {
                 bytes[i] = (byte)0xFF;

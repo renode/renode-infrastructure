@@ -67,7 +67,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
 
             var decompressed = DecompressJpgToRaw(lastFrame);
             var converter = PixelManipulationTools.GetConverter(PixelFormat.RGB888, ELFSharp.ELF.Endianess.BigEndian, RawImageData.PixelFormat, ELFSharp.ELF.Endianess.BigEndian);
-            var result = new byte[decompressed.Width * decompressed.Height * RawImageData.PixelFormat.GetColorDepth() / 8];
+            var result = new byte[RawImageData.PixelFormat.GetByteCount((ulong)(decompressed.Width * decompressed.Height))];
             converter.Convert(decompressed.Data, ref result);
 
             return new RawImageData(result, decompressed.Width, decompressed.Height);

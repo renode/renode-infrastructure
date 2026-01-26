@@ -89,6 +89,14 @@ namespace Antmicro.Renode.Backends.Display
         }
 
         /// <summary>
+        /// Returns the number of bytes needed to encode the given number of pixels.
+        /// </summary>
+        public static ulong GetByteCount(this PixelFormat format, ulong pixels)
+        {
+            return (ulong)format.GetColorDepth() * pixels / 8;
+        }
+
+        /// <summary>
         /// Calculates number of bits needed to encode each color channel.
         /// </summary>
         /// <param name="format">Color format</param>
