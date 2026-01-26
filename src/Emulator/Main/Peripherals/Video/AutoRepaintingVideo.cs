@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.Video
             }
 
             var converter = PixelManipulationTools.GetConverter(Format, Endianess, RawImageData.PixelFormat, ELFSharp.ELF.Endianess.BigEndian, Width, Height);
-            var outBuffer = new byte[Width * Height * RawImageData.PixelFormat.GetColorDepth()];
+            var outBuffer = new byte[Width * Height * RawImageData.PixelFormat.GetColorDepth() / 8];
             converter.Convert(buffer, ref outBuffer);
 
             return new RawImageData(outBuffer, Width, Height);
@@ -140,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
                 if(flag && Width > 0 && Height > 0)
                 {
-                    buffer = new byte[Width * Height * Format.GetColorDepth()];
+                    buffer = new byte[Width * Height * Format.GetColorDepth() / 8];
 
                     var cc = configurationChanged;
                     if(cc != null)

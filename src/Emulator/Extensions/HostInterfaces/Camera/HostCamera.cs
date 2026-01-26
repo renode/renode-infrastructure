@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -67,7 +67,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
 
             var decompressed = DecompressJpgToRaw(lastFrame);
             var converter = PixelManipulationTools.GetConverter(PixelFormat.RGB888, ELFSharp.ELF.Endianess.BigEndian, RawImageData.PixelFormat, ELFSharp.ELF.Endianess.BigEndian);
-            var result = new byte[decompressed.Width * decompressed.Height * RawImageData.PixelFormat.GetColorDepth()];
+            var result = new byte[decompressed.Width * decompressed.Height * RawImageData.PixelFormat.GetColorDepth() / 8];
             converter.Convert(decompressed.Data, ref result);
 
             return new RawImageData(result, decompressed.Width, decompressed.Height);

@@ -112,9 +112,9 @@ namespace Antmicro.Renode.Backends.Display
                                     tmp
                 },
 
-                Expression.Assign(vBackStep, Expression.Constant(backgroudBufferDescriptor.ColorFormat.GetColorDepth())),
-                Expression.Assign(vFrontStep, Expression.Constant(foregroundBufferDescriptor.ColorFormat.GetColorDepth())),
-                Expression.Assign(vOutStep, Expression.Constant(outputBufferDescriptor.ColorFormat.GetColorDepth())),
+                Expression.Assign(vBackStep, Expression.Constant(backgroudBufferDescriptor.ColorFormat.GetColorDepth() / 8)),
+                Expression.Assign(vFrontStep, Expression.Constant(foregroundBufferDescriptor.ColorFormat.GetColorDepth() / 8)),
+                Expression.Assign(vOutStep, Expression.Constant(outputBufferDescriptor.ColorFormat.GetColorDepth() / 8)),
                 Expression.Assign(vLength, Expression.Property(vBackBuffer, "Length")),
 
                 Expression.Assign(vBackPos, Expression.Constant(0x00)),
@@ -277,8 +277,8 @@ namespace Antmicro.Renode.Backends.Display
             var block = Expression.Block(
                 new [] { vColor.RedChannel, vColor.GreenChannel, vColor.BlueChannel, vColor.AlphaChannel, vInStep, vOutStep, vLength, vInPos, vOutPos, tmp },
 
-                Expression.Assign(vInStep, Expression.Constant(inputBufferDescriptor.ColorFormat.GetColorDepth())),
-                Expression.Assign(vOutStep, Expression.Constant(outputBufferDescriptor.ColorFormat.GetColorDepth())),
+                Expression.Assign(vInStep, Expression.Constant(inputBufferDescriptor.ColorFormat.GetColorDepth() / 8)),
+                Expression.Assign(vOutStep, Expression.Constant(outputBufferDescriptor.ColorFormat.GetColorDepth() / 8)),
                 Expression.Assign(vLength, lengthExpr),
 
                 Expression.Assign(vInPos, Expression.Constant(0)),
@@ -340,7 +340,7 @@ namespace Antmicro.Renode.Backends.Display
             bool isAlphaSet = false;
 
             var expressions = new List<Expression>();
-            var inputBytes = new ParameterExpression[inputBufferDescriptor.ColorFormat.GetColorDepth()];
+            var inputBytes = new ParameterExpression[inputBufferDescriptor.ColorFormat.GetColorDepth() / 8];
             for(int i = 0; i < inputBytes.Length; i++)
             {
                 inputBytes[i] = Expression.Variable(typeof(uint));
@@ -404,7 +404,7 @@ namespace Antmicro.Renode.Backends.Display
                         throw new ArgumentException("CLUT mode required but not set");
                     }
 
-                    var clutWidth = Expression.Constant((uint)inputBufferDescriptor.ClutColorFormat.Value.GetColorDepth());
+                    var clutWidth = Expression.Constant((uint)inputBufferDescriptor.ClutColorFormat.Value.GetColorDepth() / 8);
                     var clutOffset = Expression.Multiply(colorExpression, clutWidth);
 
                     expressions.Add(Expression.Assign(tmp, color.AlphaChannel));
@@ -544,7 +544,7 @@ namespace Antmicro.Renode.Backends.Display
                                 Expression.ArrayAccess(outBuffer,
                                     Expression.Add(
                                         outPosition,
-                                        Expression.Constant((outputBufferDescriptor.DataEndianness == Endianess.BigEndian) ? (int)currentByte : (outputBufferDescriptor.ColorFormat.GetColorDepth() - currentByte - 1)))),
+                                        Expression.Constant((outputBufferDescriptor.DataEndianness == Endianess.BigEndian) ? (int)currentByte : (outputBufferDescriptor.ColorFormat.GetColorDepth() / 8 - currentByte - 1)))),
                                 Expression.Convert(currentExpression, typeof(byte))));
 
                         currentExpression = null;

@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -55,7 +55,7 @@ namespace Antmicro.Renode.UserInterface.Commands
                 throw new RecoverableException("Width and height must be positive values");
             }
 
-            var bytes = new byte[width * height * RawImageData.PixelFormat.GetColorDepth()];
+            var bytes = new byte[width * height * RawImageData.PixelFormat.GetColorDepth() / 8];
             for(var i = 0; i < bytes.Length; ++i)
             {
                 bytes[i] = (byte)0xFF;

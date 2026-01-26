@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -70,12 +70,12 @@ namespace Antmicro.Renode.Backends.Display
                 {
                     throw new ArgumentException(string.Format("Unexpected pixel format value: {0}", fmt));
                 }
-                depths[value] = fmt.IsPlanar() ? 1 : GetColorsLengths(fmt).Sum(x => x.Value) / 8;
+                depths[value] = fmt.IsPlanar() ? 8 : GetColorsLengths(fmt).Sum(x => x.Value);
             }
         }
 
         /// <summary>
-        /// Returns a number of bytes needed to encode the color.
+        /// Returns the number of bits needed to encode the color.
         /// </summary>
         /// <param name="format">Color format.</param>
         public static int GetColorDepth(this PixelFormat format)

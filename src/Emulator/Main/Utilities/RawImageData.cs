@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Utilities
     {
         public RawImageData(byte[] bytes, int width, int height)
         {
-            if(bytes.Length != width * height * PixelFormat.GetColorDepth())
+            if(bytes.Length != width * height * PixelFormat.GetColorDepth() / 8)
             {
                 throw new RecoverableException("Number of bytes does not correspond with specified dimensions.");
             }

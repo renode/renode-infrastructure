@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2020-2021 Microsoft
 //
 // This file is licensed under the MIT License.
@@ -315,8 +315,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 lock(video.internalLock)
                 {
                     var layerPixelFormat = PixelFormatField.ShadowValue.ToPixelFormat();
-                    var colorDepth = layerPixelFormat.GetColorDepth();
-                    LayerBuffer = new byte[video.Width * video.Height * colorDepth];
+                    LayerBuffer = new byte[video.Width * video.Height * layerPixelFormat.GetColorDepth() / 8];
                     LayerBackgroundBuffer = new byte[LayerBuffer.Length];
 
                     HandleLayerBackgroundColorChange();
