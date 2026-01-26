@@ -18,6 +18,9 @@ namespace Antmicro.Renode.Backends.Display
             Blue = blue;
         }
 
+        public Pixel(byte red, byte green, byte blue) : this(red, green, blue, 255)
+        { }
+
         public override bool Equals(object obj)
         {
             return obj is Pixel pixel &&
@@ -39,5 +42,7 @@ namespace Antmicro.Renode.Backends.Display
         public byte Green;
 
         public byte Blue;
+
+        public Pixel RedBlueSwapped => new Pixel(Blue, Green, Red, Alpha);
     }
 }

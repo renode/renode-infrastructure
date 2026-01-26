@@ -11,6 +11,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 
+using Antmicro.Renode.Utilities;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Backends.Display
@@ -705,6 +707,202 @@ namespace Antmicro.Renode.Backends.Display
             return result.ToArray();
         }
 
+
+        private static uint Blend(uint source, uint dest, byte ratio)
+        {
+            return (uint)(((ulong)source * (byte)(0xff - ratio) + (ulong)dest * ratio) / 0xff);
+        }
+
+        private static Pixel Blend(Pixel dest, Pixel source)
+        {
+            if(dest.Alpha == 0)
+            {
+                return source;
+            }
+            if(source.Alpha == 0)
+            {
+                return dest;
+            }
+            var alpha = (byte)Blend(dest.Alpha, 0xff, source.Alpha);
+            return new Pixel(
+                (byte)(Blend((uint)dest.Red * dest.Alpha, (uint)source.Red * 0xff, source.Alpha) / alpha),
+                (byte)(Blend((uint)dest.Green * dest.Alpha, (uint)source.Green * 0xff, source.Alpha) / alpha),
+                (byte)(Blend((uint)dest.Blue * dest.Alpha, (uint)source.Blue * 0xff, source.Alpha) / alpha),
+                alpha
+            );
+        }
+
+        private static Pixel ApplyAlpha(Pixel pixel, PixelBlendingMode mode, byte alpha)
+        {
+            switch(mode)
+            {
+            case PixelBlendingMode.Multiply:
+                pixel.Alpha = (byte)(pixel.Alpha * alpha / 0xFF);
+                break;
+            case PixelBlendingMode.Replace:
+                pixel.Alpha = alpha;
+                break;
+            }
+            return pixel;
+        }
+
+        delegate Pixel ConvertFrom(byte[] inbuffer, byte[] clutBuffer, int position);
+
+        delegate void ConvertTo(byte[] outbuffer, int position, Pixel color);
+
+        private static ConvertFrom Takes2(Endianess endianess, bool swap, Func<byte, byte, Pixel> f)
+        {
+            if(swap)
+            {
+                f = (a, b) => f(a, b).RedBlueSwapped;
+            }
+            if(endianess == Endianess.BigEndian)
+            {
+                return (inBuf, _, pos) => f(inBuf[pos * 2], inBuf[pos * 2 + 1]);
+            }
+            return (inBuf, _, pos) => f(inBuf[pos * 2 + 1], inBuf[pos * 2]);
+        }
+
+        private static ConvertFrom Takes3(Endianess endianess, bool swap, Func<byte, byte, byte, Pixel> f)
+        {
+            if(swap)
+            {
+                f = (a, b, c) => f(a, b, c).RedBlueSwapped;
+            }
+            if(endianess == Endianess.BigEndian)
+            {
+                return (inBuf, _, pos) => f(inBuf[pos * 3], inBuf[pos * 3 + 1], inBuf[pos * 3 + 2]);
+            }
+            return (inBuf, _, pos) => f(inBuf[pos * 3 + 2], inBuf[pos * 3 + 1], inBuf[pos * 3]);
+        }
+
+        private static ConvertFrom Takes4(Endianess endianess, bool swap, Func<byte, byte, byte, byte, Pixel> f)
+        {
+            if(swap)
+            {
+                f = (a, b, c, d) => f(a, b, c, d).RedBlueSwapped;
+            }
+            if(endianess == Endianess.BigEndian)
+            {
+                return (inBuf, _, pos) => f(inBuf[pos * 4], inBuf[pos * 4 + 1], inBuf[pos * 4 + 2], inBuf[pos * 4 + 3]);
+            }
+            return (inBuf, _, pos) => f(inBuf[pos * 4 + 3], inBuf[pos * 4 + 2], inBuf[pos * 4 + 1], inBuf[pos * 4]);
+        }
+
+        private static ConvertFrom Takes4Half(Endianess endianess, bool swap, Func<byte, byte, byte, byte, Pixel> f)
+        {
+            return Takes2(endianess, swap, (a, b) => f(Inflate((a & 0b11110000) >> 4, 4), Inflate(a & 0b00001111, 4), Inflate((b & 0b11110000) >> 4, 4), Inflate(b & 0b00001111, 4)));
+        }
+
+        private static byte Inflate(int bits, byte width)
+        {
+            switch(width)
+            {
+            case 1:
+                return (bits & 1) != 0 ? (byte)0b11111111 : (byte)0b00000000;
+            case 2:
+                return (byte)((bits << 6) | (bits << 4) | (bits << 2) | bits);
+            case 3:
+                return (byte)((bits << 5) | (bits << 2) | (bits >> 1));
+            case 4:
+                return (byte)((bits << 4) | bits);
+            case 5:
+                return (byte)((bits << 3) | (bits >> 2));
+            case 6:
+                return (byte)((bits << 2) | (bits >> 4));
+            case 7:
+                return (byte)((bits << 1) | (bits >> 6));
+            case 8:
+                return (byte)bits;
+            default:
+                throw new ArgumentOutOfRangeException("Width must be between 1 and 8");
+            }
+        }
+
+        private static ConvertTo Gives2(Endianess endianess, bool swap, Func<Pixel, TwoBytes> f)
+        {
+            if(swap)
+            {
+                f = p => f(p.RedBlueSwapped);
+            }
+            if(endianess == Endianess.BigEndian)
+            {
+                return (outBuf, pos, p) =>
+                {
+                    var v = f(p);
+                    outBuf[pos * 2] = v.One;
+                    outBuf[pos * 2 + 1] = v.Two;
+                };
+            }
+            return (outBuf, pos, p) =>
+            {
+                var v = f(p);
+                outBuf[pos * 2] = v.Two;
+                outBuf[pos * 2 + 1] = v.One;
+            };
+        }
+
+        private static ConvertTo Gives3(Endianess endianess, bool swap, Func<Pixel, ThreeBytes> f)
+        {
+            if(swap)
+            {
+                f = p => f(p.RedBlueSwapped);
+            }
+            if(endianess == Endianess.BigEndian)
+            {
+                return (outBuf, pos, p) =>
+                {
+                    var v = f(p);
+                    outBuf[pos * 3] = v.One;
+                    outBuf[pos * 3 + 1] = v.Two;
+                    outBuf[pos * 3 + 2] = v.Three;
+                };
+            }
+            return (outBuf, pos, p) =>
+            {
+                var v = f(p);
+                outBuf[pos * 3] = v.Three;
+                outBuf[pos * 3 + 1] = v.Two;
+                outBuf[pos * 3 + 2] = v.One;
+            };
+        }
+
+        private static ConvertTo Gives4(Endianess endianess, bool swap, Func<Pixel, FourBytes> f)
+        {
+            if(swap)
+            {
+                f = p => f(p.RedBlueSwapped);
+            }
+            if(endianess == Endianess.BigEndian)
+            {
+                return (outBuf, pos, p) =>
+                {
+                    var v = f(p);
+                    outBuf[pos * 4] = v.One;
+                    outBuf[pos * 4 + 1] = v.Two;
+                    outBuf[pos * 4 + 2] = v.Three;
+                    outBuf[pos * 4 + 3] = v.Four;
+                };
+            }
+            return (outBuf, pos, p) =>
+            {
+                var v = f(p);
+                outBuf[pos * 4] = v.Four;
+                outBuf[pos * 4 + 1] = v.Three;
+                outBuf[pos * 4 + 2] = v.Two;
+                outBuf[pos * 4 + 3] = v.One;
+            };
+        }
+
+        private static ConvertTo Gives4half(Endianess endianess, bool swap, Func<Pixel, FourBytes> f)
+        {
+            return Gives2(endianess, swap, (p) =>
+            {
+                var v = f(p);
+                return new TwoBytes((byte)((v.One & 0b11110000) | (v.Two >> 4)), (byte)((v.Three & 0b11110000) | (v.Four >> 4)));
+            });
+        }
+
         private static readonly ConcurrentDictionary<Tuple<BufferDescriptor, BufferDescriptor>, IPixelConverter> convertersCache = new ConcurrentDictionary<Tuple<BufferDescriptor, BufferDescriptor>, IPixelConverter>();
         private static readonly ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel?, Tuple<Pixel?>>, IPixelBlender> blendersCache = new ConcurrentDictionary<Tuple<PixelFormat, Endianess, PixelFormat, Endianess, PixelFormat, Endianess, Pixel?, Tuple<Pixel?>>, IPixelBlender>();
 
@@ -812,6 +1010,49 @@ namespace Antmicro.Renode.Backends.Display
             public byte MaskBits { get; private set; }
 
             public byte UsedBits { get; private set; }
+        }
+
+        // Workaround for Mono not having `ValueTuple`s
+        private struct TwoBytes
+        {
+            public TwoBytes(byte one, byte two)
+            {
+                One = one;
+                Two = two;
+            }
+
+            public byte One;
+            public byte Two;
+        }
+
+        private struct ThreeBytes
+        {
+            public ThreeBytes(byte one, byte two, byte three)
+            {
+                One = one;
+                Two = two;
+                Three = three;
+            }
+
+            public byte One;
+            public byte Two;
+            public byte Three;
+        }
+
+        private struct FourBytes
+        {
+            public FourBytes(byte one, byte two, byte three, byte four)
+            {
+                One = one;
+                Two = two;
+                Three = three;
+                Four = four;
+            }
+
+            public byte One;
+            public byte Two;
+            public byte Three;
+            public byte Four;
         }
 
         private delegate void ConvertDelegate(byte[] inBuffer, byte[] clutBuffer, byte alpha, PixelBlendingMode alphaReplaceMode, ref byte[] outBuffer);
