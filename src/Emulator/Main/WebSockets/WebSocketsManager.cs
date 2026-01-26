@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -118,17 +118,19 @@ namespace Antmicro.Renode.WebSockets
         {
             for(port = minPort; port <= maxPort; port++)
             {
-                httpListener = new HttpListener();
-                httpListener.Prefixes.Add(GetAddress(port));
-                try
+                httpListener = TryCreateListener($"http://*:{port}/");
+                if(httpListener != null)
                 {
-                    httpListener.Start();
                     return true;
                 }
-                catch(Exception)
+#if PLATFORM_WINDOWS
+                // On Windows, we need admin permissions to bind to all interfaces, so we need to fall back to localhost if binding to `*` fails.
+                httpListener = TryCreateListener($"http://localhost:{port}/");
+                if(httpListener != null)
                 {
-                    continue;
+                    return true;
                 }
+#endif
             }
 
             httpListener = null;
@@ -136,9 +138,19 @@ namespace Antmicro.Renode.WebSockets
             return false;
         }
 
-        private string GetAddress(int port)
+        private HttpListener TryCreateListener(string address)
         {
-            return $"http://+:{port}/";
+            var listener = new HttpListener();
+            listener.Prefixes.Add(address);
+            try
+            {
+                listener.Start();
+                return listener;
+            }
+            catch(Exception)
+            {
+            }
+            return null;
         }
 
         private async Task AsyncListener()
