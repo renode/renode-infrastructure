@@ -147,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(cores[coreIdx] is CortexM core && core.IsHalted && coreClockStarted[coreIdx].Value)
             {
-                core.VectorTableOffset = (uint)coreStartAddress[coreIdx].Value;
+                core.VectorTableOffset = GetCoreStartAddress(coreIdx);
                 core.IsHalted = false;
             }
         }
@@ -170,6 +170,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 )
             );
         }
+
+        private uint GetCoreStartAddress(int coreIdx) => (uint)(coreStartAddress[coreIdx].Value << 2);
 
         private void Initialize()
         {
