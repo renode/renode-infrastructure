@@ -2010,6 +2010,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/Crypto/EgisET171Crypto.cs" />
     <Compile Include="Emulator/Main/Utilities/TimeDomainExtensions.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/FocalTechFT9001_Reset.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/Crypto/FocalTechFT9001_TRNG.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
