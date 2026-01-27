@@ -17,6 +17,7 @@ using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
@@ -26,10 +27,11 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class NVIC : IDoubleWordPeripheral, IHasDivisibleFrequency, IKnownSize, IIRQController
+    public class NVIC : IDoubleWordPeripheral, IHasDivisibleFrequency, IKnownSize, IIRQController, IHasMappedRegisters
     {
         public NVIC(IMachine machine, ulong systickFrequency = 50 * 0x800000, byte priorityMask = 0xFF, bool haltSystickOnDeepSleep = true)
         {
+            mapper = new RegisterMapper(this.GetType());
             priorities = new ExceptionSimpleArray<byte>();
             activeIRQs = new Stack<int>();
             pendingIRQs = new SortedSet<int>();
@@ -516,6 +518,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             return ReadDoubleWord(offset, IsCurrentCPUInSecureState(out var _));
         }
+
+        public string OffsetToString(long offset) => mapper.ToString(offset);
 
         public void Reset()
         {
@@ -1732,6 +1736,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly IMachine machine;
         private readonly Action resetMachine;
         private readonly ExceptionSimpleArray<byte> priorities;
+        private readonly RegisterMapper mapper;
 
         private readonly ExceptionSimpleArray<IRQState> irqs;
 
