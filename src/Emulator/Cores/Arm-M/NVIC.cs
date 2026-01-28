@@ -930,7 +930,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithFlag(18, name: "USGFAULTENA (Usage Fault Enable)")
                 .WithReservedBits(19, 13)
                 .WithChangeCallback((_, val) =>
-                    this.Log(LogLevel.Warning, "Changing value of the SHCSR register to 0x{0:X}, the register isn't supported by Renode", val)
+                    {
+                        // Don't warn about implemented fields.
+                        if(val != BitHelper.Bits(16, 3))
+                        {
+                            this.Log(LogLevel.Warning, "Changing value of the SHCSR register to 0x{0:X}, but only bits [16:18] are supported", val);
+                        }
+                    }
                 );
 
             Registers.CacheSizeSelection.Define(RegisterCollection)
