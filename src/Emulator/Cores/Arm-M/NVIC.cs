@@ -939,6 +939,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                 );
 
+            Registers.HardFaultStatus.Define(RegisterCollection)
+                .WithReservedBits(0, 1)
+                .WithTaggedFlag("VECTTBL", 1)
+                .WithReservedBits(2, 28)
+                .WithTaggedFlag("FORCED", 30)
+                .WithTaggedFlag("DEBUGEVT", 31);
+
             Registers.CacheSizeSelection.Define(RegisterCollection)
                 .WithTaggedFlag("InD (Instruction or Data Selection)", 0)
                 .WithTag("Level", 1, 3)
