@@ -6,6 +6,8 @@
 //
 
 using System;
+using System.Collections.Generic;
+using System.Text;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -14,6 +16,8 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities.Packets;
+
+using Direction = Antmicro.Renode.Core.USB.Direction;
 
 namespace Antmicro.Renode.Peripherals.USB
 {
@@ -29,6 +33,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
             byteRegisters = new ByteRegisterCollection(this);
             wordRegisters = new WordRegisterCollection(this);
+            replaySequence = new List<SetupPacket>();
             DefineRegisters();
             Reset();
         }
@@ -69,10 +74,14 @@ namespace Antmicro.Renode.Peripherals.USB
             wordRegisters.Reset();
             dmaCore.Reset();
 
+            isSpoofingAddress = false;
             pendingConfigPacket = null;
             pendingConfigCallback = null;
             currentSetupPacket = null;
             IRQ.Set(false);
+
+            replayIndex = 0;
+            isReplayActive = false;
         }
 
         public void SpoofUSBEvent(UsbEvent usbevent)
@@ -97,6 +106,68 @@ namespace Antmicro.Renode.Peripherals.USB
             UpdateUsbInterrupts();
         }
 
+        public void EnqueuePacket(uint direction, uint type, uint recipient, uint request, uint value, uint index, uint count)
+        {
+            ThrowIfReplayInProgress();
+
+            var packet = new SetupPacket
+            {
+                Direction = (Direction)direction,
+                Type = (PacketType)type,
+                Recipient = (PacketRecipient)recipient,
+                Request = (byte)request,
+                Value = (ushort)value,
+                Index = (ushort)index,
+                Count = (ushort)count
+            };
+
+            replaySequence.Add(packet);
+            this.Log(LogLevel.Debug, "Enqueued Packet #{0}: {1} (Req: 0x{2:X})", replaySequence.Count, packet.Direction, packet.Request);
+        }
+
+        public void StartReplay(bool sendResetEvent = true)
+        {
+            ThrowIfReplayInProgress();
+
+            if(replaySequence.Count == 0)
+            {
+                throw new RecoverableException("StartReplay called, but no packets are enqueued!");
+            }
+
+            this.Log(LogLevel.Debug, "Starting Replay of {0} packets.", replaySequence.Count);
+
+            if(sendResetEvent)
+            {
+                SpoofUSBEvent(UsbEvent.Reset);
+            }
+
+            isReplayActive = true;
+            StepReplay();
+        }
+
+        public string ListQueuedReplayPackets()
+        {
+            ThrowIfReplayInProgress();
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Packet replay queue ({replaySequence.Count} packets):");
+
+            for(var i = 0; i < replaySequence.Count; i++)
+            {
+                var packet = replaySequence[i];
+                sb.AppendFormat("#{0}: {1} | {2} | {3} | Req: 0x{4:X} | Val: 0x{5:X} | Idx: 0x{6:X} | Cnt: 0x{7:X}\n",
+                    i, packet.Direction, packet.Type, packet.Recipient, packet.Request, packet.Value, packet.Index, packet.Count
+                );
+            }
+            return sb.ToString();
+        }
+
+        public void ClearReplay()
+        {
+            ThrowIfReplayInProgress();
+            replaySequence.Clear();
+        }
+
         public long Size => 0x1000;
 
         public GPIO IRQ { get; }
@@ -106,6 +177,36 @@ namespace Antmicro.Renode.Peripherals.USB
         ByteRegisterCollection IProvidesRegisterCollection<ByteRegisterCollection>.RegistersCollection => byteRegisters;
 
         WordRegisterCollection IProvidesRegisterCollection<WordRegisterCollection>.RegistersCollection => wordRegisters;
+
+        private void ThrowIfReplayInProgress()
+        {
+            if(isReplayActive)
+            {
+                throw new RecoverableException("USB packet replay is already in progress! Please wait for it to finish.");
+            }
+        }
+
+        private void StepReplay()
+        {
+            if (!isReplayActive)
+            {
+                return;
+            }
+
+            if (replayIndex >= replaySequence.Count)
+            {
+                this.Log(LogLevel.Debug, "Replay sequence completed.");
+                isReplayActive = false;
+                replayIndex = 0;
+                replaySequence.Clear();
+                return;
+            }
+
+            var packet = replaySequence[replayIndex];
+            this.Log(LogLevel.Debug, "Replay [{0}/{1}]: Injecting {2} (Req: 0x{3:X})", replayIndex + 1, replaySequence.Count, packet.Request, (byte)packet.Request);
+
+            SetupPacketHandler(packet, Array.Empty<byte>(), _ => { });
+        }
 
         private void UpdateUsbInterrupts()
         {
@@ -224,6 +325,12 @@ namespace Antmicro.Renode.Peripherals.USB
                 this.Log(LogLevel.Debug, "Driver ACKed 0-length Setup Packet. Sending Status Stage to Host.");
                 setupPacketResultCallback(Array.Empty<byte>());
                 setupPacketResultCallback = null;
+            }
+
+            if(isReplayActive)
+            {
+                replayIndex++;
+                StepReplay();
             }
         }
 
@@ -362,10 +469,6 @@ namespace Antmicro.Renode.Peripherals.USB
             }
         }
 
-        /* Spoofing USB address state */
-        private bool isSpoofingAddress = false;
-        private SetupPacket? pendingConfigPacket;
-
         private IFlagRegisterField setupDataValidIrqEnabled;
         private IFlagRegisterField setupDataValidIrqPending;
         private IFlagRegisterField setupTokenIrqEnabled;
@@ -382,6 +485,15 @@ namespace Antmicro.Renode.Peripherals.USB
         private SetupPacket? currentSetupPacket;
         private Action<byte[]> pendingConfigCallback;
         private Action<byte[]> setupPacketResultCallback;
+
+        /* Spoofing USB address state */
+        private bool isSpoofingAddress;
+        private SetupPacket? pendingConfigPacket;
+
+        /* USB replay initialization state */
+        private int replayIndex;
+        private bool isReplayActive;
+        private readonly List<SetupPacket> replaySequence;
 
         private readonly IValueRegisterField[] setupPacketData = new IValueRegisterField[8];
 
