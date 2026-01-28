@@ -24,6 +24,18 @@ using static Antmicro.Renode.Peripherals.Bus.WindowMMUBusController;
 
 namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
+    // Currently not implemented or partially implemented features:
+    // * Translation faults when address is out of range of TSZ
+    // * Granule sizes other than 4 KiB
+    // * Storing TLBs based on VMID/ASID instead of just the bus controller
+    // * Stage 2 translation and support for the remaining STE.Config values
+    // * -AE registers (Functional Safety features)
+    // * Support for more invalidation commands (e.g. CMD_TLBI_NSNH_ALL, CMD_TLBI_SNH_ALL)
+    // * Support for all STE.PRIVCFG values (i.e. UseIncomming)
+    // * MMIO access control with the IMP_PERIPHPREGIONR register (access to SMMU registers - they are currently always available)
+    // * 2-level stream table
+    // * MSI interrupts
+    // * Stall fault model
     public partial class ARM_SMMUv3 : IPeripheralContainer<IPeripheral, ARM_SMMUv3RegistrationPoint>, IDoubleWordPeripheral, IQuadWordPeripheral,
         IProvidesRegisterCollection<DoubleWordRegisterCollection>, IProvidesRegisterCollection<QuadWordRegisterCollection>, IKnownSize
     {
