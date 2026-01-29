@@ -188,12 +188,12 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private void StepReplay()
         {
-            if (!isReplayActive)
+            if(!isReplayActive)
             {
                 return;
             }
 
-            if (replayIndex >= replaySequence.Count)
+            if(replayIndex >= replaySequence.Count)
             {
                 this.Log(LogLevel.Debug, "Replay sequence completed.");
                 isReplayActive = false;
