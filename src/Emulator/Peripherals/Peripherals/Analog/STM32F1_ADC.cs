@@ -92,7 +92,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         // Trigger conversion on GPIO
         public void OnGPIO(int index, bool value)
         {
-            if (value) {
+            if (value)
+            {
                 StartConversion();
             }
         }
@@ -146,7 +147,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             Registers.Control2.Define(this, name: "Control2")
                .WithFlag(0, out adcOn,
                      name: "A/D Converter ON/OFF",
-                     changeCallback: (_, val) => { if (val) { EnableADC(); } })
+                     writeCallback: (_, value) => { if (adcOn.Value) StartConversion(); })
                .WithFlag(1, out continuousConversion, name: "Continous conversion")
                .WithFlag(2, FieldMode.Read,
                     valueProviderCallback: _ => false, name: "A/D Calibration")
@@ -243,17 +244,15 @@ namespace Antmicro.Renode.Peripherals.Analog
                      });
         }
 
-        private void EnableADC()
-        {
-            currentChannel = channels[regularSequence[currentChannelIdx].Value];
-        }
-
         private void StartConversion()
         {
             if (adcOn.Value)
             {
                 this.Log(LogLevel.Debug, "Starting conversion time={0}",
                       machine.ElapsedVirtualTime.TimeElapsed);
+
+                currentChannelIdx = 0;
+                currentChannel = channels[regularSequence[currentChannelIdx].Value];
 
                 // Enable timer, which will simulate conversion being performed.
                 samplingTimer.Enabled = true;
