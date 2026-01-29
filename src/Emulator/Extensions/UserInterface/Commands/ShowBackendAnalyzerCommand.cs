@@ -144,7 +144,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
             catch(RecoverableException)
             {
-                throw new Exception(string.Format("Peripheral not found: {0}", peripheralName));
+                throw new RecoverableException(string.Format("Peripheral not found: {0}", peripheralName));
             }
         }
 
