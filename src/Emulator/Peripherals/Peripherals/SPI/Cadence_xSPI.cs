@@ -513,8 +513,24 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(0, 8)
                 },
                 {(long)Registers.DiscoveryControl, new DoubleWordRegister(this, resetValue: 0x00000000)
-                    .WithFlag(0, writeCallback: (_,__) => ExecuteDiscovery(), name: "REQ")
-                    .WithFlag(1, out fullDiscovery, name: "REQ_TYP")
+                    .WithFlag(0, name: "REQ",
+                        valueProviderCallback: _ => false,
+                        writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                ExecuteDiscovery();
+                            }
+                        }
+                    )
+                    .WithFlag(1, out fullDiscovery, name: "REQ_TYP",
+                        valueProviderCallback: _ => !fullDiscovery.Value,  // Read: internal true → HW reads 0 (Full)
+                        writeCallback: (_, val) =>
+                        {
+                            this.Log(LogLevel.Warning, "REQ_TYP write: HW wrote {0}, setting fullDiscovery to {1}", val, !val);
+                            fullDiscovery.Value = !val;  // Write: HW writes 0 → store true (Full)
+                        }
+                    )
                     .WithFlag(2, out discoveryPassed, name:"PASS")
                     .WithValueField(3,2, out resultOfLastDiscovery, name: "FAIL")
                     .WithTaggedFlag("INHIBIT",5)
