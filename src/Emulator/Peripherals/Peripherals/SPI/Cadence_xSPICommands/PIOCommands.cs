@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
                 case CommandType.SectorErase:
                     Peripheral.Transmit(WriteEnableOperation);
                     Peripheral.FinishTransmission();
-                    Peripheral.Transmit(SectorErase4ByteOperation);
+                    Peripheral.Transmit(controller.EraseCmd.Value != 0 ? (byte)controller.EraseCmd.Value : DefaultSectorEraseOperation);
                     TransmitAddress();
                     break;
                 default:
@@ -122,6 +122,7 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
         private const byte ResetEnableOperation = 0x66;
         private const byte ResetMemoryOperation = 0x99;
         private const byte ChipEraseOperation = 0xC7;
+        private const byte DefaultSectorEraseOperation = 0x20;
         private const byte SectorErase4ByteOperation = 0xDC;
         private const byte WriteEnableOperation = 0x06;
     }
@@ -181,7 +182,7 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
                 Peripheral.FinishTransmission();
 
                 // NOTE: Start transmitting data
-                Peripheral.Transmit(PageProgram4ByteOperation);
+                Peripheral.Transmit(controller.ProgramCmd.Value != 0 ? (byte)controller.ProgramCmd.Value : PageProgram4ByteOperation);
                 TransmitAddress();
 
                 foreach(var b in data)
@@ -191,7 +192,7 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             }
             else
             {
-                Peripheral.Transmit(Read4ByteOperation);
+                Peripheral.Transmit(controller.ReadCmd.Value != 0 ? (byte)controller.ReadCmd.Value : Read4ByteOperation);
                 TransmitAddress();
 
                 var data = Misc.Iterate(() => Peripheral.Transmit(0x00))
