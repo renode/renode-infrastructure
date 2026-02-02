@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -140,8 +140,8 @@ namespace Antmicro.Renode.UserInterface
                 {
                     throw new RecoverableException($"Failed to parse argument: {Misc.PrettyPrintCollection(parameterArray)}");
                 }
-                //if setValue is a LiteralToken then it must contain the next command to process in recursive call
-                if(CanTypeBeChained(foundField.FieldType) && setValue?.FirstOrDefault() is LiteralToken)
+                //if setValue is a LiteralToken that does not name a variable, treat it as the next command to process in recursive call
+                if(CanTypeBeChained(foundField.FieldType) && setValue?.FirstOrDefault() is LiteralToken lt && GetDevice(lt.Value) == null)
                 {
                     var currentObject = InvokeGet(device, foundField);
                     var objectFullName = $"{name} {commandValue}";
@@ -168,8 +168,8 @@ namespace Antmicro.Renode.UserInterface
                 {
                     throw new RecoverableException($"Failed to parse argument: {Misc.PrettyPrintCollection(parameterArray)}");
                 }
-                //if setValue is a LiteralToken then it must contain the next command to process in recursive call
-                if(CanTypeBeChained(foundProp.PropertyType) && setValue?.FirstOrDefault() is LiteralToken)
+                //if setValue is a LiteralToken that does not name a variable, treat it as the next command to process in recursive call
+                if(CanTypeBeChained(foundProp.PropertyType) && setValue?.FirstOrDefault() is LiteralToken lt && GetDevice(lt.Value) == null)
                 {
                     var currentObject = InvokeGet(device, foundProp);
                     var objectFullName = $"{name} {commandValue}";
