@@ -108,7 +108,14 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
                 case CommandType.SectorErase:
                     Peripheral.Transmit(WriteEnableOperation);
                     Peripheral.FinishTransmission();
-                    Peripheral.Transmit(SectorErase4ByteOperation);
+                    if(controller.EraseCmd.Value != 0)
+                    {
+                        Peripheral.Transmit((byte)controller.EraseCmd.Value);
+                    }
+                    else
+                    {
+                        Peripheral.Transmit(DefaultSectorEraseOperation);
+                    }
                     TransmitAddress();
                     break;
                 default:
@@ -122,6 +129,7 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
         private const byte ResetEnableOperation = 0x66;
         private const byte ResetMemoryOperation = 0x99;
         private const byte ChipEraseOperation = 0xC7;
+        private const byte DefaultSectorEraseOperation = 0x20;
         private const byte SectorErase4ByteOperation = 0xDC;
         private const byte WriteEnableOperation = 0x06;
     }
@@ -181,7 +189,14 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
                 Peripheral.FinishTransmission();
 
                 // NOTE: Start transmitting data
-                Peripheral.Transmit(PageProgram4ByteOperation);
+                if(controller.ProgramCmd.Value != 0)
+                {
+                    Peripheral.Transmit((byte)controller.ProgramCmd.Value);
+                }
+                else
+                {
+                    Peripheral.Transmit(PageProgram4ByteOperation);
+                }
                 TransmitAddress();
 
                 foreach(var b in data)
@@ -191,7 +206,14 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             }
             else
             {
-                Peripheral.Transmit(Read4ByteOperation);
+                if(controller.ReadCmd.Value != 0)
+                {
+                    Peripheral.Transmit((byte)controller.ReadCmd.Value);
+                }
+                else
+                {
+                    Peripheral.Transmit(Read4ByteOperation);
+                }
                 TransmitAddress();
 
                 var data = Misc.Iterate(() => Peripheral.Transmit(0x00))
