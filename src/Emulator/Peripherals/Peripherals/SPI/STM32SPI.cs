@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             receiveBuffer = new CircularBuffer<byte>(bufferCapacity);
             IRQ = new GPIO();
-            DMARecieve = new GPIO();
+            DMAReceive = new GPIO();
             registers = new DoubleWordRegisterCollection(this);
             SetupRegisters();
             Reset();
@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public override void Reset()
         {
             IRQ.Unset();
-            DMARecieve.Unset();
+            DMAReceive.Unset();
             lock(receiveBuffer)
             {
                 receiveBuffer.Clear();
@@ -93,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public GPIO IRQ { get; }
 
-        public GPIO DMARecieve { get; }
+        public GPIO DMAReceive { get; }
 
         private uint HandleDataRead()
         {
@@ -124,14 +124,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                     receiveBuffer.Enqueue(0x0);
                     return;
                 }
-                var response = peripheral.Transmit((byte)value); // currently byte mode is the only one we support
+                if (data16Bit.Value)
+                {
+                    var responseHigh = peripheral.Transmit((byte)(value >> 8));
+                    receiveBuffer.Enqueue(responseHigh);
+                }
+                var response = peripheral.Transmit((byte)value);
                 receiveBuffer.Enqueue(response);
                 if(rxDmaEnable.Value)
                 {
                     // This blink is used to signal the DMA that it should perform the peripheral -> memory transaction now
                     // Without this signal DMA will never move data from the receive buffer to memory
                     // See STM32DMA:OnGPIO
-                    DMARecieve.Blink();
+                    DMAReceive.Blink();
                 }
                 this.NoisyLog("Transmitted 0x{0:X}, received 0x{1:X}.", value, response);
             }
@@ -175,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(8, name: "SSI") // Internal slave select
                 .WithFlag(9, name: "SSM") // Software slave management
                 .WithTaggedFlag("RXONLY", 10)
-                .WithTaggedFlag("DFF", 11)
+                .WithFlag(11, out data16Bit, name: "DFF")
                 .WithTaggedFlag("CRCNEXT", 12)
                 .WithTaggedFlag("CRCEN", 13)
                 .WithTaggedFlag("BIDIOE", 14)
@@ -248,7 +253,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(10, 22);
         }
 
-        private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, rxDmaEnable;
+        private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, rxDmaEnable, data16Bit;
 
         private readonly DoubleWordRegisterCollection registers;
 
