@@ -98,6 +98,9 @@ namespace Antmicro.Renode.Core
             }
             gdbStubs.Clear();
 
+            DetachIncomingInterrupts(registeredPeripherals.ToArray());
+            DetachOutgoingInterrupts(registeredPeripherals);
+
             // ordering below is due to the fact that the CPU can use other peripherals, e.g. Memory so it should be disposed first
             // Mapped memory can be used as storage by other disposable peripherals which may want to read it while being disposed
             foreach(var peripheral in GetPeripheralsOfType<IDisposable>().OrderBy(x => x is ICPU ? 0 : x is IMapped ? 2 : 1))
@@ -1370,6 +1373,14 @@ namespace Antmicro.Renode.Core
             {
                 foreach(var gpio in peripheral.GetGPIOs().Select(x => x.Item2))
                 {
+                    var endpoints = gpio.Endpoints;
+                    for(var i = 0; i < endpoints.Count; ++i)
+                    {
+                        if(endpoints[i].Receiver is IConnectable<IPeripheral> connectable)
+                        {
+                            connectable.DetachFrom(peripheral);
+                        }
+                    }
                     gpio.Disconnect();
                 }
             }
@@ -1483,7 +1494,11 @@ namespace Antmicro.Renode.Core
                         var endpoints = gpio.Endpoints;
                         for(var i = 0; i < endpoints.Count; ++i)
                         {
-                            if(endpoints[i].Receiver == detachedPeripheral)
+                            if(endpoints[i].Receiver is IConnectable<IPeripheral> connectable)
+                            {
+                                connectable.DetachFrom(peripheral);
+                            }
+                            else if(endpoints[i].Receiver == detachedPeripheral)
                             {
                                 gpio.Disconnect(endpoints[i]);
                             }
