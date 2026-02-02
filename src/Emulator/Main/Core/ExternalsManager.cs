@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -153,6 +153,10 @@ namespace Antmicro.Renode.Core
                 {
                     throw new RecoverableException("External not registered");
                 }
+                if(external is IMassConnectable<IPeripheral> connectable)
+                {
+                    connectable.DetachAll();
+                }
 
                 externals.Remove(externals.Single(x => x.Value == external).Key);
             }
@@ -166,6 +170,11 @@ namespace Antmicro.Renode.Core
             lock(externals)
             {
                 toDispose = externals.Select(x => x.Value as IDisposable).Where(x => x != null).ToArray();
+                var gpioConnectors = externals.OfType<IMassConnectable<IPeripheral>>();
+                foreach(var connector in gpioConnectors)
+                {
+                    connector.DetachAll();
+                }
                 externals.Clear();
             }
             foreach(var td in toDispose)
