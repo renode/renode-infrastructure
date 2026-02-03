@@ -14,13 +14,14 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
     // This class does not implement advanced-control timers interrupts
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class STM32_Timer : LimitTimer, IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRegisterablePeripheral<IGPIOReceiver, NumberRegistrationPoint<int>>, IRegisterablePeripheral<IGPIOReceiver, NullRegistrationPoint>
+    public class STM32_Timer : LimitTimer, IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRegisterablePeripheral<IGPIOReceiver, NumberRegistrationPoint<int>>, IRegisterablePeripheral<IGPIOReceiver, NullRegistrationPoint>, IGPIOReceiver
     {
         public STM32_Timer(IMachine machine, ulong frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: initialLimit, direction: Direction.Ascending, enabled: false, eventEnabled: true, autoUpdate: false)
         {
@@ -432,6 +433,14 @@ namespace Antmicro.Renode.Peripherals.Timers
             registers.Write(offset, value);
         }
 
+        public void OnGPIO(int number, bool value)
+        {
+            if(value && (number == ResetPin))
+            {
+                Reset();
+            }
+        }
+
         public override void Reset()
         {
             base.Reset();
@@ -585,6 +594,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly Dictionary<int, IGPIO> connections;
 
         private const int NumberOfCCChannels = 4;
+
+        // Does not resemble an actual pin, just serves the purpose
+        // of passing a Reset() request
+        private const int ResetPin = 0xFF;
 
         private enum CenterAlignedMode
         {
