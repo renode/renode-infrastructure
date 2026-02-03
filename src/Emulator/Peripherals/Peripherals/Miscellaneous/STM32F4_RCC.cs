@@ -131,7 +131,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithValueField(12, 2, name: "SPIxRST")
                     .WithFlag(14, name: "SYSCFGRST")
                     .WithReservedBits(15, 1)
-                    .WithValueField(16, 3, name: "TIMxRST")
+                    .WithFlag(16,
+                        changeCallback: (_, val) =>
+                        {
+                            if(!val)
+                            {
+                                Timer9Reset.Blink();
+                            }
+                        }, name: "TIM9RST")
+                    .WithValueField(17, 2, name: "TIMxRST")
                     .WithReservedBits(19, 1)
                     .WithValueField(20, 2, name: "SPIxRST")
                     .WithFlag(22, name: "SAI1RST")
@@ -351,11 +359,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public void Reset()
         {
             RegistersCollection.Reset();
+            Timer9Reset.Unset();
         }
 
         public long Size => 0x400;
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        // Workaround so we don't have to pass through the constructor;
+        // Will be removed after we refactor this model and
+        // introduce a clean solution for resetting peripherals; 
+        public GPIO Timer9Reset { get; } = new GPIO();
 
         private enum Registers
         {
