@@ -135,6 +135,10 @@
       <Project>{D3F10ED0-2A3F-45D5-8524-0D562905778B}</Project>
       <Name>Infrastructure</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\..\..\..\..\Renode\Renode.csproj">
+      <Project>{5A7EF2B0-889A-488A-B296-97AF33791772}</Project>
+      <Name>Renode</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Mocks\MockExtension.cs">
