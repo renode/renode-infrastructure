@@ -186,8 +186,8 @@ namespace Antmicro.Renode.UI
                 {
                     Backend = new ConsoleIOSource()
                 };
-                shell = ShellProvider.GenerateShell(monitor, true);
-                shell.Terminal = new NavigableTerminalEmulator(io, true);
+                shell = ShellProvider.GenerateShell(monitor);
+                shell.Terminal = new NavigableTerminalEmulator(io);
             }
             else if(options.Port >= 0)
             {
@@ -195,8 +195,8 @@ namespace Antmicro.Renode.UI
                 {
                     Backend = new SocketIOSource(options.Port)
                 };
-                shell = ShellProvider.GenerateShell(monitor, true);
-                shell.Terminal = new NavigableTerminalEmulator(io, true);
+                shell = ShellProvider.GenerateShell(monitor);
+                shell.Terminal = new NavigableTerminalEmulator(io);
 
                 Logger.Log(LogLevel.Info, "Monitor available in telnet mode on port {0}", options.Port);
             }
@@ -208,8 +208,8 @@ namespace Antmicro.Renode.UI
                     // Same as in logger - 29169 is only text in http request
                     Backend = new WebSocketIOSource("/telnet/29169")
                 };
-                shell = ShellProvider.GenerateShell(monitor, true);
-                shell.Terminal = new NavigableTerminalEmulator(io, true);
+                shell = ShellProvider.GenerateShell(monitor);
+                shell.Terminal = new NavigableTerminalEmulator(io);
             }
 #endif
             else
