@@ -14,10 +14,11 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class PL011 : UARTBase, IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public PL011(IMachine machine, uint fifoSize = 1, uint frequency = 24000000) : base(machine)
+        public PL011(IMachine machine, uint fifoSize = 1, uint frequency = 24000000, bool sbsa = false) : base(machine)
         {
             hardwareFifoSize = fifoSize;
             uartClockFrequency = frequency;
+            sbsaMode = sbsa;
 
             IRQ = new GPIO();
             interruptRawStatuses = new bool[InterruptsCount];
@@ -66,6 +67,11 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             get
             {
+                if(sbsaMode)
+                {
+                    // Default baud rate value for SBSA UART
+                    return SBSADefaultBaudRate;
+                }
                 var divisor = 16 * (integerBaudRate.Value + (fractionalBaudRate.Value / 64));
                 return (divisor > 0) ? (uartClockFrequency / (uint)divisor) : 0;
             }
@@ -150,7 +156,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(12, 4)
                 ;
 
-            Registers.Control.Define(this, 0x300)
+            // If SBSA, reset value is 0x301 (UARTEN | TXE | RXE), otherwise 0x300 (TXE | RXE).
+            Registers.Control.Define(this, sbsaMode ? 0x301u : 0x300u)
                 .WithFlag(0, out uartEnable, name: "UARTEN - UART enable",
                     changeCallback: (_, value) =>
                     {
@@ -197,7 +204,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(11, 5)
                 ;
 
-            Registers.LineControl.Define(this)
+            // If SBSA, set 8-bit Word Length (WLEN=0x3) and FIFO Enabled (FEN=0x1).
+            Registers.LineControl.Define(this, sbsaMode ? 0x70u : 0x0u)
                 .WithTaggedFlag("BRK - Send break", 0)
                 .WithFlag(1, out parityEnable, name: "PEN - Parity enable")
                 .WithFlag(2, out evenParitySelect, name: "EPS - Even parity select")
@@ -376,6 +384,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField uartEnable;
         private IEnumRegisterField<WordLength> wordLength;
 
+        private readonly bool sbsaMode;
         private readonly uint hardwareFifoSize;
         private readonly bool[] interruptMasks;
         private readonly bool[] interruptRawStatuses;
@@ -384,6 +393,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly uint uartClockFrequency;
 
         private const uint InterruptsCount = 11;
+        private const uint SBSADefaultBaudRate = 115200;
 
         private enum Interrupts
         {
