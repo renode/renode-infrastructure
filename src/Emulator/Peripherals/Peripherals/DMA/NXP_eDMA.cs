@@ -12,7 +12,6 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 
 using Channel = Antmicro.Renode.Peripherals.DMA.NXP_eDMA_Channels.Channel;
 
@@ -49,8 +48,6 @@ namespace Antmicro.Renode.Peripherals.DMA
         {
             // Intentionally left empty
         }
-
-        public bool IsPaused => false;
 
         public void OnGPIO(int channel, bool value)
         {
@@ -127,6 +124,8 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
 
         public long Size => 0x1000;
+
+        public bool IsPaused => false;
 
         public IReadOnlyDictionary<int, IGPIO> Connections
         {

@@ -10,7 +10,6 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -32,10 +31,6 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             DefineRegisters();
         }
-
-        public long Size => 0x10;
-
-        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         public void OnGPIO(int slot, bool value)
         {
@@ -65,6 +60,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 SetChannelState(i, false);
             }
         }
+
+        public long Size => 0x10;
+
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         protected override void DefineRegisters()
         {
