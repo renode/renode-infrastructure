@@ -22,7 +22,7 @@ namespace Antmicro.Renode.UserInterface
         {
             var settings = new ShellSettings
             {
-                NormalPrompt = new Prompt("(monitor) ", ConsoleColor.DarkRed),
+                NormalPrompt = new Prompt("(monitor) ", ConsoleColor.Red),
                 BannerProvider = () => Enumerable.Repeat(Environment.NewLine, NumberOfDummyLines).Aggregate(String.Empty, (x, y) => x + y) + EmulationManager.Instance.VersionString,
                 PreprocessSuggestionsInput = Monitor.SanitizePathSeparator,
                 UseBuiltinQuit = false,

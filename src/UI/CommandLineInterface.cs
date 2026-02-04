@@ -152,7 +152,7 @@ namespace Antmicro.Renode.UI
                         Logger.AddBackend(ConsoleBackend.Instance, "console", true);
                         terminal = new ConsoleWindowBackendAnalyzer(true);
                         terminal.Show();
-                        shell.Terminal = new NavigableTerminalEmulator(terminal.IO);
+                        shell.Terminal = new NavigableTerminalEmulator(terminal.IO, terminal.SizeSource);
                         shell.Terminal.PlainMode = options.Plain;
 
                         new System.Threading.Thread(x => shell.Start(true))
@@ -177,75 +177,55 @@ namespace Antmicro.Renode.UI
             }
         }
 
-        private static Shell PrepareShell(Options options, Monitor monitor)
+        private static void PrepareIOProvider(Options options, out IOProvider io, out ISizeSource size)
         {
-            Shell shell = null;
+            IIOSource ioSource;
+
             if(options.Console)
             {
-                var io = new IOProvider()
-                {
-                    Backend = new ConsoleIOSource()
-                };
-                shell = ShellProvider.GenerateShell(monitor);
-                shell.Terminal = new NavigableTerminalEmulator(io);
+                var console = new ConsoleIOSource();
+                ioSource = console;
+                size = console;
             }
             else if(options.Port >= 0)
             {
-                var io = new IOProvider()
-                {
-                    Backend = new SocketIOSource(options.Port)
-                };
-                shell = ShellProvider.GenerateShell(monitor);
-                shell.Terminal = new NavigableTerminalEmulator(io);
+                ioSource = new SocketIOSource(options.Port);
+                // TODO: Telnet supports reporting terminal size
+                size = null;
 
                 Logger.Log(LogLevel.Info, "Monitor available in telnet mode on port {0}", options.Port);
             }
 #if NET
             else if(options.ServerMode)
             {
-                var io = new IOProvider()
-                {
-                    // Same as in logger - 29169 is only text in http request
-                    Backend = new WebSocketIOSource("/telnet/29169")
-                };
-                shell = ShellProvider.GenerateShell(monitor);
-                shell.Terminal = new NavigableTerminalEmulator(io);
+                ioSource = new WebSocketIOSource("/telnet/29169");
+                // TODO: Report terminal size via main WS connection?
+                size = null;
             }
 #endif
+            else if(options.HideMonitor)
+            {
+                ioSource = new DummyIOSource();
+                size = null;
+            }
             else
             {
-                ConsoleWindowBackendAnalyzer terminal = null;
-                IOProvider io;
-                if(options.HideMonitor)
-                {
-                    io = new IOProvider { Backend = new DummyIOSource() };
-                }
-                else
-                {
-                    terminal = new ConsoleWindowBackendAnalyzer(true);
-                    io = terminal.IO;
-                }
-
-                // forcing vcursor is necessary, because calibrating will never end if the window is not shown
-                shell = ShellProvider.GenerateShell(monitor, forceVCursor: options.HideMonitor);
-                shell.Terminal = new NavigableTerminalEmulator(io, options.HideMonitor);
-
-                if(terminal != null)
-                {
-                    try
-                    {
-                        Emulator.BeforeExit += shell.Stop;
-                        terminal.Quitted += Emulator.Exit;
-                        terminal.Show();
-                    }
-                    catch(InvalidOperationException ex)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Error.WriteLine(ex.Message);
-                        Emulator.Exit();
-                    }
-                }
+                var terminal = new ConsoleWindowBackendAnalyzer(true);
+                terminal.Show();
+                io = terminal.IO;
+                size = terminal.SizeSource;
+                return;
             }
+            io = new IOProvider { Backend = ioSource };
+        }
+
+        private static Shell PrepareShell(Options options, Monitor monitor)
+        {
+            PrepareIOProvider(options, out var io, out var size);
+
+            var shell = ShellProvider.GenerateShell(monitor);
+            shell.Terminal = new NavigableTerminalEmulator(io, size);
+
             monitor.Quitted += shell.Stop;
             shell.Quitted += Emulator.Exit;
 
