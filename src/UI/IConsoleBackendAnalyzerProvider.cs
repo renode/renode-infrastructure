@@ -14,7 +14,7 @@ namespace Antmicro.Renode.UI
 {
     public interface IConsoleBackendAnalyzerProvider : IAutoLoadType
     {
-        bool TryOpen(string consoleName, out IIOSource io, bool isMonitorWindow = false);
+        bool TryOpen(string consoleName, out IIOSource io, out ISizeSource size, bool isMonitorWindow = false);
 
         void Close();
 

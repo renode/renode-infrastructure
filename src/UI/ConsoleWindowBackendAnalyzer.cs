@@ -69,12 +69,13 @@ namespace Antmicro.Renode.UI
                 }
                 provider = (IConsoleBackendAnalyzerProvider)Activator.CreateInstance(availableProviders[providerName]);
                 provider.OnClose += OnClose;
-                if(!provider.TryOpen(Name, out IIOSource ioSource, isMonitorWindow))
+                if(!provider.TryOpen(Name, out var ioSource, out var sizeSource, isMonitorWindow))
                 {
                     Logger.Log(LogLevel.Warning, "Could not open {0} console backend analyzer provider. Trying the next one.", providerName);
                     continue;
                 }
                 IO.Backend = ioSource;
+                SizeSource = sizeSource;
                 if(Backend != null)
                 {
                     ((UARTBackend)Backend).BindAnalyzer(IO);
@@ -120,6 +121,8 @@ namespace Antmicro.Renode.UI
         public IAnalyzableBackend Backend { get; private set; }
 
         public IOProvider IO { get; private set; }
+
+        public ISizeSource SizeSource { get; private set; }
 
         public event Action Quitted;
 

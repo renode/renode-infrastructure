@@ -20,8 +20,11 @@ namespace Antmicro.Renode.UI
     public abstract class ProcessBasedProvider : IConsoleBackendAnalyzerProvider
     {
         // isMonitorWindows is not used for ProcessBasedProvider
-        public bool TryOpen(string consoleName, out IIOSource io, bool isMonitorWindow = false)
+        public bool TryOpen(string consoleName, out IIOSource io, out ISizeSource size, bool isMonitorWindow = false)
         {
+            // We can't learn the size of the terminal through screen
+            size = null;
+
             var ptyUnixStream = new PtyUnixStream();
             io = new StreamIOSource(ptyUnixStream);
 

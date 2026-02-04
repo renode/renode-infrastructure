@@ -6,14 +6,16 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 using Antmicro.Renode.Utilities;
 
+using AntShell.Helpers;
 using AntShell.Terminal;
 
 namespace Antmicro.Renode.UI
 {
-    public class ConsoleIOSource : IActiveIOSource
+    public class ConsoleIOSource : IActiveIOSource, ISizeSource
     {
         public ConsoleIOSource()
         {
@@ -22,6 +24,12 @@ namespace Antmicro.Renode.UI
             {
                 Console.TreatControlCAsInput = true;
             }
+#if !PLATFORM_WINDOWS && NET
+            winchRegistration = PosixSignalRegistration.Create(
+                PosixSignal.SIGWINCH,
+                _ => Resized()
+            );
+#endif
 
             checker = new UTF8Checker();
 
@@ -36,6 +44,9 @@ namespace Antmicro.Renode.UI
 
         public void Dispose()
         {
+#if !PLATFORM_WINDOWS && NET
+            winchRegistration.Dispose();
+#endif
         }
 
         public void Flush()
@@ -71,7 +82,11 @@ namespace Antmicro.Renode.UI
 
         public bool IsAnythingAttached => (ByteRead != null);
 
+        public Position Size => new Position(Console.WindowWidth, Console.WindowHeight);
+
         public event Action<int> ByteRead;
+
+        public event Action Resized = () => {};
 
         private void HandleInput()
         {
@@ -165,6 +180,10 @@ namespace Antmicro.Renode.UI
                 }
             }
         }
+
+#if !PLATFORM_WINDOWS && NET
+        private readonly PosixSignalRegistration winchRegistration;
+#endif
 
         private readonly UTF8Checker checker;
         private readonly bool isInputRedirected;
