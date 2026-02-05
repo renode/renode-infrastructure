@@ -467,7 +467,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var registerWidth = (uint)MostSignificantBit + 1;
                 RiscVRegisterDescription.AddCpuFeature(ref gdbFeatures, registerWidth);
                 RiscVRegisterDescription.AddFpuFeature(ref gdbFeatures, registerWidth, false, SupportsInstructionSet(InstructionSet.F), SupportsInstructionSet(InstructionSet.D), false);
-                RiscVRegisterDescription.AddCSRFeature(ref gdbFeatures, registerWidth, SupportsInstructionSet(InstructionSet.S), SupportsInstructionSet(InstructionSet.U), false, SupportsInstructionSet(InstructionSet.V));
+                RiscVRegisterDescription.AddCSRFeature(ref gdbFeatures, registerWidth, SupportsInstructionSet(InstructionSet.S), SupportsInstructionSet(InstructionSet.U), false, SupportsInstructionSet(InstructionSet.V), SupportsExtensionSet(StandardInstructionSetExtensions.ZCMT));
+
                 RiscVRegisterDescription.AddVirtualFeature(ref gdbFeatures, registerWidth);
                 RiscVRegisterDescription.AddCustomCSRFeature(ref gdbFeatures, registerWidth, nonstandardCSR);
                 if(SupportsInstructionSet(InstructionSet.V))

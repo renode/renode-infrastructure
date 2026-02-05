@@ -141,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             features.Add(fpuGroup);
         }
 
-        public static void AddCSRFeature(ref List<GDBFeatureDescriptor> features, uint registerWidth, bool extensionS, bool extensionU, bool extensionN, bool extensionV)
+        public static void AddCSRFeature(ref List<GDBFeatureDescriptor> features, uint registerWidth, bool extensionS, bool extensionU, bool extensionN, bool extensionV, bool extensionZcmt)
         {
             var csrGroup = new GDBFeatureDescriptor("org.gnu.gdb.riscv.csr");
             var intType = $"uint{registerWidth}";
@@ -400,6 +400,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MEPC, registerWidth, "mepc", "code_ptr", "csr"));
             csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MCAUSE, registerWidth, "mcause", "cause_type", "csr"));
             csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.MTVAL, registerWidth, "mtval", intType, "csr"));
+
+            if(extensionZcmt)
+            {
+                csrGroup.Registers.Add(new GDBRegisterDescriptor((uint)RiscV32Registers.JVT, registerWidth, "jvt", "data_ptr", "csr"));
+            }
 
             if(extensionV)
             {
