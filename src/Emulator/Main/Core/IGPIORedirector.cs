@@ -119,10 +119,7 @@ namespace Antmicro.Renode.Core
                 if(disconnector != null)
                 {
                     disconnector(id);
-                    return;
                 }
-
-                throw new NotImplementedException();
             }
 
             public void Disconnect(GPIOEndpoint enpoint)
