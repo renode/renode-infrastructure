@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Core
                 }
             }
 
-            public void Disconnect(GPIOEndpoint enpoint)
+            public void Disconnect(GPIOEndpoint endpoint)
             {
                 throw new NotImplementedException();
             }
