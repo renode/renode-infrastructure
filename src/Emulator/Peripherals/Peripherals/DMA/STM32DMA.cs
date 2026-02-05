@@ -74,8 +74,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                 .WithReservedBits(12, 4)
                 .WithReservedBits(28, 4);
 
-            for(var lowStreamIdx = 0; lowStreamIdx < NrOfStreams / 2; lowStreamIdx++)
+            for(var streamIdx = 0; streamIdx < NrOfStreams / 2; streamIdx++)
             {
+                var lowStreamIdx = streamIdx;
                 var offset = streamRegOffset[lowStreamIdx];
                 var highStreamIdx = lowStreamIdx + 4;
 
