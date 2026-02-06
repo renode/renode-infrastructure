@@ -144,7 +144,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             lock(routingTable)
             {
-                destinations[sourceNumber] = new Destination();
+                if(sourceNumber < destinations.Length)
+                {
+                    destinations[sourceNumber] = new Destination();
+                }
             }
         }
 
