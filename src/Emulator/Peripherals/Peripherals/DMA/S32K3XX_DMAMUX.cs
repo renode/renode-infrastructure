@@ -67,21 +67,21 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         protected override void DefineRegisters()
         {
-            Registers.ChannelConfiguration0.DefineMany(this, numberOfChannels, (register, i) =>
+            Registers.ChannelConfiguration3.DefineMany(this, numberOfChannels, (register, i) =>
             {
                 // Reverse order in windows of 4
-                var channelId = i + 4 - 2 * (i % 4);
+                var channelId = i + 3 - 2 * (i % 4);
                 register
-                    .WithValueField(0, 6, out source[i], name: "SOURCE - DMA Channel Source (Slot)")
+                    .WithValueField(0, 6, out source[channelId], name: "SOURCE - DMA Channel Source (Slot)")
                     .If(i < numberOfChannelsWithEnable)
                         .Then(r => r
-                            .WithFlag(6, out enable[i], name: "TRIG - DMA Channel Enable")
+                            .WithFlag(6, out enable[channelId], name: "TRIG - DMA Channel Enable")
                         )
                         .Else(r => r
                             .WithReservedBits(6, 1)
                         )
-                    .WithFlag(7, out triggerEnable[i], name: "ENBL - DMA Channel Trigger Enable")
-                    .WithChangeCallback((_, __) => SetChannelState(channelId, slotState[source[i].Value]))
+                    .WithFlag(7, out triggerEnable[channelId], name: "ENBL - DMA Channel Trigger Enable")
+                    .WithChangeCallback((_, __) => SetChannelState(channelId, slotState[source[channelId].Value]))
                 ;
             });
         }
@@ -102,22 +102,22 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public enum Registers
         {
-            ChannelConfiguration0  = 0x0,
-            ChannelConfiguration1  = 0x1,
-            ChannelConfiguration2  = 0x2,
-            ChannelConfiguration3  = 0x3,
-            ChannelConfiguration4  = 0x4,
-            ChannelConfiguration5  = 0x5,
-            ChannelConfiguration6  = 0x6,
-            ChannelConfiguration7  = 0x7,
-            ChannelConfiguration8  = 0x8,
-            ChannelConfiguration9  = 0x9,
-            ChannelConfiguration10 = 0xA,
-            ChannelConfiguration11 = 0xB,
-            ChannelConfiguration12 = 0xC,
-            ChannelConfiguration13 = 0xD,
-            ChannelConfiguration14 = 0xE,
-            ChannelConfiguration15 = 0xF,
+            ChannelConfiguration3  = 0x0,
+            ChannelConfiguration2  = 0x1,
+            ChannelConfiguration1  = 0x2,
+            ChannelConfiguration0  = 0x3,
+            ChannelConfiguration7  = 0x4,
+            ChannelConfiguration6  = 0x5,
+            ChannelConfiguration5  = 0x6,
+            ChannelConfiguration4  = 0x7,
+            ChannelConfiguration11 = 0x8,
+            ChannelConfiguration10 = 0x9,
+            ChannelConfiguration9  = 0xA,
+            ChannelConfiguration8  = 0xB,
+            ChannelConfiguration15 = 0xC,
+            ChannelConfiguration14 = 0xD,
+            ChannelConfiguration13 = 0xE,
+            ChannelConfiguration12 = 0xF,
         }
     }
 }
