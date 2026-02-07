@@ -41,9 +41,14 @@ namespace Antmicro.Renode.Peripherals.DMA
             slotState[slot] = value;
             for(var i = 0; i < numberOfChannels; ++i)
             {
-                if(source[i].Value == (ulong)slot)
+                var channelId = CalculateChannelId(i);
+                if(source[channelId].Value == (ulong)slot)
                 {
-                    SetChannelState(i, value);
+                    if(value)
+                    {
+                        this.DebugLog("Slot #{0} triggered channel #{1}", slot, channelId);
+                    }
+                    SetChannelState(channelId, value);
                 }
             }
         }
@@ -67,10 +72,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         protected override void DefineRegisters()
         {
+            // ChannelConfiguration3 is the register with the lowest offset
             Registers.ChannelConfiguration3.DefineMany(this, numberOfChannels, (register, i) =>
             {
-                // Reverse order in windows of 4
-                var channelId = i + 3 - 2 * (i % 4);
+                var channelId = CalculateChannelId(i);
                 register
                     .WithValueField(0, 6, out source[channelId], name: "SOURCE - DMA Channel Source (Slot)")
                     .If(i < numberOfChannelsWithEnable)
@@ -81,7 +86,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                             .WithReservedBits(6, 1)
                         )
                     .WithFlag(7, out triggerEnable[channelId], name: "ENBL - DMA Channel Trigger Enable")
-                    .WithChangeCallback((_, __) => SetChannelState(channelId, slotState[source[channelId].Value]))
+                    .WithChangeCallback((_, __) =>
+                    {
+                        this.DebugLog("Channel #{1} configured be triggered by slot {0}", source[channelId].Value, channelId);
+                        SetChannelState(channelId, slotState[source[channelId].Value]);
+                    })
                 ;
             });
         }
@@ -89,6 +98,12 @@ namespace Antmicro.Renode.Peripherals.DMA
         private void SetChannelState(int channel, bool value)
         {
             Connections[channel].Set(value);
+        }
+
+        private int CalculateChannelId(int index)
+        {
+            // Reverse order in windows of 4
+            return index + 3 - 2 * (index % 4);
         }
 
         private readonly uint numberOfChannelsWithEnable;
