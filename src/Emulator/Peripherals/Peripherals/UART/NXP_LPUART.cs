@@ -158,6 +158,8 @@ namespace Antmicro.Renode.Peripherals.UART
             registersMap.Add(CommonRegistersOffset + (long)CommonRegs.Data, new DoubleWordRegister(this)
                 .WithValueField(0, 9, valueProviderCallback: _ =>
                     {
+                        dmaReceivedData = ReceiveDmaState;
+
                         if(!this.TryGetCharacter(out var b))
                         {
                             receiveFifoUnderflowInterrupt.Value = true;
@@ -168,8 +170,6 @@ namespace Antmicro.Renode.Peripherals.UART
                             UpdateBufferState();
                             OnBufferStateChanged();
                         }
-
-                        dmaReceivedData = ReceiveDmaState;
 
                         return b;
                     },
