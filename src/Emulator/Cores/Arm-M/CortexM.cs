@@ -212,6 +212,25 @@ namespace Antmicro.Renode.Peripherals.CPU
                 mSystemFeature.Registers.Add(new GDBRegisterDescriptor(31, 32, "control", "uint32", "general"));
                 features.Add(mSystemFeature);
 
+                bool hasMProfileVectorExtensions = GetArmFeature(ArmFeatures.ARM_FEATURE_MVE);
+                if(hasMProfileVectorExtensions)
+                {
+                    var mveProfileFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.m-profile-mve");
+                    var vprFields = new List<GDBTypeBitField>{
+                        // ARMv8.1-M and MVE: Unprivileged and privileged Access.
+                        new GDBTypeBitField("P0", 0, 15, "uint16"),
+                        // ARMv8.1-M: Privileged Access only.
+                        new GDBTypeBitField("MASK01", 16, 19, "uint8"),
+                        // ARMv8.1-M: Privileged Access only.
+                        new GDBTypeBitField("MASK23", 20, 23, "uint8")
+                    };
+                    var vprRegType = GDBCustomType.Flags("vpr_reg", 4, vprFields);
+                    mveProfileFeature.Types.Add(vprRegType);
+                    // MVE vector predication status and control register (VPR)
+                    mveProfileFeature.Registers.Add(new GDBRegisterDescriptor(117, 32, "vpr", "vpr_reg", "vector"));
+                    features.Add(mveProfileFeature);
+                }
+
                 // +++++ Important
                 // tlibs implement VFP using DOUBLE PRECISION FP (64 bit) registers.
                 // Each D (double) register holds two F (fp) registers! (arm/cpu.h)

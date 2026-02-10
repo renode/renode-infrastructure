@@ -567,6 +567,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             ARM_FEATURE_VFP_FP16 = 11,
             ARM_FEATURE_NEON = 12,
             ARM_FEATURE_VFP4 = 22,
+            ARM_FEATURE_MVE = 27,
         }
 
         public enum MemorySystemArchitectureType
