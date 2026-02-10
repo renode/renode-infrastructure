@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -203,7 +203,8 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                     return false;
                 }
 
-                opcode = Misc.HexStringToByteArray(result.OpcodeString.Trim(), true);
+                opcode = new byte[result.OpcodeSize];
+                Array.Copy(memory, memoryOffset, opcode, 0, result.OpcodeSize);
                 return true;
             }
 
@@ -370,7 +371,8 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                     return false;
                 }
 
-                opcode = Misc.HexStringToByteArray(result.OpcodeString, true);
+                opcode = new byte[result.OpcodeSize];
+                Array.Copy(memory, memoryOffset, opcode, 0, result.OpcodeSize);
                 return true;
             }
 
