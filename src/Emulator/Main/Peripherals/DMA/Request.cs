@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -38,6 +38,11 @@ namespace Antmicro.Renode.Peripherals.DMA
             this.DestinationIncrementStep = destinationIncrementStep;
         }
 
+        public override string ToString()
+        {
+            return $"{{{{{Source}, step: {SourceIncrementStep}, type: {ReadTransferType}, inc: {IncrementReadAddress}}} -> {{{Destination}, step: {DestinationIncrementStep}, type: {WriteTransferType}, inc: {IncrementWriteAddress}}}, size: {Size}}}";
+        }
+
         public Place Source { get; private set; }
 
         public Place Destination { get; private set; }
@@ -57,3 +62,4 @@ namespace Antmicro.Renode.Peripherals.DMA
         public bool IncrementWriteAddress { get; private set; }
     }
 }
+
