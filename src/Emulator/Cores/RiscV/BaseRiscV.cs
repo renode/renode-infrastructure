@@ -306,6 +306,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return TlibIsFeatureEnabled((uint)set) == 1;
         }
 
+        public bool SupportsExtensionSet(StandardInstructionSetExtensions set)
+        {
+            return TlibIsAdditionalFeatureEnabled((uint)set) == 1;
+        }
+
         public override void Reset()
         {
             base.Reset();
@@ -1247,6 +1252,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Func<uint, uint> TlibIsFeatureAllowed;
+
+        [Import]
+        private readonly Func<uint, uint> TlibIsAdditionalFeatureEnabled;
 
         [Import(Name="tlib_set_privilege_architecture")]
         private readonly Action<int> TlibSetPrivilegeArchitecture;
