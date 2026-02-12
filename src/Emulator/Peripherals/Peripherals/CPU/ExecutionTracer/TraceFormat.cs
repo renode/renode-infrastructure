@@ -5,6 +5,9 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 
 using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Utilities;
@@ -26,6 +29,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         MemoryAccess = 1,
         RiscVVectorConfiguration = 2,
         RiscVAtomicInstruction = 3,
+        Registers = 4,
     }
 
     public abstract class AdditionalData
@@ -248,5 +252,53 @@ namespace Antmicro.Renode.Peripherals.CPU
         public ulong VectorLength { get; }
 
         public ulong VectorType { get; }
+    }
+
+    public class RegistersData : AdditionalData
+    {
+        public RegistersData(ulong pc, ICollection<Tuple<CPURegister, RegisterValue>> registers, bool isPreOpcode = false) : base(pc, AdditionalDataType.Registers)
+        {
+            Registers = registers;
+            IsPreOpcode = isPreOpcode;
+        }
+
+        public override string GetStringRepresentation()
+        {
+            var str = string.Join(" | ", Registers.Select(reg => $"{reg.Item1}: 0x{reg.Item2.RawValue.ToString("X")}"));
+            if(IsPreOpcode)
+            {
+                return " Pre: " + str;
+            }
+            else
+            {
+                return "Post: " + str;
+            }
+        }
+
+        public override byte[] GetBinaryRepresentation()
+        {
+            var output = new BitStream();
+
+            output.AppendBytesFromValue((byte)(IsPreOpcode ? 1u : 0u), sizeof(byte), true);
+            output.AppendBytesFromValue((byte)Registers.Count, sizeof(byte), true);
+
+            foreach(var register in Registers)
+            {
+                var registerString = register.Item1.ToString();
+                var nameBytes = Encoding.UTF8.GetBytes(registerString);
+                var registerSize = register.Item1.Width / 8;
+
+                output.AppendBytesFromValue((byte)nameBytes.Length, sizeof(byte), true);
+                output.Append(nameBytes);
+                output.AppendBytesFromValue((byte)registerSize, sizeof(byte), true);
+                output.AppendBytesFromValue(register.Item2, registerSize, true);
+            }
+
+            return output.AsByteArray();
+        }
+
+        public ICollection<Tuple<CPURegister, RegisterValue>> Registers { get; }
+
+        public bool IsPreOpcode { get; }
     }
 }

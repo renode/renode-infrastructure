@@ -114,6 +114,81 @@ namespace Antmicro.Renode.Peripherals.CPU
             AttachedCPU.AddPostOpcodeExecutionHook(opcodeMask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, true));
         }
 
+        public void TrackRegisters(ulong opcodeMask = 0x0, ulong opcodeValue = 0x0, bool traceRegistersBefore = true)
+        {
+            var registers = AttachedCPU.GetRegisters();
+            TrackRegisters(registers, opcodeMask, opcodeValue, traceRegistersBefore);
+        }
+
+        public void TrackRegisters(int[] registerIndices, ulong opcodeMask = 0x0, ulong opcodeValue = 0x0, bool traceRegistersBefore = true)
+        {
+            var registers = new List<CPURegister>(registerIndices.Length);
+            var invalid = new List<int>(0);
+
+            foreach(var index in registerIndices)
+            {
+                try
+                {
+                    registers.Add(AttachedCPU.GetRegisters().First(x => x.Index == index));
+                }
+                catch(InvalidOperationException)
+                {
+                    invalid.Add(index);
+                }
+            }
+
+            if(invalid.Count > 0)
+            {
+                throw new RecoverableException("Can't find registers " + string.Join(", ", invalid));
+            }
+
+            TrackRegisters(registers, opcodeMask, opcodeValue, traceRegistersBefore);
+        }
+
+        public void TrackRegisters(string[] registersNames, ulong opcodeMask = 0x0, ulong opcodeValue = 0x0, bool traceRegistersBefore = true)
+        {
+            var registers = new List<CPURegister>(registersNames.Length);
+            var invalid = new List<string>(0);
+
+            foreach(var name in registersNames)
+            {
+                try
+                {
+                    registers.Add(AttachedCPU.GetRegisters().First(x =>
+                        x.Aliases != null &&
+                        x.Aliases.Any(alias => string.Equals(alias, name, StringComparison.InvariantCultureIgnoreCase))
+                    ));
+                }
+                catch(InvalidOperationException)
+                {
+                    invalid.Add(name);
+                }
+            }
+
+            if(invalid.Count > 0)
+            {
+                throw new RecoverableException("Can't find registers " + string.Join(", ", invalid));
+            }
+
+            TrackRegisters(registers, opcodeMask, opcodeValue, traceRegistersBefore);
+        }
+
+        public void TrackRegisters(IEnumerable<CPURegister> registers, ulong opcodeMask = 0x0, ulong opcodeValue = 0x0, bool traceRegistersBefore = true)
+        {
+            if(traceRegistersBefore)
+            {
+                AttachedCPU.AddPreOpcodeExecutionHook(opcodeMask, opcodeValue, (pc, _) =>
+                {
+                    EnqueueRegisters(pc, registers, true);
+                });
+            }
+
+            AttachedCPU.AddPostOpcodeExecutionHook(opcodeMask, opcodeValue, (pc, _) =>
+            {
+                EnqueueRegisters(pc, registers, false);
+            });
+        }
+
         public void Dispose()
         {
             Stop();
@@ -231,6 +306,17 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new NotImplementedException("Support for 128-bit AMO execution tracing not yet implemented");
             }
             currentAdditionalData.Enqueue(new RiscVAtomicInstructionData(isAfterExecution, pc, funct5, rdValue, rs1Value, rs2Value, width, memoryValue ?? throw new InvalidOperationException($"{nameof(memoryValue)} must be set")));
+        }
+
+        private void EnqueueRegisters(ulong pc, IEnumerable<CPURegister> registers, bool preOpcode)
+        {
+            var registersInfo = new List<Tuple<CPURegister, RegisterValue>>();
+
+            foreach(var register in registers)
+            {
+                registersInfo.Add(Tuple.Create(register, AttachedCPU.GetRegister(register.Index)));
+            }
+            currentAdditionalData.Enqueue(new RegistersData(pc, registersInfo, preOpcode));
         }
 
         private void WriterThreadBody()
