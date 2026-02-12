@@ -77,13 +77,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return targetInterruptSecurityState[interruptNumber];
         }
 
-        public int FindPendingInterrupt()
+        public int? FindPendingInterrupt()
         {
             lock(irqs)
             {
                 var bestPriority = 0xFF + 1;
                 var preemptNeeded = activeIRQs.Count != 0;
-                var result = SpuriousInterrupt; // TODO (and some log?)
+                int? result = null;
 
                 foreach(int i in pendingIRQs)
                 {
@@ -94,36 +94,35 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         bestPriority = AdjustPriority(i);
                     }
                 }
-                if(preemptNeeded)
+                if(preemptNeeded && result != null)
                 {
                     var activeTop = activeIRQs.Peek();
                     var activePriority = AdjustPriority(activeTop);
-                    if(!DoesAPreemptB(bestPriority, activePriority, !IsInterruptTargetNonSecure(result), !IsInterruptTargetNonSecure(activeTop)))
+                    if(!DoesAPreemptB(bestPriority, activePriority, !IsInterruptTargetNonSecure(result.Value), !IsInterruptTargetNonSecure(activeTop)))
                     {
-                        result = SpuriousInterrupt;
+                        result = null;
                     }
                     else
                     {
-                        this.NoisyLog("IRQ {0} preempts {1}.", ExceptionToString(result), ExceptionToString(activeTop));
+                        this.NoisyLog("IRQ {0} preempts {1}.", ExceptionToString(result.Value), ExceptionToString(activeTop));
                     }
                 }
 
-                if(result != SpuriousInterrupt)
-                {
-                    if(ShouldRaiseException(result))
-                    {
-                        IRQ.Set(true);
-                    }
-                    // This field has side-effects, and can cause Cortex-M CPU running in another thread to exit WFI immediately.
-                    // Make absolutely sure to execute last, after signaling IRQ handler to run with `IRQ.Set`.
-                    // Only this way the CPU will enter an exception handler immediately upon waking from WFI.
-                    // This doesn't matter for async (HW) interrupts, arriving when the core is executing normally.
-                    maskedInterruptPresent = true;
-                }
-                else
+                if(result == null)
                 {
                     maskedInterruptPresent = false;
+                    return null;
                 }
+
+                if(ShouldRaiseException(result.Value))
+                {
+                    IRQ.Set(true);
+                }
+                // This field has side-effects, and can cause Cortex-M CPU running in another thread to exit WFI immediately.
+                // Make absolutely sure to execute last, after signaling IRQ handler to run with `IRQ.Set`.
+                // Only this way the CPU will enter an exception handler immediately upon waking from WFI.
+                // This doesn't matter for async (HW) interrupts, arriving when the core is executing normally.
+                maskedInterruptPresent = true;
 
                 return result;
             }
@@ -141,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             number += 16; // because this is HW interrupt
             this.NoisyLog("External IRQ {0}: {1}", number, value);
-            var pendingInterrupt = SpuriousInterrupt;
+            int? pendingInterrupt = null;
             lock(irqs)
             {
                 if(value)
@@ -155,7 +154,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 pendingInterrupt = FindPendingInterrupt();
             }
-            if(pendingInterrupt != SpuriousInterrupt && value)
+            if(pendingInterrupt != null && value)
             {
                 // We assume both SysTicks are woken up on exiting deep sleep
                 // docs aren't clear on this, but this seems like a logical behavior
@@ -216,12 +215,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public int AcknowledgeIRQ()
+        public int? AcknowledgeIRQ()
         {
             lock(irqs)
             {
-                var result = FindPendingInterrupt();
-                if(result != SpuriousInterrupt)
+                var pendingIrq = FindPendingInterrupt();
+                if(pendingIrq is int result)
                 {
                     irqs[result] |= IRQState.Active;
                     irqs[result] &= ~IRQState.Pending;
@@ -231,7 +230,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 // at this point we can surely deactivate interrupt, because the best was chosen
                 IRQ.Set(false);
-                return result;
+                return pendingIrq;
             }
         }
 
@@ -740,7 +739,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ => (uint)(activeIRQs.Count == 0 ? 0 : activeIRQs.Peek()), name: "VECTACTIVE")
                 .WithReservedBits(9, 2)
                 .WithTaggedFlag("RETTOBASE", 11)
-                .WithValueField(12, 9, FieldMode.Read, valueProviderCallback: _ => (uint)FindPendingInterrupt(), name: "VECTPENDING")
+                .WithValueField(12, 9, FieldMode.Read, valueProviderCallback: _ => (ulong)(FindPendingInterrupt() ?? 0), name: "VECTPENDING")
                 .WithReservedBits(21, 1)
                 .WithTaggedFlag("ISRPENDING", 22)
                 .WithTaggedFlag("ISRPREEMPT", 23)
@@ -1813,7 +1812,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int ActiveBitStart       = 0x300;
         private const int PriorityEnd          = 0x7F0;
         private const uint SysTickMaximumValue = 0x00FFFFFF;
-        private const int SpuriousInterrupt    = IRQCount - 1;
         private const int VectKey              = 0x5FA;
         private const int VectKeyStat          = 0xFA05;
         private const int ClearPendingEnd      = 0x2C0;

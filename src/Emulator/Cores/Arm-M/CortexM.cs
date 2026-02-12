@@ -895,7 +895,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private int FindPendingIRQ()
         {
-            return nvic != null ? nvic.FindPendingInterrupt() : -1;
+            return nvic?.FindPendingInterrupt() ?? 0;
         }
 
         [Export]
@@ -950,8 +950,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private int AcknowledgeIRQ()
         {
-            var result = nvic.AcknowledgeIRQ();
-            return result;
+            return nvic?.AcknowledgeIRQ() ?? 0;
         }
 
         private uint ShouldAccessBeSecure()
