@@ -70,6 +70,7 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             addressRaw = (((ulong)payload[3] & 0xff) << 40) | ((ulong)payload[2] << 8) | (payload[1] >> 24);
             addressValidBytes = (int)BitHelper.GetValue(payload[3], 28, 3);
             addressBytes = BitHelper.GetBytesFromValue(addressRaw, addressValidBytes);
+            instructionLink = BitHelper.GetValue(payload[4], 28, 1) == 1;
         }
 
         public override void Transmit()
@@ -84,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             }
 
             Completed = true;
-            if(Type != CommandType.SendOperationWithoutFinish)
+            if(Type != CommandType.SendOperationWithoutFinish && instructionLink == false)
             {
                 FinishTransmission();
             }
@@ -92,13 +93,14 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
 
         public override string ToString()
         {
-            return $"{base.ToString()}, operationCode = 0x{operationCode:x}, addressBytes = [{string.Join(", ", addressBytes.Select(x => $"0x{x:x2}"))}]";
+            return $"{base.ToString()}, operationCode = 0x{operationCode:x}, addressBytes = [{string.Join(", ", addressBytes.Select(x => $"0x{x:x2}"))}], instructionLink = {instructionLink}";
         }
 
         private readonly uint operationCode;
         private readonly ulong addressRaw;
         private readonly int addressValidBytes;
         private readonly byte[] addressBytes;
+        private readonly bool instructionLink;
     }
 
     internal class DataSequenceCommand : STIGCommand, IDMACommand
