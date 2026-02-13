@@ -103,15 +103,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void TrackRiscvAtomics()
         {
             const ulong amo = 0x2F; // The 'Zaamo' atomics all have the 'opcode' field as this.
-            const ulong opcode_mask = 0b1111111; // 7 bits
+            const ulong opcodeMask = 0b1111111; // 7 bits
 
             if(!AttachedCPU.Architecture.StartsWith("riscv"))
             {
                 throw new RecoverableException($"{nameof(TrackRiscvAtomics)} is not available on this platform");
             }
 
-            AttachedCPU.AddPreOpcodeExecutionHook(opcode_mask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, false));
-            AttachedCPU.AddPostOpcodeExecutionHook(opcode_mask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, true));
+            AttachedCPU.AddPreOpcodeExecutionHook(opcodeMask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, false));
+            AttachedCPU.AddPostOpcodeExecutionHook(opcodeMask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, true));
         }
 
         public void Dispose()
