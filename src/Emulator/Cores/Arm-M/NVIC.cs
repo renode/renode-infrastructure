@@ -599,12 +599,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             set
             {
-                if(value == basepri.SecureVal)
+                lock(irqs)
                 {
-                    return;
+                    if(value == basepri.SecureVal)
+                    {
+                        return;
+                    }
+                    basepri.SecureVal = value;
+                    FindPendingInterrupt();
                 }
-                basepri.SecureVal = value;
-                FindPendingInterrupt();
             }
         }
 
@@ -615,12 +618,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             set
             {
-                if(value == basepri.NonSecureVal)
+                lock(irqs)
                 {
-                    return;
+                    if(value == basepri.NonSecureVal)
+                    {
+                        return;
+                    }
+                    basepri.NonSecureVal = value;
+                    FindPendingInterrupt();
                 }
-                basepri.NonSecureVal = value;
-                FindPendingInterrupt();
             }
         }
 
