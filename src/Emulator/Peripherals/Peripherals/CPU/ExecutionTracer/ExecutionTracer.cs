@@ -86,14 +86,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void TrackVectorConfiguration()
         {
-            if(!(AttachedCPU is ICPUWithPostOpcodeExecutionHooks) || !(AttachedCPU.Architecture.StartsWith("riscv")))
+            if(!AttachedCPU.Architecture.StartsWith("riscv"))
             {
                 throw new RecoverableException($"{nameof(TrackVectorConfiguration)} is not available on this platform");
             }
-            var cpuWithPostOpcodeExecutionHooks = AttachedCPU as ICPUWithPostOpcodeExecutionHooks;
-            cpuWithPostOpcodeExecutionHooks.EnablePostOpcodeExecutionHooks(1u);
+
             // 0x7057 it the fixed part of the vcfg opcodes
-            cpuWithPostOpcodeExecutionHooks.AddPostOpcodeExecutionHook(0x7057, 0x7057, (pc, _) =>
+            AttachedCPU.AddPostOpcodeExecutionHook(0x7057, 0x7057, (pc, _) =>
             {
                 var vl = AttachedCPU.GetRegister(RiscVVlRegisterIndex);
                 var vtype = AttachedCPU.GetRegister(RiscVVtypeRegisterIndex);
@@ -106,19 +105,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             const ulong amo = 0x2F; // The 'Zaamo' atomics all have the 'opcode' field as this.
             const ulong opcode_mask = 0b1111111; // 7 bits
 
-            if(!(AttachedCPU is ICPUWithPreOpcodeExecutionHooks cpuWithPreOpcodeExecutionHooks) || !(AttachedCPU.Architecture.StartsWith("riscv")))
+            if(!AttachedCPU.Architecture.StartsWith("riscv"))
             {
-                throw new RecoverableException($"{nameof(TrackRiscvAtomics)} pre-operands are not available on this platform");
+                throw new RecoverableException($"{nameof(TrackRiscvAtomics)} is not available on this platform");
             }
-            cpuWithPreOpcodeExecutionHooks.EnablePreOpcodeExecutionHooks(1u);
-            cpuWithPreOpcodeExecutionHooks.AddPreOpcodeExecutionHook(opcode_mask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, false));
 
-            if(!(AttachedCPU is ICPUWithPostOpcodeExecutionHooks cpuWithPostOpcodeExecutionHooks) || !(AttachedCPU.Architecture.StartsWith("riscv")))
-            {
-                throw new RecoverableException($"{nameof(TrackRiscvAtomics)} post-operands are not available on this platform");
-            }
-            cpuWithPostOpcodeExecutionHooks.EnablePostOpcodeExecutionHooks(1u);
-            cpuWithPostOpcodeExecutionHooks.AddPostOpcodeExecutionHook(opcode_mask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, true));
+            AttachedCPU.EnablePreOpcodeExecutionHooks();
+            AttachedCPU.AddPreOpcodeExecutionHook(opcode_mask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, false));
+            AttachedCPU.EnablePostOpcodeExecutionHooks();
+            AttachedCPU.AddPostOpcodeExecutionHook(opcode_mask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, true));
         }
 
         public void Dispose()

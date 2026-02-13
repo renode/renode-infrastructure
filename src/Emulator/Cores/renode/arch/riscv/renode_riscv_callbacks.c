@@ -16,11 +16,6 @@ EXTERNAL(void, tlib_mip_changed, uint64_t)
 
 EXTERNAL_AS(int32_t, HandleCustomInstruction, tlib_handle_custom_instruction,
             uint64_t, uint64_t)
-EXTERNAL_AS(void, HandlePostOpcodeExecutionHook,
-            tlib_handle_post_opcode_execution_hook, uint32_t, uint64_t,
-            uint64_t)
-EXTERNAL_AS(void, HandlePreOpcodeExecutionHook,
-            tlib_handle_pre_opcode_execution_hook, uint32_t, uint64_t, uint64_t)
 EXTERNAL_AS(void, HandlePostGprAccessHook, tlib_handle_post_gpr_access_hook,
             uint32_t, uint32_t)
 EXTERNAL_AS(void, HandlePreStackAccessHook, tlib_handle_pre_stack_access_hook,

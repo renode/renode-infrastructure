@@ -870,6 +870,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/TranslationCPU.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/SegmentMapping.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/TranslationCPU_OpcodesCounting.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/CPU/TranslationCPU_OpcodesExecutionHooks.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/TranslationCPU_Profiler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Cluster.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/GuestProfiling/BaseProfiler.cs" />
@@ -1632,8 +1633,6 @@
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPSCI.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMappedMemory.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithRegisters.cs" />
-    <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPostOpcodeExecutionHooks.cs" />
-    <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPreOpcodeExecutionHooks.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMemoryAccessHooks.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithPostGprAccessHooks.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/IHaltable.cs" />

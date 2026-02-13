@@ -68,6 +68,8 @@ void tlib_invalidate_tb_in_other_cpus(uintptr_t start, uintptr_t end)
 }
 
 EXTERNAL_AS(uint32_t, GetMpIndex, tlib_get_mp_index)
+EXTERNAL_AS(void, HandlePreOpcodeExecutionHook, tlib_handle_pre_opcode_execution_hook, uint32_t, uint64_t, uint64_t)
+EXTERNAL_AS(void, HandlePostOpcodeExecutionHook, tlib_handle_post_opcode_execution_hook, uint32_t, uint64_t, uint64_t)
 EXTERNAL_AS(void, LogDisassembly, tlib_on_block_translation, uint64_t, uint32_t, uint32_t)
 EXTERNAL_AS(void, OnInterruptBegin, tlib_on_interrupt_begin, uint64_t)
 EXTERNAL_AS(void, OnInterruptEnd, tlib_on_interrupt_end, uint64_t)
