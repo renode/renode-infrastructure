@@ -34,10 +34,36 @@
 - Infrastructure is separate submodule
 - ARM toolchain: `~/.platformio/packages/toolchain-gccarmnoneeabi/`
 
+### DWT Peripheral (Session 2)
+- **Purpose**: Data Watchpoint and Trace - provides cycle counting for firmware timing
+- **Address**: 0xE0001000 (CoreDebug peripheral)
+- **Required parameter**: `frequency: 168000000` (CPU frequency)
+- **Why needed**: Firmware uses DWT_CYCCNT for delay_us() timing
+- **Without DWT**: Firmware gets stuck polling non-existent peripheral
+
+### File Types in Renode (Session 2)
+- **.repl files**: Platform descriptions - define hardware peripherals and addresses
+  - Example: `dwt: Miscellaneous.DWT @ sysbus 0xE0001000`
+  - Use for: Adding peripherals, configuring hardware
+- **.resc files**: Renode scripts - execute monitor commands
+  - Example: `machine LoadPlatformDescription @file.repl`
+  - Use for: Loading firmware, starting emulation, configuration
+
+### Robot Framework Tests (Session 2)
+- Test location: `tests/platforms/*.robot`
+- Structure: Variables, Keywords, Test Cases
+- Key commands:
+  - `Execute Command` - Run Renode monitor commands
+  - `Create Terminal Tester` - Set up UART/semihosting monitoring
+  - `Wait For Line On Uart` - Check for expected output
+  - `Start Emulation` - Begin test execution
+
 ### Debugging Lessons (See DEBUG_PROTOCOL.md)
 - User observations > terminal output
 - GUI apps may not show output in terminal
 - Verify state before troubleshooting
+- **Token efficiency**: Use targeted greps, not full log reads (Session 2)
+- **Ask user first**: User observation is faster and free (Session 2)
 
 ## Project File Locations
 
@@ -59,28 +85,35 @@
 └── .pio/build/renode_test/firmware.elf  # ReefPilot firmware (logging disabled)
 ```
 
-## Next Session Tasks
+## Session 2 Accomplishments (2026-02-13)
 
-### 1. Fix ReefPilot Firmware Logging
-**Problem**: `DEBUG_LOGGING_ENABLED` is not defined in renode_test build
-**Solution**: Add to `platformio.ini`:
-```ini
-[env:renode_test]
-build_flags =
-    ...existing flags...
-    -DDEBUG_LOGGING_ENABLED=1
-```
+### ✅ Completed Tasks
 
-### 2. Write Robot Framework Tests
-**Purpose**: Automated testing for mainline PR
-**Location**: Create generic ARM semihosting tests (NOT ReefPilot-specific)
-**File**: `tests/platforms/ARM-semihosting.robot`
+1. **ReefPilot Firmware Logging** - Added `DEBUG_LOGGING_ENABLED=1`, rebuilt firmware
+   - Status: Firmware runs but no printf output (firmware config issue, not Renode)
+   - Deferred: Not blocking mainline PR
 
-### 3. Prepare Mainline Contribution
-- Clean commit with good message
-- Add documentation
-- Create PR to renode/renode-infrastructure
-- Reference: [Renode Contributing Guide](https://github.com/renode/renode/blob/master/CONTRIBUTING.md)
+2. **Robot Framework Tests** - COMPLETE ✅
+   - File: `tests/platforms/ARM-Cortex-M4-semihosting.robot`
+   - Tests: `Should Output Via SYS_WRITE` (1.79s) and `Should Handle Multiple Writes` (0.51s)
+   - Status: Both passing, 2.65s total
+
+3. **Mainline Contribution Prep** - READY ✅
+   - Commit: bf26d899 with clean, factual message
+   - Project structure: ReefPilot tests moved to ReefPilot repo
+   - DWT peripheral added to platform (fixes CoreDebug polling)
+   - Next: Create PR to renode/renode-infrastructure
+
+### 📋 Ready for Next Session
+
+1. **Create GitHub PR**
+   - Push to feature branch: `feature/arm-semihosting-sys-write`
+   - Create PR to renode/renode-infrastructure
+   - Include test results in description
+
+2. **Address Review Feedback**
+   - Respond to maintainer comments
+   - Make requested changes if needed
 
 ### 4. Additional Semihosting Operations (Optional)
 Consider implementing:
