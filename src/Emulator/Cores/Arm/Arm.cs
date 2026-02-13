@@ -386,8 +386,37 @@ namespace Antmicro.Renode.Peripherals.CPU
             uint operation = R[0];
             uint r1 = R[1];
             uint result = 0;
+            string s;
+            ulong addr;
             switch(operation)
             {
+            case 5: // SYS_WRITE
+                if(uart == null) break;
+                if(!this.TryTranslateAddress(r1, MpuAccess.InstructionFetch, out var paramBlock))
+                {
+                    this.Log(LogLevel.Debug, "Address translation failed when executing SYS_WRITE for parameter block address: 0x{0:X}", r1);
+                    break;
+                }
+                var handle = this.Bus.ReadDoubleWord(paramBlock);       // word[0]: file handle (1=stdout, 2=stderr)
+                var dataPtr = this.Bus.ReadDoubleWord(paramBlock + 4);  // word[1]: data pointer
+                var length = this.Bus.ReadDoubleWord(paramBlock + 8);   // word[2]: byte count
+
+                // Read data from memory and write to semihosting UART
+                if(!this.TryTranslateAddress(dataPtr, MpuAccess.InstructionFetch, out var dataAddr))
+                {
+                    this.Log(LogLevel.Debug, "Address translation failed when executing SYS_WRITE for data address: 0x{0:X}", dataPtr);
+                    break;
+                }
+                s = "";
+                for(uint i = 0; i < length; i++)
+                {
+                    var c = this.Bus.ReadByte(dataAddr++);
+                    s = s + Convert.ToChar(c);
+                }
+                uart.SemihostingWriteString(s);
+
+                result = 0; // Return 0 = success (all bytes written)
+                break;
             case 7: // SYS_READC
                 if(uart == null) break;
                 result = uart.SemihostingGetByte();
@@ -395,8 +424,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             case 3: // SYS_WRITEC
             case 4: // SYS_WRITE0
                 if(uart == null) break;
-                string s = "";
-                if(!this.TryTranslateAddress(r1, MpuAccess.InstructionFetch, out var addr))
+                s = "";
+                if(!this.TryTranslateAddress(r1, MpuAccess.InstructionFetch, out addr))
                 {
                     this.Log(LogLevel.Debug, "Address translation failed when executing semihosting write operation for address: 0x{0:X}", r1);
                     break;
