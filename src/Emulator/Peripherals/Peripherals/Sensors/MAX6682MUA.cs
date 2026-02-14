@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             byte value = 0;
             if(isFirstByte)
             {
-                currentReadOut = (uint)Temperature * 8;
+                currentReadOut = (uint)(Temperature * 8);
                 value = (byte)(currentReadOut >> 8);
             }
             else
