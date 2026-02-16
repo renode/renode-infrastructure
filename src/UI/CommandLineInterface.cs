@@ -189,9 +189,9 @@ namespace Antmicro.Renode.UI
             }
             else if(options.Port >= 0)
             {
-                ioSource = new SocketIOSource(options.Port);
-                // TODO: Telnet supports reporting terminal size
-                size = null;
+                var socket = new SocketIOSource(options.Port);
+                ioSource = socket;
+                size = socket;
 
                 Logger.Log(LogLevel.Info, "Monitor available in telnet mode on port {0}", options.Port);
             }
