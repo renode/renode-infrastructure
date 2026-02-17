@@ -696,6 +696,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         {
                             channels.dma.DebugLog("CH{0}: Channel started by a software initiated service request", ChannelNumber);
                             ExecuteTransfer();
+                            tcdInMemory.START.Value = false;
                         }
                     }, name: "START")
                     .WithFlag(1, out tcdInMemory.INTMAJOR, name: "INTMAJOR")
