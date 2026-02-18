@@ -356,7 +356,7 @@ namespace Antmicro.Renode.Peripherals.SPI.SFDP
         // 11th DWORD
         [PacketField, Offset(doubleWords: 10, bits:  0), Width(bits:4), PresentIf(nameof(HasDWi), 11)]
         public uint? MultiplierFromTypicalProgramTimeToMaximumProgramTime;
-        [PacketField, Offset(doubleWords: 10, bits:  4), Width(bits:6), PresentIf(nameof(HasDWi), 11)]
+        [PacketField, Offset(doubleWords: 10, bits:  4), Width(bits:4), PresentIf(nameof(HasDWi), 11)]
         public uint? PageSize;
         [PacketField, Offset(doubleWords: 10, bits:  8), Width(bits:2), PresentIf(nameof(HasDWi), 11)]
         public uint? PageProgramTypicalTime;

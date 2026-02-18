@@ -18,12 +18,30 @@ namespace Antmicro.Renode.Peripherals.SPI
     // Represents hardware-layer configuration registers whose values have no effect on how the peripheral actually operates in Renode.
     public partial class Cadence_xSPI
     {
+
+        // Public members that will be used in discovery process and Auto-command mode operations
+        public IValueRegisterField ReadCmd;
+        public IValueRegisterField ReadCmdIOS;
+        public IValueRegisterField ReadAddressIOS;
+        public IValueRegisterField ReadDataIOS;
+        public IValueRegisterField ReadDummyCount;
+
+        public IValueRegisterField ProgramCmd;
+        public IValueRegisterField ProgramCmdIOS;
+        public IValueRegisterField ProgramAddressIOS;
+        public IValueRegisterField ProgramDataIOS;
+        public IValueRegisterField ProgramDummyCount;
+
+        public IValueRegisterField EraseCmd;
+
         private void ExecuteDiscovery()
         {
             var isFullDiscoverySet = fullDiscovery.Value;
             if(!TryGetByAddress((int)discoveryBnk.Value, out var spiPeripheral))
             {
                 this.ErrorLog("Device discovery attempted, but device not found");
+                discoveryPassed.Value = false;
+                resultOfLastDiscovery.Value = 1; // Device not found
                 return;
             }
 
@@ -53,6 +71,10 @@ namespace Antmicro.Renode.Peripherals.SPI
             WESequenceDiscovery();
             ReadSequenceDiscovery(decodedSFDP, isFullDiscoverySet);
             ProgramSequenceDiscovery(decodedSFDP, isFullDiscoverySet);
+
+            // Set discovery status: PASS bit (bit 2) and FAIL field (bits 4:3)
+            discoveryPassed.Value = true;
+            resultOfLastDiscovery.Value = 0; // Success (no failure)
         }
 
         private void CommonSequenceDiscovery(SFDPData sfdp, bool fullDiscovery)
@@ -117,21 +139,27 @@ namespace Antmicro.Renode.Peripherals.SPI
             var defaultEraseSectorCmd = 0x20UL;
             var defaultEraseSector4ByteCmd = 0x21UL;
             var defaultEraseSectorSize = 18UL;
+            var addressCount = discoveryABNUM.Value ? 4UL : 3UL;
 
             if(fullDiscovery)
             {
                 var jedecParam = sfdp.JedecParameter;
-                eraseCmd.Value = jedecParam.EraseCode;
+                EraseCmd.Value = jedecParam.EraseCode;
                 sectorSize.Value = (ulong)Math.Log(jedecParam.EraseSize, 2);
             }
             else
             {
-                eraseCmd.Value = discoveryABNUM.Value ? defaultEraseSector4ByteCmd : defaultEraseSectorCmd;
+                EraseCmd.Value = discoveryABNUM.Value ? defaultEraseSector4ByteCmd : defaultEraseSectorCmd;
                 sectorSize.Value = defaultEraseSectorSize;
             }
+            
+            // Set address count (ADDR_CNT register field)
+            eraseAddrCount.Value = addressCount;
 
             // Common for profile 1 devices
             eraseAllCmd.Value = 0xC7;
+            eraseAllCmdIOS.Value = 0; // 1-line mode (1 << 0 = 1)
+            eraseAllCmdEdge.Value = false;
         }
 
         private void WESequenceDiscovery()
@@ -156,16 +184,42 @@ namespace Antmicro.Renode.Peripherals.SPI
                 var jedecParam = sfdp.JedecParameter;
                 var support4ByteParam = sfdp.Support4ByteCommandsParameter;
                 var programSequencePriority = new List<SequenceConfiguration>  {
-                    new SequenceConfiguration(support4ByteParam.Support1s8s8sPageProgramCommand, 1, 8, 8, 4, 0, 0x8E),
-                    new SequenceConfiguration(support4ByteParam.Support1s1s8sPageProgramCommand, 1, 1, 8, 4, 0, 0x84),
-                    new SequenceConfiguration(support4ByteParam.Support1s4s4sPageProgramCommand, 1, 4, 4, 4, 0, 0x3E),
-                    new SequenceConfiguration(support4ByteParam.Support1s1s4sPageProgramCommand, 1, 1, 4, 4, 0, 0x34),
-                    new SequenceConfiguration(support4ByteParam.Support1s1s1sPageProgramCommand, 1, 1, 1, 4, 0, defaultProgram4ByteCmd),
+                    new SequenceConfiguration(jedecParam.SupportsRead1s8s8s(out _), 1, 8, 8, 4, 0, 0x86),
+                    new SequenceConfiguration(jedecParam.SupportsRead1s1s8s(out _), 1, 1, 8, 4, 0, 0x82),
+                    new SequenceConfiguration(jedecParam.SupportsRead1s4s4s(out _), 1, 4, 4, 4, 0, 0x3E),
+                    new SequenceConfiguration(jedecParam.SupportsRead1s1s4s(out _), 1, 1, 4, 4, 0, 0x34),
+                    new SequenceConfiguration(true, 1, 1, 1, 4, 0, defaultProgramCmd),
                 };
 
-                if(programSequencePriority.TryFirst(v => v.IsSupported, out var supportedProgramSequence))
+                if (support4ByteParam != null)
                 {
-                    foundProgramSequence = supportedProgramSequence;
+                    var program4BytePriorityList = new List<SequenceConfiguration>  {
+                        new SequenceConfiguration(support4ByteParam.Support1s8s8sPageProgramCommand, 1, 8, 8, 4, 0, 0x8E),
+                        new SequenceConfiguration(support4ByteParam.Support1s1s8sPageProgramCommand, 1, 1, 8, 4, 0, 0x84),
+                        new SequenceConfiguration(support4ByteParam.Support1s4s4sPageProgramCommand, 1, 4, 4, 4, 0, 0x3E),
+                        new SequenceConfiguration(support4ByteParam.Support1s1s4sPageProgramCommand, 1, 1, 4, 4, 0, 0x34),
+                        new SequenceConfiguration(support4ByteParam.Support1s1s1sPageProgramCommand, 1, 1, 1, 4, 0, defaultProgram4ByteCmd),
+                    };
+
+                    // Get the index the first supported 3-byte read sequence
+                    int supportedIndex = programSequencePriority.FindIndex(rs => rs.IsSupported);
+
+                    // If a supported 3-byte read sequence was found, check if the corresponding 4-byte read sequence is supported
+                    // Checking for just the 4-byte support could result in false positives, as some devices just mark suppport for all
+                    // modes while actually only supporting a subset of them.
+                    if (program4BytePriorityList[supportedIndex].IsSupported)
+                    {
+                        foundProgramSequence = program4BytePriorityList[supportedIndex];
+                        this.Log(LogLevel.Warning, "Selected 4-byte program mode: {0}-{1}-{2} with command 0x{3:X}",
+                            foundProgramSequence.CmdIOS, foundProgramSequence.AddressIOS, foundProgramSequence.DataIOS, foundProgramSequence.Cmd);
+                    }
+                }
+                else
+                {
+                    if(programSequencePriority.TryFirst(rs => rs.IsSupported, out var supportedProgramSequence))
+                    {
+                        foundProgramSequence = supportedProgramSequence;
+                    }
                 }
             }
             else
@@ -174,15 +228,16 @@ namespace Antmicro.Renode.Peripherals.SPI
                 foundProgramSequence.AddressCount = discoveryABNUM.Value ? 4UL : 3UL;
             }
 
-            programCmdIOS.Value = (ulong)Math.Log(foundProgramSequence.CmdIOS, 2);
-            programDataIOS.Value = (ulong)Math.Log(foundProgramSequence.DataIOS, 2);
-            programAddressIOS.Value = (ulong)Math.Log(foundProgramSequence.AddressIOS, 2);
-            programAddressCount.Value = foundProgramSequence.AddressCount - 1;
-            programDummyCount.Value = foundProgramSequence.DummyBytes;
-            programCmd.Value = foundProgramSequence.Cmd;
+            ProgramCmdIOS.Value = (ulong)Math.Log(foundProgramSequence.CmdIOS, 2);
+            ProgramDataIOS.Value = (ulong)Math.Log(foundProgramSequence.DataIOS, 2);
+            ProgramAddressIOS.Value = (ulong)Math.Log(foundProgramSequence.AddressIOS, 2);
+            programAddressCount.Value = foundProgramSequence.AddressCount;
+            ProgramDummyCount.Value = foundProgramSequence.DummyBytes;
+            ProgramCmd.Value = foundProgramSequence.Cmd;
 
             // Common for profile 1 devices
             programCmdEdge.Value = false;
+            programAddressEdge.Value = false;
             programDataEdge.Value = false;
         }
 
@@ -221,11 +276,26 @@ namespace Antmicro.Renode.Peripherals.SPI
                                 new SequenceConfiguration(support4ByteParam.Support1s1s2sFastReadCommand, 1, 1, 2, 4, 0, 0x3C),
                                 new SequenceConfiguration(support4ByteParam.Support1s1s1sFastReadCommand, 1, 1, 1, 4, 8, 0x0C),
                         };
-                        readSequencePriority = read4BytePriorityList.Concat(readSequencePriority).ToList();
+
+                        // Get the index the first supported 3-byte read sequence
+                        int supportedIndex = readSequencePriority.FindIndex(rs => rs.IsSupported);
+
+                        // If a supported 3-byte read sequence was found, check if the corresponding 4-byte read sequence is supported
+                        // Checking for just the 4-byte support could result in false positives, as some devices just mark suppport for all
+                        // modes while actually only supporting a subset of them.
+                        if (read4BytePriorityList[supportedIndex].IsSupported)
+                        {
+                            foundReadSequence = read4BytePriorityList[supportedIndex];
+                            this.Log(LogLevel.Warning, "Selected 4-byte read mode: {0}-{1}-{2} with command 0x{3:X}",
+                                foundReadSequence.CmdIOS, foundReadSequence.AddressIOS, foundReadSequence.DataIOS, foundReadSequence.Cmd);
+                        }
                     }
-                    if(readSequencePriority.TryFirst(rs => rs.IsSupported, out var supportedReadSequence))
+                    else
                     {
-                        foundReadSequence = supportedReadSequence;
+                        if(readSequencePriority.TryFirst(rs => rs.IsSupported, out var supportedReadSequence))
+                        {
+                            foundReadSequence = supportedReadSequence;
+                        }
                     }
                     break;
                 case 1:
@@ -293,12 +363,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                 foundReadSequence.AddressCount = discoveryABNUM.Value == true ? 4UL : 3UL;
             }
 
-            readCmdIOS.Value = (ulong)Math.Log(foundReadSequence.CmdIOS, 2);
-            readAddressIOS.Value = (ulong)Math.Log(foundReadSequence.AddressIOS, 2);
-            readDataIOS.Value = (ulong)Math.Log(foundReadSequence.DataIOS, 2);
+            ReadCmdIOS.Value = (ulong)Math.Log(foundReadSequence.CmdIOS, 2);
+            ReadAddressIOS.Value = (ulong)Math.Log(foundReadSequence.AddressIOS, 2);
+            ReadDataIOS.Value = (ulong)Math.Log(foundReadSequence.DataIOS, 2);
             readAddressCount.Value = foundReadSequence.AddressCount - 1;
-            readDummyCount.Value = foundReadSequence.DummyBytes;
-            readCmd.Value = foundReadSequence.Cmd;
+            ReadDummyCount.Value = foundReadSequence.DummyBytes;
+            ReadCmd.Value = foundReadSequence.Cmd;
 
             // Common for profile 1 devices
             readCmdEdge.Value = false;
@@ -306,12 +376,9 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         private IValueRegisterField eraseAddrCount;
-        private IValueRegisterField readCmdIOS;
         private IFlagRegisterField readCmdEdge;
         private IValueRegisterField readAddressCount;
-        private IValueRegisterField readAddressIOS;
         private IFlagRegisterField readAddressEdge;
-        private IValueRegisterField readDataIOS;
         private IFlagRegisterField readDataEdge;
         private IFlagRegisterField fullDiscovery;
         private IValueRegisterField resultOfLastDiscovery;
@@ -321,17 +388,10 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField discoveryDummyCount;
         private IValueRegisterField discoveryBnk;
         private IValueRegisterField pageSizeProgram;
-        private IValueRegisterField programDummyCount;
-        private IValueRegisterField readDummyCount;
-        private IValueRegisterField readCmd;
-        private IValueRegisterField programCmd;
         private IFlagRegisterField weCmdEnabled;
-        private IValueRegisterField programCmdIOS;
         private IFlagRegisterField programCmdEdge;
         private IValueRegisterField programAddressCount;
-        private IValueRegisterField programAddressIOS;
         private IFlagRegisterField programAddressEdge;
-        private IValueRegisterField programDataIOS;
         private IFlagRegisterField programDataEdge;
         private IValueRegisterField eraseAllCmd;
         private IValueRegisterField eraseAllCmdIOS;
@@ -341,7 +401,6 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IValueRegisterField resetCmd1;
         private IValueRegisterField resetCmd1Confirmation;
         private IFlagRegisterField resetCmd1ConfirmationEnabled;
-        private IValueRegisterField eraseCmd;
         private IValueRegisterField sectorSize;
         private IValueRegisterField weCmd;
         private IValueRegisterField pageSizeRead;

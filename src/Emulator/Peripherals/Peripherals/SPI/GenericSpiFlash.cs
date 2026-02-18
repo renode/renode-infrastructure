@@ -290,6 +290,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 break;
             case (byte)Commands.PageProgram4byte:
             case (byte)Commands.QuadInputFastProgram4byte:
+            case (byte)Commands.QuadInputExtendedFastProgram4byte:
                 currentOperation.Operation = DecodedOperation.OperationType.Program;
                 currentOperation.AddressLength = 4;
                 currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;

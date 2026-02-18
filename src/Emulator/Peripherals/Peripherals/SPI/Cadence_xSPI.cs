@@ -406,7 +406,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithValueField(24, 8, out resetCmd1Confirmation, name: "P1_DAT_VALUE")
                 },
                 {(long)Registers.EraseSequenceConfiguration0, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, out eraseCmd, name: "CMD_VALUE")
+                    .WithValueField(0, 8, out EraseCmd, name: "CMD_VALUE")
                     .WithTag("CMD_IOS", 8, 2)
                     .WithReservedBits(10, 1)
                     .WithTaggedFlag("CMD_EDGE", 11)
@@ -433,19 +433,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(24, 8)
                 },
                 {(long)Registers.ProgramSequenceConfiguration0, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, out programCmd, name: "P1_CMD_VALUE")
-                    .WithValueField(8, 2, out programCmdIOS, name: "P1_CMD_IOS")
+                    .WithValueField(0, 8, out ProgramCmd, name: "P1_CMD_VALUE")
+                    .WithValueField(8, 2, out ProgramCmdIOS, name: "P1_CMD_IOS")
                     .WithReservedBits(10, 1)
                     .WithFlag(11, out programCmdEdge,  name: "P1_CMD_EDGE")
                     .WithValueField(12, 3, out programAddressCount,  name: "P1_ADDR_CNT")
                     .WithReservedBits(15, 1)
-                    .WithValueField(16, 2, out programAddressIOS, name: "P1_ADDR_IOS")
+                    .WithValueField(16, 2, out ProgramAddressIOS, name: "P1_ADDR_IOS")
                     .WithReservedBits(18, 1)
                     .WithFlag(19,  out programAddressEdge, name: "P1_ADDR_EDGE")
-                    .WithValueField(20, 2, out programDataIOS, name: "P1_DAT_IOS")
+                    .WithValueField(20, 2, out ProgramDataIOS, name: "P1_DAT_IOS")
                     .WithReservedBits(22, 1)
                     .WithFlag(23, out programDataEdge, name: "P1_DAT_EDGE")
-                    .WithValueField(24, 6, out programDummyCount, name: "P1_DMY_CNT")
+                    .WithValueField(24, 6, out ProgramDummyCount, name: "P1_DMY_CNT")
                     .WithReservedBits(30, 2)
                     },
                 {(long)Registers.ProgramSequenceConfiguration1, new DoubleWordRegister(this)
@@ -454,19 +454,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.ReadSequenceConfiguration0, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, out readCmd, name: "P1_CMD_VALUE")
-                    .WithValueField(8,2, out readCmdIOS, name:"P1_CMD_IOS")
+                    .WithValueField(0, 8, out ReadCmd, name: "P1_CMD_VALUE")
+                    .WithValueField(8,2, out ReadCmdIOS, name:"P1_CMD_IOS")
                     .WithReservedBits(10, 1)
                     .WithFlag(11, out readCmdEdge, name: "P1_CMD_EDGE")
                     .WithValueField(12, 3, out readAddressCount, name: "P1_ADDR_CNT")
                     .WithReservedBits(15, 1)
-                    .WithValueField(16,2, out readAddressIOS, name: "P1_ADDR_IOS")
+                    .WithValueField(16,2, out ReadAddressIOS, name: "P1_ADDR_IOS")
                     .WithReservedBits(18, 1)
                     .WithFlag(19, out readAddressEdge, name: "P1_ADDR_EDGE")
-                    .WithValueField(20,2, out readDataIOS, name:"P1_DAT_IOS")
+                    .WithValueField(20,2, out ReadDataIOS, name:"P1_DAT_IOS")
                     .WithReservedBits(22, 1)
                     .WithFlag(23, out readDataEdge, name: "P1_DAT_EDGE")
-                    .WithValueField(24, 6, out readDummyCount, name: "P1_DMY_CNT")
+                    .WithValueField(24, 6, out ReadDummyCount, name: "P1_DMY_CNT")
                     .WithReservedBits(30, 2)
                 },
                 {(long)Registers.ReadSequenceConfiguration1, new DoubleWordRegister(this)
@@ -513,8 +513,15 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(0, 8)
                 },
                 {(long)Registers.DiscoveryControl, new DoubleWordRegister(this, resetValue: 0x00000000)
-                    .WithFlag(0, writeCallback: (_,__) => ExecuteDiscovery(), name: "REQ")
-                    .WithFlag(1, out fullDiscovery, name: "REQ_TYP")
+                    .WithFlag(0, out var discoveryRequest, name: "REQ")
+                    .WithFlag(1, out fullDiscovery, name: "REQ_TYP",
+                        valueProviderCallback: _ => !fullDiscovery.Value,  // Read: internal true → HW reads 0 (Full)
+                        writeCallback: (_, val) =>
+                        {
+                            this.Log(LogLevel.Warning, "REQ_TYP write: HW wrote {0}, setting fullDiscovery to {1}", val, !val);
+                            fullDiscovery.Value = !val;  // Write: HW writes 0 → store true (Full)
+                        }
+                    )
                     .WithFlag(2, out discoveryPassed, name:"PASS")
                     .WithValueField(3,2, out resultOfLastDiscovery, name: "FAIL")
                     .WithTaggedFlag("INHIBIT",5)
@@ -527,6 +534,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                     .WithReservedBits(15, 1)
                     .WithValueField(16,3, out discoveryBnk,name: "BNK")
                     .WithReservedBits(19,13)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        if(discoveryRequest.Value)
+                        {
+                            discoveryRequest.Value = false;  // Auto-clear REQ bit
+                            ExecuteDiscovery();
+                        }
+                    })
                 },
                 {(long)Registers.ControllerVersion, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Read, name: "hardwareRevision",
