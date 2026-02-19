@@ -204,12 +204,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 features.Add(mProfileFeature);
 
                 var mSystemFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.m-system");
-                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(26, 32, "msp", "uint32", "general"));
-                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(27, 32, "psp", "uint32", "general"));
+                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(18, 32, "control", "uint32", "general"));
+                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(19, 32, "basepri", "uint32", "general"));
+                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(21, 32, "msp", "data_ptr", "general"));
+                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(22, 32, "psp", "data_ptr", "general"));
                 mSystemFeature.Registers.Add(new GDBRegisterDescriptor(28, 32, "primask", "uint32", "general"));
-                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(29, 32, "basepri", "uint32", "general"));
                 mSystemFeature.Registers.Add(new GDBRegisterDescriptor(30, 32, "faultmask", "uint32", "general"));
-                mSystemFeature.Registers.Add(new GDBRegisterDescriptor(31, 32, "control", "uint32", "general"));
                 features.Add(mSystemFeature);
 
                 bool hasMProfileVectorExtensions = GetArmFeature(ArmFeatures.ARM_FEATURE_MVE);
