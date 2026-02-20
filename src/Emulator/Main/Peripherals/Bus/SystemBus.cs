@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -584,6 +584,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var parentRange = intersectings[0].Key;
             var parentName = intersectings[0].Value.Name;
             var parentDefaultValue = intersectings[0].Value.DefaultValue;
+            var parentSilent = intersectings[0].Value.Silent;
             var parentPausing = pausingTags.Contains(parentName);
             if(!parentRange.Contains(range))
             {
@@ -594,14 +595,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             var parentRangeAfterSplitSizeLeft = range.StartAddress - parentRange.StartAddress;
             if(parentRangeAfterSplitSizeLeft > 0)
             {
-                Tag(new Range(parentRange.StartAddress, parentRangeAfterSplitSizeLeft), parentName, parentDefaultValue, parentPausing);
+                Tag(new Range(parentRange.StartAddress, parentRangeAfterSplitSizeLeft), parentName, parentDefaultValue, parentPausing, parentSilent);
             }
             var parentRangeAfterSplitSizeRight = parentRange.EndAddress - range.EndAddress;
             if(parentRangeAfterSplitSizeRight > 0)
             {
-                Tag(new Range(range.EndAddress + 1, parentRangeAfterSplitSizeRight), parentName, parentDefaultValue, parentPausing);
+                Tag(new Range(range.EndAddress + 1, parentRangeAfterSplitSizeRight), parentName, parentDefaultValue, parentPausing, parentSilent);
             }
-            Tag(range, string.Format("{0}/{1}", parentName, tag), defaultValue, pausing, overridePeripheralAccesses);
+            Tag(range, $"{parentName}/{tag}", defaultValue, pausing, silent, overridePeripheralAccesses);
         }
 
         public void ApplySVD(string path)
