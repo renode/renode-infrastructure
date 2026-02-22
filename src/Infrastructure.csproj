@@ -656,6 +656,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/MPFS_DDRMock.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/ResetPin.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Memory/ArrayMemoryWithReadonlys.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Memory/MRAMMemory.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/EmulatorController.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/S32K_SCG.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/IRQControllers/NXP_INTMUX.cs" />
