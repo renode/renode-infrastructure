@@ -16,6 +16,7 @@ using System.Reflection;
 using System.Text;
 
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.EventRecording;
 using Antmicro.Renode.Exceptions;
@@ -996,6 +997,12 @@ namespace Antmicro.Renode.Core
             return node == null ? new IPeripheral[0] : node.Parents.Select(x => x.Value).Distinct();
         }
 
+        [LatePostDeserializationAttribute]
+        public void PostDeserializationHook()
+        {
+            wasDeserialized = true;
+        }
+
         public void PostCreationActions()
         {
             // Enable broadcasting dirty addresses if there are multiple CPUs of an architecture supporting the mechanism.
@@ -1444,6 +1451,15 @@ namespace Antmicro.Renode.Core
                     Resume();
                     return;
                 }
+
+                // If this object was recreated during deserialization
+                // we have to finish its initialization
+                if(wasDeserialized)
+                {
+                    PostCreationActions();
+                    wasDeserialized = false;
+                }
+
                 foreach(var ownLife in ownLifes.OrderBy(x => x is ICPU ? 1 : 0))
                 {
                     if(startFilter(ownLife))
@@ -1828,6 +1844,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        private bool wasDeserialized;
         private int currentStampLevel;
         private bool alreadyDisposed;
         private Action<string> userStateHook;
