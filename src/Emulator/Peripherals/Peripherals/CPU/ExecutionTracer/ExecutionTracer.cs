@@ -110,9 +110,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException($"{nameof(TrackRiscvAtomics)} is not available on this platform");
             }
 
-            AttachedCPU.EnablePreOpcodeExecutionHooks();
             AttachedCPU.AddPreOpcodeExecutionHook(opcode_mask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, false));
-            AttachedCPU.EnablePostOpcodeExecutionHooks();
             AttachedCPU.AddPostOpcodeExecutionHook(opcode_mask, amo, (pc, opcode) => EnqueueRiscvAtomicOperands(pc, opcode, true));
         }
 

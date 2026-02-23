@@ -16,6 +16,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract partial class TranslationCPU
     {
+        // These methods are exposed to allow disabling opcode execution hooks, as they get enabled when the Add(Pre|Post)OpcodeExecutionHooks methods are called.
         public void EnablePreOpcodeExecutionHooks(bool enable = true)
         {
             CheckArchitectureForOpcodeExecutionHooks();
@@ -30,6 +31,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void AddPreOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong, ulong> action)
         {
+            EnablePreOpcodeExecutionHooks();
             var index = TlibInstallPreOpcodeExecutionHook(mask, value);
             if(index == UInt32.MaxValue)
             {
@@ -46,6 +48,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void AddPostOpcodeExecutionHook(UInt64 mask, UInt64 value, Action<ulong, ulong> action)
         {
+            EnablePostOpcodeExecutionHooks();
             var index = TlibInstallPostOpcodeExecutionHook(mask, value);
             if(index == UInt32.MaxValue)
             {
