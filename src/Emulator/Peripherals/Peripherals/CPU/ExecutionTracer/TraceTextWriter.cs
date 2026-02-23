@@ -23,12 +23,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             TraceFormat.Disassembly
         }.AsReadOnly();
 
-        public TraceTextWriter(TranslationCPU cpu, string path, TraceFormat format, bool compress)
+        public TraceTextWriter(TranslationCPU cpu, string path, TraceFormat format, bool compress, bool alternateDialect)
             : base(cpu, path, format, compress)
         {
             disassemblyCache = new LRUCache<uint, Disassembler.DisassemblyResult>(CacheSize);
             stringBuilder = new StringBuilder();
             textWriter = new StreamWriter(stream, Encoding.ASCII);
+            this.alternateDialect = alternateDialect;
         }
 
         public override void Write(ExecutionTracer.Block block)
@@ -40,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             while(counter < (int)block.InstructionsCount)
             {
-                if(!TryReadAndDisassembleInstruction(pc, block.DisassemblyFlags, out var result))
+                if(!TryReadAndDisassembleInstruction(pc, block.DisassemblyFlags, alternateDialect, out var result))
                 {
                     stringBuilder.AppendFormat("Couldn't disassemble opcode at PC 0x{0:X}\n", pc);
                     break;
@@ -120,6 +121,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private bool disposed;
+        private bool alternateDialect;
 
         private readonly TextWriter textWriter;
         private readonly StringBuilder stringBuilder;

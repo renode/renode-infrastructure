@@ -432,7 +432,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             return pauseGuard.RequestTranslationBlockRestart(quiet);
         }
 
-        public uint AssembleBlock(ulong addr, string instructions, uint flags = 0)
+        public uint AssembleBlock(ulong addr, string instructions, uint flags = 0, bool alternateDialect = false)
         {
             if(Assembler == null)
             {
@@ -443,7 +443,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             // We don't care if translation fails here (the address is unchanged in this case)
             TryTranslateAddress(addr, MpuAccess.InstructionFetch, out addr);
 
-            var result = Assembler.AssembleBlock(addr, instructions, flags);
+            var result = Assembler.AssembleBlock(addr, instructions, flags, alternateDialect);
             Bus.WriteBytes(result, addr, true, context: this);
             return (uint)result.Length;
         }
@@ -674,7 +674,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void ActivateNewHooks() => hooks.ActivateNewHooks();
 
-        public string DisassembleBlock(ulong addr = ulong.MaxValue, uint blockSize = 40, uint flags = 0)
+        public string DisassembleBlock(ulong addr = ulong.MaxValue, uint blockSize = 40, uint flags = 0, bool alternateDialect = false)
         {
             if(Disassembler == null)
             {
@@ -690,7 +690,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             TryTranslateAddress(addr, MpuAccess.InstructionFetch, out addr);
 
             var opcodes = Bus.ReadBytes(addr, (int)blockSize, true, context: this);
-            Disassembler.DisassembleBlock(addr, opcodes, flags, out var result);
+            Disassembler.DisassembleBlock(addr, opcodes, flags, alternateDialect, out var result);
             return result;
         }
 
@@ -1475,7 +1475,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             var symbol = Bus.FindSymbolAt(pc, this);
             var tab = Bus.ReadBytes(phy, (int)size, true, context: this);
-            Disassembler.DisassembleBlock(pc, tab, flags, out var disas);
+            Disassembler.DisassembleBlock(pc, tab, flags, false, out var disas);
 
             if(disas == null)
             {

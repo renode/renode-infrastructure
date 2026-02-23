@@ -181,7 +181,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             addr = addr ?? PC;
 
             var opcodes = Bus.ReadBytes(addr.Value, (int)blockSize, true, context: this);
-            disassembler.DisassembleBlock(addr.Value, opcodes, flags: 0, text: out var result);
+            disassembler.DisassembleBlock(addr.Value, opcodes, flags: 0, alternateDialect: false, text: out var result);
             return result;
         }
 
@@ -192,7 +192,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException("Assembler not available");
             }
 
-            var result = assembler.AssembleBlock(addr, instructions, flags: 0);
+            var result = assembler.AssembleBlock(addr, instructions, flags: 0, alternateDialect: false);
             Bus.WriteBytes(result, addr, true, context: this);
             return (uint)result.Length;
         }

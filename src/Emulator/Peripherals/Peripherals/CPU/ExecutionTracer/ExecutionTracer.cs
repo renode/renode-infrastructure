@@ -22,9 +22,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public static class ExecutionTracerExtensions
     {
-        public static void CreateExecutionTracing(this TranslationCPU @this, string name, string fileName, TraceFormat format, bool isBinary = false, bool compress = false, bool isSynchronous = false)
+        public static void CreateExecutionTracing(this TranslationCPU @this, string name, string fileName, TraceFormat format, bool isBinary = false, bool compress = false, bool isSynchronous = false, bool alternateDialect = false)
         {
-            var writerBuilder = new TraceWriterBuilder(@this, fileName, format, isBinary, compress);
+            var writerBuilder = new TraceWriterBuilder(@this, fileName, format, isBinary, compress, alternateDialect);
             var tracer = new ExecutionTracer(@this, writerBuilder, isSynchronous);
 
             try

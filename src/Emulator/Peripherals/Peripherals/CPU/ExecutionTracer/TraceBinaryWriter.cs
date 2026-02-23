@@ -47,8 +47,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             stream.WriteByte((byte)(IncludeOpcode ? 1 : 0));
             if(IncludeOpcode)
             {
-                var flags = 0u;
-                LLVMArchitectureMapping.GetTripleAndModelKey(AttachedCPU, ref flags, out var triple, out var model);
+                var triple = LLVMArchitectureMapping.GetTriple(AttachedCPU, 0);
+                var model = LLVMArchitectureMapping.GetModel(AttachedCPU);
                 var tripleAndModelString = $"{triple} {model}";
                 usesMultipleInstructionSets = tripleAndModelString.Contains("armv7a") || tripleAndModelString.Contains("arm64");
                 var byteCount = Encoding.ASCII.GetByteCount(tripleAndModelString);

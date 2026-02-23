@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             disposed = true;
         }
 
-        protected bool TryReadAndDisassembleInstruction(ulong pc, uint flags, out DisassemblyResult result)
+        protected bool TryReadAndDisassembleInstruction(ulong pc, uint flags, bool alternateDialect, out DisassemblyResult result)
         {
             // here we read only 4-bytes as it should cover most cases
             var key = AttachedCPU.Bus.ReadDoubleWord(pc, context: AttachedCPU);
@@ -70,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 // here we are prepared for longer opcodes
                 var mem = AttachedCPU.Bus.ReadBytes(pc, MaxOpcodeBytes, context: AttachedCPU);
-                if(!AttachedCPU.Disassembler.TryDisassembleInstruction(pc, mem, flags, out result))
+                if(!AttachedCPU.Disassembler.TryDisassembleInstruction(pc, mem, flags, alternateDialect, out result))
                 {
                     result = new DisassemblyResult();
                     // mark this as an invalid opcode

@@ -18,7 +18,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 {
-    public class LLVMDisassembler : IDisassembler
+    public class LLVMDisassembler
     {
         public LLVMDisassembler(ICPU cpu)
         {
@@ -28,27 +28,27 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             }
 
             this.cpu = cpu;
-            cache = new Dictionary<string, IDisassembler>();
+            cache = new Dictionary<string, IFlaglessDisassembler>();
         }
 
-        public bool TryDisassembleInstruction(ulong pc, byte[] data, uint flags, out DisassemblyResult result, int memoryOffset = 0)
+        public bool TryDisassembleInstruction(ulong pc, byte[] data, uint flags, bool alternateDialect, out DisassemblyResult result, int memoryOffset = 0)
         {
-            return GetDisassembler(flags).TryDisassembleInstruction(pc, data, flags, out result, memoryOffset);
+            return GetDisassembler(flags, alternateDialect).TryDisassembleInstruction(pc, data, out result, memoryOffset);
         }
 
         public bool TryDecodeInstruction(ulong pc, byte[] memory, uint flags, out byte[] opcode, int memoryOffset = 0)
         {
-            return GetDisassembler(flags).TryDecodeInstruction(pc, memory, flags, out opcode, memoryOffset);
+            return GetDisassembler(flags, false).TryDecodeInstruction(pc, memory, out opcode, memoryOffset);
         }
 
-        public int DisassembleBlock(ulong pc, byte[] memory, uint flags, out string text)
+        public int DisassembleBlock(ulong pc, byte[] memory, uint flags, bool alternateDialect, out string text)
         {
             var sofar = 0;
             var strBldr = new StringBuilder();
 
             while(sofar < (int)memory.Length)
             {
-                if(!TryDisassembleInstruction(pc, memory, flags, out var result, memoryOffset: sofar))
+                if(!TryDisassembleInstruction(pc, memory, flags, alternateDialect, out var result, memoryOffset: sofar))
                 {
                     strBldr.AppendFormat("Disassembly error detected. The rest of the output ({0}) will be truncated.", memory.Skip(sofar).ToLazyHexString());
                     break;
@@ -74,14 +74,16 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 
         private static bool xtensaSupportWarningIssued = false;
 
-        private IDisassembler GetDisassembler(uint flags)
+        private IFlaglessDisassembler GetDisassembler(uint translationFlags, bool alternateDialect)
         {
-            LLVMArchitectureMapping.GetTripleAndModelKey(cpu, ref flags, out var triple, out var model);
-            var key = $"{triple} {model} {flags}";
+            var triple = LLVMArchitectureMapping.GetTriple(cpu, translationFlags);
+            var model = LLVMArchitectureMapping.GetModel(cpu);
+
+            var key = $"{triple} {model} {alternateDialect}";
             if(!cache.ContainsKey(key))
             {
-                IDisassembler disas = new LLVMDisasWrapper(model, triple, flags);
-                Logger.Info($"Created new disassembler for triple {triple}, cpu {model}, with flags {flags}");
+                IFlaglessDisassembler disas = new LLVMDisasWrapper(model, triple, alternateDialect);
+                Logger.Info($"Created new disassembler for triple {triple}, cpu {model}{(alternateDialect ? " with alternate dialect" : "")}");
                 if(!xtensaSupportWarningIssued && triple == "xtensa")
                 {
                     Logger.Log(LogLevel.Warning, "The disassembler for Xtensa is currently an experimental feature in Renode");
@@ -102,16 +104,16 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             return cache[key];
         }
 
-        private readonly Dictionary<string, IDisassembler> cache;
+        private readonly Dictionary<string, IFlaglessDisassembler> cache;
         private readonly ICPU cpu;
 
-        private class LLVMDisasWrapper : IDisposable, IDisassembler
+        private class LLVMDisasWrapper : IDisposable, IFlaglessDisassembler
         {
-            public LLVMDisasWrapper(string cpu, string triple, uint flags)
+            public LLVMDisasWrapper(string cpu, string triple, bool alternateDialect)
             {
                 try
                 {
-                    context = llvm_create_disasm_cpu_with_flags(triple, cpu, flags);
+                    context = llvm_create_disasm_cpu_with_flags(triple, cpu, alternateDialect ? 1 : 0u);
                 }
                 catch(DllNotFoundException)
                 {
@@ -149,6 +151,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                     HexFormatter = FormatHexForARM;
                     break;
                 default:
+                    Console.WriteLine(triple);
                     throw new ArgumentOutOfRangeException("cpu", "CPU not supported.");
                 }
             }
@@ -161,7 +164,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 }
             }
 
-            public bool TryDisassembleInstruction(ulong pc, byte[] data, uint flags, out DisassemblyResult result, int memoryOffset = 0)
+            public bool TryDisassembleInstruction(ulong pc, byte[] data, out DisassemblyResult result, int memoryOffset = 0)
             {
                 var strBuf = Marshal.AllocHGlobal(1024);
                 var marshalledData = Marshal.AllocHGlobal(data.Length - memoryOffset);
@@ -195,9 +198,9 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 return true;
             }
 
-            public bool TryDecodeInstruction(ulong pc, byte[] memory, uint flags, out byte[] opcode, int memoryOffset = 0)
+            public bool TryDecodeInstruction(ulong pc, byte[] memory, out byte[] opcode, int memoryOffset = 0)
             {
-                if(!TryDisassembleInstruction(pc, memory, flags, out var result, memoryOffset))
+                if(!TryDisassembleInstruction(pc, memory, out var result, memoryOffset))
                 {
                     opcode = new byte[0];
                     return false;
@@ -281,14 +284,14 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             private readonly IntPtr context;
         }
 
-        private class CortexMDisassemblerWrapper : IDisassembler
+        private class CortexMDisassemblerWrapper : IFlaglessDisassembler
         {
-            public CortexMDisassemblerWrapper(IDisassembler actualDisassembler)
+            public CortexMDisassemblerWrapper(IFlaglessDisassembler actualDisassembler)
             {
                 underlyingDisassembler = actualDisassembler;
             }
 
-            public bool TryDisassembleInstruction(ulong pc, byte[] memory, uint flags, out DisassemblyResult result, int memoryOffset = 0)
+            public bool TryDisassembleInstruction(ulong pc, byte[] memory, out DisassemblyResult result, int memoryOffset = 0)
             {
                 switch(pc)
                 {
@@ -359,13 +362,13 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                     };
                     return true;
                 default:
-                    return underlyingDisassembler.TryDisassembleInstruction(pc, memory, flags, out result, memoryOffset);
+                    return underlyingDisassembler.TryDisassembleInstruction(pc, memory, out result, memoryOffset);
                 }
             }
 
-            public bool TryDecodeInstruction(ulong pc, byte[] memory, uint flags, out byte[] opcode, int memoryOffset = 0)
+            public bool TryDecodeInstruction(ulong pc, byte[] memory, out byte[] opcode, int memoryOffset = 0)
             {
-                if(!TryDisassembleInstruction(pc, memory, flags, out var result, memoryOffset))
+                if(!TryDisassembleInstruction(pc, memory, out var result, memoryOffset))
                 {
                     opcode = new byte[0];
                     return false;
@@ -376,17 +379,17 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 return true;
             }
 
-            private readonly IDisassembler underlyingDisassembler;
+            private readonly IFlaglessDisassembler underlyingDisassembler;
         }
 
-        private class RiscVDisassemblerWrapper : IDisassembler
+        private class RiscVDisassemblerWrapper : IFlaglessDisassembler
         {
-            public RiscVDisassemblerWrapper(IDisassembler actualDisassembler)
+            public RiscVDisassemblerWrapper(IFlaglessDisassembler actualDisassembler)
             {
                 underlyingDisassembler = actualDisassembler;
             }
 
-            public bool TryDecodeInstruction(ulong pc, byte[] memory, uint flags, out byte[] opcode, int memoryOffset = 0)
+            public bool TryDecodeInstruction(ulong pc, byte[] memory, out byte[] opcode, int memoryOffset = 0)
             {
                 var opcodeLength = DecodeRiscVOpcodeLength(memory, memoryOffset);
                 if(opcodeLength == 0)
@@ -400,9 +403,9 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 return true;
             }
 
-            public bool TryDisassembleInstruction(ulong pc, byte[] data, uint flags, out DisassemblyResult result, int memoryOffset = 0)
+            public bool TryDisassembleInstruction(ulong pc, byte[] data, out DisassemblyResult result, int memoryOffset = 0)
             {
-                return underlyingDisassembler.TryDisassembleInstruction(pc, data, flags, out result, memoryOffset);
+                return underlyingDisassembler.TryDisassembleInstruction(pc, data, out result, memoryOffset);
             }
 
             private int DecodeRiscVOpcodeLength(byte[] memory, int memoryOffset)
@@ -433,7 +436,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 }
             }
 
-            private readonly IDisassembler underlyingDisassembler;
+            private readonly IFlaglessDisassembler underlyingDisassembler;
         }
     }
 }

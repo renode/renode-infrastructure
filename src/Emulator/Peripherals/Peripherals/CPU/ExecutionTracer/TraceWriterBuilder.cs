@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class TraceWriterBuilder
     {
-        public TraceWriterBuilder(TranslationCPU cpu, SequencedFilePath path, TraceFormat format, bool isBinary, bool compress)
+        public TraceWriterBuilder(TranslationCPU cpu, SequencedFilePath path, TraceFormat format, bool isBinary, bool compress, bool alternateDialect)
         {
             // SequencedFilePath ensures that file in given path doesn't exist
             this.cpu = cpu;
@@ -22,6 +22,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.format = format;
             this.isBinary = isBinary;
             this.compress = compress;
+            this.alternateDialect = alternateDialect;
 
             if(!AreArgumentsValid())
             {
@@ -33,7 +34,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(format == TraceFormat.TraceBasedModel)
             {
-                return new TraceBasedModelFlatBufferWriter(cpu, path, format, compress);
+                return new TraceBasedModelFlatBufferWriter(cpu, path, format, compress, alternateDialect);
             }
             if(isBinary)
             {
@@ -41,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             else
             {
-                return new TraceTextWriter(cpu, path, format, compress);
+                return new TraceTextWriter(cpu, path, format, compress, alternateDialect);
             }
         }
 
@@ -49,6 +50,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool AreArgumentsValid()
         {
+            if(this.format != TraceFormat.Disassembly && alternateDialect)
+            {
+                return false;
+            }
             if(format == TraceFormat.TraceBasedModel)
             {
                 return true;
@@ -68,5 +73,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly TraceFormat format;
         private readonly bool isBinary;
         private readonly bool compress;
+        private readonly bool alternateDialect;
     }
 }

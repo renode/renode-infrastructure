@@ -24,65 +24,53 @@ namespace Antmicro.Renode.Peripherals.CPU
             return SupportedArchitectures.ContainsKey(cpu.Architecture);
         }
 
-        public static void GetTripleAndModelKey(ICPU cpu, ref uint flags, out string triple, out string model)
+        public static string GetTriple(ICPU cpu, uint flags)
         {
-            triple = SupportedArchitectures[cpu.Architecture];
-            if(triple == "armv7a" && flags > 0)
+            if(cpu.Architecture == "arm")
             {
-                // For armv7a the flags are only 1 bit: 0 = ARM, 1 = thumb
-                triple = "thumb";
-                // The flags as passed to the disassembler are a different sort of flags than the parameter
-                // of this function - the parameter contains disassembly flags reflecting the current state
-                // of the CPU (see CurrentBlockDisassemblyFlags), while the disassembler flags select which
-                // assembly dialect to use. Clear them out here, because the ARM disassembler only supports
-                // dialect 0 (see LLVM's createARMMCInstPrinter). Actually, this would not cause any issues
-                // because LLVM's C API detects this and ignores the alternate dialect flag, but let's pass
-                // a proper value in the first place.
-                flags = 0;
-            }
-
-            if(triple == "arm64")
-            {
-                // For arm64 there are two flags: bit[0] means Thumb and bit[1] means AArch32.
-                // The valid values are 00, 10, and 11 (no 64-bit Thumb).
-
-                // ARMv8 defines AArch32 and AArch64 execution modes, but not every ARMv8 processor
-                // supports both. `cpu.Architecture` is used to load the correct tlib version, so we need to
-                // special-case Cortex-R52 which only supports AArch32 so that the correct arguments are
-                // passed to LLVM.
-                // This occurs for example in AssembleBlock, which has a default flags = 0
-                if(cpu.Model == "cortex-r52")
+                if(flags == 1)
                 {
-                    flags |= 0b10; // Set AArch32 bit
-                }
-
-                if(flags == 0b10)
-                {
-                    triple = "armv7a";
-                }
-                else if(flags == 0b11)
-                {
-                    triple = "thumb";
-                }
-                // The same logic about not passing these through to LLVM applies.
-                flags = 0;
-            }
-
-            if(!ModelTranslations.TryGetValue(cpu.Model, out model))
-            {
-                if(triple == "riscv32" || triple == "riscv64")
-                {
-                    // Cache is not only to improve performance but also to log unsupported extensions once.
-                    lock(riscvModelsCache)
-                    {
-                        model = riscvModelsCache.Get<ICPU, string, string>(cpu, triple, GetRiscVCompatibleModel);
-                    }
+                    return "thumb";
                 }
                 else
                 {
-                    model = cpu.Model.ToLower();
+                    return "armv7a";
                 }
             }
+            if(cpu.Architecture == "arm64")
+            {
+                if(cpu.Model == "cortex-r52")
+                {
+                    flags |= 0b10;
+                }
+                switch(flags)
+                {
+                case 0b10:
+                    return "armv7a";
+                case 0b11:
+                    return "thumb";
+                default:
+                    return "arm64";
+                }
+            }
+            return SupportedArchitectures[cpu.Architecture];
+        }
+
+        public static string GetModel(ICPU cpu)
+        {
+            if(ModelTranslations.TryGetValue(cpu.Model, out var model))
+            {
+                return model;
+            }
+            if(cpu.Architecture == "riscv" || cpu.Architecture == "riscv64")
+            {
+                // Cache is not only to improve performance but also to log unsupported extensions once.
+                lock(riscvModelsCache)
+                {
+                    return riscvModelsCache.Get<ICPU, string, string>(cpu, SupportedArchitectures[cpu.Architecture], GetRiscVCompatibleModel);
+                }
+            }
+            return cpu.Model.ToLower();
         }
 
         private static string GetRiscVCompatibleModel(ICPU cpu, string triple)

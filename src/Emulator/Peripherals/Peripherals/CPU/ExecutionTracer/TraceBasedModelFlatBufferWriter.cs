@@ -22,12 +22,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class TraceBasedModelFlatBufferWriter : TraceWriter
     {
-        public TraceBasedModelFlatBufferWriter(TranslationCPU cpu, string path, TraceFormat format, bool compress)
+        public TraceBasedModelFlatBufferWriter(TranslationCPU cpu, string path, TraceFormat format, bool compress, bool alternateDialect)
             : base(cpu, path, format, compress)
         {
             disassemblyCache = new LRUCache<uint, Disassembler.DisassemblyResult>(CacheSize);
             instructionsBuffer = new List<InstructionTrace>();
             vectorConfig = new Tuple<float, byte, short>(0, 0, -1);
+            this.alternateDialect = alternateDialect;
         }
 
         public override void Write(ExecutionTracer.Block block)
@@ -39,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             while(counter < (int)block.InstructionsCount)
             {
-                if(!TryReadAndDisassembleInstruction(pc, block.DisassemblyFlags, out var result))
+                if(!TryReadAndDisassembleInstruction(pc, block.DisassemblyFlags, alternateDialect, out var result))
                 {
                     break;
                 }
@@ -213,6 +214,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private bool disposed;
         private readonly List<InstructionTrace> instructionsBuffer;
+        private readonly bool alternateDialect;
 
         private const int InitialFlatBufferSize = 1024;
         private const int CacheSize = 100000;
