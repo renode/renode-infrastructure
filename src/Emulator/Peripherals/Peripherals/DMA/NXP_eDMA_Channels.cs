@@ -574,7 +574,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                         // Master ID Replication (Channel System Bus register) is a different mechanism that would capture
                         // the identity of core programming the eDMA's TCD.
                         context = GetCurrentCPUOrNull();
-                        if(!channels.xrdc.TryGetMasterId(context, out var mid))
+                        var mid = 0u;
+                        if((!channels.xrdc?.TryGetMasterId(context, out mid)) ?? true)
                         {
                             channels.dma.WarningLog("Master ID for captured initiator not available");
                             masterId.Value = channels.defaultMasterId;
