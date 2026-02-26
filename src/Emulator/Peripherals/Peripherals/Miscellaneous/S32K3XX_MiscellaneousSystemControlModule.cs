@@ -359,7 +359,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             InterruptRouterSharedPeripheralRoutingControl239 = 0xA5E // IRSPRC239
         }
 
-        private struct Interrupt
+        private class Interrupt
         {
             public Interrupt(S32K3XX_MiscellaneousSystemControlModule parent, int irqNumber, int cpuNumber)
             {
