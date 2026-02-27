@@ -47,12 +47,14 @@ namespace Antmicro.Renode.WebSockets
                 maxPort = portToUse;
             }
 
-            if(!TryCreateListener(minPort, maxPort, out port, out httpListener))
+            if(!TryCreateListener(minPort, maxPort, out var port, out httpListener))
             {
                 return false;
             }
 
-            Logger.Log(LogLevel.Info, $"Listening on port {port}");
+            Port = port;
+
+            Logger.Log(LogLevel.Info, $"Listening on port {Port}");
             listenerTask = Task.Run(AsyncListener);
 
             return true;
@@ -65,7 +67,7 @@ namespace Antmicro.Renode.WebSockets
                 return false;
             }
 
-            Logger.Log(LogLevel.Info, $"Listening for new requests at http://localhost:{port}{endpoint}");
+            Logger.Log(LogLevel.Info, $"Listening for new requests at http://localhost:{Port}{endpoint}");
             endpoints.Add(endpoint, provider);
 
             return true;
@@ -78,7 +80,7 @@ namespace Antmicro.Renode.WebSockets
                 return false;
             }
 
-            Logger.Log(LogLevel.Debug, $"Stopped listening for new requests at endpoint: http://localhost:{port}{endpoint}");
+            Logger.Log(LogLevel.Debug, $"Stopped listening for new requests at endpoint: http://localhost:{Port}{endpoint}");
             endpoints.Remove(endpoint);
 
             return true;
@@ -106,6 +108,8 @@ namespace Antmicro.Renode.WebSockets
             httpListener.Abort();
             listenerTask.Wait();
         }
+
+        public int Port { get; private set; }
 
         private WebSocketsManager()
         {
@@ -209,7 +213,6 @@ namespace Antmicro.Renode.WebSockets
 
         private HttpListener httpListener;
         private Task listenerTask;
-        private int port;
         private bool alreadyDisposed;
         private readonly CancellationTokenSource cancellationToken;
         private readonly Dictionary<string, IWebSocketServerProvider> endpoints;
