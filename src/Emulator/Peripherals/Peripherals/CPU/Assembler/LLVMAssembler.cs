@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.CPU.Disassembler;
 
 namespace Antmicro.Renode.Peripherals.CPU.Assembler
 {
@@ -20,9 +21,9 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
             this.cpu = cpu;
         }
 
-        public byte[] AssembleBlock(ulong pc, string code, uint flags, bool alternateDialect)
+        public byte[] AssembleBlock(ulong pc, string code, string triple, bool alternateDialect)
         {
-            var triple = cpu.GetLLVMTriple(flags);
+            LLVMDisassembler.ValidateTriple(cpu, ref triple);
             var model = cpu.LLVMModel;
             // We need to initialize the architecture to be used before trying to assemble.
             // It's OK and cheap to initialize it multiple times, as this only sets a few pointers.

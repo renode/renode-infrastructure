@@ -22,6 +22,19 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 {
     public class LLVMDisassembler
     {
+        public static void ValidateTriple(ICPUSupportingLLVMDisas cpu, ref string triple)
+        {
+            if(triple == null)
+            {
+                triple = cpu.AllLLVMTriples[0];
+                return;
+            }
+            if(Array.IndexOf(cpu.AllLLVMTriples, triple) == -1)
+            {
+                throw new RecoverableException($"Invalid triple {triple} for CPU. Supported triples are: {String.Join(", ", cpu.AllLLVMTriples)}");
+            }
+        }
+
         public LLVMDisassembler(ICPUSupportingLLVMDisas cpu)
         {
             this.cpu = cpu;
@@ -38,14 +51,28 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             return GetDisassembler(flags, false).TryDecodeInstruction(pc, memory, out opcode, memoryOffset);
         }
 
+        public int DisassembleBlock(ulong pc, byte[] memory, string triple, bool alternateDialect, out string text)
+        {
+            var disas = GetDisassembler(triple, alternateDialect);
+            return DisassembleBlockInner(disas, pc, memory, out text);
+        }
+
         public int DisassembleBlock(ulong pc, byte[] memory, uint flags, bool alternateDialect, out string text)
+        {
+            var disas = GetDisassembler(flags, alternateDialect);
+            return DisassembleBlockInner(disas, pc, memory, out text);
+        }
+
+        private static bool xtensaSupportWarningIssued = false;
+
+        private int DisassembleBlockInner(IFlaglessDisassembler disas, ulong pc, byte[] memory, out string text)
         {
             var sofar = 0;
             var strBldr = new StringBuilder();
 
             while(sofar < (int)memory.Length)
             {
-                if(!TryDisassembleInstruction(pc, memory, flags, alternateDialect, out var result, memoryOffset: sofar))
+                if(!disas.TryDisassembleInstruction(pc, memory, out var result, memoryOffset: sofar))
                 {
                     strBldr.AppendFormat("Disassembly error detected. The rest of the output ({0}) will be truncated.", memory.Skip(sofar).ToLazyHexString());
                     break;
@@ -69,11 +96,9 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             return sofar;
         }
 
-        private static bool xtensaSupportWarningIssued = false;
-
-        private IFlaglessDisassembler GetDisassembler(uint translationFlags, bool alternateDialect)
+        private IFlaglessDisassembler GetDisassembler(string triple, bool alternateDialect)
         {
-            var triple = cpu.GetLLVMTriple(translationFlags);
+            ValidateTriple(cpu, ref triple);
             var model = cpu.LLVMModel;
 
             var key = $"{triple} {model} {alternateDialect} {cpu.DisassemblyHexFormatting}";
@@ -99,6 +124,12 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             }
 
             return cache[key];
+        }
+
+        private IFlaglessDisassembler GetDisassembler(uint translationFlags, bool alternateDialect)
+        {
+            var triple = cpu.GetLLVMTriple(translationFlags);
+            return GetDisassembler(triple, alternateDialect);
         }
 
         private readonly Dictionary<string, IFlaglessDisassembler> cache;
