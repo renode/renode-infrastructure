@@ -121,7 +121,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private bool disposed;
-        private bool alternateDialect;
+        private readonly bool alternateDialect;
 
         private readonly TextWriter textWriter;
         private readonly StringBuilder stringBuilder;

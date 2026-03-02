@@ -47,15 +47,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             stream.WriteByte((byte)(IncludeOpcode ? 1 : 0));
             if(IncludeOpcode)
             {
-                var triple = LLVMArchitectureMapping.GetTriple(AttachedCPU, 0);
-                var model = LLVMArchitectureMapping.GetModel(AttachedCPU);
-                var tripleAndModelString = $"{triple} {model}";
-                usesMultipleInstructionSets = tripleAndModelString.Contains("armv7a") || tripleAndModelString.Contains("arm64");
-                var byteCount = Encoding.ASCII.GetByteCount(tripleAndModelString);
+                stream.WriteByte((byte)AttachedCPU.AllLLVMTriples.Length);
+                this.usesMultipleInstructionSets = AttachedCPU.AllLLVMTriples.Length > 1;
 
-                stream.WriteByte((byte)(usesMultipleInstructionSets ? 1 : 0));
-                stream.WriteByte((byte)byteCount);
-                stream.Write(Encoding.ASCII.GetBytes(tripleAndModelString), 0, byteCount);
+                var model = AttachedCPU.LLVMModel;
+
+                foreach(var triple in AttachedCPU.AllLLVMTriples)
+                {
+                    var tripleAndModel = $"{triple} {model}";
+                    var byteCount = Encoding.ASCII.GetByteCount(tripleAndModel);
+                    stream.WriteByte((byte)byteCount);
+                    stream.Write(Encoding.ASCII.GetBytes(tripleAndModel), 0, byteCount);
+                }
             }
         }
 
@@ -69,10 +72,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(usesMultipleInstructionSets)
             {
-                // if the CPU supports multiple instruction sets, we need to mark translation blocks
-                // with a flag and length of the block, that is needed to properly disassemble the trace
-                var instructionSet = (byte)block.DisassemblyFlags;
-                WriteByteToBuffer(instructionSet);
+                var triple = AttachedCPU.GetLLVMTriple(block.DisassemblyFlags);
+                var tripleIdx = Array.IndexOf(AttachedCPU.AllLLVMTriples, triple);
+                WriteByteToBuffer((byte)tripleIdx);
                 WriteInstructionsCountToBuffer(block.InstructionsCount);
             }
 
@@ -182,7 +184,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly int pcWidth;
 
         private const string FormatSignature = "ReTrace";
-        private const byte FormatVersion = 4;
+        private const byte FormatVersion = 5;
 
         private const int CacheSize = 100000;
         private const int BufferSize = 10000;
