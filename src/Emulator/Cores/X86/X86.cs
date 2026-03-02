@@ -18,9 +18,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
         }
 
+        public override string GetLLVMTriple(uint flags) => AllLLVMTriples[0];
+
         public override string Architecture { get { return "i386"; } }
 
         public override string GDBArchitecture { get { return Architecture; } }
+
+        public override string[] AllLLVMTriples => new[] { "i386" };
 
         // When no register features are passed, GDB will assume a default register layout, selected based on the architecture.
         // Such layout is enough to make our stub implementation working.

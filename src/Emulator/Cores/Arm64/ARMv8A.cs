@@ -88,6 +88,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
+        public override string GetLLVMTriple(uint flags)
+        {
+            if(flags == 0b11)
+            {
+                return AllLLVMTriples[2];
+            }
+            if(flags == 0b10)
+            {
+                return AllLLVMTriples[1];
+            }
+            return AllLLVMTriples[0];
+        }
+
         public override string Architecture { get { return "arm64"; } }
 
         public override string GDBArchitecture { get { return "aarch64"; } }
@@ -121,6 +134,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return features;
             }
         }
+
+        public override string[] AllLLVMTriples => new[] { "arm64", "armv8a", "thumb" };
+
+        public override string LLVMModel => Model;
 
         public ExceptionLevel ExceptionLevel
         {

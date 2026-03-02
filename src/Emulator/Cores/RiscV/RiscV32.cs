@@ -34,9 +34,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
         }
 
+        public override string GetLLVMTriple(uint flags) => AllLLVMTriples[0];
+
         public override string Architecture { get { return "riscv"; } }
 
         public override string GDBArchitecture { get { return "riscv:rv32"; } }
+
+        public override string[] AllLLVMTriples => new[] { "riscv32" };
 
         public override bool InClicMode => BitHelper.GetMaskedValue(MTVEC, 0, 2) == 3;
 

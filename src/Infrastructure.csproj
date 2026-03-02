@@ -406,6 +406,7 @@
     <Compile Include="Emulator/Cores/RiscV/VeeR_EL2_PIC.cs" />
     <Compile Include="Emulator/Cores/RiscV/ExternalPMPBase.cs" />
     <Compile Include="Emulator/Cores/RiscV/RiscVExternalPMP.cs" />
+    <Compile Include="Emulator/Cores/RiscV/RiscVLLVMModelEncoder.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Cores/RiscV/RiscV32Registers.tt">
@@ -1317,7 +1318,6 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Bus/ARM_NetworkInterconnect.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Mocks/MockDoubleWordPeripheralWithOnlyRegionReadMethod.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Miscellaneous/LPC_Clock0.cs" />
-    <Compile Include="Emulator/Peripherals/Peripherals/CPU/LLVMArchitectureMapping.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Video/Allegro_E310.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Assembler/LLVMAssembler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Analog/STM32F3_ADC.cs" />
@@ -1861,6 +1861,7 @@
     <Compile Include="Emulator/Main/Utilities/GDB/GdbStub.cs" />
     <Compile Include="Emulator/Main/Utilities/GDB/WatchpointDescriptor.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICpuSupportingGdb.cs" />
+    <Compile Include="Emulator/Main/Peripherals/CPU/ICPUSupportingLLVMDisas.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/ICPUWithMMU.cs" />
     <Compile Include="Emulator/Main/Peripherals/IPeripheralWithTransactionState.cs" />
     <Compile Include="Emulator/Main/Peripherals/CPU/GDB/GDBTypeBitField.cs" />

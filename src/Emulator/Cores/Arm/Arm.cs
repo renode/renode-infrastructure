@@ -259,6 +259,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool ImplementsVMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Virtual_VMSA;
 
+        public override Endianess DisassemblyHexFormatting => Endianess.LittleEndian;
+
         public abstract MemorySystemArchitectureType MemorySystemArchitecture { get; }
 
 #pragma warning disable 649

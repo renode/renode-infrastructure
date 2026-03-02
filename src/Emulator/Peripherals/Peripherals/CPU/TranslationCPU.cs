@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     /// <see cref="TranslationCPU"/> implements <see cref="ICluster{T}"/> interface
     /// to seamlessly handle either cluster or CPU as a parameter to different methods.
     /// </summary>
-    public abstract partial class TranslationCPU : BaseCPU, ICluster<TranslationCPU>, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters, ICPUWithMemoryAccessHooks, IControllableCPU, IHasPreservableState
+    public abstract partial class TranslationCPU : BaseCPU, ICluster<TranslationCPU>, IGPIOReceiver, ICpuSupportingGdb, ICPUWithExternalMmu, ICPUWithMMU, INativeUnwindable, ICPUWithMetrics, ICPUWithMappedMemory, ICPUWithRegisters, ICPUWithMemoryAccessHooks, IControllableCPU, IHasPreservableState, ICPUSupportingLLVMDisas
     {
         public void AddHookAtInterruptBegin(Action<ulong> hook)
         {
@@ -790,6 +790,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract IEnumerable<CPURegister> GetRegisters();
 
+        public abstract string GetLLVMTriple(uint flags);
+
         public string PreservableName => $"TranslationCPU:{this.GetName()}";
 
         public LLVMDisassembler Disassembler => disassembler;
@@ -1016,6 +1018,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         public abstract List<GDBFeatureDescriptor> GDBFeatures { get; }
 
         public abstract string GDBArchitecture { get; }
+
+        public abstract string[] AllLLVMTriples { get; }
+
+        public abstract string LLVMModel { get; }
+
+        public abstract Endianess DisassemblyHexFormatting { get; }
 
         public readonly bool UseMachineAtomicState;
 

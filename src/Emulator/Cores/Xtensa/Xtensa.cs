@@ -62,6 +62,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
+        public override string GetLLVMTriple(uint flags) => AllLLVMTriples[0];
+
         public override string Architecture { get { return "xtensa"; } }
 
         public override ExecutionMode ExecutionMode
@@ -81,6 +83,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override string GDBArchitecture { get { return "xtensa"; } }
 
         public override List<GDBFeatureDescriptor> GDBFeatures => new List<GDBFeatureDescriptor>();
+
+        public override string[] AllLLVMTriples => new[] { "xtensa" };
+
+        public override string LLVMModel => Model == "sample_controller" ? "mocked-sample-controller" : Model;
+
+        public override Endianess DisassemblyHexFormatting => Endianess.BigEndian;
 
         protected override Interrupt DecodeInterrupt(int number)
         {

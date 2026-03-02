@@ -56,6 +56,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public LAPIC Lapic { get; }
 
+        public override string LLVMModel => Model == "x86" ? "i386" : Model == "x86_64" ? "x86-64" : Model;
+
+        public override Endianess DisassemblyHexFormatting => Endianess.BigEndian;
+
         protected override Interrupt DecodeInterrupt(int number)
         {
             if(number == 0)

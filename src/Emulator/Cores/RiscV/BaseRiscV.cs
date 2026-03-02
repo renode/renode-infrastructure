@@ -454,6 +454,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public IEnumerable<InstructionSet> ArchitectureSets => architectureDecoder.InstructionSets;
 
+        public override Endianess DisassemblyHexFormatting => Endianess.LittleEndian;
+
+        public override string LLVMModel => RiscVLLVMModelEncoder.GetModel(this);
+
         public abstract RegisterValue VLEN { get; }
 
         // FFLAGS and FRM are accessible standalone as CSR1 and CSR2, but they can also be accessed at once via FCSR (CSR3).

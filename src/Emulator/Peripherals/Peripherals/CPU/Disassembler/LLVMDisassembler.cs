@@ -16,17 +16,14 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
+using ELFSharp.ELF;
+
 namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 {
     public class LLVMDisassembler
     {
-        public LLVMDisassembler(ICPU cpu)
+        public LLVMDisassembler(ICPUSupportingLLVMDisas cpu)
         {
-            if(!LLVMArchitectureMapping.IsSupported(cpu))
-            {
-                throw new ArgumentOutOfRangeException("cpu");
-            }
-
             this.cpu = cpu;
             cache = new Dictionary<string, IFlaglessDisassembler>();
         }
@@ -76,13 +73,13 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 
         private IFlaglessDisassembler GetDisassembler(uint translationFlags, bool alternateDialect)
         {
-            var triple = LLVMArchitectureMapping.GetTriple(cpu, translationFlags);
-            var model = LLVMArchitectureMapping.GetModel(cpu);
+            var triple = cpu.GetLLVMTriple(translationFlags);
+            var model = cpu.LLVMModel;
 
-            var key = $"{triple} {model} {alternateDialect}";
+            var key = $"{triple} {model} {alternateDialect} {cpu.DisassemblyHexFormatting}";
             if(!cache.ContainsKey(key))
             {
-                IFlaglessDisassembler disas = new LLVMDisasWrapper(model, triple, alternateDialect);
+                IFlaglessDisassembler disas = new LLVMDisasWrapper(model, triple, alternateDialect, cpu.DisassemblyHexFormatting);
                 Logger.Info($"Created new disassembler for triple {triple}, cpu {model}{(alternateDialect ? " with alternate dialect" : "")}");
                 if(!xtensaSupportWarningIssued && triple == "xtensa")
                 {
@@ -105,11 +102,11 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
         }
 
         private readonly Dictionary<string, IFlaglessDisassembler> cache;
-        private readonly ICPU cpu;
+        private readonly ICPUSupportingLLVMDisas cpu;
 
         private class LLVMDisasWrapper : IDisposable, IFlaglessDisassembler
         {
-            public LLVMDisasWrapper(string cpu, string triple, bool alternateDialect)
+            public LLVMDisasWrapper(string cpu, string triple, bool alternateDialect, Endianess hexFormatting)
             {
                 try
                 {
@@ -130,29 +127,14 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 }
                 isThumb = triple.Contains("thumb");
 
-                switch(triple)
+                switch(hexFormatting)
                 {
-                case "ppc":
-                case "ppc64le":
-                case "sparc":
-                case "i386":
-                case "x86_64":
-                case "xtensa":
-                    HexFormatter = FormatHexForx86;
+                case Endianess.BigEndian:
+                    HexFormatter = FormatHexForBe;
                     break;
-                case "riscv64":
-                case "riscv32":
-                case "thumb":
-                case "arm":
-                case "armv7a":
-                case "arm64":
-                case "msp430":
-                case "msp430x":
-                    HexFormatter = FormatHexForARM;
+                case Endianess.LittleEndian:
+                    HexFormatter = FormatHexForLe;
                     break;
-                default:
-                    Console.WriteLine(triple);
-                    throw new ArgumentOutOfRangeException("cpu", "CPU not supported.");
                 }
             }
 
@@ -224,7 +206,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             [DllImport("libllvm-disas")]
             private static extern void llvm_disasm_dispose(IntPtr disasm);
 
-            private bool FormatHexForx86(StringBuilder strBldr, int bytes, int position, byte[] data)
+            private bool FormatHexForBe(StringBuilder strBldr, int bytes, int position, byte[] data)
             {
                 int i;
                 for(i = 0; i < bytes && position + i < data.Length; i++)
@@ -242,7 +224,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 return i == bytes;
             }
 
-            private bool FormatHexForARM(StringBuilder strBldr, int bytes, int position, byte[] data)
+            private bool FormatHexForLe(StringBuilder strBldr, int bytes, int position, byte[] data)
             {
                 if(isThumb)
                 {

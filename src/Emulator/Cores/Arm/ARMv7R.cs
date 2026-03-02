@@ -34,6 +34,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public override string GetLLVMTriple(uint flags) => flags == 1 ? AllLLVMTriples[1] : AllLLVMTriples[0];
+
         public override MemorySystemArchitectureType MemorySystemArchitecture => MemorySystemArchitectureType.Physical_PMSA;
 
         // Currently unsupported
@@ -48,6 +50,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public ExceptionLevel ExceptionLevel => ExceptionLevel.EL1_SystemMode;
 
         public uint AuxiliaryControlRegister { get; set; }
+
+        public override string[] AllLLVMTriples => new[] { "armv7r", "thumb" };
+
+        // LLVM considers R4F to be the "base" R4, see https://reviews.llvm.org/D12692
+        public override string LLVMModel => Model == "cortex-r5f" ? "cortex-r5" : Model;
 
         protected override void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)
         {

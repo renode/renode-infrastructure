@@ -51,6 +51,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
+        public override string GetLLVMTriple(uint flags) => flags == 1 ? AllLLVMTriples[1] : AllLLVMTriples[0];
+
         public override MemorySystemArchitectureType MemorySystemArchitecture => MemorySystemArchitectureType.Virtual_VMSA;
 
         // Currently unsupported
@@ -63,6 +65,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         public SecurityState SecurityState => SecurityState.Secure;
 
         public ExceptionLevel ExceptionLevel => ExceptionLevel.EL1_SystemMode;
+
+        public override string[] AllLLVMTriples => new[] { "armv7a", "thumb" };
+
+        public override string LLVMModel => Model;
 
         protected override void Write32CP15Inner(Coprocessor32BitMoveInstruction instruction, uint value)
         {

@@ -124,6 +124,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
+        public override string GetLLVMTriple(uint flags)
+        {
+            if(flags == 0)
+            {
+                throw new ArgumentOutOfRangeException("flags");
+            }
+            if(flags == 0b11)
+            {
+                return AllLLVMTriples[1];
+            }
+            return AllLLVMTriples[0];
+        }
+
         [Export]
         public override uint CheckExternalPermissions(ulong address)
         {
@@ -191,6 +204,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return features;
             }
         }
+
+        public override string[] AllLLVMTriples => new[] { "armv8r", "thumb" };
+
+        public override string LLVMModel => Model;
 
         [Export]
         protected void WriteSystemRegisterGenericTimer32(uint offset, uint value)

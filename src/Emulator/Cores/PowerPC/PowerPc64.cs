@@ -85,6 +85,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             InternalSetInterrupt(InterruptType.External, value);
         }
 
+        public override string GetLLVMTriple(uint flags) => AllLLVMTriples[0];
+
         public override string Architecture { get { return "ppc64"; } }
 
         public override string GDBArchitecture { get { return "powerpc:common64"; } }
@@ -109,6 +111,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return new List<GDBFeatureDescriptor>(new GDBFeatureDescriptor[] { powerCore });
             }
         }
+
+        public override Endianess DisassemblyHexFormatting => Endianess.BigEndian;
+
+        public override string[] AllLLVMTriples => new[] { "ppc64le" };
+
+        public override string LLVMModel => Model;
 
         public bool StartInVle
         {

@@ -15,19 +15,15 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
 {
     public class LLVMAssembler
     {
-        public LLVMAssembler(ICPU cpu)
+        public LLVMAssembler(ICPUSupportingLLVMDisas cpu)
         {
-            if(!LLVMArchitectureMapping.IsSupported(cpu))
-            {
-                throw new ArgumentOutOfRangeException(nameof(cpu));
-            }
             this.cpu = cpu;
         }
 
         public byte[] AssembleBlock(ulong pc, string code, uint flags, bool alternateDialect)
         {
-            var triple = LLVMArchitectureMapping.GetTriple(cpu, flags);
-            var model = LLVMArchitectureMapping.GetModel(cpu);
+            var triple = cpu.GetLLVMTriple(flags);
+            var model = cpu.LLVMModel;
             // We need to initialize the architecture to be used before trying to assemble.
             // It's OK and cheap to initialize it multiple times, as this only sets a few pointers.
             init_llvm_architecture(triple);
@@ -71,6 +67,6 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
 
         private static bool xtensaSupportWarningIssued = false;
 
-        private readonly ICPU cpu;
+        private readonly ICPUSupportingLLVMDisas cpu;
     }
 }

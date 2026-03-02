@@ -184,6 +184,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetIDAURegion(regionIndex, new IDAURegion(rbar, rlar));
         }
 
+        public override string GetLLVMTriple(uint flags) => AllLLVMTriples[0];
+
         public override string Architecture { get { return "arm-m"; } }
 
         public override List<GDBFeatureDescriptor> GDBFeatures
@@ -804,6 +806,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 tlibSetPmsav8Ctrl(value, ShouldAccessBeSecure());
             }
         }
+
+        public override string[] AllLLVMTriples => new[] { "thumb" };
+
+        // LLVM considers M4F to be the "base" M4, see https://reviews.llvm.org/D12692
+        public override string LLVMModel => Model == "cortex-m4f" ? "cortex-m4" : Model;
 
         public const uint IDAU_SAURegionMinSize = 32u;
 

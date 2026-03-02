@@ -73,11 +73,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public override string GetLLVMTriple(uint flags) => AllLLVMTriples[0];
+
         public override string Architecture { get { return "sparc"; } }
 
         public override string GDBArchitecture { get { return Architecture; } }
 
         public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
+
+        public override Endianess DisassemblyHexFormatting => Endianess.BigEndian;
+
+        public override string[] AllLLVMTriples => new[] { "sparc" };
+
+        // LLVM has support for similar microcontroller models (GR712, GR740), but not this exact one, so default to  the generic underlying CPU
+        public override string LLVMModel => Model == "gr716" ? "leon3" : Model;
 
         public GaislerMIC ConnectedMIC
         {

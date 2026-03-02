@@ -33,6 +33,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibSetLittleEndianMode(initialEndianess == Endianess.LittleEndian ? 1u : 0u);
         }
 
+        public override string GetLLVMTriple(uint flags) => AllLLVMTriples[0];
+
         [Export]
         public uint ReadTbl()
         {
@@ -108,6 +110,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return new List<GDBFeatureDescriptor>(new GDBFeatureDescriptor[] { powerCore });
             }
         }
+
+        public override Endianess DisassemblyHexFormatting => Endianess.BigEndian;
+
+        public override string[] AllLLVMTriples => new[] { "ppc" };
+
+        // LLVM doesn't have models for e200 PowerPC CPUs, remap to generic CPU
+        public override string LLVMModel => Model == "e200z6" ? "ppc32" : Model;
 
         public bool StartInVle
         {

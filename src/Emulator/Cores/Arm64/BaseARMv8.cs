@@ -107,6 +107,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public override Endianess DisassemblyHexFormatting => Endianess.LittleEndian;
+
         public abstract ExecutionState ExecutionState { get; }
 
         public abstract ExecutionState[] SupportedExecutionStates { get; }
