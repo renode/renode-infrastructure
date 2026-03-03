@@ -62,12 +62,14 @@ namespace Antmicro.Renode.UI
                 File.WriteAllText(options.PidFile, pid.ToString());
             }
 
+#if NET
             if(options.UI)
             {
                 var uiProvider = new UIProvider(WebSockets.WebSocketsManager.Instance.Port);
                 uiProvider.WindowClosed += Emulator.Exit;
                 ui = uiProvider;
             }
+#endif
             else if(!options.DisableXwt || options.RobotDebug)
             {
                 ui = XwtProvider.Create(new WindowedUserInterfaceProvider());
