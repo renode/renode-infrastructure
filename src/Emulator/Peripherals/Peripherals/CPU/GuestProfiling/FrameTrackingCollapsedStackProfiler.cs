@@ -137,7 +137,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         private Symbol GetSymbol(ulong address)
         {
-            if(!cpu.Bus.TryFindSymbolAt(address, out var name, out var symbol))
+            if(!cpu.Bus.TryFindSymbolAt(address, out var name, out var symbol, context: cpu))
             {
                 // Symbol not found - address must serve as the symbol
                 symbol = new Symbol(address, address, $"0x{address:X}");
