@@ -64,6 +64,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override MemorySystemArchitectureType MemorySystemArchitecture => MemorySystemArchitectureType.Virtual_VMSA;
 
+        public override string[] AllLLVMTriples => new[] { "armv7a", "thumb" };
+
+        public override string LLVMModel => Model;
+
         // Currently unsupported, needed for IARMSingleSecurityStateCPU
         public bool FIQMaskOverride => false;
 
