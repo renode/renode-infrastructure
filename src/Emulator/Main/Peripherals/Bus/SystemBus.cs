@@ -232,7 +232,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public bool TryFindSymbolAt(ulong offset, out string name, out Symbol symbol, ICPU context = null, bool functionOnly = false)
         {
-            if(!pcCache.TryGetValue(offset, out var entry))
+            if(!pcCache.TryGetValue(Tuple.Create(context, offset), out var entry))
             {
                 if(!GetLookup(context).TryGetSymbolByAddress(offset, out symbol, functionOnly))
                 {
@@ -244,7 +244,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     name = symbol.ToStringRelative(offset);
                 }
-                pcCache.Add(offset, Tuple.Create(name, symbol));
+                pcCache.Add(Tuple.Create(context, offset), Tuple.Create(name, symbol));
             }
             else
             {
@@ -2488,7 +2488,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         private ContextKeyDictionary<MinimalRangesCollection, IReadOnlyMinimalRangesCollection> lockedRangesCollectionByContext;
         private readonly List<BinaryFingerprint> binaryFingerprints;
 
-        private readonly LRUCache<ulong, Tuple<string, Symbol>> pcCache = new LRUCache<ulong, Tuple<string, Symbol>>(10000);
+        private readonly LRUCache<Tuple<ICPU, ulong>, Tuple<string, Symbol>> pcCache = new LRUCache<Tuple<ICPU, ulong>, Tuple<string, Symbol>>(10000);
         private readonly ReaderWriterLockSlim cpuSync;
         private readonly Dictionary<ulong, List<BusHookHandler>> hooksOnRead;
         private readonly Dictionary<int, ICPU> cpuById;
