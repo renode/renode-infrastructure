@@ -45,6 +45,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             irqs = new ExceptionSimpleArray<IRQState>();
             targetInterruptSecurityState = new InterruptTargetSecurityState[IRQCount];
             IRQ = new GPIO();
+            SystemResetRequest = new GPIO();
             resetMachine = machine.RequestReset;
             systick = new SecurityBanked<SysTick>
             {
@@ -643,7 +644,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public bool HaltSystickOnDeepSleep { get; set; }
 
+        [DefaultInterruptAttribute]
         public GPIO IRQ { get; private set; }
+
+        public GPIO SystemResetRequest { get; private set; }
 
         public long Size
         {
@@ -839,6 +843,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             return;
                         }
                         this.InfoLog("Resetting platform with SYSRESETREQ");
+                        if(SystemResetRequest.IsConnected)
+                        {
+                            this.DebugLog("SYSRESETREQ: Not handled internally because GPIO 'SystemResetRequest' is connected");
+                            SystemResetRequest.Set();
+                            return;
+                        }
+                        /* Handle the reset immediately if we don't expect some action from e.g. SystemC side */
                         if(PauseInsteadOfReset)
                         {
                             machine.Pause();
