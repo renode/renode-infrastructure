@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -16,21 +16,28 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
+    public abstract class UARTBaseWithFrameInfo : UARTBase, IUARTWithFrameInfo
+    {
+        public virtual void WriteChar(byte value, UARTFrame frame)
+        {
+            WriteCharInner(value, frame);
+        }
+
+        protected UARTBaseWithFrameInfo(IMachine machine) : base(machine)
+        {
+        }
+
+        protected bool TryGetCharacterWithFrame(out byte character, out UARTFrame frame, bool peek = false)
+        {
+            return TryGetCharacterInner(out character, out frame, peek);
+        }
+    }
+
     public abstract class UARTBase : NullRegistrationPointPeripheralContainer<IUART>, IUART
     {
         public virtual void WriteChar(byte value)
         {
-            lock(innerLock)
-            {
-                if(!IsReceiveEnabled)
-                {
-                    this.Log(LogLevel.Debug, "UART or receive disabled; dropping the character written: '{0}'", (char)value);
-                    return;
-                }
-
-                queue.Enqueue(value);
-                CharWritten();
-            }
+            WriteCharInner(value, null);
         }
 
         public override void Reset()
@@ -63,26 +70,55 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected UARTBase(IMachine machine) : base(machine)
         {
-            queue = new Queue<byte>();
+            queue = new Queue<Tuple<Byte, UARTFrame>>();
             innerLock = new object();
         }
 
+        /// <remark>
+        /// when upgrading to C# 8.0, change the type of `frame` to UARTFrame?
+        /// </remark>
+        protected virtual void WriteCharInner(byte value, UARTFrame frame)
+        {
+            lock(innerLock)
+            {
+                if(!IsReceiveEnabled)
+                {
+                    this.Log(LogLevel.Debug, "UART or receive disabled; dropping the character written: '{0}'", (char)value);
+                    return;
+                }
+
+                queue.Enqueue(Tuple.Create(value, frame));
+                CharWritten();
+            }
+        }
+
         protected bool TryGetCharacter(out byte character, bool peek = false)
+        {
+            return TryGetCharacterInner(out character, out var _, peek);
+        }
+
+        protected bool TryGetCharacterInner(out byte character, out UARTFrame frame, bool peek = false)
         {
             lock(innerLock)
             {
                 if(queue.Count == 0)
                 {
                     character = default(byte);
+                    frame = null;
                     return false;
                 }
                 if(peek)
                 {
-                    character = queue.Peek();
+                    // Unpacking assignments are not avalible on mono
+                    var value = queue.Peek();
+                    character = value.Item1;
+                    frame = value.Item2;
                 }
                 else
                 {
-                    character = queue.Dequeue();
+                    var value = queue.Dequeue();
+                    character = value.Item1;
+                    frame = value.Item2;
                 }
                 if(queue.Count == 0)
                 {
@@ -135,6 +171,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        private readonly Queue<byte> queue;
+        private readonly Queue<Tuple<byte, UARTFrame>> queue;
     }
 }

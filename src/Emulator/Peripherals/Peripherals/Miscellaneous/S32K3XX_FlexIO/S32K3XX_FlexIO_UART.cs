@@ -93,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public Bits StopBits => LogWarningWhenDirectionsDiffer(receiver?.StopBits, transmitter?.StopBits, "StopBits") ?? Bits.None;
 
-        public Parity ParityBit => Parity.None;
+        public Parity ParityBit => Parity.Unsupported;
 
         [field: Transient]
         public event Action<byte> CharReceived;

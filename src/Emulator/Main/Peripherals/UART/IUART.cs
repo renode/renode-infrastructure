@@ -36,7 +36,8 @@ namespace Antmicro.Renode.Peripherals.UART
         None,
         Forced1,
         Forced0,
-        Multidrop
+        Multidrop,
+        Unsupported
     }
 
     public enum Bits
