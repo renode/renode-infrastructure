@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public ulong Offset { get; set; }
 
-        public ulong StartingPoint { get; set; }
+        public virtual ulong StartingPoint { get; set; }
 
         public virtual string PrettyString
         {

@@ -84,6 +84,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public override ulong StartingPoint
+        {
+            get => Range.StartAddress;
+            set => Range = Range.MoveTo(value);
+        }
+
         public static implicit operator BusRangeRegistration(Range range)
         {
             return new BusRangeRegistration(range);
