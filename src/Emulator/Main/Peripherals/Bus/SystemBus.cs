@@ -1222,8 +1222,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 throw new RecoverableException("Moving a peripheral is supported only from CPU thread if context isn't explicitly set");
             }
-            var wasMapped = RemoveMappingsForPeripheral(peripheral);
-            var busRegisteredEntries = peripheralsCollectionByContext[context].Peripherals.Where(x => x.Peripheral == peripheral).ToList();
+            if(newRegistration.Initiator != context)
+            {
+                throw new RecoverableException("New registration must be exclusively on the current context");
+            }
+            if(IsAddressRangeLocked(newRegistration.Range, context))
+            {
+                throw new RecoverableException("Moving a peripheral to a locked address range is not supported");
+            }
+
+            var busRegisteredEntries = peripheralsCollectionByContext[context].Peripherals.Where(x => x.Peripheral == peripheral && x.RegistrationPoint.Initiator == context).ToList();
             if(busRegisteredEntries.Count == 0)
             {
                 throw new RecoverableException("Attempted to move a peripheral that isn't registered within current context");
@@ -1247,8 +1255,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
             if(IsAddressRangeLocked(busRegistered.RegistrationPoint.Range, context))
             {
-                throw new RecoverableException("Moving a peripheral to a locked address range is not supported");
+                throw new RecoverableException("Moving a peripheral from a locked address range is not supported");
             }
+
+            var wasMapped = RemoveMappingsForPeripheral(peripheral, context);
             UnregisterAccessFlags(busRegistered.RegistrationPoint, context);
             peripheralsCollectionByContext.WithStateCollection(context, null, collection =>
             {
@@ -1589,7 +1599,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private void UnregisterInner(IBusPeripheral peripheral)
         {
-            RemoveMappingsForPeripheral(peripheral);
+            RemoveMappingsForPeripheral(peripheral, null);
 
             // remove the peripheral from all cpu-local and the global mappings
             foreach(var pair in peripheralsCollectionByContext.GetAllContextKeys()
@@ -1618,7 +1628,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 // it is assumed that mapped segment cannot be partially outside the registration point range
                 foreach(var mapping in mappingsForPeripheral[busRegistered.Peripheral].Where(x => busRegistered.RegistrationPoint.Range.Contains(x.StartingOffset)))
                 {
-                    UnmapMemory(new Range(mapping.StartingOffset, checked((ulong)mapping.Size)));
+                    UnmapMemory(new Range(mapping.StartingOffset, checked((ulong)mapping.Size)), mapping.Context);
                     toRemove.Add(mapping);
                 }
                 mappingsForPeripheral[busRegistered.Peripheral].RemoveAll(x => toRemove.Contains(x));
@@ -2295,17 +2305,38 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        private bool RemoveMappingsForPeripheral(IBusPeripheral peripheral)
+        private bool RemoveMappingsForPeripheral(IBusPeripheral peripheral, ICPU context)
         {
             if(!mappingsForPeripheral.ContainsKey(peripheral))
             {
                 return false;
             }
+
+            var newMappings = new List<MappedSegmentWrapper>();
+
             foreach(var mapping in mappingsForPeripheral[peripheral])
             {
-                UnmapMemory(new Range(mapping.StartingOffset, mapping.Size));
+                if(context != null && mapping.Context != context)
+                {
+                    newMappings.Add(mapping);
+                    continue;
+                }
+                UnmapMemory(new Range(mapping.StartingOffset, mapping.Size), mapping.Context);
             }
-            mappingsForPeripheral.Remove(peripheral);
+
+            if(mappingsForPeripheral[peripheral].Count == newMappings.Count)
+            {
+                return false;
+            }
+
+            if(newMappings.Count == 0)
+            {
+                mappingsForPeripheral.Remove(peripheral);
+            }
+            else
+            {
+                mappingsForPeripheral[peripheral] = newMappings;
+            }
             return true;
         }
 
