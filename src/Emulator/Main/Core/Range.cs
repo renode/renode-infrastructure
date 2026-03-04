@@ -166,10 +166,7 @@ namespace Antmicro.Renode.Core
             return new Range(checked(shiftValue >= 0 ? StartAddress + (ulong)shiftValue : StartAddress - (ulong)(-shiftValue)), Size);
         }
 
-        public Range MoveToZero()
-        {
-            return new Range(0, Size);
-        }
+        public Range MoveTo(ulong baseAddr) => new Range(baseAddr, Size);
 
         public override string ToString()
         {
