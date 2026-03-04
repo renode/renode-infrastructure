@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -13,7 +13,6 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities.Binding;
@@ -302,11 +301,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     .SingleOrDefault()
                 ;
 
-                registrationPoint = new BusRangeRegistration(
-                    registrationPoint.Range
-                        .MoveToZero()
-                        .ShiftBy((long)newAddress))
-                ;
+                registrationPoint = registrationPoint.Clone();
+                registrationPoint.StartingPoint = newAddress;
 
                 machine.SystemBus
                     .MoveRegistrationWithinContext(tcmConfig.Memory, registrationPoint, this)
