@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -36,15 +36,23 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             try
             {
                 var executedInstructions = manager.Cpu.ExecutedInstructions;
-                manager.LoadLatestSnapshot((CommandsManager newManager) =>
+                var commandsManager = manager;
+                var instructionsExecutedBetweenSnapshots = 0UL;
+                Logger.LogAs(this, LogLevel.Debug, "Reverse stepping. Executed Instructions: {0}", executedInstructions);
+                while(instructionsExecutedBetweenSnapshots == 0)
                 {
-                    EmulationManager.Instance.CurrentEmulation.StartAll();
-                    var instructionsToExecute = executedInstructions - newManager.Cpu.ExecutedInstructions - 1;
-                    var inDebugMode = newManager.Cpu.ShouldEnterDebugMode;
-                    newManager.Cpu.ShouldEnterDebugMode = false;
-                    newManager.Cpu.Step((int)instructionsToExecute);
-                    newManager.Cpu.ShouldEnterDebugMode = inDebugMode;
-                });
+                    commandsManager.LoadLatestSnapshot((CommandsManager newManager) => commandsManager = newManager);
+
+                    instructionsExecutedBetweenSnapshots = executedInstructions - commandsManager.Cpu.ExecutedInstructions;
+                    Logger.LogAs(this, LogLevel.Debug, "Loaded previous snapshot. Instructions executed between snapshots: {0}", instructionsExecutedBetweenSnapshots);
+                }
+                var instructionsToExecute = instructionsExecutedBetweenSnapshots - 1;
+                var inDebugMode = commandsManager.Cpu.ShouldEnterDebugMode;
+
+                commandsManager.Cpu.ExecutionMode = ExecutionMode.SingleStep;
+                commandsManager.Cpu.ShouldEnterDebugMode = false;
+                commandsManager.Cpu.Step((int)instructionsToExecute);
+                commandsManager.Cpu.ShouldEnterDebugMode = inDebugMode;
                 return null;
             }
             catch(RecoverableException e)
