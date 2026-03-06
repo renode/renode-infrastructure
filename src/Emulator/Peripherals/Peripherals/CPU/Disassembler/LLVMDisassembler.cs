@@ -127,15 +127,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 }
                 isThumb = triple.Contains("thumb");
 
-                switch(hexFormatting)
-                {
-                case Endianess.BigEndian:
-                    HexFormatter = FormatHexForBe;
-                    break;
-                case Endianess.LittleEndian:
-                    HexFormatter = FormatHexForLe;
-                    break;
-                }
+                HexEndianess = hexFormatting;
             }
 
             public void Dispose()
@@ -161,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 }
 
                 var strBldr = new StringBuilder();
-                if(!HexFormatter(strBldr, bytes, memoryOffset, data))
+                if(!FormatHex(strBldr, bytes, memoryOffset, data))
                 {
                     result = default(DisassemblyResult);
                     return false;
@@ -171,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
                 {
                     PC = pc,
                     OpcodeSize = bytes,
-                    OpcodeString = strBldr.ToString().Replace(" ", ""),
+                    OpcodeString = strBldr.ToString(),
                     DisassemblyString = Marshal.PtrToStringAnsi(strBuf)
                 };
 
@@ -206,60 +198,24 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
             [DllImport("libllvm-disas")]
             private static extern void llvm_disasm_dispose(IntPtr disasm);
 
-            private bool FormatHexForBe(StringBuilder strBldr, int bytes, int position, byte[] data)
+            private bool FormatHex(StringBuilder strBldr, int bytes, int position, byte[] data)
             {
-                int i;
-                for(i = 0; i < bytes && position + i < data.Length; i++)
+                if(isThumb && bytes == 4)
                 {
-                    strBldr.AppendFormat("{0:x2} ", data[position + i]);
+                    return FormatHex(strBldr, 2, position, data) && FormatHex(strBldr, 2, position + 2, data);
                 }
+                if(position > data.Length - bytes) return false;
 
-                //This is a sane minimal length, based on some different binaries for quark.
-                //X86 instructions do not have the upper limit of lenght, so we have to approximate.
-                for(var j = i; j < 7; ++j)
+                for(int offset = 0; offset < bytes; offset += 1)
                 {
-                    strBldr.Append("   ");
-                }
-
-                return i == bytes;
-            }
-
-            private bool FormatHexForLe(StringBuilder strBldr, int bytes, int position, byte[] data)
-            {
-                if(isThumb)
-                {
-                    if(bytes == 4 && position + 3 < data.Length)
-                    {
-                        strBldr.AppendFormat("{0:x2}{1:x2} {2:x2}{3:x2}", data[position + 1], data[position], data[position + 3], data[position + 2]);
-                    }
-                    else if(bytes == 2 && position + 1 < data.Length)
-                    {
-                        strBldr.AppendFormat("{0:x2}{1:x2}     ", data[position + 1], data[position]);
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    for(int i = bytes - 1; i >= 0; i--)
-                    {
-                        if(position + i < data.Length)
-                        {
-                            strBldr.AppendFormat("{0:x2}", data[position + i]);
-                        }
-                        else
-                        {
-                            return false;
-                        }
-                    }
+                    var bytePos = HexEndianess == Endianess.BigEndian ? offset : bytes - offset - 1;
+                    strBldr.AppendFormat("{0:x2}", data[position + bytePos]);
                 }
 
                 return true;
             }
 
-            private readonly Func<StringBuilder, int, int, byte[], bool> HexFormatter;
+            private readonly Endianess HexEndianess;
 
             private readonly bool isThumb;
 

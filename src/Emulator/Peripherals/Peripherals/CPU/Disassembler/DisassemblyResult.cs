@@ -18,7 +18,13 @@ namespace Antmicro.Renode.Peripherals.CPU.Disassembler
 
         public override string ToString()
         {
-            return $"0x{PC:x8}:   {OpcodeString} {DisassemblyString}";
+            if(DisassemblyString == null || DisassemblyString == "")
+            {
+                return $"0x{PC:x8}:   {OpcodeString}";
+            }
+            // This is a sane minimal length, based on some different binaries for quark.
+            // X86 instructions do not have the upper limit of lenght, so we have to approximate.
+            return $"0x{PC:x8}:   {OpcodeString,-14} {DisassemblyString}";
         }
     }
 }
