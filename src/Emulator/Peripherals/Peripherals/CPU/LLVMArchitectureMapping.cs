@@ -179,8 +179,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             { "x86"       , "i386"       },
             { "x86_64"    , "x86-64"     },
-            // this case is included because of #3250
-            { "arm926"    , "arm926ej-s" },
             // see: https://reviews.llvm.org/D12692
             { "cortex-m4f", "cortex-m4"  },
             { "cortex-r5f", "cortex-r5"  },
