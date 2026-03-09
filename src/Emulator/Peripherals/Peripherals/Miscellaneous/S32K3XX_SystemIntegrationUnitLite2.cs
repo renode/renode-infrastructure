@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -322,7 +322,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTaggedFlag("PadKeepingEnable", 16)
                     .WithTaggedFlag("Invert", 17)
                     .WithReservedBits(18, 1)
-                    .WithTaggedFlag("InputBufferEnable", 19)
+                    .WithFlag(19, name: "InputBufferEnable")
                     .WithReservedBits(20, 1)
                     .WithTaggedFlag("GPIOOutputBufferEnable", 21)
                     .WithReservedBits(22, 10)
