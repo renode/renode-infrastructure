@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -333,6 +334,9 @@ namespace Antmicro.Renode.Peripherals.UART
                 UpdateBufferState();
                 UpdateGPIOOutputs();
                 reset.Value = true;
+                InjectFramingError = false;
+                InjectNoiseError = false;
+                InjectParityError = false;
             }
         }
 
@@ -424,8 +428,50 @@ namespace Antmicro.Renode.Peripherals.UART
                     this.Log(LogLevel.Debug, "RX FIFO is overflowing, but we are buffering characters, reached {0} bytes", Count + 1);
                 }
 
+                // If this method is called without a UARTFrame, but we still have an error to inject we need to create a dummy frame
+                if(frame == null && (InjectFramingError || InjectNoiseError || InjectParityError))
+                {
+                    frame = UARTFrame.CreateFromSenderAndMessage(this, data);
+                }
+
+                if(InjectNoiseError)
+                {
+                    frame.Noise = true;
+                }
+                if(InjectParityError)
+                {
+                    if(frame.ParityBit == UARTFrame.ParityBitValue.None)
+                    {
+                        this.Log(LogLevel.Warning, "Attempted to inject parity error with LPUART configured to not use parity bit. Ignoring");
+                    }
+                    else
+                    {
+                        if(frame.ParityBit == UARTFrame.ParityBitValue.Unsupported)
+                        {
+                            // Transmitter model does not model parity bits, so calculate the correct value first
+                            frame.ParityBit = UARTFrame.CalculateParityBit(data, this.ParityBit);
+                        }
+                        frame.ParityBit = frame.ParityBit == UARTFrame.ParityBitValue.Zero ? UARTFrame.ParityBitValue.One : UARTFrame.ParityBitValue.Zero;
+                    }
+                }
+                if(InjectFramingError)
+                {
+                    // For the error injection it does not matter which setting we end up with, as long as it is not the original one.
+                    // Since there are many possible settings for the stop bits, here we use a LINQ statement to get the next value numerically in the enum.
+                    frame.StopBits = (from Bits val in Enum.GetValues(typeof(Bits))
+                                      where val > frame.StopBits
+                                      orderby val
+                                      select val).DefaultIfEmpty().First();
+                }
+
+                // Clear all error injection flags after using them
+                InjectFramingError = false;
+                InjectNoiseError = false;
+                InjectParityError = false;
+
                 base.WriteChar(data, frame);
                 UpdateBufferState();
+                UpdateErrorFlags();
                 UpdateGPIOOutputs();
             }
         }
@@ -455,6 +501,12 @@ namespace Antmicro.Renode.Peripherals.UART
         public GPIO ReceiveDMA { get; }
 
         public GPIO TransmitDMA { get; }
+
+        public bool InjectFramingError { get; set; }
+
+        public bool InjectNoiseError { get; set; }
+
+        public bool InjectParityError { get; set; }
 
         public event Action BroadcastLINBreak;
 
@@ -701,6 +753,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private BufferState latestBufferState = BufferState.Empty;
         private int rxMaxBytes = 1;
         private int txMaxBytes = 1;
+
         private readonly object locker;
         private readonly Queue<byte> txQueue;
         private readonly DoubleWordRegisterCollection registers;
