@@ -10,6 +10,7 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -60,7 +61,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegisters()
         {
             Registers.ControlKey.Define(this)
-                .WithTag("CTL_KEY (Control Key)", 0, 16)
+                .WithValueField(0, 16, name: "CTL_KEY (Control Key)",
+                    writeCallback: (oldValue, newValue) =>
+                    {
+                        if(oldValue == 0x5AF0 && newValue == 0xA50F)
+                        {
+                            this.DebugLog("Standby mode transition initialized");
+                        }
+                    }
+                )
                 .WithReservedBits(16, 16);
 
             Registers.ModeConfiguration.Define(this)
