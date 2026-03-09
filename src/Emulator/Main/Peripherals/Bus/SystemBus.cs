@@ -1165,14 +1165,15 @@ namespace Antmicro.Renode.Peripherals.Bus
             var methods = PeripheralAccessMethods.CreateWithLock();
             if(registrationPoint is BusParametrizedRegistration parametrizedRegistrationPoint)
             {
-                parametrizedRegistrationPoint.RegisterForEachContext((contextRegistration) =>
+                parametrizedRegistrationPoint.RegisterForEachContext((context) =>
                 {
                     // Prepare accessor methods in the context of registration,
                     // as it may want to fill them according to the CPU context.
                     methods = PeripheralAccessMethods.CreateWithLock();
-                    contextRegistration.FillAccessMethods(peripheral, ref methods);
+                    parametrizedRegistrationPoint.FillAccessMethods(peripheral, ref methods);
+
                     FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
-                    RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.Initiator);
+                    RegisterInner(peripheral, methods, registrationPoint, context);
                 });
             }
             else if(registrationPoint is BusMultiRegistration multiRegistrationPoint)
@@ -1182,12 +1183,12 @@ namespace Antmicro.Renode.Peripherals.Bus
                     throw new ConstructionException(string.Format("It is not allowed to register `{0}` peripheral using `{1}`", typeof(IMapped).Name, typeof(BusMultiRegistration).Name));
                 }
                 FillAccessMethodsWithTaggedMethods(peripheral, multiRegistrationPoint.ConnectionRegionName, ref methods);
-                multiRegistrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.Initiator));
+                multiRegistrationPoint.RegisterForEachContext((context) => RegisterInner(peripheral, methods, registrationPoint, context));
             }
             else
             {
                 FillAccessMethodsWithDefaultMethods(peripheral, ref methods);
-                registrationPoint.RegisterForEachContext((contextRegistration) => RegisterInner(peripheral, methods, contextRegistration, context: contextRegistration.Initiator));
+                registrationPoint.RegisterForEachContext((context) => RegisterInner(peripheral, methods, registrationPoint, context));
             }
         }
 

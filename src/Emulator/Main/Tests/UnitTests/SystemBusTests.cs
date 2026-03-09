@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -579,11 +579,6 @@ namespace Antmicro.Renode.UnitTests
                     {
                         parent.ByteWritten = true;
                     };
-                }
-
-                public override void RegisterForEachContext(Action<BusParametrizedRegistration> register)
-                {
-                    RegisterForEachContextInner(register, _ => new Registration(Range.StartAddress, Range.Size));
                 }
             }
         }

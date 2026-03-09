@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -111,11 +111,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 );
                 return value;
             };
-        }
-
-        public override void RegisterForEachContext(Action<BusParametrizedRegistration> register)
-        {
-            RegisterForEachContextInner(register, visibleTo => new ArmGicRedistributorRegistration(Cpu, Range.StartAddress, visibleTo));
         }
 
         public IARMSingleSecurityStateCPU Cpu { get; }

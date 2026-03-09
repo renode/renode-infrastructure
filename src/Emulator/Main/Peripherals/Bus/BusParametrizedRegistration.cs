@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -80,7 +80,5 @@ namespace Antmicro.Renode.Peripherals.Bus
         public virtual Func<long, byte> GetReadByteMethod(IBusPeripheral _) => null;
 
         public virtual Action<long, byte> GetWriteByteMethod(IBusPeripheral _) => null;
-
-        public virtual void RegisterForEachContext(Action<BusParametrizedRegistration> register) { }
     }
 }

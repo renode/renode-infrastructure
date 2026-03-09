@@ -5,7 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -49,11 +48,6 @@ namespace Antmicro.Renode.Peripherals.Bus
                 result += $" with condition \"{Condition}\"";
             }
             return result;
-        }
-
-        public void RegisterForEachContext(Action<BusRangeRegistration> register)
-        {
-            RegisterForEachContextInner(register, cpu => new BusRangeRegistration(Range, StateMask, Offset, cpu, condition: Condition));
         }
 
         public BusRangeRegistration Clone() => (BusRangeRegistration)MemberwiseClone();

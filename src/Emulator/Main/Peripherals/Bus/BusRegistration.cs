@@ -24,6 +24,25 @@ namespace Antmicro.Renode.Peripherals.Bus
             };
         }
 
+        public void RegisterForEachContext(Action<IPeripheral> register)
+        {
+            if(Cluster != null)
+            {
+                foreach(var cpu in Cluster.Clustered)
+                {
+                    register(cpu);
+                }
+            }
+            else if(Initiator != null)
+            {
+                register(Initiator);
+            }
+            else
+            {
+                register(null);
+            }
+        }
+
         public override bool Equals(object obj)
         {
             var other = obj as BusRegistration;
@@ -77,26 +96,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             Condition = condition;
             Offset = offset;
             StartingPoint = startingPoint;
-        }
-
-        protected void RegisterForEachContextInner<T>(Action<T> register, Func<IPeripheral, T> registrationForCpuGetter)
-            where T : BusRegistration
-        {
-            if(Cluster != null)
-            {
-                foreach(var cpu in Cluster.Clustered)
-                {
-                    register(registrationForCpuGetter(cpu));
-                }
-            }
-            else if(Initiator != null)
-            {
-                register(registrationForCpuGetter(Initiator));
-            }
-            else
-            {
-                register((T)this);
-            }
         }
     }
 }
