@@ -234,16 +234,14 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             if(!pcCache.TryGetValue(Tuple.Create(context, offset), out var entry))
             {
-                if(!GetLookup(context).TryGetSymbolByAddress(offset, out symbol, functionOnly))
+                var localLookup = GetLookup(context);
+                if(!localLookup.TryGetSymbolByAddress(offset, out symbol, functionOnly) && !(localLookup != globalLookup && globalLookup.TryGetSymbolByAddress(offset, out symbol, functionOnly)))
                 {
                     symbol = null;
                     name = null;
                     return false;
                 }
-                else
-                {
-                    name = symbol.ToStringRelative(offset);
-                }
+                name = symbol.ToStringRelative(offset);
                 pcCache.Add(Tuple.Create(context, offset), Tuple.Create(name, symbol));
             }
             else
