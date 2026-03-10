@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -132,7 +132,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                         {
                             throw new RecoverableException("Attempted to move a peripheral that does not exist in the collection");
                         }
-                        var toRemove = shortBlocks.Where(x => x.Value.Peripheral != registeredPeripheral).Select(x => x.Key).ToArray();
+                        var toRemove = shortBlocks.Where(x => x.Value.Peripheral == registeredPeripheral).Select(x => x.Key).ToArray();
                         foreach(var keyToRemove in toRemove)
                         {
                             shortBlocks.Remove(keyToRemove);
