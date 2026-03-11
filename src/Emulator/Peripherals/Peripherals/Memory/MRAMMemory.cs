@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Text;
 
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Memory
 {
@@ -33,7 +34,7 @@ namespace Antmicro.Renode.Peripherals.Memory
     ///     half of a partial write retains old data (MRAM) or is filled with
     ///     <see cref="EraseFill"/> (flash).
     /// </summary>
-    public class MRAMMemory : ArrayMemory
+    public class MRAMMemory : ArrayMemory, IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral
     {
         public MRAMMemory(ulong size = DefaultSize, int wordSize = DefaultWordSize) : base(size)
         {
@@ -46,7 +47,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             writeTrace = new List<(ulong writeIndex, long wordOffset)>();
         }
 
-        public override void Reset()
+        public new void Reset()
         {
             // Intentionally do NOT call base.Reset() or clear storage:
             // this models non-volatile memory that retains data across resets.
@@ -54,6 +55,8 @@ namespace Antmicro.Renode.Peripherals.Memory
             LastFaultInjected = false;
             FaultEverFired = false;
             TotalWordWrites = 0;
+            ReadFaultFired = false;
+            ReadFaultTotalReads = 0;
             WriteTraceClear();
         }
 
@@ -95,6 +98,28 @@ namespace Antmicro.Renode.Peripherals.Memory
                 (byte)((value >> 48) & 0xFF),
                 (byte)((value >> 56) & 0xFF),
             });
+        }
+
+        // Read methods: re-implement IBytePeripheral/IWordPeripheral/IDoubleWordPeripheral
+        // to intercept reads for transient fault injection.  NVM contents are NOT modified;
+        // only the value returned to the CPU is corrupted.
+
+        public new byte ReadByte(long offset)
+        {
+            var value = base.ReadByte(offset);
+            return (byte)ApplyReadFault(offset, 1, value);
+        }
+
+        public new ushort ReadWord(long offset)
+        {
+            var value = base.ReadWord(offset);
+            return (ushort)ApplyReadFault(offset, 2, value);
+        }
+
+        public new uint ReadDoubleWord(long offset)
+        {
+            var value = base.ReadDoubleWord(offset);
+            return ApplyReadFault(offset, 4, value);
         }
 
         /// <summary>
@@ -241,6 +266,56 @@ namespace Antmicro.Renode.Peripherals.Memory
         /// </summary>
         public bool WriteTraceEnabled { get; set; }
 
+        // Read-fault injection: one-shot transient read corruption.
+        // NVM content is unchanged; only the value returned to the CPU
+        // on the first matching read is corrupted.
+
+        /// <summary>
+        /// Master enable for read-fault injection.  When true, the next read
+        /// that overlaps <see cref="ReadFaultAddress"/> (after skipping
+        /// <see cref="ReadFaultSkipCount"/> qualifying reads) will have
+        /// deterministic bit flips applied to the returned value.  The fault
+        /// is one-shot: after firing, <see cref="ReadFaultEnabled"/> is
+        /// automatically cleared and <see cref="ReadFaultFired"/> is set.
+        /// </summary>
+        public bool ReadFaultEnabled { get; set; }
+
+        /// <summary>
+        /// Peripheral-relative address that arms the read fault.  Reads
+        /// overlapping the 4-byte window [ReadFaultAddress, ReadFaultAddress+4)
+        /// are candidates for corruption.  Set to -1 (default) to disable.
+        /// </summary>
+        public long ReadFaultAddress { get; set; } = -1;
+
+        /// <summary>
+        /// PRNG seed for read-fault bit selection.  When 0, a deterministic
+        /// seed derived from <see cref="ReadFaultAddress"/> is used.
+        /// </summary>
+        public uint ReadFaultSeed { get; set; }
+
+        /// <summary>
+        /// Set to true after a read fault fires.  Sticky until explicitly cleared.
+        /// </summary>
+        public bool ReadFaultFired { get; set; }
+
+        /// <summary>
+        /// Number of qualifying reads to skip before firing.  Useful for
+        /// targeting the Nth read of a specific address (e.g., the second
+        /// CRC validation pass).
+        /// </summary>
+        public ulong ReadFaultSkipCount { get; set; }
+
+        /// <summary>
+        /// Running count of qualifying reads seen since the fault was armed.
+        /// </summary>
+        public ulong ReadFaultTotalReads { get; set; }
+
+        /// <summary>
+        /// Number of bits to flip on the faulted read.  When 0, a
+        /// seed-dependent count of 1-3 is used.
+        /// </summary>
+        public int ReadFaultBitFlips { get; set; }
+
         private void WriteBytesWithWordSemantics(long offset, byte[] data)
         {
             if(data.Length == 0)
@@ -382,6 +457,45 @@ namespace Antmicro.Renode.Peripherals.Memory
         private static uint LcgNext(uint seed)
         {
             return (uint)((seed * 1103515245UL + 12345UL) & 0xFFFFFFFF);
+        }
+
+        private uint ApplyReadFault(long offset, int accessSize, uint value)
+        {
+            if(!ReadFaultEnabled || ReadFaultFired || ReadFaultAddress < 0)
+            {
+                return value;
+            }
+
+            var armedEnd = ReadFaultAddress + 4;
+            var accessEnd = offset + accessSize;
+            if(offset >= armedEnd || accessEnd <= ReadFaultAddress)
+            {
+                return value;
+            }
+
+            ReadFaultTotalReads++;
+            if(ReadFaultTotalReads <= ReadFaultSkipCount)
+            {
+                return value;
+            }
+
+            // Fire: flip deterministic bits.  NVM is NOT modified.
+            ReadFaultFired = true;
+            ReadFaultEnabled = false;
+            var seed = ReadFaultSeed != 0 ? ReadFaultSeed : (uint)(ReadFaultAddress ^ 0xDEAD);
+            if(seed == 0)
+            {
+                seed = 0xDEAD;
+            }
+            var flipCount = ReadFaultBitFlips > 0 ? (uint)ReadFaultBitFlips : 1u + (seed % 3);
+            var accessBits = accessSize * 8;
+            for(var i = 0u; i < flipCount; i++)
+            {
+                seed = LcgNext(seed);
+                var bitPos = (int)(seed % (uint)accessBits);
+                value ^= (uint)(1 << bitPos);
+            }
+            return value;
         }
 
         private long AlignDown(long value)
