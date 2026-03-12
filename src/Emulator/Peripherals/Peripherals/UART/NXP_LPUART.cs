@@ -618,6 +618,10 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 this.DebugLog("Setting TransmitDMA to true");
                 dmaTransmittedData = false;
+                if(TransmitDMA.IsSet)
+                {
+                    TransmitDMA.Unset();
+                }
                 TransmitDMA.Set();
                 // Transmission is instantaneous, so we either deassert signal immediately if we received data,
                 // or we keep the signal in high state and break the loop waiting on the next transfer
@@ -647,6 +651,10 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 this.DebugLog("Setting ReceiveDMA request to true");
                 dmaReceivedData = false;
+                if(ReceiveDMA.IsSet)
+                {
+                    ReceiveDMA.Unset();
+                }
                 ReceiveDMA.Set();
                 if(!dmaReceivedData)
                 {

@@ -195,6 +195,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             {
                 owner.DebugLog("Shifter {0}: Setting DMA to true", Identifier);
                 dmaPerformedTransfer = false;
+                if(DMA.IsSet)
+                {
+                    DMA.Unset();
+                }
                 DMA.Set();
                 if(!dmaPerformedTransfer)
                 {
