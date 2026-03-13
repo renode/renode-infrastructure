@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -72,101 +72,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                     coreFeature.Registers.Add(new GDBRegisterDescriptor(regnum++, 32, float_reg, "int", "float"));
                 }
 
-                {
-                    var eflags_flags = new List<GDBTypeBitField>();
-                    eflags_flags.Add(new GDBTypeBitField("CF", 0, 0, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("", 1, 1, "priv_type")); // Reserved
-                    eflags_flags.Add(new GDBTypeBitField("PF", 2, 2, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("", 3, 3, "bool")); // Reserved
-                    eflags_flags.Add(new GDBTypeBitField("AF", 4, 4, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("", 5, 5, "priv_type")); // Reserved
-                    eflags_flags.Add(new GDBTypeBitField("ZF", 6, 6, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("SF", 7, 7, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("TF", 8, 8, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("IF", 9, 9, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("DF", 10, 10, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("OF", 11, 11, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("IOPL", 12, 13, "uint8"));
-                    eflags_flags.Add(new GDBTypeBitField("NT", 14, 14, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("", 15, 15, "priv_type")); // Reserved
-                    eflags_flags.Add(new GDBTypeBitField("RF", 16, 16, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("VM", 17, 17, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("AC", 18, 18, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("VIF", 19, 19, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("VIP", 20, 20, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("ID", 21, 21, "bool"));
-                    eflags_flags.Add(new GDBTypeBitField("", 22, 63, "priv_type")); // Reserved
-                    coreFeature.Types.Add(GDBCustomType.Flags("x86_64_eflags", 8, eflags_flags));
-                }
-                {
-                    var cr0_flags = new List<GDBTypeBitField>();
-                    cr0_flags.Add(new GDBTypeBitField("PE", 0, 0, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("MP", 1, 1, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("EM", 2, 2, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("TS", 3, 3, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("ET", 4, 4, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("NE", 5, 5, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("", 6, 15, "priv_type")); // Reserved
-                    cr0_flags.Add(new GDBTypeBitField("WP", 16, 16, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("", 17, 17, "priv_type")); // Reserved
-                    cr0_flags.Add(new GDBTypeBitField("AM", 18, 18, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("", 19, 28, "priv_type")); // Reserved
-                    cr0_flags.Add(new GDBTypeBitField("NW", 29, 29, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("CD", 30, 30, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("PG", 31, 31, "bool"));
-                    cr0_flags.Add(new GDBTypeBitField("", 32, 63, "priv_type")); // Reserved
-                    coreFeature.Types.Add(GDBCustomType.Flags("x86_64_cr0", 8, cr0_flags));
-                }
-                {
-                    var cr3_flags = new List<GDBTypeBitField>();
-                    cr3_flags.Add(new GDBTypeBitField("PCID", 0, 11, "uint16"));
-                    cr3_flags.Add(new GDBTypeBitField("PDBR", 12, 63, "uin64"));
-                    coreFeature.Types.Add(GDBCustomType.Flags("x86_64_cr3", 8, cr3_flags));
-                }
-                {
-                    var cr4_flags = new List<GDBTypeBitField>();
-                    cr4_flags.Add(new GDBTypeBitField("VME", 0, 0, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("PVI", 1, 1, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("TSD", 2, 2, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("DE", 3, 3, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("PSE", 4, 4, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("PAE", 5, 5, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("MCE", 6, 6, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("PGE", 7, 7, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("PCE", 8, 8, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("OSFXSR", 9, 9, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("OSXMMEXCEPT", 10, 10, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("UMIP", 11, 11, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("LA57", 12, 12, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("VMXE", 13, 13, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("SMXE", 14, 14, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("", 15, 15, "priv_type")); // Reserved
-                    cr4_flags.Add(new GDBTypeBitField("FSGSBASE", 16, 16, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("PCIDE", 17, 17, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("OSXSAVE", 18, 18, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("SMEP", 20, 20, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("SMAP", 21, 21, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("PKE", 22, 22, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("CET", 23, 23, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("PKS", 24, 24, "bool"));
-                    cr4_flags.Add(new GDBTypeBitField("", 25, 63, "priv_type")); // Reserved
-                    coreFeature.Types.Add(GDBCustomType.Flags("x86_64_cr4", 8, cr4_flags));
-                }
-                {
-                    var efer_flags = new List<GDBTypeBitField>();
-                    efer_flags.Add(new GDBTypeBitField("SCE", 0, 0, "bool"));
-                    efer_flags.Add(new GDBTypeBitField("", 1, 7, "priv_type")); // Reserved
-                    efer_flags.Add(new GDBTypeBitField("LME", 8, 8, "bool"));
-                    efer_flags.Add(new GDBTypeBitField("", 9, 9, "priv_type")); // Reserved
-                    efer_flags.Add(new GDBTypeBitField("LMA", 10, 10, "bool"));
-                    efer_flags.Add(new GDBTypeBitField("NXE", 11, 11, "bool"));
-                    efer_flags.Add(new GDBTypeBitField("SVME", 12, 12, "bool"));
-                    efer_flags.Add(new GDBTypeBitField("LMSLE", 13, 13, "bool"));
-                    efer_flags.Add(new GDBTypeBitField("FFXSR", 14, 14, "bool"));
-                    efer_flags.Add(new GDBTypeBitField("TCE", 15, 15, "bool"));
-                    efer_flags.Add(new GDBTypeBitField("", 16, 63, "priv_type")); // Reserved
-                    coreFeature.Types.Add(GDBCustomType.Flags("x86_64_efer", 8, efer_flags));
-                }
+                coreFeature.Types.Add(GDBCustomType.Flags("x86_64_eflags", 8, X86_64GDBFields.EflagsFlags));
+                coreFeature.Types.Add(GDBCustomType.Flags("x86_64_cr0", 8, X86_64GDBFields.Cr0Flags));
+                coreFeature.Types.Add(GDBCustomType.Flags("x86_64_cr3", 8, X86_64GDBFields.Cr3Flags));
+                coreFeature.Types.Add(GDBCustomType.Flags("x86_64_cr4", 8, X86_64GDBFields.Cr4Flags));
+                coreFeature.Types.Add(GDBCustomType.Flags("x86_64_efer", 8, X86_64GDBFields.EferFlags));
 
                 features.Add(coreFeature);
 

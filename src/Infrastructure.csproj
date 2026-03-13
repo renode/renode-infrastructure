@@ -287,6 +287,7 @@
     <Compile Include="Emulator/Cores/X86/X86Registers.cs">
       <DependentUpon>X86Registers.tt</DependentUpon>
     </Compile>
+    <Compile Include="Emulator/Cores/X86/X86_64GDBFields.cs" />
     <Compile Include="Emulator/Cores/X86/LAPIC.cs" />
     <Compile Include="Emulator/Cores/X86/IOAPIC.cs" />
     <Compile Include="Emulator/Cores/X86/APICMessageHelper.cs" />
