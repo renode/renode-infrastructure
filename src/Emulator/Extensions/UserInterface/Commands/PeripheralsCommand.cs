@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -16,6 +16,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.Utilities;
 
@@ -49,8 +50,21 @@ namespace Antmicro.Renode.UserInterface.Commands
                 writer.WriteLine("Available peripherals:");
                 writer.WriteLine();
 
+                root.ProcessTree();
                 root.PrintTree(writer);
             }
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, LiteralToken searchToken)
+        {
+            RunFiltering(writer, searchString: searchToken.Value);
+        }
+
+        [Runnable]
+        public void Run(ICommandInteraction writer, RangeToken searchRange)
+        {
+            RunFiltering(writer, rangeToken: searchRange);
         }
 
         [Runnable]
@@ -75,6 +89,20 @@ namespace Antmicro.Renode.UserInterface.Commands
             }
         }
 
+        private void RunFiltering(ICommandInteraction writer, string searchString = null, RangeToken rangeToken = null)
+        {
+            var root = CreateTree(writer);
+
+            if(root != null)
+            {
+                writer.WriteLine("Filtered peripherals:");
+                writer.WriteLine();
+
+                root.ProcessTree(searchString: searchString, rangeToken: rangeToken);
+                root.PrintTree(writer);
+            }
+        }
+
         private PeripheralNode CreateTree(ICommandInteraction writer)
         {
             var currentMachine = GetCurrentMachine();
@@ -89,6 +117,8 @@ namespace Antmicro.Renode.UserInterface.Commands
             var sysbusEntry = peripheralEntries.First(x => x.Key.Name == Machine.SystemBusName);
             var sysbusNode = new PeripheralNode(sysbusEntry);
             var nodeQueue = new Queue<PeripheralNode>(peripheralEntries.Where(x => x.Key != sysbusEntry.Key).Select(x => new PeripheralNode(x)));
+
+            sysbusEntry.Key.ShouldBePrinted = true;
 
             while(nodeQueue.Count > 0)
             {
@@ -174,6 +204,11 @@ namespace Antmicro.Renode.UserInterface.Commands
 
             public void PrintTree(ICommandInteraction writer, TreeViewBlock[] pattern = null)
             {
+                if(!PeripheralEntry.ShouldBePrinted)
+                {
+                    return;
+                }
+
                 if(pattern == null)
                 {
                     pattern = new TreeViewBlock[0];
@@ -202,6 +237,64 @@ namespace Antmicro.Renode.UserInterface.Commands
                 foreach(var child in Children)
                 {
                     child.PrintTree(writer, UpdatePattern(pattern, child != lastChild ? TreeViewBlock.Full : TreeViewBlock.End));
+                }
+            }
+
+            public void ProcessTree(string searchString = null, RangeToken rangeToken = null)
+            {
+                foreach(var child in Children)
+                {
+                    // case 1: no filtering
+                    if((rangeToken == null) && (searchString == null))
+                    {
+                        child.PeripheralEntry.ShouldBePrinted = true;
+                    }
+                    // case 2: node name or type name
+                    else if(searchString != null)
+                    {
+                        var name = child.PeripheralEntry.Name;
+                        var typeName = child.PeripheralEntry.TypeName;
+                        if(name == null || typeName == null)
+                        {
+                            continue;
+                        }
+                        child.PeripheralEntry.ShouldBePrinted = name.ToLower().Contains(searchString.ToLower())
+                                                             || typeName.ToLower().Contains(searchString.ToLower());
+                    }
+                    // case 3: address range
+                    else if(rangeToken != null)
+                    {
+                        foreach(var rp in child.RegistrationPoints)
+                        {
+                            if(child.PeripheralEntry.ShouldBePrinted)
+                            {
+                                break;
+                            }
+
+                            var registerPlace = rp as BusRegistration;
+                            if(registerPlace == null)
+                            {
+                                child.PeripheralEntry.ShouldBePrinted = false;
+                                continue;
+                            }
+                            var registerPlaceLower = registerPlace.StartingPoint;
+                            var registerPlaceUpper = registerPlace.StartingPoint + registerPlace.Offset;
+
+                            child.PeripheralEntry.ShouldBePrinted = rangeToken.Value.Contains(registerPlaceLower) 
+                                                                 || rangeToken.Value.Contains(registerPlaceUpper);
+                        }
+                    }
+                    child.ProcessTree(searchString, rangeToken);
+                }
+
+                // if there is a child that should be printed then print the parent also
+                if(Children.Where(x => x.PeripheralEntry.ShouldBePrinted).Any())
+                {
+                    PeripheralEntry.ShouldBePrinted = true;
+                }
+                foreach(var leftover in Children.Where(x => !x.PeripheralEntry.ShouldBePrinted))
+                {
+                    Children.Remove(leftover);
                 }
             }
 
