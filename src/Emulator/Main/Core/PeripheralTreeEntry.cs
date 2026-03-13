@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
@@ -52,6 +53,8 @@ namespace Antmicro.Renode.Core
         public IPeripheral Parent { get; private set; }
 
         public string Name { get; private set; }
+
+        public string TypeName => type.FullName.Split('.').LastOrDefault();
 
         public int Level { get; private set; }
 
