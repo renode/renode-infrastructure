@@ -280,7 +280,7 @@ namespace Antmicro.Renode.UserInterface.Commands
                             var registerPlaceLower = registerPlace.StartingPoint;
                             var registerPlaceUpper = registerPlace.StartingPoint + registerPlace.Offset;
 
-                            child.PeripheralEntry.ShouldBePrinted = rangeToken.Value.Contains(registerPlaceLower) 
+                            child.PeripheralEntry.ShouldBePrinted = rangeToken.Value.Contains(registerPlaceLower)
                                                                  || rangeToken.Value.Contains(registerPlaceUpper);
                         }
                     }
