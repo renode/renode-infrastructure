@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,11 +11,12 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sound
 {
-    public class NRF52840_PDM : BasicDoubleWordPeripheral, IKnownSize
+    public class NRF52840_PDM : BasicDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
         public NRF52840_PDM(IMachine machine) : base(machine)
         {
@@ -81,6 +82,8 @@ namespace Antmicro.Renode.Peripherals.Sound
         public GPIO IRQ { get; }
 
         public long Size => 0x1000;
+
+        public event Action<uint> EventTriggered;
 
         private void UpdateInterrupts()
         {
@@ -151,6 +154,7 @@ namespace Antmicro.Renode.Peripherals.Sound
         {
             var currentPointer = samplePtr.Value;
             eventStarted.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsStarted);
             UpdateInterrupts();
 
             var samplesCount = (uint)maxSamplesCount.Value;
@@ -220,6 +224,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             }
 
             eventEnd.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsEnd);
             UpdateInterrupts();
         }
 
@@ -361,6 +366,7 @@ namespace Antmicro.Renode.Peripherals.Sound
                 // eventStarted Interrupt - software might configure proper value in the IRQ handler
                 sampleThread = machine.ObtainManagedThread(InputSamples, 1);
                 eventStarted.Value = true;
+                EventTriggered?.Invoke((uint)Registers.EventsStarted);
                 UpdateInterrupts();
                 return false;
             }
@@ -374,6 +380,7 @@ namespace Antmicro.Renode.Peripherals.Sound
         private void Stop()
         {
             eventStopped.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsStopped);
             UpdateInterrupts();
             this.Log(LogLevel.Debug, "Event Stopped");
         }

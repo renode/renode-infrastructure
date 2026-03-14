@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,12 +11,13 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Sound;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Sound
 {
-    public class NRF52840_I2S : BasicDoubleWordPeripheral, IDisposable, IKnownSize
+    public class NRF52840_I2S : BasicDoubleWordPeripheral, IDisposable, IKnownSize, INRFEventProvider
     {
         public NRF52840_I2S(IMachine machine) : base(machine)
         {
@@ -51,6 +52,8 @@ namespace Antmicro.Renode.Peripherals.Sound
         public string OutputFile { get; set; }
 
         public long Size => 0x1000;
+
+        public event Action<uint> EventTriggered;
 
         private void UpdateInterrupts()
         {
@@ -92,6 +95,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             encoder?.FlushBuffer();
             StopRxTxThread();
             eventStopped.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsStopped);
             UpdateInterrupts();
         }
 
@@ -132,8 +136,8 @@ namespace Antmicro.Renode.Peripherals.Sound
         private void OutputFrames()
         {
             var currentPointer = txdPointer.Value;
-            // The TXD.PTR register has been copied to internal double-buffers
             eventTxPointerUpdated.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsTxptrUpdated);
             UpdateInterrupts();
 
             // RxTxMaxCnt denotes number of DoubleWords, we need to calculate samples number
@@ -148,8 +152,8 @@ namespace Antmicro.Renode.Peripherals.Sound
         private void InputFrames()
         {
             var currentPointer = rxdPointer.Value;
-            // The RXD.PTR register has been copied to internal double-buffers
             eventRxPointerUpdated.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsRxptrUpdated);
             UpdateInterrupts();
 
             for(var doubleWords = 0u; doubleWords < maxSamplesCount.Value; doubleWords++)

@@ -1,20 +1,22 @@
-﻿//
-// Copyright (c) 2010-2025 Antmicro
+//
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class NRF52840_UART : UARTBase, IDoubleWordPeripheral, IKnownSize
+    public class NRF52840_UART : UARTBase, IDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
         public NRF52840_UART(IMachine machine, bool easyDMA = false) : base(machine)
         {
@@ -80,6 +82,8 @@ namespace Antmicro.Renode.Peripherals.UART
         [IrqProvider]
         public GPIO IRQ { get; private set; }
 
+        public event Action<uint> EventTriggered;
+
         protected override void CharWritten()
         {
             if(enabled.Value == EnableState.Disabled || !rxStarted)
@@ -114,9 +118,11 @@ namespace Antmicro.Renode.Peripherals.UART
                     if(rxAmount.Value == rxMaximumCount.Value)
                     {
                         interruptManager.SetInterrupt(Interrupts.EndReceive);
+                        EventTriggered?.Invoke((uint)Registers.EndRx);
                     }
                 }
                 interruptManager.SetInterrupt(Interrupts.ReceiveReady);
+                EventTriggered?.Invoke((uint)Registers.RxDReady);
             }
         }
 
@@ -227,6 +233,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         if(Count > 0)
                         {
                             interruptManager.SetInterrupt(Interrupts.ReceiveReady);
+                            EventTriggered?.Invoke((uint)Registers.RxDReady);
                         }
 
                         return character;
@@ -243,6 +250,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         }
                         TransmitCharacter((byte)value);
                         interruptManager.SetInterrupt(Interrupts.TransmitReady);
+                        EventTriggered?.Invoke((uint)Registers.TxDReady);
                     })
                     .WithReservedBits(8, 24)
                 );
@@ -308,6 +316,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private void StartRx()
         {
             interruptManager.SetInterrupt(Interrupts.ReceiveStarted);
+            EventTriggered?.Invoke((uint)Registers.RxStarted);
             if(easyDMA)
             {
                 rxAmount.Value = 0;
@@ -328,8 +337,10 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 // we have not generater ENDRX yet, but it's guaranteed to appear before RXTO
                 interruptManager.SetInterrupt(Interrupts.EndReceive);
+                EventTriggered?.Invoke((uint)Registers.EndRx);
             }
             interruptManager.SetInterrupt(Interrupts.ReceiveTimeout);
+            EventTriggered?.Invoke((uint)Registers.RxTimeout);
             rxStarted = false;
         }
 
@@ -339,8 +350,11 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 // we set these interrupts regardless of the transfer length
                 interruptManager.SetInterrupt(Interrupts.TransmitStarted);
+                EventTriggered?.Invoke((uint)Registers.TxStarted);
                 interruptManager.SetInterrupt(Interrupts.TransmitStopped);
+                EventTriggered?.Invoke((uint)Registers.TxStopped);
                 interruptManager.SetInterrupt(Interrupts.EndTransmit);
+                EventTriggered?.Invoke((uint)Registers.EndTx);
 
                 if(txMaximumCount.Value == 0)
                 {
@@ -357,12 +371,14 @@ namespace Antmicro.Renode.Peripherals.UART
                 txAmount.Value = txMaximumCount.Value;
             }
             interruptManager.SetInterrupt(Interrupts.TransmitReady);
+            EventTriggered?.Invoke((uint)Registers.TxDReady);
         }
 
         private void StopTx()
         {
             // the remark from StopRx applies here as well, but we assume that StartTx is always finished at once
             interruptManager.SetInterrupt(Interrupts.TransmitStopped);
+            EventTriggered?.Invoke((uint)Registers.TxStopped);
         }
 
         private uint GetBaudRate(uint value)

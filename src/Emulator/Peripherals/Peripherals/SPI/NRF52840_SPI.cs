@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -13,10 +14,11 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public class NRF52840_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    public class NRF52840_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, INRFEventProvider
     {
         public NRF52840_SPI(IMachine machine, bool easyDMA = false) : base(machine)
         {
@@ -56,6 +58,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public long Size => 0x1000;
 
+        public event Action<uint> EventTriggered;
+
         private void UpdateInterrupts()
         {
             var status = false;
@@ -79,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void DefineRegisters()
         {
-            Registers.PendingInterrupt.Define(this)
+            Registers.EventsReady.Define(this)
                 .WithFlag(0, out readyPending, name: "EVENTS_READY")
                 .WithReservedBits(1, 31)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
@@ -224,6 +228,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                             if(receiveFifo.Count > 0)
                             {
                                 readyPending.Value = true;
+                                EventTriggered?.Invoke((uint)Registers.EventsReady);
                                 UpdateInterrupts();
                             }
                             return result;
@@ -309,6 +314,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             var receivedBytes = new byte[rxMaxDataCount.Value];
 
             startedPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsStarted);
 
             if(RegisteredPeripheral == null)
             {
@@ -343,8 +349,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             sysbus.WriteBytes(receivedBytes, rxDataPointer.Value);
 
             endTxPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsEndTx);
             endRxPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsEndRx);
             endPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsEnd);
             UpdateInterrupts();
         }
 
@@ -380,6 +389,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 if(receiveFifo.Count == 1)
                 {
                     readyPending.Value = true;
+                    EventTriggered?.Invoke((uint)Registers.EventsReady);
                     UpdateInterrupts();
                 }
             }
@@ -422,7 +432,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private enum Registers
         {
             TasksStart = 0x10,
-            PendingInterrupt = 0x108,
+            EventsReady = 0x108,
             EventsEndRx = 0x110,
             EventsEnd = 0x118,
             EventsEndTx = 0x120,

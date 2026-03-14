@@ -1,18 +1,20 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 
+using System;
 using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    public class NRF52840_GPIOTasksEvents : BasicDoubleWordPeripheral, IKnownSize
+    public class NRF52840_GPIOTasksEvents : BasicDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
         public NRF52840_GPIOTasksEvents(IMachine machine, NRF52840_GPIO port0 = null, NRF52840_GPIO port1 = null) : base(machine)
         {
@@ -54,6 +56,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public GPIO IRQ { get; }
 
         public long Size => 0x1000;
+
+        public event Action<uint> EventTriggered;
 
         private void DefineRegisters()
         {
@@ -201,6 +205,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 break;
             }
 
+            if(channel.EventPending)
+            {
+                EventTriggered?.Invoke((uint)Registers.EventsIn + (uint)channel.ChannelIndex * 4);
+            }
+
             channel.CurrentState = value;
             UpdateInterrupt();
         }
@@ -208,6 +217,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private void OnDetect()
         {
             portInterruptPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsPort);
             UpdateInterrupt();
         }
 
@@ -299,6 +309,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             public bool EventPending { get; set; }
 
             public bool EventEnabled { get; set; }
+
+            public int ChannelIndex => id;
 
             private bool TryGetPin(out NRF52840_GPIO.Pin pin)
             {
