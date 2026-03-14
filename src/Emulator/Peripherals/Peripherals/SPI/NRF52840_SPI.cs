@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -13,10 +14,11 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public class NRF52840_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+    public class NRF52840_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, INRFEventProvider
     {
         public NRF52840_SPI(IMachine machine, bool easyDMA = false) : base(machine)
         {
@@ -55,6 +57,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public long Size => 0x1000;
+
+        public event Action<uint> EventTriggered;
 
         private void UpdateInterrupts()
         {
@@ -309,6 +313,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             var receivedBytes = new byte[rxMaxDataCount.Value];
 
             startedPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsStarted);
 
             if(RegisteredPeripheral == null)
             {
@@ -343,8 +348,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             sysbus.WriteBytes(receivedBytes, rxDataPointer.Value);
 
             endTxPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsEndTx);
             endRxPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsEndRx);
             endPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.EventsEnd);
             UpdateInterrupts();
         }
 
@@ -380,6 +388,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 if(receiveFifo.Count == 1)
                 {
                     readyPending.Value = true;
+                    EventTriggered?.Invoke((uint)Registers.PendingInterrupt);
                     UpdateInterrupts();
                 }
             }

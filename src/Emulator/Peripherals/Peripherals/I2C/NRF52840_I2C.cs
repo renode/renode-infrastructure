@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -13,11 +14,12 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.I2C
 {
-    public class NRF52840_I2C : SimpleContainer<II2CPeripheral>, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize
+    public class NRF52840_I2C : SimpleContainer<II2CPeripheral>, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IKnownSize, INRFEventProvider
     {
         public NRF52840_I2C(IMachine machine) : base(machine)
         {
@@ -56,6 +58,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         public GPIO IRQ { get; }
 
         public long Size => 0x1000;
+
+        public event Action<uint> EventTriggered;
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
@@ -254,6 +258,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                         this.Log(LogLevel.Warning, "No slave is currently attached at selected address 0x{0:X}", address.Value);
                         addressNackError.Value = true;
                         errorInterruptPending.Value = true;
+                        EventTriggered?.Invoke((uint)Registers.ErrorInterruptPending);
                         UpdateInterrupts();
                         return;
                     }
@@ -262,6 +267,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     masterToSlaveBuffer.Enqueue((byte)val);
 
                     txInterruptPending.Value = true;
+                    EventTriggered?.Invoke((uint)Registers.TxInterruptPending);
                     UpdateInterrupts();
                 })
                 .WithReservedBits(8, 24)
@@ -297,6 +303,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 if(generateInterrupt)
                 {
                     rxInterruptPending.Value = true;
+                    EventTriggered?.Invoke((uint)Registers.RxInterruptPending);
                     UpdateInterrupts();
                 }
                 return true;
@@ -366,6 +373,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             selectedSlave?.FinishTransmission();
 
             stoppedInterruptPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.StoppedInterruptPending);
             UpdateInterrupts();
         }
 
