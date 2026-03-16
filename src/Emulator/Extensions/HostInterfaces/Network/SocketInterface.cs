@@ -35,7 +35,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
             }
             else
             {
-                ConfigureInterfaceCallback = async (_) => { };
+                ConfigureInterfaceCallback = (_) => Task.CompletedTask;
             }
             Init();
         }
