@@ -307,6 +307,55 @@ namespace Antmicro.Renode.UserInterface
             return info;
         }
 
+        public bool TryFindPeripheralTypeByName(string name, out Type type, out string longestMatch, out string actualName)
+        {
+            type = null;
+            if(TryFindPeripheralByName(name, out var peripheral, out longestMatch, out actualName))
+            {
+                type = peripheral.GetType();
+                return true;
+            }
+            return false;
+        }
+
+        public bool TryFindPeripheralByName(string name, out IPeripheral peripheral, out string longestMatch)
+        {
+            return TryFindPeripheralByName(name, out peripheral, out longestMatch, out var _);
+        }
+
+        public bool TryFindPeripheralByName(string name, out IPeripheral peripheral, out string longestMatch, out string actualName)
+        {
+            actualName = name;
+            if(CurrentMachine == null)
+            {
+                longestMatch = string.Empty;
+                peripheral = null;
+                return false;
+            }
+
+            var longestPrefix = string.Empty;
+            var ret = CurrentMachine.TryGetByName(name, out peripheral, out var longestMatching);
+            if(!ret)
+            {
+                foreach(var prefix in usings)
+                {
+                    ret = CurrentMachine.TryGetByName(prefix + name, out peripheral, out var currentMatch);
+                    if(longestMatching.Split('.').Length < currentMatch.Split('.').Length - prefix.Split('.').Length)
+                    {
+                        longestMatching = currentMatch;
+                        longestPrefix = prefix;
+                    }
+                    if(ret)
+                    {
+                        actualName = prefix + name;
+                        break;
+                    }
+                }
+            }
+            longestMatch = longestPrefix + longestMatching;
+            return ret;
+        }
+
         public NumberModes CurrentNumberFormat { get; set; }
 
         public BindingFlags CurrentBindingFlags { get; set; }
@@ -1128,55 +1177,6 @@ namespace Antmicro.Renode.UserInterface
                     throw new RecoverableException(String.Format("Could not find device {0}.", name));
                 }
             }
-        }
-
-        private bool TryFindPeripheralTypeByName(string name, out Type type, out string longestMatch, out string actualName)
-        {
-            type = null;
-            if(TryFindPeripheralByName(name, out var peripheral, out longestMatch, out actualName))
-            {
-                type = peripheral.GetType();
-                return true;
-            }
-            return false;
-        }
-
-        private bool TryFindPeripheralByName(string name, out IPeripheral peripheral, out string longestMatch)
-        {
-            return TryFindPeripheralByName(name, out peripheral, out longestMatch, out var _);
-        }
-
-        private bool TryFindPeripheralByName(string name, out IPeripheral peripheral, out string longestMatch, out string actualName)
-        {
-            actualName = name;
-            if(CurrentMachine == null)
-            {
-                longestMatch = string.Empty;
-                peripheral = null;
-                return false;
-            }
-
-            var longestPrefix = string.Empty;
-            var ret = CurrentMachine.TryGetByName(name, out peripheral, out var longestMatching);
-            if(!ret)
-            {
-                foreach(var prefix in usings)
-                {
-                    ret = CurrentMachine.TryGetByName(prefix + name, out peripheral, out var currentMatch);
-                    if(longestMatching.Split('.').Length < currentMatch.Split('.').Length - prefix.Split('.').Length)
-                    {
-                        longestMatching = currentMatch;
-                        longestPrefix = prefix;
-                    }
-                    if(ret)
-                    {
-                        actualName = prefix + name;
-                        break;
-                    }
-                }
-            }
-            longestMatch = longestPrefix + longestMatching;
-            return ret;
         }
 
         private void PrintMonitorInfo(string name, MonitorInfo info, ICommandInteraction writer, string lookup = null)
