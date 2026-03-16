@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -39,10 +39,10 @@ using LZ4;
 #endif
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Core;
-#if PLATFORM_WINDOWS
+
 using System.Reflection.Emit;
 using System.Reflection;
-#endif
+
 using Antmicro.Renode.Exceptions;
 
 using Endianess = ELFSharp.ELF.Endianess;
@@ -52,9 +52,13 @@ namespace Antmicro.Renode.Peripherals.Memory
     [Icon("memory")]
     public sealed class MappedMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IQuadWordPeripheral, IMapped, IDisposable, IKnownSize, ISpeciallySerializable, IMemory, IMultibyteWritePeripheral, ICanLoadFiles, IEndiannessAware, IHasDelayedInvalidationContext
     {
-#if PLATFORM_WINDOWS
         static MappedMemory()
         {
+            if(!RuntimeInfo.IsWindows())
+            {
+                MemSet = (IntPtr ptr, byte val, int count) => MemSetLibc(ptr, val, count);
+                return;
+            }
             var dynamicMethod = new DynamicMethod("Memset", MethodAttributes.Public | MethodAttributes.Static, CallingConventions.Standard,
                 null, new [] { typeof(IntPtr), typeof(byte), typeof(int) }, typeof(MappedMemory), true);
 
@@ -65,9 +69,8 @@ namespace Antmicro.Renode.Peripherals.Memory
             generator.Emit(OpCodes.Initblk);
             generator.Emit(OpCodes.Ret);
 
-            MemsetDelegate = (Action<IntPtr, byte, int>)dynamicMethod.CreateDelegate(typeof(Action<IntPtr, byte, int>));
+            MemSet = (Action<IntPtr, byte, int>)dynamicMethod.CreateDelegate(typeof(Action<IntPtr, byte, int>));
         }
-#endif
 
         public MappedMemory(IMachine machine, long size, int? segmentSize = null, string sharedMemoryFileRoot = null)
         {
@@ -572,17 +575,10 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public event Action<int> SegmentTouched;
 
-#if PLATFORM_WINDOWS
-        private static void MemSet(IntPtr pointer, byte value, int length)
-        {
-            MemsetDelegate(pointer, value, length);
-        }
-
-        private static Action<IntPtr, byte, int> MemsetDelegate;
-#else
         [DllImport("libc", EntryPoint = "memset")]
-        private static extern IntPtr MemSet(IntPtr pointer, byte value, int length);
-#endif
+        private static extern IntPtr MemSetLibc(IntPtr pointer, byte value, int length);
+
+        private static readonly Action<IntPtr, byte, int> MemSet;
 
         /// <summary>
         /// This constructor is only to be used with serialization. Deserializer has to invoke Load method after such

@@ -9,6 +9,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -48,6 +49,10 @@ namespace Antmicro.Renode.UI
         private static bool TryUIPath(string prefix, out string path)
         {
             path = Path.Join(prefix, UIExecutableName);
+            if(RuntimeInfo.IsWindows())
+            {
+                path += ".exe";
+            }
             Logger.Log(LogLevel.Info, "Looking for {0} at {1}", UIExecutableName, path);
             return File.Exists(path);
         }
@@ -70,10 +75,6 @@ namespace Antmicro.Renode.UI
 
         private Process process;
 
-#if PLATFORM_WINDOWS
-        private const string UIExecutableName = "renode-ui.exe";
-#else
         private const string UIExecutableName = "renode-ui";
-#endif
     }
 }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,6 +14,8 @@ using System.Linq;
 using System.Runtime.InteropServices;
 
 using ELFSharp.ELF.Sections;
+
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -44,27 +46,30 @@ namespace Antmicro.Renode.Utilities
 
         public static bool TryLoadLibrary(string path, out IntPtr address)
         {
-#if PLATFORM_WINDOWS
-            address = WindowsLoadLibrary(path);
-#else
-            //HACK: returns 0 on first call, somehow
-            dlerror();
+            if(RuntimeInfo.IsWindows())
+            {
+                address = WindowsLoadLibrary(path);
+            }
+            else if(RuntimeInfo.IsMacOS())
+            {
+                //HACK: returns 0 on first call, somehow
+                dlerrorMacOS();
+                // RTLD_LOCAL prevents loaded symbols from being "made available to resolve references
+                // in subsequently loaded shared objects.". It's the default on Linux.
+                //
+                // With the alternative RTLD_GLOBAL flag, which is the default on macOS, tlib's weak
+                // arch-independent functions that are implemented only for some architectures will be
+                // resolved by implementations from previously loaded tlib for other architectures.
+                // This is certainly an unwanted behavior so we need to pass RTLD_LOCAL on macOS.
+                address = dlopenMacOS(path, RTLD_NOW | RTLD_LOCAL);
+            }
+            else
+            {
+                dlerrorLinux();
 
-            int dlopenFlags = RTLD_NOW; // relocation now
+                address = dlopenLinux(path, RTLD_NOW);
+            }
 
-#if PLATFORM_OSX
-            // RTLD_LOCAL prevents loaded symbols from being "made available to resolve references
-            // in subsequently loaded shared objects.". It's the default on Linux.
-            //
-            // With the alternative RTLD_GLOBAL flag, which is the default on macOS, tlib's weak
-            // arch-independent functions that are implemented only for some architectures will be
-            // resolved by implementations from previously loaded tlib for other architectures.
-            // This is certainly an unwanted behavior so we need to pass RTLD_LOCAL on macOS.
-            dlopenFlags |= RTLD_LOCAL;
-#endif
-
-            address = dlopen(path, dlopenFlags);
-#endif
             return address != IntPtr.Zero;
         }
 
@@ -76,19 +81,23 @@ namespace Antmicro.Renode.Utilities
         /// </param>
         public static void UnloadLibrary(IntPtr address)
         {
-#if PLATFORM_WINDOWS
-            var result = WindowsCloseLibrary(address);
-            if (!result)
+            bool result;
+            if(RuntimeInfo.IsWindows())
+            {
+                result = WindowsCloseLibrary(address);
+            }
+            else if(RuntimeInfo.IsMacOS())
+            {
+                result = dlcloseMacOS(address) == 0;
+            }
+            else
+            {
+                result = dlcloseLinux(address) == 0;
+            }
+            if(!result)
             {
                 HandleError("unloading");
             }
-#else
-            var result = dlclose(address);
-            if(result != 0)
-            {
-                HandleError("unloading");
-            }
-#endif
         }
 
         /// <summary>
@@ -139,11 +148,20 @@ namespace Antmicro.Renode.Utilities
         /// </param>
         public static IntPtr GetSymbolAddress(IntPtr libraryAddress, string name)
         {
-#if PLATFORM_WINDOWS
-            var address = WindowsGetSymbolAddress(libraryAddress, name);
-#else
-            var address = dlsym(libraryAddress, name);
-#endif
+            IntPtr address;
+            if(RuntimeInfo.IsWindows())
+            {
+                address = WindowsGetSymbolAddress(libraryAddress, name);
+            }
+            else if(RuntimeInfo.IsMacOS())
+            {
+                address = dlsymMacOS(libraryAddress, name);
+            }
+            else
+            {
+                address = dlsymLinux(libraryAddress, name);
+            }
+
             if(address == IntPtr.Zero)
             {
                 HandleError("getting symbol from");
@@ -154,66 +172,65 @@ namespace Antmicro.Renode.Utilities
         private static void HandleError(string operation)
         {
             string message = null;
-#if PLATFORM_WINDOWS
-            var errno = Marshal.GetLastWin32Error();
-            //For an unknown reason, in some cases, Windows doesn't set error code.
-            if(errno != 0)
+            if(RuntimeInfo.IsWindows())
             {
-                message = new Win32Exception(errno).Message;
+                var errno = Marshal.GetLastWin32Error();
+                //For an unknown reason, in some cases, Windows doesn't set error code.
+                if(errno != 0)
+                {
+                    message = new Win32Exception(errno).Message;
+                }
             }
-#else
-            var messagePtr = dlerror();
-            if(messagePtr != IntPtr.Zero)
+            else
             {
-                message = Marshal.PtrToStringAuto(messagePtr);
+                var messagePtr = RuntimeInfo.IsMacOS() ? dlerrorMacOS() : dlerrorLinux();
+                if(messagePtr != IntPtr.Zero)
+                {
+                    message = Marshal.PtrToStringAuto(messagePtr);
+                }
             }
-#endif
             throw new InvalidOperationException(string.Format("Error while {1} dynamic library: {0}", message ?? "unknown error", operation));
         }
 
-#if PLATFORM_WINDOWS
-        [DllImport("kernel32", SetLastError=true, CharSet = CharSet.Ansi, EntryPoint="LoadLibrary")]
-        static extern IntPtr WindowsLoadLibrary([MarshalAs(UnmanagedType.LPStr)]string lpFileName);
+        [DllImport("kernel32.dll", EntryPoint = "GetProcAddress")]
+        private static extern IntPtr WindowsGetSymbolAddress(IntPtr hModule, string symbolName);
 
-        [DllImport("kernel32.dll", EntryPoint="GetProcAddress")]
-        public static extern IntPtr WindowsGetSymbolAddress(IntPtr hModule, string symbolName);
+        [DllImport("kernel32.dll", EntryPoint = "FreeLibrary")]
+        private static extern bool WindowsCloseLibrary(IntPtr hModule);
 
-        [DllImport("kernel32.dll", EntryPoint="FreeLibrary")]
-        public static extern bool WindowsCloseLibrary(IntPtr hModule);
+        [DllImport("kernel32.dll", EntryPoint = "GetLastError")]
+        private static extern UInt32 WindowsGetLastError();
 
-        [DllImport("kernel32.dll", EntryPoint="GetLastError")]
-        public static extern UInt32 WindowsGetLastError();
-#elif PLATFORM_LINUX
-        [DllImport("libdl.so.2")]
-        private static extern IntPtr dlopen(string file, int mode);
+        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Ansi, EntryPoint = "LoadLibrary")]
+        private static extern IntPtr WindowsLoadLibrary([MarshalAs(UnmanagedType.LPStr)] string lpFileName);
 
-        [DllImport("libdl.so.2")]
-        private static extern IntPtr dlerror();
+        [DllImport("libdl.so.2", EntryPoint = "dlopen")]
+        private static extern IntPtr dlopenLinux(string file, int mode);
 
-        [DllImport("libdl.so.2")]
-        private static extern IntPtr dlsym(IntPtr handle, string name);
+        [DllImport("libdl.so.2", EntryPoint = "dlerror")]
+        private static extern IntPtr dlerrorLinux();
 
-        [DllImport("libdl.so.2")]
-        private static extern int dlclose(IntPtr handle);
+        [DllImport("libdl.so.2", EntryPoint = "dlsym")]
+        private static extern IntPtr dlsymLinux(IntPtr handle, string name);
 
-        // Source: https://sourceware.org/git/?p=glibc.git;a=blob;f=bits/dlfcn.h;hb=HEAD
-        private const int RTLD_NOW = 2;
-#else
-        [DllImport("dl")]
-        private static extern IntPtr dlopen(string file, int mode);
+        [DllImport("libdl.so.2", EntryPoint = "dlclose")]
+        private static extern int dlcloseLinux(IntPtr handle);
 
-        [DllImport("dl")]
-        private static extern IntPtr dlerror();
+        [DllImport("dl", EntryPoint = "dlopen")]
+        private static extern IntPtr dlopenMacOS(string file, int mode);
 
-        [DllImport("dl")]
-        private static extern IntPtr dlsym(IntPtr handle, string name);
+        [DllImport("dl", EntryPoint = "dlerror")]
+        private static extern IntPtr dlerrorMacOS();
 
-        [DllImport("dl")]
-        private static extern int dlclose(IntPtr handle);
+        [DllImport("dl", EntryPoint = "dlsym")]
+        private static extern IntPtr dlsymMacOS(IntPtr handle, string name);
+
+        [DllImport("dl", EntryPoint = "dlclose")]
+        private static extern int dlcloseMacOS(IntPtr handle);
 
         // Source: https://opensource.apple.com/source/dyld/dyld-239.3/include/dlfcn.h.auto.html
+        // Source: https://sourceware.org/git/?p=glibc.git;a=blob;f=bits/dlfcn.h;hb=HEAD
         private const int RTLD_NOW = 2;
         private const int RTLD_LOCAL = 4;
-#endif
     }
 }

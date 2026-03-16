@@ -102,9 +102,10 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video
             lock(imgLock)
             {
                 var pixelFormat = PixelFormat.RGBA8888;
-#if PLATFORM_WINDOWS
-                pixelFormat = PixelFormat.BGRA8888;
-#endif
+                if(RuntimeInfo.IsWindows())
+                {
+                    pixelFormat = PixelFormat.BGRA8888;
+                }
                 converter = PixelManipulationTools.GetConverter(colorFormat, endianess, pixelFormat, Endianess.BigEndian, desiredWidth, desiredHeight);
                 outBuffer = new byte[pixelFormat.GetByteCount((ulong)(desiredWidth * desiredHeight))];
 

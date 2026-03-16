@@ -855,11 +855,8 @@ namespace Antmicro.Renode.UserInterface
                     directory = Path.GetDirectoryName(lastElement) ?? lastElement;
                     file = Path.GetFileName(lastElement);
                 }
-#if PLATFORM_WINDOWS
-                var rootIndicator = "^[a-zA-Z]:/";
-#else
-                var rootIndicator = "^/";
-#endif
+                var rootIndicator = RuntimeInfo.IsWindows() ? "^[a-zA-Z]:/" : "^/";
+
                 if(Regex.Match(lastElement, rootIndicator).Success)
                 {
                     try

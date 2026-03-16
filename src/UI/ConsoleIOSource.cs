@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 
 using AntShell.Helpers;
@@ -24,11 +25,14 @@ namespace Antmicro.Renode.UI
             {
                 Console.TreatControlCAsInput = true;
             }
-#if !PLATFORM_WINDOWS && NET
-            winchRegistration = PosixSignalRegistration.Create(
-                PosixSignal.SIGWINCH,
-                _ => Resized()
-            );
+#if NET
+            if(!RuntimeInfo.IsWindows())
+            {
+                winchRegistration = PosixSignalRegistration.Create(
+                    PosixSignal.SIGWINCH,
+                    _ => Resized()
+                );
+            }
 #endif
 
             checker = new UTF8Checker();
@@ -44,8 +48,8 @@ namespace Antmicro.Renode.UI
 
         public void Dispose()
         {
-#if !PLATFORM_WINDOWS && NET
-            winchRegistration.Dispose();
+#if NET
+            winchRegistration?.Dispose();
 #endif
         }
 
@@ -181,7 +185,7 @@ namespace Antmicro.Renode.UI
             }
         }
 
-#if !PLATFORM_WINDOWS && NET
+#if NET
         private readonly PosixSignalRegistration winchRegistration;
 #endif
 

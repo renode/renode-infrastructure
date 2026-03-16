@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2018-2022 Microchip
 //
 // This file is licensed under the MIT License.
@@ -39,10 +39,7 @@ namespace Antmicro.Renode.Peripherals.Video
             this.underlyingBuffer = buffer;
 
             // Allows to switch ordering for the 8bit mode lookup table depending what is closer to the native host colorspace
-            var lookupTableRgbx = false;
-#if !PLATFORM_WINDOWS
-            lookupTableRgbx = true;
-#endif
+            var lookupTableRgbx = !RuntimeInfo.IsWindows();
 
             // Populating lookup table for the 8bit color mode to 24bit conversion, because the 332 format is unbalanced so
             // much and the Red/Green have 50% more bits than Blue the value 0xFF has a yellow tint. Balanced white (gray)

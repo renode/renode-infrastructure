@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -30,22 +30,24 @@ namespace Antmicro.Renode.Peripherals.Sensors
             DefineRegisters();
         }
 
+        // Linux-only
         public void AttachToExternalCamera(HostCamera camera)
         {
-#if PLATFORM_LINUX
+            if(!RuntimeInfo.IsLinux())
+            {
+                throw new RecoverableException("The external camera integration is currently available on Linux only!");
+            }
             externalCamera = camera;
-#else
-            throw new RecoverableException("The external camera integration is currently available on Linux only!");
-#endif
         }
 
+        // Linux-only
         public void DetachFromExternalCamera()
         {
-#if PLATFORM_LINUX
+            if(!RuntimeInfo.IsLinux())
+            {
+                throw new RecoverableException("The external camera integration is currently available on Linux only!");
+            }
             externalCamera = null;
-#else
-            throw new RecoverableException("The external camera integration is currently available on Linux only!");
-#endif
         }
 
         #region SPI_Interface
@@ -195,7 +197,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     }
 
                     this.NoisyLog("Capturing frame");
-#if PLATFORM_LINUX
                     var ec = externalCamera;
                     if(ec != null)
                     {
@@ -203,9 +204,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         imageData = ec.GrabFrame();
                     }
                     else if(preloadedImageData != null)
-#else
-                    if(preloadedImageData != null)
-#endif
                     {
                         imageData = preloadedImageData;
                     }
@@ -257,9 +255,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             ;
         }
 
-#if PLATFORM_LINUX
         private HostCamera externalCamera;
-#endif
 
         private bool chipSelected;
         private Register selectedRegister;

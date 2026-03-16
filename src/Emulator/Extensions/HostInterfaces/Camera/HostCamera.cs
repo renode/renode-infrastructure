@@ -28,16 +28,17 @@ namespace Antmicro.Renode.HostInterfaces.Camera
         }
     }
 
+    // Linux-only
     public class HostCamera : IHostMachineElement
     {
         public HostCamera(string device)
         {
-#if !PLATFORM_LINUX
-            throw new RecoverableException("Host camera integration is currently available on Linux only");
-#else
+            if(!RuntimeInfo.IsLinux())
+            {
+                throw new RecoverableException("Host camera integration is currently available on Linux only");
+            }
             this.device = device;
             InitCamera();
-#endif
         }
 
         public byte[] GrabFrame()

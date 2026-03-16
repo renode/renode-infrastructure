@@ -1,11 +1,10 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-#if PLATFORM_LINUX
 using System;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
@@ -16,7 +15,8 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.TAPHelper
 {
-    public class TAPTools
+    // Linux-only
+    public static class TAPTools
     {
         public static int OpenTUN(IntPtr dev, bool persistent = false)
         {
@@ -170,4 +170,3 @@ namespace Antmicro.Renode.TAPHelper
         private const UInt16 IFF_UP               = 1;
     }
 }
-#endif

@@ -1,4 +1,3 @@
-#if PLATFORM_OSX && NET
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
@@ -12,6 +11,7 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
+    // MacOS-only
     public static class VmnetHelperInterface
     {
         public static async Task ConfigureInterface(SocketInterface socketInterface, bool autoConf)
@@ -70,4 +70,3 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private const int JsonLength = 1000;
     }
 }
-#endif

@@ -12,6 +12,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -127,14 +128,15 @@ namespace Antmicro.Renode.WebSockets
                 {
                     return true;
                 }
-#if PLATFORM_WINDOWS
-                // On Windows, we need admin permissions to bind to all interfaces, so we need to fall back to localhost if binding to `*` fails.
-                httpListener = TryCreateListener($"http://localhost:{port}/");
-                if(httpListener != null)
+                if(RuntimeInfo.IsWindows())
                 {
-                    return true;
+                    // On Windows, we need admin permissions to bind to all interfaces, so we need to fall back to localhost if binding to `*` fails.
+                    httpListener = TryCreateListener($"http://localhost:{port}/");
+                    if(httpListener != null)
+                    {
+                        return true;
+                    }
                 }
-#endif
             }
 
             httpListener = null;

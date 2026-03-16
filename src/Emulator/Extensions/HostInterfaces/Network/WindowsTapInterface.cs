@@ -5,7 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-#if PLATFORM_WINDOWS
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -27,6 +26,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
+    // Windows-only
     public sealed class WindowsTapInterface : ITapInterface
     {
         public WindowsTapInterface(string name)
@@ -307,4 +307,3 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private const string AdapterType = @"root\tap0901";
     }
 }
-#endif
