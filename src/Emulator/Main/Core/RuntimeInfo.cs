@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,6 +15,39 @@ namespace Antmicro.Renode.Core
 {
     public static class RuntimeInfo
     {
+        public static bool IsLinux()
+        {
+#if NET
+            return OperatingSystem.IsLinux();
+#elif PLATFORM_LINUX
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        public static bool IsMacOS()
+        {
+#if NET
+            return OperatingSystem.IsMacOS();
+#elif PLATFORM_OSX
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        public static bool IsWindows()
+        {
+#if NET
+            return OperatingSystem.IsWindows();
+#elif PLATFORM_WINDOWS
+            return true;
+#else
+            return false;
+#endif
+        }
+
         public static bool IsMono => Type.GetType("Mono.Runtime") != null;
 
         public static string Version
@@ -36,22 +69,10 @@ namespace Antmicro.Renode.Core
         {
             get
             {
-#if NET
-                return OperatingSystem.IsLinux() ? "Linux"
-                    : OperatingSystem.IsWindows() ? "Windows"
-                    : OperatingSystem.IsMacOS() ? "MacOS"
+                return IsLinux() ? "Linux"
+                    : IsWindows() ? "Windows"
+                    : IsMacOS() ? "MacOS"
                     : "Unknown Platform";
-#else
-#if PLATFORM_WINDOWS
-                return "Windows";
-#elif PLATFORM_LINUX
-                return "Linux";
-#elif PLATFORM_OSX
-                return "MacOS";
-#else
-                return "Unknown Platform";
-#endif
-#endif
             }
         }
 
