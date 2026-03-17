@@ -46,6 +46,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             targetInterruptSecurityState = new InterruptTargetSecurityState[IRQCount];
             IRQ = new GPIO();
             SystemResetRequest = new GPIO();
+            InSleep = new GPIO();
+            InDeepSleep = new GPIO();
             resetMachine = machine.RequestReset;
             systick = new SecurityBanked<SysTick>
             {
@@ -536,6 +538,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             IRQ.Unset();
             SystemResetRequest.Unset();
+            InSleep.Unset();
+            InDeepSleep.Unset();
             currentSevOnPending.Reset();
             mpuControlRegister = 0;
             HaltSystickOnDeepSleep = defaultHaltSystickOnDeepSleep;
@@ -649,6 +653,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public GPIO IRQ { get; private set; }
 
         public GPIO SystemResetRequest { get; private set; }
+
+        public GPIO InSleep { get; private set; }
+
+        public GPIO InDeepSleep { get; private set; }
 
         public long Size
         {
@@ -1359,14 +1367,30 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private void HandleWfiStateChange(bool enteredWfi)
         {
-            if(enteredWfi && DeepSleepEnabled && HaltSystickOnDeepSleep)
+            if(!enteredWfi)
             {
-                systick.NonSecureVal.Enabled = false;
-                if(cpu.TrustZoneEnabled)
+                InSleep.Unset();
+                InDeepSleep.Unset();
+                return;
+            }
+
+            if(DeepSleepEnabled)
+            {
+                InDeepSleep.Set();
+                if(HaltSystickOnDeepSleep)
                 {
-                    systick.SecureVal.Enabled = false;
+                    systick.NonSecureVal.Enabled = false;
+                    if(cpu.TrustZoneEnabled)
+                    {
+                        systick.SecureVal.Enabled = false;
+                    }
                 }
                 this.NoisyLog("Entering deep sleep");
+            }
+            else
+            {
+                InSleep.Set();
+                this.NoisyLog("Entering sleep");
             }
         }
 
