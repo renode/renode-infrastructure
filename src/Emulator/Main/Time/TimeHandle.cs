@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -138,6 +138,8 @@ namespace Antmicro.Renode.Time
             lock(innerLock)
             {
                 DebugHelper.Assert(IsReadyForNewTimeGrant, "Interval granted, but the handle is not ready for a new one.");
+                // New time interval is granted. Unlock the handle.
+                grantAvailable.Set();
                 sourceSideInProgress = true;
 
                 intervalGranted = interval;
@@ -204,6 +206,9 @@ namespace Antmicro.Renode.Time
         /// </returns>
         public bool RequestTimeInterval(out TimeInterval interval)
         {
+            // We have finished last interval. Wait for other TimeHandles here.
+            grantAvailable.WaitOne();
+
             this.Trace();
             lock(innerLock)
             {
@@ -338,6 +343,10 @@ namespace Antmicro.Renode.Time
                 finishedTimeInterval = true;
 
                 reportPending = true;
+                // This handle has used all of its time interval.
+                // This event will be also reset in WaitUntilDone, but in case we have to wait for other sinks for a long time
+                // we reset it here, sooner.
+                grantAvailable.Reset();
 
                 Monitor.PulseAll(innerLock);
                 this.Trace();
@@ -407,6 +416,7 @@ namespace Antmicro.Renode.Time
             lock(innerLock)
             {
                 SinkSideActive = false;
+                // Resetting grantAvailable is handled here.
                 SourceSideActive = false;
 
                 // this operation is blocking if the handle is latched
@@ -482,6 +492,9 @@ namespace Antmicro.Renode.Time
 
                 if(isDone)
                 {
+                    // This handle has used all of its time interval.
+                    // We reset the event here so that it blocks in RequestTimeInterval.
+                    grantAvailable.Reset();
                     sourceSideInProgress = false;
                 }
 
@@ -577,6 +590,9 @@ namespace Antmicro.Renode.Time
                 if(success)
                 {
                     interrupt = true;
+                    // Handle is being interrupted, but the sink thread can still wait for grant.
+                    // We unlock it here so it can progress.
+                    grantAvailable.Set();
                     Monitor.PulseAll(innerLock);
                 }
             }
@@ -625,6 +641,9 @@ namespace Antmicro.Renode.Time
                     changingEnabled = false;
                     if(!enabled)
                     {
+                        // The handled is being disabled.
+                        // We unlock handle here so that sink can progress and handle current state.
+                        grantAvailable.Set();
                         Monitor.PulseAll(innerLock);
 
                         // we have just disabled the handle - it needs to be reset it to a state like after `ReportBackAndContinue` with not time left
@@ -667,6 +686,9 @@ namespace Antmicro.Renode.Time
                     sourceSideActive = value;
                     if(!sourceSideActive)
                     {
+                        // Source side is not active, we won't be getting time grants until some event change it.
+                        // We unlock handle here so that sink can progress and handle current state.
+                        grantAvailable.Set();
                         // there is a code that waits for a change of `SourceSideActive` value using `WaitWhile`, so we must call `PulseAll` here
                         Monitor.PulseAll(innerLock);
                     }
@@ -904,6 +926,9 @@ namespace Antmicro.Renode.Time
         private volatile bool isDone;
 
         private readonly object innerLock;
+
+        [Antmicro.Migrant.Constructor(true)]
+        private readonly ManualResetEvent grantAvailable = new ManualResetEvent(true);
 
         public struct WaitResult
         {
