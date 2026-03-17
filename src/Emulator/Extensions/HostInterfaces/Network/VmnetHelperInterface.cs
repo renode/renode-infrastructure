@@ -30,7 +30,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 {
                     interfaceDescriptionString = Encoding.UTF8.GetString(rxBuffer, 0, bytesRead);
                 }
-                catch (Exception ex)
+                catch(Exception ex)
                 {
                     throw new RecoverableException("Failed to decode UTF-8 data.", ex);
                 }

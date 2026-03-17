@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,25 +7,23 @@
 
 #if PLATFORM_WINDOWS
 using System;
-using System.Net.NetworkInformation;
-using System.Linq;
-using System.Threading;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Windows;
-using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
+using System.Security;
+using System.Threading;
+
+using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Migrant.Hooks;
-using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Network;
-using Antmicro.Migrant;
-using System.Diagnostics;
 using Antmicro.Renode.Exceptions;
-using System.Security;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Network;
+using Antmicro.Renode.Utilities;
+
+using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
@@ -63,7 +61,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
                     cancellationTokenSource.Cancel(); //notify the thread to finish its work
                     thread.Join();
                     thread = null;
-                }      
+                }
             }
         }
 
@@ -106,7 +104,41 @@ namespace Antmicro.Renode.HostInterfaces.Network
         public string InterfaceName { get; }
 
         public MACAddress MAC { get; set; }
+
         public event Action<EthernetFrame> FrameReady;
+
+        private static uint CalculateControlCode(uint deviceType, uint function, uint method, uint access)
+        {
+            return ((deviceType << 16) | (access << 14) | (function << 2) | method);
+        }
+
+        private static uint TapDriverControlCode(uint request, uint method)
+        {
+            return CalculateControlCode(0x22, request, method, 0);
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr CreateFile(
+            string lpFileName,
+            uint dwDesiredAccess,
+            uint dwShareMode,
+            IntPtr lpSecurityAttributes,
+            [MarshalAs(UnmanagedType.U4)] FileMode dwCreationDisposition,
+            int dwFlagsAndAttributes,
+            IntPtr hTemplateFile
+        );
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern bool DeviceIoControl(
+            IntPtr hDevice,
+            uint dwIoControlCode,
+            IntPtr lpInBuffer,
+            uint nInBufferSize,
+            IntPtr lpOutBuffer,
+            uint nOutBufferSize,
+            out int lpBytesReturned,
+            IntPtr lpOverlapped
+        );
 
         private Guid? GetDeviceGuid(string name)
         {
@@ -187,7 +219,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
             handle = new SafeFileHandle(
                 CreateFile(
                     deviceFilePath,
-                    0x2000000, //MAXIMUM_ALLOWED constant 
+                    0x2000000, //MAXIMUM_ALLOWED constant
                     0,
                     IntPtr.Zero,
                     FileMode.Open,
@@ -255,48 +287,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
             Marshal.FreeHGlobal(deviceStatus);
         }
 
-        private static uint CalculateControlCode(uint deviceType, uint function, uint method, uint access)
-        {
-            return ((deviceType << 16) | (access << 14) | (function << 2) | method);
-        }
-
-        private static uint TapDriverControlCode(uint request, uint method)
-        {
-            return CalculateControlCode(0x22, request, method, 0);
-        }
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern IntPtr CreateFile(
-            string lpFileName,
-            uint dwDesiredAccess,
-            uint dwShareMode,
-            IntPtr lpSecurityAttributes,
-            [MarshalAs(UnmanagedType.U4)] FileMode dwCreationDisposition,
-            int dwFlagsAndAttributes,
-            IntPtr hTemplateFile
-        );
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        private static extern bool DeviceIoControl(
-            IntPtr hDevice,
-            uint dwIoControlCode,
-            IntPtr lpInBuffer,
-            uint nInBufferSize,
-            IntPtr lpOutBuffer,
-            uint nOutBufferSize,
-            out int lpBytesReturned,
-            IntPtr lpOverlapped
-        );
-
-        //The following GUIDs are guaranteed by Microsoft
-        //Microsoft docs link: https://docs.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-available-to-vendors
-        private const string AdapterRegistryBranch = @"SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}";
-        private const string ConnectionRegistryBranch = @"SYSTEM\CurrentControlSet\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}";
-        private const int MTU = 1522;
-        private const string AdapterType = @"root\tap0901";
-
         private bool isInDummyMode;
-        private readonly object lockObject = new object();
 
         [Transient]
         private CancellationTokenSource cancellationTokenSource;
@@ -306,6 +297,14 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private SafeFileHandle handle;
         [Transient]
         private Thread thread;
+        private readonly object lockObject = new object();
+
+        //The following GUIDs are guaranteed by Microsoft
+        //Microsoft docs link: https://docs.microsoft.com/en-us/windows-hardware/drivers/install/system-defined-device-setup-classes-available-to-vendors
+        private const string AdapterRegistryBranch = @"SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}";
+        private const string ConnectionRegistryBranch = @"SYSTEM\CurrentControlSet\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}";
+        private const int MTU = 1522;
+        private const string AdapterType = @"root\tap0901";
     }
 }
 #endif
