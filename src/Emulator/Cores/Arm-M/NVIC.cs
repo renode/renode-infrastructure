@@ -535,6 +535,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             systick.SecureVal?.Reset();
 
             IRQ.Unset();
+            SystemResetRequest.Unset();
             currentSevOnPending.Reset();
             mpuControlRegister = 0;
             HaltSystickOnDeepSleep = defaultHaltSystickOnDeepSleep;
