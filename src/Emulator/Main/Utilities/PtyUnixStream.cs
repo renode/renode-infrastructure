@@ -1,22 +1,17 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-#if !PLATFORM_WINDOWS
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
-
-using Mono.Unix;
-using Mono.Unix.Native;
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -50,50 +45,74 @@ namespace Antmicro.Renode.Utilities
 
         public override void Flush()
         {
-            Stream.Flush();
-        }
-
-        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        {
-            return Stream.ReadAsync(buffer, offset, count, cancellationToken);
         }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            return Stream.Read(buffer, offset, count);
+            var data = LibCWrapper.Read(masterFd, count);
+            if(data == null)
+            {
+                throw new IOException("Failed to read pty");
+            }
+            Array.Copy(data, 0, buffer, offset, data.Length);
+            return data.Length;
         }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            return Stream.Seek(offset, origin);
+            throw new NotSupportedException();
         }
 
         public override void SetLength(long value)
         {
-            Stream.SetLength(value);
+            throw new NotSupportedException();
         }
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            Stream.Write(buffer, offset, count);
+            bool res;
+            unsafe
+            {
+                fixed(byte* bufferPtr = &buffer[offset])
+                {
+                    res = LibCWrapper.Write(masterFd, (IntPtr)bufferPtr, count);
+                }
+            }
+            if(!res)
+            {
+                throw new IOException("Failed to write pty");
+            }
         }
 
-        public override bool CanRead { get { return Stream.CanRead; } }
+        public override bool CanRead => true;
 
-        public override bool CanSeek { get { return Stream.CanSeek; } }
+        public override bool CanSeek => false;
 
-        public override bool CanWrite { get { return Stream.CanWrite; } }
+        public override bool CanWrite => true;
 
-        public override long Length { get { return Stream.Length; } }
+        public override long Length
+        {
+            get
+            {
+                throw new NotSupportedException();
+            }
+        }
 
-        public override bool CanTimeout { get { return true; } }
+        public override bool CanTimeout => true;
 
         public override int ReadTimeout { get; set; }
 
         public override long Position
         {
-            get { return Stream.Position; }
-            set { Stream.Position = value; }
+            get
+            {
+                throw new NotSupportedException();
+            }
+
+            set
+            {
+                throw new NotSupportedException();
+            }
         }
 
         public string SlaveName
@@ -108,7 +127,7 @@ namespace Antmicro.Renode.Utilities
         {
             // masterFd will be closed by disposing the base
             base.Dispose(disposing);
-            Syscall.close(slaveFd);
+            LibCWrapper.Close(slaveFd);
             disposed = true;
         }
 
@@ -130,12 +149,11 @@ namespace Antmicro.Renode.Utilities
         [DllImport("libc", EntryPoint = "tcsetattr")]
         private static extern void Tcsetattr(int fd, int attr, IntPtr termios);
 
-#if PLATFORM_LINUX
         [DllImport("libutil.so.1", EntryPoint = "openpty")]
-#else
+        private static extern int OpenptyLinux(IntPtr amaster, IntPtr aslave, IntPtr name, IntPtr termp, IntPtr winp);
+
         [DllImport("util", EntryPoint = "openpty")]
-#endif
-        private static extern int Openpty(IntPtr amaster, IntPtr aslave, IntPtr name, IntPtr termp, IntPtr winp);
+        private static extern int OpenptyMacOS(IntPtr amaster, IntPtr aslave, IntPtr name, IntPtr termp, IntPtr winp);
 
         private static string OpenNewSlavePty(out int masterFd, out int slaveFd)
         {
@@ -147,8 +165,19 @@ namespace Antmicro.Renode.Utilities
             Tcgetattr(0, termios);
             Cfmakeraw(termios);
 
-            int result = Openpty(amaster, aslave, name, termios, IntPtr.Zero);
-            UnixMarshal.ThrowExceptionForLastErrorIf(result);
+            int result;
+            if(RuntimeInfo.IsLinux())
+            {
+                result = OpenptyLinux(amaster, aslave, name, termios, IntPtr.Zero);
+            }
+            else
+            {
+                result = OpenptyMacOS(amaster, aslave, name, termios, IntPtr.Zero);
+            }
+            if(result == -1)
+            {
+                throw new IOException("Failed to open pty");
+            }
 
             masterFd = Marshal.ReadInt32(amaster);
             slaveFd = Marshal.ReadInt32(aslave);
@@ -160,9 +189,15 @@ namespace Antmicro.Renode.Utilities
             Marshal.FreeHGlobal(termios);
 
             var gptResult = Grantpt(masterFd);
-            UnixMarshal.ThrowExceptionForLastErrorIf(gptResult);
+            if(gptResult == -1)
+            {
+                throw new IOException("Failed to grant access to pty");
+            }
             var uptResult = Unlockpt(masterFd);
-            UnixMarshal.ThrowExceptionForLastErrorIf(uptResult);
+            if(uptResult == -1)
+            {
+                throw new IOException("Failed to unlock pty");
+            }
 
             return slaveName;
         }
@@ -171,36 +206,36 @@ namespace Antmicro.Renode.Utilities
         {
             int pollResult;
             bool retry;
-            var pollData = new[] { new Pollfd { fd = masterFd, events = PollEvents.POLLIN } };
+            var pollData = new[] { new Pollfd { Fd = masterFd, Events = PollEvents.POLLIN } };
             do
             {
                 retry = false;
-                pollResult = Syscall.poll(pollData, -1);
+                pollResult = LibCWrapper.Poll(pollData, -1);
                 // here we compare flag using == operator as we want only POLLHUP to
                 // activate the condition
-                if(pollResult == 1 && pollData[0].revents == PollEvents.POLLHUP)
+                if(pollResult == 1 && pollData[0].Revents == PollEvents.POLLHUP)
                 {
                     // this is necessary as poll will result with PollHup when
                     // client disconnects from slave tty; we want to allow to
-                    // connect again 
+                    // connect again
                     System.Threading.Thread.Sleep(HangUpCheckPeriod);
                     retry = true;
                 }
             }
-            while(!disposed && (retry || UnixMarshal.ShouldRetrySyscall(pollResult)));
+            while(!disposed && (retry || LibCWrapper.ShouldRetrySyscall(pollResult)));
             // here we don't use simple == operator to detect POLLIN, as it turns out
             // that POLLHUP is quite sticky - once it is reported it stays forever
-            return pollResult == 1 && (pollData[0].revents & PollEvents.POLLIN) != 0;
+            return pollResult == 1 && (pollData[0].Revents & PollEvents.POLLIN) != 0;
         }
 
         private bool IsDataAvailable(int timeout, out int pollResult)
         {
-            var pollData = new[] { new Pollfd { fd = masterFd, events = PollEvents.POLLIN } };
+            var pollData = new[] { new Pollfd { Fd = masterFd, Events = PollEvents.POLLIN } };
             do
             {
-                pollResult = Syscall.poll(pollData, timeout);
+                pollResult = LibCWrapper.Poll(pollData, timeout);
             }
-            while(!disposed && UnixMarshal.ShouldRetrySyscall(pollResult));
+            while(!disposed && LibCWrapper.ShouldRetrySyscall(pollResult));
             return pollResult > 0;
         }
 
@@ -208,9 +243,9 @@ namespace Antmicro.Renode.Utilities
         {
             int pollResult;
             IsDataAvailable(timeout, out pollResult);
-            if(throwOnError && pollResult < 0)
+            if(throwOnError && pollResult == -1)
             {
-                UnixMarshal.ThrowExceptionForLastError();
+                throw new IOException("Failed to poll for data");
             }
             return pollResult > 0;
         }
@@ -221,23 +256,8 @@ namespace Antmicro.Renode.Utilities
             SlaveName = OpenNewSlavePty(out masterFd, out slaveFd);
         }
 
-        private UnixStream Stream
-        {
-            get
-            {
-                if(stream == null)
-                {
-                    stream = new UnixStream(masterFd, true);
-                }
-                return stream;
-            }
-        }
-
         [DllImport("libc", EntryPoint = "ptsname")]
         static extern IntPtr Ptsname(int fd);
-
-        [Transient]
-        private UnixStream stream;
 
         [Transient]
         private string slaveName;
@@ -253,4 +273,3 @@ namespace Antmicro.Renode.Utilities
         private const int HangUpCheckPeriod = 500;
     }
 }
-#endif

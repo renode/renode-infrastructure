@@ -1,27 +1,24 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-#if PLATFORM_OSX
 using System;
-using Antmicro.Renode.Peripherals.Network;
-using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.Core;
 using System.IO;
-using System.Threading;
-using Antmicro.Renode.Logging;
-using System.Threading.Tasks;
-using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Network;
-using System.Net.NetworkInformation;
 using System.Linq;
-using Antmicro.Renode.Utilities;
-using Mono.Unix;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Migrant.Hooks;
+using System.Net.NetworkInformation;
+using System.Threading;
+using System.Threading.Tasks;
+
 using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Network;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
@@ -91,7 +88,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
             {
                 cts = new CancellationTokenSource();
                 readerTask = Task.Run(ReadPacketAsync);
-                readerTask.ContinueWith(x => 
+                readerTask.ContinueWith(x =>
                     this.Log(LogLevel.Error, "Exception happened on reader task ({0}). Task stopped.", x.Exception.InnerException.GetType().Name), TaskContinuationOptions.OnlyOnFaulted);
                 IsPaused = false;
             }
@@ -105,30 +102,30 @@ namespace Antmicro.Renode.HostInterfaces.Network
             }
         }
 
-        public bool IsPaused { get; private set; } = true;
+        public MACAddress MAC
+        {
+            get
+            {
+                return macAddress;
+            }
 
-        public event Action<EthernetFrame> FrameReady;
-
-        public MACAddress MAC 
-        { 
-            get 
-            { 
-                return macAddress; 
-            } 
-
-            set 
-            { 
-                macAddress = value; 
-            } 
+            set
+            {
+                macAddress = value;
+            }
         }
 
-        public string InterfaceName 
+        public string InterfaceName
         {
             get
             {
                 return networkInterface.Name;
             }
         }
+
+        public bool IsPaused { get; private set; } = true;
+
+        public event Action<EthernetFrame> FrameReady;
 
         private async Task ReadPacketAsync()
         {
@@ -198,9 +195,14 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 throw new RecoverableException($"Failed to open the requested tap device: {interfaceNameOrPath} due to the lack of permissions. Please make sure that Renode is given a read and write permissions on this file.");
             }
             // let's find out to what interface the character device file belongs
-            var deviceType = new UnixFileInfo(interfaceNameOrPath).DeviceType;
-            var majorNumber = deviceType >> 24;
-            var minorNumber = deviceType & 0xFFFFFF;
+            Stat statBuf;
+            var statRes = LibCWrapper.Stat(interfaceNameOrPath, out statBuf);
+            if(statRes < 0)
+            {
+                throw new RecoverableException("Failed to get device number of tap device");
+            }
+            var majorNumber = statBuf.RdevMacOS >> 24;
+            var minorNumber = statBuf.RdevMacOS & 0xFFFFFF;
             this.DebugLog($"Opening TAP device with major number: {majorNumber} and minor number: {minorNumber}");
             try
             {
@@ -236,4 +238,3 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private const int Mtu = 1522;
     }
 }
-#endif

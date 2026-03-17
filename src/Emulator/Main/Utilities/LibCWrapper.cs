@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,10 +8,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
-#if PLATFORM_LINUX
-using Mono.Unix.Native;
-using Mono.Unix;
-#endif
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -57,6 +54,27 @@ namespace Antmicro.Renode.Utilities
         private const int AddressFamilyCan = 29;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Pollfd
+    {
+        public int Fd;
+        public PollEvents Events;
+        public PollEvents Revents;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 512)]
+    public struct Stat
+    {
+        [FieldOffset(24)] public int RdevMacOS;
+        [FieldOffset(40)] public ulong RdevLinux;
+    }
+
+    public enum PollEvents : short
+    {
+        POLLIN = 0x1,
+        POLLHUP = 0x10
+    }
+
     public class LibCWrapper
     {
         [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
@@ -65,32 +83,45 @@ namespace Antmicro.Renode.Utilities
         [DllImport("libc", EntryPoint = "bind", SetLastError = true)]
         public static extern int bind(int sockfd, ref SocketAddressCan addr, int addrSize);
 
-        public static int Open(string path, int mode)
+        public static int Open(string path, int flags)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             var marshalledPath = Marshal.StringToHGlobalAnsi(path);
-            var result = open(marshalledPath, mode);
+            var result = open(marshalledPath, flags);
             Marshal.FreeHGlobal(marshalledPath);
             return result;
-#endif
+        }
+
+        public static int Creat(string path, int mode)
+        {
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
+            var marshalledPath = Marshal.StringToHGlobalAnsi(path);
+            var result = creat(marshalledPath, mode);
+            Marshal.FreeHGlobal(marshalledPath);
+            return result;
         }
 
         public static int Close(int fd)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             return close(fd);
-#endif
         }
 
         public static bool Write(int fd, IntPtr buffer, int count)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             var written = 0;
             while(written < count)
             {
@@ -104,14 +135,14 @@ namespace Antmicro.Renode.Utilities
             }
 
             return true;
-#endif
         }
 
         public static byte[] Read(int fd, int count)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             byte[] result = null;
             var buffer = Marshal.AllocHGlobal(count);
             var r = read(fd, buffer, count);
@@ -122,30 +153,30 @@ namespace Antmicro.Renode.Utilities
             }
             Marshal.FreeHGlobal(buffer);
             return result ?? new byte[0];
-#endif
         }
 
         public static byte[] Read(int fd, int count, int timeout, Func<bool> shouldCancel)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             int pollResult;
             var pollData = new Pollfd
             {
-                fd = fd,
-                events = PollEvents.POLLIN
+                Fd = fd,
+                Events = PollEvents.POLLIN
             };
 
             do
             {
-                pollResult = Syscall.poll(new[] { pollData }, timeout);
+                pollResult = Poll(new[] { pollData }, timeout);
                 if(shouldCancel())
                 {
                     return null;
                 }
             }
-            while(UnixMarshal.ShouldRetrySyscall(pollResult));
+            while(ShouldRetrySyscall(pollResult));
 
             if(pollResult > 0)
             {
@@ -155,52 +186,77 @@ namespace Antmicro.Renode.Utilities
             {
                 return null;
             }
-#endif
+        }
+
+        public static bool ShouldRetrySyscall(int result)
+        {
+            return result == -1 && Marshal.GetLastWin32Error() == EINTR;
+        }
+
+        public static int Poll(Pollfd[] fds, int timeout)
+        {
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
+            return poll(fds, (ulong)fds.Length, timeout);
+        }
+
+        public static int Stat(string path, out Stat statBuf)
+        {
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
+            var marshalledPath = Marshal.StringToHGlobalAnsi(path);
+            var res = stat(marshalledPath, out statBuf);
+            Marshal.FreeHGlobal(marshalledPath);
+            return res;
         }
 
         public static int Ioctl(int fd, int request, int arg)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             return ioctl(fd, request, arg);
-#endif
         }
 
         public static int Ioctl(int fd, int request, IntPtr arg)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             return ioctl(fd, request, arg);
-#endif
         }
 
         public static int Ioctl(int fd, int request, ref InterfaceRequest ifreq)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             return ioctl(fd, request, ref ifreq);
-#endif
         }
 
         public static IntPtr Strcpy(IntPtr dst, IntPtr src)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             return strcpy(dst, src);
-#endif
         }
 
         public static string Strerror(int id)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             return Marshal.PtrToStringAuto(strerror(id));
-#endif
         }
 
         public static string GetLastError()
@@ -210,35 +266,57 @@ namespace Antmicro.Renode.Utilities
 
         public static int Socket(int domain, int type, int protocol)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             return socket(domain, type, protocol);
-#endif
         }
 
         public static int SetSocketOption(int socket, int level, int optionName, ref int optionValue)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
-            return setsockopt(socket, level, optionName, ref optionValue, 4);
-#endif
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
+            return setsockopt(socket, level, optionName, ref optionValue, sizeof(int));
         }
 
         public static int Bind(int domain, SocketAddressCan addr, int addrSize)
         {
-#if !PLATFORM_LINUX
-            throw new NotSupportedException("This API is available on Linux only!");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
             return bind(domain, ref addr, addrSize);
-#endif
         }
+
+        public static int O_CREAT => RuntimeInfo.IsMacOS() ? 0x200 : 0x40;
+
+        public static int O_EXCL => RuntimeInfo.IsMacOS() ? 0x800 : 0x80;
+
+        public static int O_TRUNC => RuntimeInfo.IsMacOS() ? 0x400 : 0x200;
+
+        // Source: https://github.com/apple-oss-distributions/Libc/blob/main/exclave/sys/fcntl.h, https://sourceware.org/git/?p=glibc.git;a=blob;f=bits/fcntl.h;h=ed14c22625b2a6706930967a1cc3e7e167999fdb;hb=HEAD
+        public const int O_RDONLY = 0;
+        public const int O_WRONLY = 1;
+        public const int O_RDWR = 2;
+        public const int DEFFILEMODE = 0b110110110;
+
+        // Disable incorrect warning about the `s_` prefix: https://github.com/dotnet/roslyn/issues/57706
+#pragma warning disable IDE1006
+        public const int S_IRUSR = 0x100;
+        public const int S_IWUSR = 0x80;
+#pragma warning restore IDE1006
 
         #region Externs
 
+        // dotnet doesn't support varags, so we can only use the 2-argument `open`
         [DllImport("libc", EntryPoint = "open", SetLastError = true)]
         private static extern int open(IntPtr pathname, int flags);
+
+        [DllImport("libc", EntryPoint = "creat", SetLastError = true)]
+        private static extern int creat(IntPtr pathname, int mode);
 
         [DllImport("libc", EntryPoint = "strcpy")]
         private static extern IntPtr strcpy(IntPtr dst, IntPtr src);
@@ -248,6 +326,12 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
         private static extern int ioctl(int d, int request, int a);
+
+        [DllImport("libc", EntryPoint = "poll", SetLastError = true)]
+        private static extern int poll(Pollfd[] fds, ulong count, int timeout);
+
+        [DllImport("libc", EntryPoint = "stat", SetLastError = true)]
+        private static extern int stat(IntPtr path, out Stat stat);
 
         [DllImport("libc", EntryPoint = "socket", SetLastError = true)]
         private static extern int socket(int domain, int type, int protocol);
@@ -266,6 +350,8 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("libc", EntryPoint = "strerror")]
         private static extern IntPtr strerror(int fd);
+
+        private const int EINTR = 4;
 
         #endregion
     }

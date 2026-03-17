@@ -1,26 +1,21 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
-using Antmicro.Renode.Exceptions;
-
-#if !PLATFORM_WINDOWS
 using System;
 using System.Collections.Generic;
 using System.IO;
 
-using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Logging;
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Utilities;
 
 using AntShell.Terminal;
-
-using Mono.Unix;
-#endif
 
 namespace Antmicro.Renode.Peripherals.Wireless
 {
@@ -28,15 +23,14 @@ namespace Antmicro.Renode.Peripherals.Wireless
     {
         public static void CreateSlipRadio(this Emulation emulation, string name, string fileName)
         {
-#if !PLATFORM_WINDOWS
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new RecoverableException("Creating SlipRadio is not supported on Windows.");
+            }
             emulation.ExternalsManager.AddExternal(new SlipRadio(fileName), name);
-#else
-            throw new RecoverableException("Creating SlipRadio is not supported on Windows.");
-#endif
         }
     }
 
-#if !PLATFORM_WINDOWS
     public class SlipRadio : ISlipRadio
     {
         public SlipRadio(string linkName)
@@ -74,11 +68,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
             io.Dispose();
             try
             {
-                symlink.Delete();
+                File.Delete(symlink);
             }
             catch(FileNotFoundException e)
             {
-                throw new RecoverableException(string.Format("There was an error when removing symlink `{0}': {1}", symlink.FullName, e.Message));
+                throw new RecoverableException(string.Format("There was an error when removing symlink `{0}': {1}", symlink, e.Message));
             }
         }
 
@@ -207,8 +201,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
             try
             {
-                var slavePtyFile = new UnixFileInfo(ptyStream.SlaveName);
-                symlink = slavePtyFile.CreateSymbolicLink(linkName);
+                symlink = File.CreateSymbolicLink(linkName, ptyStream.SlaveName).FullName;
             }
             catch(Exception e)
             {
@@ -217,7 +210,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Logger.Log(LogLevel.Info, "Created a Slip Radio pty connection to {0}", linkName);
         }
 
-        private UnixSymbolicLinkInfo symlink;
+        private string symlink;
         [Transient]
         private IOProvider io;
 
@@ -229,5 +222,4 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private const byte ESC_END = 0xDC;
         private const byte ESC_ESC = 0xDD;
     }
-#endif
 }

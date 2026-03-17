@@ -1,10 +1,12 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -12,11 +14,14 @@ namespace Antmicro.Renode.Utilities
     {
         public FileLocker(string fileToLock)
         {
-#if PLATFORM_WINDOWS
-            innerLocker = new WindowsFileLocker(fileToLock);
-#else
-            innerLocker = new PosixFileLocker(fileToLock);
-#endif
+            if(RuntimeInfo.IsWindows())
+            {
+                innerLocker = new WindowsFileLocker(fileToLock);
+            }
+            else
+            {
+                innerLocker = new PosixFileLocker(fileToLock);
+            }
         }
 
         public void Dispose()

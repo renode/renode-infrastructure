@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,14 +8,8 @@
 using System;
 using System.IO;
 
-#if !PLATFORM_WINDOWS
-using Mono.Unix.Native;
-
-#endif
-using System.Runtime.InteropServices;
-
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Utilities
 {
@@ -25,16 +19,27 @@ namespace Antmicro.Renode.Utilities
         {
             try
             {
-#if !PLATFORM_WINDOWS                
-                if(ConfigurationManager.Instance.Get("file-system", "use-cow", false))
+                if(RuntimeInfo.IsLinux() && ConfigurationManager.Instance.Get("file-system", "use-cow", false))
                 {
                     int sfd = -1, dfd = -1;
                     try
                     {
-                        sfd = Syscall.open(src, OpenFlags.O_RDONLY);
-                        dfd = Syscall.open(dst, overwrite ? OpenFlags.O_CREAT | OpenFlags.O_TRUNC | OpenFlags.O_WRONLY : (OpenFlags.O_CREAT | OpenFlags.O_EXCL), FilePermissions.S_IRUSR | FilePermissions.S_IWUSR);
+                        sfd = LibCWrapper.Open(src, LibCWrapper.O_RDONLY);
 
-                        if(sfd != -1 && dfd != -1 && ioctl(dfd, 0x40049409, sfd) != -1)
+                        if(!overwrite)
+                        {
+                            // XXX: This has a race condition, but since we can't use the three-argument `open` (due to dotnet not supporting FFI varargs), we can't use `O_CREAT | O_EXCL` since that would require passing permissions
+
+                            // Check if destination already exists
+                            dfd = LibCWrapper.Open(dst, LibCWrapper.O_WRONLY);
+                            if(dfd != -1)
+                            {
+                                throw new IOException("Destination file exists");
+                            }
+                        }
+                        dfd = LibCWrapper.Creat(dst, LibCWrapper.DEFFILEMODE);
+
+                        if((sfd != -1) && (dfd != -1) && (LibCWrapper.Ioctl(dfd, IoctlFICLONE, sfd) != -1))
                         {
                             return;
                         }
@@ -43,16 +48,15 @@ namespace Antmicro.Renode.Utilities
                     {
                         if(sfd != -1)
                         {
-                            Syscall.close(sfd);
+                            LibCWrapper.Close(sfd);
                         }
 
                         if(dfd != -1)
                         {
-                            Syscall.close(dfd);
+                            LibCWrapper.Close(dfd);
                         }
                     }
                 }
-#endif
 
                 var lastTime = CustomDateTime.Now;
                 using(var source = File.Open(src, FileMode.Open, FileAccess.Read))
@@ -89,9 +93,6 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-#if !PLATFORM_WINDOWS
-        [DllImport("libc")]
-        private static extern int ioctl(int d, ulong request, int a);
-#endif
+        private const int IoctlFICLONE = 0x40049409;
     }
 }

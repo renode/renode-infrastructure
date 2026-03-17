@@ -1,6 +1,5 @@
-#if !PLATFORM_WINDOWS
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,8 +8,6 @@
 using System;
 using System.Runtime.InteropServices;
 
-using Mono.Unix.Native;
-
 namespace Antmicro.Renode.Utilities
 {
     public class PosixFileLocker : IDisposable
@@ -18,7 +15,7 @@ namespace Antmicro.Renode.Utilities
         public PosixFileLocker(string fileToLock)
         {
             file = fileToLock;
-            fd = Syscall.open(fileToLock, OpenFlags.O_CREAT | OpenFlags.O_RDWR, FilePermissions.DEFFILEMODE);
+            fd = LibCWrapper.Creat(fileToLock, LibCWrapper.DEFFILEMODE);
             if(!TryDoFileLocking(fd, true))
             {
                 throw new InvalidOperationException("File {0} not locked.".FormatWith(file));
@@ -31,28 +28,26 @@ namespace Antmicro.Renode.Utilities
             {
                 throw new InvalidOperationException("File {0} not unlocked.".FormatWith(file));
             }
-            Syscall.close(fd);
+            LibCWrapper.Close(fd);
         }
 
-        [DllImport("libc", EntryPoint = "flock")]
+        [DllImport("libc", EntryPoint = "flock", SetLastError = true)]
         private static extern int Flock(int fd, FlockOperation operation);
 
         private static bool TryDoFileLocking(int fd, bool lockFile, FlockOperation? specificFlag = null)
         {
-            if(fd >= 0)
+            if(fd < 0)
             {
-                int res;
-                Errno lastError;
-                do
-                {
-                    res = Flock(fd, specificFlag ?? (lockFile ? FlockOperation.LOCK_EX : FlockOperation.LOCK_UN));
-                    lastError = Stdlib.GetLastError();
-                }
-                while(res != 0 && lastError == Errno.EINTR);
-                // if can't get lock ...
-                return res == 0;
+                return false;
             }
-            return false;
+            int res;
+            do
+            {
+                res = Flock(fd, specificFlag ?? (lockFile ? FlockOperation.LOCK_EX : FlockOperation.LOCK_UN));
+            }
+            while(LibCWrapper.ShouldRetrySyscall(res));
+            // if can't get lock ...
+            return res == 0;
         }
 
         private readonly int fd;
@@ -68,4 +63,3 @@ namespace Antmicro.Renode.Utilities
         }
     }
 }
-#endif

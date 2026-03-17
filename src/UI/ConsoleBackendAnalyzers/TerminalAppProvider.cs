@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,7 +8,6 @@
 using System.Diagnostics;
 using Antmicro.Renode.Utilities;
 using System.IO;
-using Mono.Unix.Native;
 
 namespace Antmicro.Renode.UI
 {
@@ -25,7 +24,7 @@ namespace Antmicro.Renode.UI
 
             var p = new Process();
             p.EnableRaisingEvents = true;
-            Syscall.chmod(script, FilePermissions.S_IXUSR | FilePermissions.S_IRUSR | FilePermissions.S_IWUSR);
+            File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
             var arguments = $"-a /Applications/Utilities/Terminal.app {script}";
             p.StartInfo = new ProcessStartInfo("open", arguments)

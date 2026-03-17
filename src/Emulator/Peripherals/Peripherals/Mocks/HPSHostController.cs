@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,10 +17,6 @@ using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Sockets;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
-
-#if !PLATFORM_WINDOWS
-using Mono.Unix;
-#endif
 
 namespace Antmicro.Renode.Extensions.Mocks
 {
@@ -41,16 +37,18 @@ namespace Antmicro.Renode.Extensions.Mocks
 
         public void StartSocketServer(TimeInterval timeInterval)
         {
-#if PLATFORM_WINDOWS
-            throw new RecoverableException("This method is not supported on Windows");
-#else
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new RecoverableException("This method is not supported on Windows");
+            }
             string path = "/tmp/i2c.sock";
             if(File.Exists(path))
             {
                 File.Delete(path);
             }
             this.Log(LogLevel.Info, "Server starting at{0}", path);
-            var socket = SocketsManager.Instance.AcquireSocket(this, AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified, new UnixEndPoint(path));
+            var endpoint = new UnixDomainSocketEndPoint(path);
+            var socket = SocketsManager.Instance.AcquireSocket(this, AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified, endpoint);
             this.Log(LogLevel.Info, "Connection established");
 
             currentSlave.Read(0);
@@ -123,7 +121,6 @@ namespace Antmicro.Renode.Extensions.Mocks
                     break;
                 }
             }
-#endif
         }
 
         public void FlashMCU(ReadFilePath path)

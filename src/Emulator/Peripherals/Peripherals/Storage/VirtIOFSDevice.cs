@@ -1,6 +1,5 @@
-#if !PLATFORM_WINDOWS
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,8 +17,6 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Sockets;
 using Antmicro.Renode.Storage.VirtIO;
 using Antmicro.Renode.Utilities;
-
-using Mono.Unix;
 
 namespace Antmicro.Renode.Peripherals.Storage
 {
@@ -61,7 +58,8 @@ namespace Antmicro.Renode.Peripherals.Storage
             }
 
             this.Log(LogLevel.Debug, "Looking for UDS socket in path: {0}", Path.GetFullPath(fsSocketPath));
-            fsSocket = SocketsManager.Instance.AcquireSocket(this, AddressFamily.Unix, SocketType.Stream, ProtocolType.IP, new UnixEndPoint(fsSocketPath), asClient: true);
+            var endpoint = new UnixDomainSocketEndPoint(fsSocketPath);
+            fsSocket = SocketsManager.Instance.AcquireSocket(this, AddressFamily.Unix, SocketType.Stream, ProtocolType.IP, endpoint, asClient: true);
 
             StoreTag(tag, this.tag);
 
@@ -175,4 +173,3 @@ namespace Antmicro.Renode.Peripherals.Storage
         }
     }
 }
-#endif

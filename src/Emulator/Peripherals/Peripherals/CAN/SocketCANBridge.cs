@@ -1,10 +1,9 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-#if PLATFORM_LINUX
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -20,10 +19,15 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
+    // Linux-only
     public static class SocketCANBridgeExtensions
     {
         public static void CreateSocketCANBridge(this IMachine machine, string name, string canInterfaceName = "vcan0", bool ensureFdFrames = false, bool ensureXlFrames = false)
         {
+            if(!RuntimeInfo.IsLinux())
+            {
+                throw new PlatformNotSupportedException("Socket CAN bridge is accessible on Linux only");
+            }
             var bridge = new SocketCANBridge(canInterfaceName, ensureFdFrames, ensureXlFrames);
             machine.RegisterAsAChildOf(machine.SystemBus, bridge, NullRegistrationPoint.Instance);
             machine.SetLocalName(bridge, name);
@@ -216,4 +220,3 @@ namespace Antmicro.Renode.Peripherals.CAN
         private const int ReadSocketTimeout = 1000;
     }
 }
-#endif

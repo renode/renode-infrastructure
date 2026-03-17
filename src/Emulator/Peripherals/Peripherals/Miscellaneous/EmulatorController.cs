@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -19,14 +19,8 @@ using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Utilities;
-
-#if !PLATFORM_WINDOWS
-using Mono.Unix;
-using Mono.Unix.Native;
-
-#endif
 using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -156,10 +150,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             switch((Register)offset)
             {
-#if !PLATFORM_WINDOWS
             case Register.ReceiveFileFromEmulator:
+                if(RuntimeInfo.IsWindows())
+                {
+                    goto default;
+                }
                 return HandleReceiveFile();
-#endif
             case Register.SendFileToEmulator:
                 return HandleSendFile();
             case Register.SendReceiveController:
@@ -301,7 +297,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-#if !PLATFORM_WINDOWS
         private uint HandleReceiveFile()
         {
             var transferFileName = GetCurrentStringRegister();
@@ -310,8 +305,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 OpenStreamForReading(transferFileName);
                 state = State.FileReceive;
                 this.Log(LogLevel.Info, "Sending file {0} to emulation started.", transferStream.Name);
-                var info = new UnixFileInfo(transferStream.Name).FileAccessPermissions;
-                return (uint)info;
+                return (uint)File.GetUnixFileMode(transferStream.Name);
             }
             catch(IOException e)
             {
@@ -319,7 +313,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return 0;
             }
         }
-#endif
 
         private uint HandleSendFile()
         {
@@ -373,11 +366,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 if(state == State.ReceivePermisions)
                 {
-#if !PLATFORM_WINDOWS
-                    Syscall.chmod(transferStream.Name, (FilePermissions)value);
-#else
-                    this.Log(LogLevel.Warning, "Setting file permissions in not supported in Windows.");
-#endif
+                    if(!RuntimeInfo.IsWindows())
+                    {
+                        File.SetUnixFileMode(transferStream.Name, (UnixFileMode)value);
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Warning, "Setting file permissions in not supported in Windows.");
+                    }
                     state = State.Usual;
                     return;
                 }
