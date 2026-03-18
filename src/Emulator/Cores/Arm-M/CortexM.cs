@@ -1329,6 +1329,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             private const uint IDAURlarNonSecureCallableFlag = 1u << 1;
         }
 
+        // GPIO pins that should be treated as signals.
+        // Starts at 0x1000 to avoid interfering with interrupt numbers.
+        public enum CpuSignal
+        {
+            CpuWait = 0x1000 // CPUWAIT
+        }
+
         // Keep in line with ExternalIDAURequest struct in tlib's arm/arch_callbacks.h
         [StructLayout(LayoutKind.Sequential)]
         private struct ExternalIDAURequest
@@ -1337,13 +1344,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             public int Secure;
             public int AccessType;
             public int AccessWidth;
-        }
-
-        // GPIO pins that should be treated as signals.
-        // Starts at 0x1000 to avoid interfering with interrupt numbers.
-        private enum CpuSignal
-        {
-            CpuWait = 0x1000 // CPUWAIT
         }
 
         private static readonly CpuSignal FirstSignalNumber = CpuSignal.CpuWait;
