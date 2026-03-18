@@ -357,7 +357,15 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             else
             {
-                DmaWriteAccessWidth = txLengths[SelectedSlaveRegisterNumber] > 0 ? TransferType.Word : TransferType.Byte;
+                var slaveRegNum = SelectedSlaveRegisterNumber;
+                if(slaveRegNum >= txLengths.Length)
+                {
+                    DmaWriteAccessWidth = TransferType.Byte;
+                }
+                else
+                {
+                    DmaWriteAccessWidth = txLengths[slaveRegNum] > 0 ? TransferType.Word : TransferType.Byte;
+                }
             }
         }
 
