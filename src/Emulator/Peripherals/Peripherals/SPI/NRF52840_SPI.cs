@@ -212,14 +212,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithValueField(0, 8, FieldMode.Read, name: "RXD",
                     valueProviderCallback: _ =>
                     {
-                        if(receiveFifo.Count == 0)
-                        {
-                            this.Log(LogLevel.Warning, "Tried to read from an empty buffer");
-                            return 0;
-                        }
-
                         lock(receiveFifo)
                         {
+                            if(receiveFifo.Count == 0)
+                            {
+                                this.Log(LogLevel.Warning, "Tried to read from an empty buffer");
+                                return 0;
+                            }
+
                             var result = receiveFifo.Dequeue();
 
                             // some new byte moved to the head
@@ -371,16 +371,17 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return;
             }
 
-            if(receiveFifo.Count == ReceiveBufferSize)
-            {
-                this.Log(LogLevel.Warning, "Buffers full, ignoring data");
-                return;
-            }
-
-            // there is no need to queue transmitted bytes - let's send them right away
-            var result = RegisteredPeripheral.Transmit(b);
             lock(receiveFifo)
             {
+                if(receiveFifo.Count == ReceiveBufferSize)
+                {
+                    this.Log(LogLevel.Warning, "Buffers full, ignoring data");
+                    return;
+                }
+
+                // there is no need to queue transmitted bytes - let's send them right away
+                var result = RegisteredPeripheral.Transmit(b);
+
                 receiveFifo.Enqueue(result);
 
                 // the READY event is generated
