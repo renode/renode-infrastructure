@@ -410,13 +410,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(lowerAccessCount == 0)
             {
-                throw new RecoverableException("Lower access count to address cannot be zero!");
-            }
-            if((upperAccessCount != 0) && ((upperAccessCount <= lowerAccessCount)))
-            {
-                throw new RecoverableException("Upper access count to address has to be bigger than lower access count!");
+                throw new RecoverableException("Lower access to address count cannot be zero!");
             }
             TlibEnableReadCache(accessAddress, lowerAccessCount, upperAccessCount);
+        }
+
+        public void EnableWriteCache(ulong accessAddress, ulong lowerAccessCount, ulong upperAccessCount = 0)
+        {
+            if(lowerAccessCount == 0)
+            {
+                throw new RecoverableException("Lower access to address count cannot be zero!");
+            }
+            TlibEnableWriteCache(accessAddress, lowerAccessCount, upperAccessCount);
         }
 
         public bool RequestTranslationBlockRestart(bool quiet = false)
@@ -2296,6 +2301,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<ulong, ulong, ulong> TlibEnableReadCache;
+
+        [Import]
+        private readonly Action<ulong, ulong, ulong> TlibEnableWriteCache;
 #pragma warning restore 649
 
         private readonly ConcurrentQueue<Action> actionsToExecuteOnCpuThread = new ConcurrentQueue<Action>();
