@@ -571,7 +571,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
                 if(!waveformMode)
                 {
-                    parent.ErrorLog("Unimplemented");
+                    // Capture mode: free-running counter up to MaxValue
+                    timer.Direction = Direction.Ascending;
+                    timer.Limit = MaxValue;
                 }
                 else
                 {
@@ -602,15 +604,15 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             private void UpdateCTimer()
             {
-                if(!enabled || !waveformMode)
+                if(!enabled)
                 {
                     cTimer.Enabled = false;
                     return;
                 }
-                switch(waveformSelected)
+
+                // In capture mode or waveform Up/UpDown, use cTimer for RC compare
+                if(!waveformMode || waveformSelected == WaveSelection.Up || waveformSelected == WaveSelection.UpDown)
                 {
-                case WaveSelection.Up:
-                case WaveSelection.UpDown:
                     var direction = timer.Direction;
                     var value = timer.Value;
                     var limit = timer.Limit;
@@ -633,10 +635,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                         cTimer.Limit = limit - valueC;
                     }
                     cTimer.Enabled = timer.Enabled;
-                    break;
-                default:
+                }
+                else
+                {
                     cTimer.Enabled = false;
-                    break;
                 }
             }
 
@@ -655,7 +657,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 if(!waveformMode)
                 {
-                    parent.ErrorLog("Unimplemented");
+                    // Capture mode: free-running counter overflow
+                    overflow = true;
                 }
                 else
                 {
