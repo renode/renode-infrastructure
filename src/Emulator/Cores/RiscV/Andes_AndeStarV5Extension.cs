@@ -36,13 +36,41 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.RegisterCSR((ushort)CustomCSR.MachineCacheControl, () => 0xffffffff, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Cache Control CSR (0x7ca) is currently not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.InstructionCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc0) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.DataCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc1) is not supported"); });
-            cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc2) is not supported"); });
+            // Bit 16 is checked by Zephyr driver to see if CCTL is supported
+            cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfiguration, () => 0x0 | (1 << 16), value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc2) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfigurationRV32, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc3) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.VectorProcessorConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc7) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.ClusterCacheControlBaseAddress, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfcf) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.Architecture, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfca) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.CurrentStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc8) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.MstatusStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc9) is not supported"); });
+
+            cpu.RegisterCSRStub((ushort)CustomCSR.UserITB, "UITB");
+            cpu.RegisterCSRStub((ushort)CustomCSR.UserCODE, "UCODE");
+            cpu.RegisterCSRStub((ushort)CustomCSR.UserCCTLBeginAddress, "UCCTLBEGINADDR");
+            cpu.RegisterCSRStub((ushort)CustomCSR.UserCCTLCommand, "UCCTLCOMMAND");
+
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAConfiguration0, "PMACFG0");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAConfiguration1, "PMACFG1");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAConfiguration2, "PMACFG2");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAConfiguration3, "PMACFG3");
+
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress0, "PMAADDR0");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress1, "PMAADDR1");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress2, "PMAADDR2");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress3, "PMAADDR3");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress4, "PMAADDR4");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress5, "PMAADDR5");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress6, "PMAADDR6");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress7, "PMAADDR7");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress8, "PMAADDR8");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress9, "PMAADDR9");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress10, "PMAADDR10");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress11, "PMAADDR11");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress12, "PMAADDR12");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress13, "PMAADDR13");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress14, "PMAADDR14");
+            cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress15, "PMAADDR15");
 
             // Custom0
             cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiiii00ddddd0001011", opc => ReadFromMemoryToRegister(opc, AccessWidth.Byte, LoadExtractorByte), "LBGP");
@@ -214,7 +242,33 @@ namespace Antmicro.Renode.Peripherals.CPU
             ClusterCacheControlBaseAddress = 0xfcf,
             Architecture = 0xfca,
             CurrentStateSaveForCrashDebugging = 0xfc8,
-            MstatusStateSaveForCrashDebugging = 0xfc9
+            MstatusStateSaveForCrashDebugging = 0xfc9,
+            UserITB = 0x800,
+            UserCODE = 0x801,
+            UserCCTLBeginAddress = 0x80b,
+            UserCCTLCommand = 0x80c,
+
+            // Andes V5 Physical Memory Attributes (PMA) CSRs
+            PMAConfiguration0 = 0xbc0,
+            PMAConfiguration1 = 0xbc1,
+            PMAConfiguration2 = 0xbc2,
+            PMAConfiguration3 = 0xbc3,
+            PMAAddress0 = 0xbd0,
+            PMAAddress1 = 0xbd1,
+            PMAAddress2 = 0xbd2,
+            PMAAddress3 = 0xbd3,
+            PMAAddress4 = 0xbd4,
+            PMAAddress5 = 0xbd5,
+            PMAAddress6 = 0xbd6,
+            PMAAddress7 = 0xbd7,
+            PMAAddress8 = 0xbd8,
+            PMAAddress9 = 0xbd9,
+            PMAAddress10 = 0xbda,
+            PMAAddress11 = 0xbdb,
+            PMAAddress12 = 0xbdc,
+            PMAAddress13 = 0xbdd,
+            PMAAddress14 = 0xbde,
+            PMAAddress15 = 0xbdf,
         }
     }
 }
