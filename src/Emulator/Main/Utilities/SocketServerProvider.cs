@@ -179,7 +179,10 @@ namespace Antmicro.Renode.Utilities
             }
             catch(IOException e)
             {
-                Logger.LogAs(this, LogLevel.Info, $"Got exception when writing to socket: {e}");
+                if(!stopRequested)
+                {
+                    Logger.LogAs(this, LogLevel.Info, $"Got exception when writing to socket: {e}");
+                }
             }
             catch(ObjectDisposedException)
             {
@@ -353,7 +356,10 @@ namespace Antmicro.Renode.Utilities
             }
             catch(IOException e)
             {
-                Logger.LogAs(this, LogLevel.Info, $"Got exception when reading from socket: {e}");
+                if(!stopRequested)
+                {
+                    Logger.LogAs(this, LogLevel.Info, $"Got exception when reading from socket: {e}");
+                }
             }
 
             Logger.LogAs(this, LogLevel.Debug, "Client disconnected, stream closed.");
