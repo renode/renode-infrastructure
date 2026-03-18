@@ -21,6 +21,7 @@ using ELFSharp.UImage;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
+    [GPIO(NumberOfInputs = 0x1000 + 1)]
     public partial class CortexM : Arm, IPeripheralWithTransactionState
     {
         public CortexM(string cpuType, IMachine machine, NVIC nvic, [NameAlias("id")] uint cpuId = 0, Endianess endianness = Endianess.LittleEndian,
