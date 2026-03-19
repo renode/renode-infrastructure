@@ -56,7 +56,15 @@ namespace Antmicro.Renode.Utilities
                     Logger.LogAs(this, LogLevel.Debug, "Failed to drop socket from the manager");
                 }
             }
-            socket?.Close();
+            try
+            {
+                Logger.LogAs(this, LogLevel.Debug, "Shutting down socket");
+                socket?.Shutdown(SocketShutdown.Both);
+            }
+            finally
+            {
+                socket?.Close();
+            }
             stopRequested = true;
             cancellationToken?.Cancel();
 
