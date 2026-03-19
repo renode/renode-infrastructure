@@ -97,8 +97,8 @@ namespace Antmicro.Renode.Sockets
                             Socket.Bind(new UnixDomainSocketEndPoint(sockPath));
                             AppDomain.CurrentDomain.ProcessExit += (_, __) => File.Delete(sockPath);
                         }
-                        Socket.Connect(endpoint);
 #endif
+                        Socket.Connect(endpoint);
                     }
                     else
                     {
