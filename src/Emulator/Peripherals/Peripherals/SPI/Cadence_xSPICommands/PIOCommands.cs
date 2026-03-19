@@ -218,6 +218,9 @@ namespace Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands
             {
                 if(dataTransmittedCount == 0)
                 {
+                    // NOTE: Set WriteEnable
+                    Peripheral.Transmit(WriteEnableOperation);
+                    Peripheral.FinishTransmission();
                     Peripheral.Transmit(PageProgram4ByteOperation);
                     TransmitAddress();
                 }
