@@ -355,8 +355,6 @@ namespace Antmicro.Renode.Utilities.RESD
                     lastSample = sample;
                     continue;
                 }
-
-                return RESDStreamStatus.OK;
             }
 
             sample = lastSample;
