@@ -24,6 +24,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             pinDirection = new IEnumRegisterField<Direction>[numberOfConnections];
             usedAsIRQ = new IFlagRegisterField[numberOfConnections];
+            outputLatch = new bool[numberOfConnections];
 
             this.pfsMisc = pfsMisc;
             this.portNumber = portNumber;
@@ -102,6 +103,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public override void Reset()
         {
             base.Reset();
+
+            for(var i = 0; i < NumberOfConnections; i++)
+            {
+                outputLatch[i] = false;
+            }
 
             IRQ0.Unset();
             IRQ1.Unset();
@@ -296,31 +302,31 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             Registers.OutputData.Define(this)
                 .WithFlags(0, NumberOfConnections, name: "PODR",
-                    valueProviderCallback: (i, _) => Connections[i].IsSet,
-                    changeCallback: (i, _, value) => SetOutput(i, value))
+                    valueProviderCallback: (i, _) => outputLatch[i],
+                    changeCallback: (i, _, value) => SetOutputData(i, value))
             ;
             Registers.DataDirection.Define(this)
                 .WithEnumFields(0, 1, NumberOfConnections, out pinDirection, name: "PDR",
                     // Pin direction is shared between this register (PCNTR1) and the PFS/Pin Configuration register
                     valueProviderCallback: (i, _) => pinDirection[i].Value,
-                    changeCallback: (i, _, value) => { if(value == Direction.Input) UpdateIRQOutput(); })
+                    changeCallback: (i, _, value) => SetDirection(i, value))
             ;
 
-            Registers.EventInputData.Define(this)
-                .WithTag("EIDR", 0, NumberOfConnections)
-            ;
-            Registers.InputData.Define(this)
+            Registers.PortInputData.Define(this)
                 .WithFlags(0, NumberOfConnections, FieldMode.Read, name: "PIDR",
                     valueProviderCallback: (i, _) => GetInput(i))
             ;
-
-            Registers.OutputReset.Define(this)
-                .WithFlags(0, NumberOfConnections, FieldMode.Write, name: "PORR",
-                    writeCallback: (i, _, value) => { if(value) SetOutput(i, false); })
+            Registers.PortEventInputData.Define(this)
+                .WithTag("EIDR", 0, NumberOfConnections)
             ;
-            Registers.OutputSet.Define(this)
+
+            Registers.PortOutputReset.Define(this)
+                .WithFlags(0, NumberOfConnections, FieldMode.Write, name: "PORR",
+                    writeCallback: (i, _, value) => { if(value) SetOutputData(i, false); })
+            ;
+            Registers.PortOutputSet.Define(this)
                 .WithFlags(0, NumberOfConnections, FieldMode.Write, name: "POSR",
-                    writeCallback: (i, _, value) => { if(value) SetOutput(i, true); })
+                    writeCallback: (i, _, value) => { if(value) SetOutputData(i, true); })
             ;
         }
 
@@ -330,13 +336,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 register
                     .WithFlag(0, name: "PODR",
-                        valueProviderCallback: _ => Connections[idx].IsSet,
-                        changeCallback: (_, value) => SetOutput(idx, value))
+                        valueProviderCallback: _ => outputLatch[idx],
+                        changeCallback: (_, value) => SetOutputData(idx, value))
                     .WithFlag(1, FieldMode.Read, name: "PIDR",
                         valueProviderCallback: _ => GetInput(idx))
                     .WithEnumField(2, 1, out pinDirection[idx], name: "PDR",
                         valueProviderCallback: _ => pinDirection[idx].Value,
-                        changeCallback: (_, value) => { if(value == Direction.Input) UpdateIRQOutput(); })
+                        changeCallback: (_, value) => SetDirection(idx, value))
                     .WithReservedBits(3, 1)
                     .WithFlag(4, name: "PCR")
                     .WithReservedBits(5, 1)
@@ -381,15 +387,39 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             return value;
         }
 
-        private void SetOutput(int index, bool value)
+        private void SetOutputData(int index, bool value)
         {
-            if(pinDirection[index].Value != Direction.Output)
-            {
-                this.Log(LogLevel.Warning, "Trying to set pin level, but pin is not in output mode, ignoring");
-                return;
-            }
+            outputLatch[index] = value;
 
-            Connections[index].Set(value);
+            // When we set value in PODR, actual GPIO state will change only
+            // if PDR is set to Output (Input always will be set to false)
+            if(pinDirection[index].Value == Direction.Output)
+            {
+                Connections[index].Set(value);
+            }
+        }
+
+        private void SetDirection(int index, Direction value)
+        {
+            pinDirection[index].Value = value;
+            var connection = Connections[index];
+
+            if(value == Direction.Input)
+            {
+                if(connection.IsSet)
+                {
+                    connection.Set(false);
+                }
+
+                UpdateIRQOutput();
+            }
+            else
+            {
+                if(outputLatch[index])
+                {
+                    connection.Set(true);
+                }
+            }
         }
 
         private bool TryGetInterruptOutput(int number, out GPIO irq)
@@ -417,6 +447,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private readonly RenesasRA_GPIOMisc pfsMisc;
         private readonly int portNumber;
+        private readonly bool[] outputLatch;
         private readonly IFlagRegisterField[] usedAsIRQ;
 
         protected class InterruptOutput
@@ -440,12 +471,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private enum Registers
         {
+            // PCNTR1
             OutputData = 0x00,
             DataDirection = 0x02,
-            EventInputData = 0x04,
-            InputData = 0x06,
-            OutputReset = 0x08,
-            OutputSet = 0x0A,
+
+            // PCNTR2
+            PortEventInputData = 0x04,
+            PortInputData = 0x06,
+
+            // PCNTR3
+            PortOutputReset = 0x08,
+            PortOutputSet = 0x0A,
+
+            // PCNTR4
             EventOutputReset = 0x0C,
             EventOutputSet = 0x0E,
         }
