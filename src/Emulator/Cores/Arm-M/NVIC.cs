@@ -854,7 +854,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         this.InfoLog("Resetting platform with SYSRESETREQ");
                         if(SystemResetRequest.IsConnected)
                         {
-                            this.DebugLog("SYSRESETREQ: Not handled internally because GPIO 'SystemResetRequest' is connected");
+                            this.WarningLog("SYSRESETREQ: Not handled internally because GPIO 'SystemResetRequest' is connected");
                             SystemResetRequest.Set();
                             return;
                         }
