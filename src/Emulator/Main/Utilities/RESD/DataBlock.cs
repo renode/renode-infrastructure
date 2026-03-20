@@ -347,9 +347,9 @@ namespace Antmicro.Renode.Utilities.RESD
 
         public override ulong StartTime { get; }
 
-        public override T CurrentSample => currentWrappedSample.Sample;
+        public override T CurrentSample => currentWrappedSample?.Sample ?? samplesData.GetCurrentSample().Sample;
 
-        public override ulong CurrentTimestamp => StartTime + currentWrappedSample.Timestamp;
+        public override ulong CurrentTimestamp => StartTime + (currentWrappedSample?.Timestamp ?? 0);
 
         public override ulong SamplesCount => samplesCount.Value;
 
@@ -389,7 +389,8 @@ namespace Antmicro.Renode.Utilities.RESD
             this.samplesData = new SamplesData<TimestampedRESDSample>(reader);
 
             StartTime = startTime;
-            currentWrappedSample = samplesData.GetCurrentSample();
+            // At this point no sample has been delivered thus there is no current sample
+            currentWrappedSample = null;
 
             var packets = 0UL;
             var lastTimestamp = 0UL;
