@@ -146,7 +146,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(1, 7)
                 .WithEnumField(8, 3, out lastResetReason, name: "RSTTYP")
                 .WithReservedBits(11, 5)
-                .WithTaggedFlag("NRSTL", 16)
+                .WithFlag(16, FieldMode.Read, name: "NRSTL",
+                    valueProviderCallback: _ => previousPinState)
                 .WithFlag(17, FieldMode.Read, name: "SRCMP",
                     valueProviderCallback: _ => false)
                 .WithReservedBits(18, 14)
