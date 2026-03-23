@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -62,6 +62,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {
                     var currentVectorBase = cortexM.VectorTableOffset;
                     cpu.Reset();
+                    Watchdog?.Reset();
                     cortexM.VectorTableOffset = currentVectorBase;
                     cpu.Resume();
                 });
@@ -102,6 +103,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public GPIO IRQ { get; } = new GPIO();
 
         public long Size => 0x10;
+
+        public IPeripheral Watchdog { get; set; }
 
         private void DefineRegisters()
         {
