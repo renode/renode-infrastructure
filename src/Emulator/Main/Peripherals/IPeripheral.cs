@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals
             }
 
             var local = peripheral.GetType().GetProperties().Where(x => x.PropertyType == typeof(GPIO)).Select(x => Tuple.Create(x.Name, (IGPIO)((GPIO)x.GetValue(peripheral))));
-            return result == null ? local : result.Union(local);
+            return (result == null ? local : result.Union(local)).Where(x => x.Item2 != null);
         }
 
         public static bool TryGetMachine(this IPeripheral @this, out IMachine machine)
