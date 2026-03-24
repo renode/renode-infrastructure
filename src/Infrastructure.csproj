@@ -60,10 +60,6 @@
     <PackageReference Include="GirCore.GstApp-1.0" Version="0.7.0" />
   </ItemGroup>
 
-  <ItemGroup Condition=" $(CurrentPlatform) != Windows And $(GUI_DISABLED) != 'true' ">
-    <PackageReference Include="GdkSharp" Version="3.24.24.95" />
-    <PackageReference Include="GLibSharp" Version="3.24.24.95" />
-  </ItemGroup>
   <Import Project="$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets" Condition="Exists('$(MSBuildProjectDirectory)/BuildAdditionalProjects-UI.csproj.targets')" />
   <ItemGroup>
     <Compile Remove="Plugins/**/*"/>
@@ -85,8 +81,10 @@
     <ProjectReference Include="../../../lib/Packet.Net/PacketDotNet/PacketDotNet.csproj"/>
     <ProjectReference Include="../../../lib/bc-csharp/crypto/crypto.csproj"/>
     <ProjectReference Include="../../../lib/CxxDemangler/CxxDemangler/CxxDemangler.csproj"/>
-    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.Gtk/Xwt.Gtk3.csproj" Condition=" $(OS) != 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
-    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.WPF/Xwt.WPF.csproj" Condition=" $(OS) == 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
+    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.Gtk/Xwt.Gtk3.csproj" Condition=" $(GUI_DISABLED) != 'true' "/>
+    <PackageReference Include="GdkSharp" Version="3.24.24.95" Condition=" $(GUI_DISABLED) != 'true' "/>
+    <PackageReference Include="GLibSharp" Version="3.24.24.95" Condition=" $(GUI_DISABLED) != 'true' "/>
+    <!-- We reference Xwt.WPF indirectly via Assembly.Load, and it's guaranteed to be built as part of the solution -->
     <ProjectReference Include="../../../lib/BigGustave/src/BigGustave/BigGustave.csproj"/>
     <ProjectReference Include="../../../lib/options-parser/OptionsParser.csproj"/>
   </ItemGroup>

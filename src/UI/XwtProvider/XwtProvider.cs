@@ -8,7 +8,7 @@
 using System;
 
 using Xwt;
-#if !PLATFORM_WINDOWS && !GUI_DISABLED
+#if !GUI_DISABLED
 using Xwt.GtkBackend;
 // for DllMap replacement
 using System.Reflection;
@@ -17,6 +17,7 @@ using System.IO;
 using System.Threading;
 
 using Antmicro.Renode.UserInterface;
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.UI
 {
@@ -53,15 +54,10 @@ namespace Antmicro.Renode.UI
             try
             {
 #if !GUI_DISABLED
-#if PLATFORM_WINDOWS
-                Application.Initialize(ToolkitType.Wpf);
-#else
                 var assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                var assembly = Assembly.LoadFrom(Path.Combine(assemblyLocation, "Xwt.Gtk3.dll"));
+                var assembly = Assembly.LoadFrom(Path.Combine(assemblyLocation, RuntimeInfo.IsWindows() ? "Xwt.WPF.dll": "Xwt.Gtk3.dll"));
                 DllMap.Register(assembly);
-
-                Application.Initialize(ToolkitType.Gtk3);
-#endif
+                Application.Initialize(RuntimeInfo.IsWindows() ? ToolkitType.Wpf : ToolkitType.Gtk3);
 #endif
                 return true;
             }
@@ -83,18 +79,33 @@ namespace Antmicro.Renode.UI
             }
 
             Application.UnhandledException += (sender, arg) => CrashHandler.HandleCrash(arg.ErrorException);
-#if !PLATFORM_WINDOWS && !GUI_DISABLED
-            GLib.ExceptionManager.UnhandledException += arg => CrashHandler.HandleCrash((Exception)arg.ExceptionObject);
+#if !GUI_DISABLED
+            if(RuntimeInfo.IsWindows())
 #endif
-            Application.Run();
+            {
+                Application.Run();
+            }
+#if !GUI_DISABLED
+            else
+            {
+                RunApplicationGtk();
+            }
+#endif
 
-#if !PLATFORM_WINDOWS && !GUI_DISABLED
-            GtkTextLayoutBackendHandler.DisposeResources();
-#endif
             lock(internalLock)
             {
                 UiThreadId = -1;
             }
+        }
+
+        // Split off Gtk-specific code into separate method to prevent Gtk import on Windows
+        private static void RunApplicationGtk()
+        {
+#if !GUI_DISABLED
+            GLib.ExceptionManager.UnhandledException += arg => CrashHandler.HandleCrash((Exception)arg.ExceptionObject);
+            Application.Run();
+            GtkTextLayoutBackendHandler.DisposeResources();
+#endif
         }
 
         private static readonly object internalLock;

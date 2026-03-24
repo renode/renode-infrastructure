@@ -319,6 +319,7 @@ namespace Antmicro.Renode.Utilities
             "Xwt.Gtk.dll",
             "Xwt.Gtk3.dll",
             "Xwt.WPF.dll",
+            "RenodeWPF.dll",
             // Exclude from analysis all "Microsoft" and "System" assemblies.
             "Microsoft.",
             "System.",
