@@ -807,7 +807,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                     buffer,
                                     (uint)maximumSegmentSize.Value,
                                     latestTxContext,
-                                    parent.checksumOffloadEnable.Value,
+                                    true, // TSO always requires checksum offload
                                     parent.SendFrame,
                                     sourceAddress
                                 );
@@ -819,7 +819,7 @@ namespace Antmicro.Renode.Peripherals.Network
                                 frameAssembler = new FrameAssembler(
                                     parent,
                                     structure.CrcPadControl,
-                                    parent.checksumOffloadEnable.Value ? structure.ChecksumControl : ChecksumOperation.None,
+                                    structure.ChecksumControl, // TX checksum insertion is controlled by descriptor CIC field, not MACCR.IPC (RX-only)
                                     parent.SendFrame
                                 );
                             }
@@ -877,6 +877,7 @@ namespace Antmicro.Renode.Peripherals.Network
                         writeBackStructure.LateCollision = false;
                         writeBackStructure.NoCarrier = false;
                         writeBackStructure.LossOfCarrier = false;
+                        // Payload checksum errors are reported on RX path, not TX
                         writeBackStructure.PayloadChecksumError = false;
                         writeBackStructure.PacketFlushed = false;
                         writeBackStructure.JabberTimeout = false;
