@@ -950,7 +950,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private IEnumerable<Interrupt> GetAllEnabledInterrupts(CPUEntry cpu)
         {
             var enabledGroups = groups.Keys.Where(type => groups[type].Enabled && cpu.Groups.Physical[type].Enabled).ToArray();
-            IEnumerable<SharedInterrupt> filteredSharedInterrupts = sharedInterrupts.Values;
             return cpu.AllPrivateAndSoftwareGeneratedInterrupts
                 .Concat(GetSharedInterruptsTargetingCPU(cpu))
                 .Where(irq => irq.Config.Enabled && enabledGroups.Contains(irq.Config.GroupType));
