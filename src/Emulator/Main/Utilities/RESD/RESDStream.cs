@@ -45,6 +45,12 @@ namespace Antmicro.Renode.Utilities.RESD
             if(offsetType == RESDStreamSampleOffset.CurrentVirtualTime)
             {
                 var machine = @this.GetMachine();
+                if(!machine.IsPaused)
+                {
+                    @this.DebugLog("RESD: Creating a stream with the {0} offset type on a running machine may result in sample skips",
+                        RESDStreamSampleOffset.CurrentVirtualTime);
+                }
+
                 if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
                 {
                     cpu.SyncTime();
@@ -64,6 +70,12 @@ namespace Antmicro.Renode.Utilities.RESD
             if(offsetType == RESDStreamSampleOffset.CurrentVirtualTime)
             {
                 var machine = @this.GetMachine();
+                if(!machine.IsPaused)
+                {
+                    @this.DebugLog("RESD: Creating a stream with the {0} offset type on a running machine may result in sample skips",
+                        RESDStreamSampleOffset.CurrentVirtualTime);
+                }
+
                 if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
                 {
                     cpu.SyncTime();
