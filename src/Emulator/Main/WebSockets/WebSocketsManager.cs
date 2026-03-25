@@ -55,7 +55,7 @@ namespace Antmicro.Renode.WebSockets
 
             Port = port;
 
-            Logger.Log(LogLevel.Info, $"Listening on port {Port}");
+            Logger.Log(LogLevel.Debug, $"Listening on port {Port}");
             listenerTask = Task.Run(AsyncListener);
 
             return true;
@@ -68,7 +68,7 @@ namespace Antmicro.Renode.WebSockets
                 return false;
             }
 
-            Logger.Log(LogLevel.Info, $"Listening for new requests at http://localhost:{Port}{endpoint}");
+            Logger.Log(LogLevel.Debug, $"Listening for new requests at http://localhost:{Port}{endpoint}");
             endpoints.Add(endpoint, provider);
 
             return true;
@@ -183,7 +183,7 @@ namespace Antmicro.Renode.WebSockets
                     break;
                 }
 
-                Logger.Log(LogLevel.Info, $"New connection at: {context.Request.Url.AbsolutePath} on port: {context.Request.RemoteEndPoint.Port}");
+                Logger.Log(LogLevel.Debug, $"New connection at: {context.Request.Url.AbsolutePath} on port: {context.Request.RemoteEndPoint.Port}");
 
                 if(!context.Request.IsWebSocketRequest)
                 {
