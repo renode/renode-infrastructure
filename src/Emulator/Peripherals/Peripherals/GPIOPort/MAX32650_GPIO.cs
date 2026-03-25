@@ -45,7 +45,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             OnPinStateChanged(number, previousValue, value);
         }
 
-        public long Size => 0x400;
+        public long Size => 0x100;
 
         public GPIO IRQ { get; }
 
