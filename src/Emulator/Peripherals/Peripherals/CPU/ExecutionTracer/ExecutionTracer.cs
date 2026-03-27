@@ -22,10 +22,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public static class ExecutionTracerExtensions
     {
-        public static void CreateExecutionTracing(this TranslationCPU @this, string name, string fileName, TraceFormat format, bool isBinary = false, bool compress = false, bool isSynchronous = false, bool alternateDialect = false)
+        public static void CreateExecutionTracing(this TranslationCPU @this, string name, string fileName, TraceFormat format, bool isBinary = false, bool compress = false, bool isSynchronous = false, bool alternateDialect = false, int? blockQueueCapacity = null)
         {
             var writerBuilder = new TraceWriterBuilder(@this, fileName, format, isBinary, compress, alternateDialect);
-            var tracer = new ExecutionTracer(@this, writerBuilder, isSynchronous);
+            var tracer = new ExecutionTracer(@this, writerBuilder, isSynchronous, blockQueueCapacity);
 
             try
             {
@@ -60,11 +60,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
     public class ExecutionTracer : IDisposable, IExternal
     {
-        public ExecutionTracer(TranslationCPU cpu, TraceWriterBuilder traceWriterBuilder, bool isSynchronous = false)
+        public ExecutionTracer(TranslationCPU cpu, TraceWriterBuilder traceWriterBuilder, bool isSynchronous = false, int? blockQueueCapacity = null)
         {
             AttachedCPU = cpu;
             writerBuilder = traceWriterBuilder;
             this.isSynchronous = isSynchronous;
+            this.blockQueueCapacity = blockQueueCapacity;
 
             AttachedCPU.SetHookAtBlockEnd(HandleBlockEndHook);
         }
@@ -208,7 +209,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(!isSynchronous)
             {
-                blocks = new BlockingCollection<Block>();
+                blocks = blockQueueCapacity.HasValue
+                    ? new BlockingCollection<Block>(blockQueueCapacity.Value)
+                    : new BlockingCollection<Block>();
 
                 underlyingThread = new Thread(WriterThreadBody);
                 underlyingThread.IsBackground = true;
@@ -394,6 +397,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool wasStarted;
         private bool wasStopped;
         private readonly bool isSynchronous;
+        private readonly int? blockQueueCapacity;
 
         private readonly TraceWriterBuilder writerBuilder;
 
