@@ -142,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         }
                     }
                     registeredCPUs[cpu].OnCPUOutOfReset();
-                };
+                }
             };
         }
 

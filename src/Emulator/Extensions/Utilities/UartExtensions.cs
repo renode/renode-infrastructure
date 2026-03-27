@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Utilities
             case LineEnding.LF:
                 uart.WriteChar(lineFeed);
                 break;
-            };
+            }
         }
 
         public enum LineEnding

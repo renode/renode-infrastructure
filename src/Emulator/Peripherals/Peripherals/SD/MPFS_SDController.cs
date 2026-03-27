@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 ushort high =  ByteRegistersCollection.Read(offset + 1);
                 return (ushort)((high << 8) + low);
-            };
+            }
 
             return this.ReadWordUsingDoubleWord(offset);
         }
@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 ByteRegistersCollection.Write(offset + 1, (byte)(value >> 8));
                 return;
-            };
+            }
 
             this.WriteWordUsingDoubleWord(offset, value);
         }

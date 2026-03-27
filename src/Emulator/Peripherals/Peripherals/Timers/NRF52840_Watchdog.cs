@@ -186,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 this.Log(LogLevel.Info, "Reseting machine");
                 machine.RequestReset();
                 return;
-            };
+            }
 
             this.Log(LogLevel.Info, "Timeout triggered with interrupt enabled, waiting 2 cycles to reset");
             EventTriggered?.Invoke((uint)Register.Timeout);

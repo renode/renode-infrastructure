@@ -431,7 +431,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     fatalErrorInterrupt.Value = true;
                     UpdateInterrupts();
                     return;
-                };
+                }
                 // The CtrSP800Drbg returns bytes in reversed order
                 Array.Reverse(generatedBytes);
                 // Peripheral expects the entropy units to be in a reversed order
