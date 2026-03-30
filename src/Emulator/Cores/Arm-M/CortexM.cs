@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     var vprRegType = GDBCustomType.Flags("vpr_reg", 4, vprFields);
                     mveProfileFeature.Types.Add(vprRegType);
                     // MVE vector predication status and control register (VPR)
-                    mveProfileFeature.Registers.Add(new GDBRegisterDescriptor(117, 32, "vpr", "vpr_reg", "vector"));
+                    mveProfileFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.VPR, 32, "vpr", "vpr_reg", "vector"));
                     features.Add(mveProfileFeature);
                 }
 
