@@ -17,7 +17,7 @@ EXTERN_C void tlib_try_interrupt_translation_block(void);
 #include "map.h"
 
 #define VA_NARGS_IMPL(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, N, ...) N
-#define VA_NARGS(ARGS...) VA_NARGS_IMPL(_, ##ARGS, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define VA_NARGS(...) VA_NARGS_IMPL(_, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
 #define CONCAT_0()
 #define CONCAT_1(A) A
@@ -29,9 +29,9 @@ EXTERN_C void tlib_try_interrupt_translation_block(void);
 #define CONCAT_EXP_2(A, B) CONCAT_2(A, B)
 #define CONCAT_EXP_5(A, B, C, D, E) CONCAT_5(A, B, C, D, E)
 
-#define CONCAT_IMPL2(N, XS...) CONCAT_##N(XS)
-#define CONCAT_IMPL(N, XS...) CONCAT_IMPL2(N, XS)
-#define CONCAT(XS...) CONCAT_IMPL(VA_NARGS(XS), XS)
+#define CONCAT_IMPL2(N, ...) CONCAT_##N(__VA_ARGS__)
+#define CONCAT_IMPL(N, ...) CONCAT_IMPL2(N, __VA_ARGS__)
+#define CONCAT(...) CONCAT_IMPL(VA_NARGS(__VA_ARGS__), __VA_ARGS__)
 
 #define IF_THEN_ELSE(COND, THEN, ELSE) CONCAT_2(IF_THEN_ELSE_, COND)(THEN, ELSE)
 #define IF_THEN_ELSE_0(THEN, ELSE) ELSE
@@ -75,8 +75,8 @@ typedef char *charptr;
 #define PARAMS_4(T0, T1, T2, T3) PARAMS_3(T0, T1, T2), T3 a3
 #define PARAMS_5(T0, T1, T2, T3, T4) PARAMS_4(T0, T1, T2, T3), T4 a4
 #define PARAMS_6(T0, T1, T2, T3, T4, T5) PARAMS_5(T0, T1, T2, T3, T4), T5 a5
-#define PARAMS_IMPL(N, TYPES...) CONCAT_EXP_2(PARAMS_, N)(TYPES)
-#define PARAMS(TYPES...) PARAMS_IMPL(VA_NARGS(TYPES), TYPES)
+#define PARAMS_IMPL(N, ...) CONCAT_EXP_2(PARAMS_, N)(__VA_ARGS__)
+#define PARAMS(...) PARAMS_IMPL(VA_NARGS(__VA_ARGS__), __VA_ARGS__)
 
 #define PARAM_NAMES_0()
 #define PARAM_NAMES_1(T0) a0
@@ -85,8 +85,8 @@ typedef char *charptr;
 #define PARAM_NAMES_4(T0, T1, T2, T3) PARAM_NAMES_3(T0, T1, T2), a3
 #define PARAM_NAMES_5(T0, T1, T2, T3, T4) PARAM_NAMES_4(T0, T1, T2, T3), a4
 #define PARAM_NAMES_6(T0, T1, T2, T3, T4, T5) PARAM_NAMES_5(T0, T1, T2, T3, T4), a5
-#define PARAM_NAMES_IMPL(N, TYPES...) CONCAT_EXP_2(PARAM_NAMES_, N)(TYPES)
-#define PARAM_NAMES(TYPES...) PARAM_NAMES_IMPL(VA_NARGS(TYPES), TYPES)
+#define PARAM_NAMES_IMPL(N, ...) CONCAT_EXP_2(PARAM_NAMES_, N)(__VA_ARGS__)
+#define PARAM_NAMES(...) PARAM_NAMES_IMPL(VA_NARGS(__VA_ARGS__), __VA_ARGS__)
 
 #define RETURN_KEYWORD_Action
 #define RETURN_KEYWORD_Func return
@@ -100,29 +100,29 @@ typedef char *charptr;
 // Warning: for historical reasons, the return type goes FIRST in the generated
 // renode_external_attach function name, which is reversed from the C# approach
 // seen in delegate type parameters (as in Func<Arg1, Arg2, Ret>)
-#define EXTERNAL_AS(RETURN_TYPE, IMPORTED_NAME, LOCAL_NAME, PARAMETER_TYPES...)                   \
-    static RETURN_TYPE (*LOCAL_NAME##_callback$)(PARAMS(PARAMETER_TYPES));                        \
+#define EXTERNAL_AS(RETURN_TYPE, IMPORTED_NAME, LOCAL_NAME, ...)                                  \
+    static RETURN_TYPE (*LOCAL_NAME##_callback$)(PARAMS(__VA_ARGS__));                            \
                                                                                                   \
-    RETURN_TYPE LOCAL_NAME(PARAMS(PARAMETER_TYPES))                                               \
+    RETURN_TYPE LOCAL_NAME(PARAMS(__VA_ARGS__))                                                   \
     {                                                                                             \
         /* If this function returns a value, generate code of the form                            \
          * uint32_t retval = (*callback)(); return retval;, possibly with something in between.   \
          * Otherwise, just call it. */                                                            \
         IF_THEN_ELSE(HAS_RETURN(RETURN_TYPE), RETURN_TYPE retval =,)                              \
-        LOCAL_NAME##_callback$(PARAM_NAMES(PARAMETER_TYPES));                                     \
+        LOCAL_NAME##_callback$(PARAM_NAMES(__VA_ARGS__));                                         \
         tlib_try_interrupt_translation_block();                                                   \
         IF_THEN_ELSE(HAS_RETURN(RETURN_TYPE), return retval;,)                                    \
     }                                                                                             \
                                                                                                   \
     EXTERN_C void CONCAT_EXP_5(renode_external_attach__, CSHARP_PREFIX(RETURN_TYPE),              \
                                 CSHARP_TYPE(RETURN_TYPE),                                         \
-                                CONCAT(MAP_LIST(CSHARP_TYPE, PARAMETER_TYPES)),                   \
-                                __##IMPORTED_NAME(RETURN_TYPE (*param)(PARAMS(PARAMETER_TYPES)))) \
+                                CONCAT(MAP_LIST(CSHARP_TYPE, __VA_ARGS__)),                       \
+                                __##IMPORTED_NAME(RETURN_TYPE (*param)(PARAMS(__VA_ARGS__))))     \
     {                                                                                             \
         LOCAL_NAME##_callback$ = param;                                                           \
     }
 
-#define EXTERNAL(RETURN_TYPE, NAME, PARAMETER_TYPES...) \
-    EXTERNAL_AS(RETURN_TYPE, $##NAME, NAME, PARAMETER_TYPES)
+#define EXTERNAL(RETURN_TYPE, NAME, ...) \
+    EXTERNAL_AS(RETURN_TYPE, $##NAME, NAME, __VA_ARGS__)
 
 #endif
