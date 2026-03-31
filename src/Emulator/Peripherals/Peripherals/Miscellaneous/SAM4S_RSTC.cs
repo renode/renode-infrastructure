@@ -175,6 +175,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public GPIO NRST { get; } = new GPIO();
 
+        public bool LingerNRST { get; set; }
+
         public long Size => 0x10;
 
         public IPeripheral Watchdog { get; set; }
@@ -285,7 +287,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return;
             }
             outputState = true;
-            if(inputState)
+
+            if(inputState && !LingerNRST)
             {
                 // both input and output are high
                 NRST.Set();
@@ -295,12 +298,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 // trigger user reset only once
                 this.Log(LogLevel.Noisy, "Breaking user resetting");
+                if(inputState)
+                {
+                    // stop lingering NRST assert
+                    NRST.Set();
+                }
                 return;
             }
 
             PostReset?.Invoke(lastResetReason.Value);
 
-            this.Log(LogLevel.Debug, "Invoking User Reset post reset");
+            if(!inputState)
+            {
+                this.Log(LogLevel.Debug, "Invoking User Reset post reset");
+            }
+            else
+            {
+                this.Log(LogLevel.Debug, "Invoking lingering User Reset post NRST assertion");
+            }
+
             // won't recurse infinitely due to triggering user reset only once check
             InvokeReset(ResetType.UserReset, true, true, false);
         }
