@@ -616,7 +616,11 @@ namespace Antmicro.Renode.Logging
                         peripheralsWithDifferentLoggingLevel[backend] = new Dictionary<string, Dictionary<string, LogLevel>>();
                         foreach(var custom in customLogLevels)
                         {
-                            TryGetName(custom.Key, out string peripheralName, out string machineName);
+                            if(!TryGetName(custom.Key, out string peripheralName, out string machineName))
+                            {
+                                Log(LogLevel.Warning, "Could not extract logging level for key {0} in backend: {1}", custom.Key, backend.ToString());
+                                continue;
+                            }
                             if(!peripheralsWithDifferentLoggingLevel[backend].TryGetValue(machineName, out var machineDict))
                             {
                                 machineDict = new Dictionary<string, LogLevel>();
