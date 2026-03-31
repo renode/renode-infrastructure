@@ -78,7 +78,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             if(watchdogReset.Value)
             {
-                resetController.InvokeReset(SAM4S_RSTC.ResetType.WatchdogReset, resetProcessor: true, resetPeripherals: !resetOnlyProcessor.Value);
+                var resetAll = !resetOnlyProcessor.Value;
+                resetController.InvokeReset(SAM4S_RSTC.ResetType.WatchdogReset, resetProcessor: true, resetPeripherals: resetAll, resetExternal: resetAll);
             }
         }
 
