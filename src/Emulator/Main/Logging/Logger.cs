@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -608,19 +608,19 @@ namespace Antmicro.Renode.Logging
             {
                 var peripheralsWithDifferentLoggingLevel = new PeripheralLogLevelState();
 
-                foreach(var backend in Logger.GetBackends())
+                foreach(var backend in Logger.GetBackends().Values)
                 {
-                    var customLogLevels = backend.Value.GetCustomLogLevels();
+                    var customLogLevels = backend.GetCustomLogLevels();
                     if(customLogLevels.Count > 0)
                     {
-                        peripheralsWithDifferentLoggingLevel[backend.Value] = new Dictionary<string, Dictionary<string, LogLevel>>();
+                        peripheralsWithDifferentLoggingLevel[backend] = new Dictionary<string, Dictionary<string, LogLevel>>();
                         foreach(var custom in customLogLevels)
                         {
                             TryGetName(custom.Key, out string peripheralName, out string machineName);
-                            if(!peripheralsWithDifferentLoggingLevel[backend.Value].TryGetValue(machineName, out var machineDict))
+                            if(!peripheralsWithDifferentLoggingLevel[backend].TryGetValue(machineName, out var machineDict))
                             {
                                 machineDict = new Dictionary<string, LogLevel>();
-                                peripheralsWithDifferentLoggingLevel[backend.Value][machineName] = machineDict;
+                                peripheralsWithDifferentLoggingLevel[backend][machineName] = machineDict;
                             }
                             machineDict[peripheralName] = custom.Value;
                         }
