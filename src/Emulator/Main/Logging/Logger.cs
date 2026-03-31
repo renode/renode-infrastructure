@@ -33,7 +33,29 @@ using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Logging
 {
-    public class PeripheralLogLevelState : Dictionary<ILoggerBackend, Dictionary<string, Dictionary<string, LogLevel>>> { }
+    public class LoggerState : Dictionary<ILoggerBackend, BackendState> { }
+
+    public class BackendState
+    {
+        public BackendState(LogLevel logLevel)
+        {
+            LogLevel = logLevel;
+            PeripheralsCustomLogLevel = new Dictionary<string, Dictionary<string, LogLevel>>();
+        }
+
+        public void Add(string machineName, string peripheralName, LogLevel logLevel)
+        {
+            if(!PeripheralsCustomLogLevel.TryGetValue(machineName, out var machineDict))
+            {
+                machineDict = new Dictionary<string, LogLevel>();
+                PeripheralsCustomLogLevel[machineName] = machineDict;
+            }
+            machineDict[peripheralName] = logLevel;
+        }
+
+        public readonly LogLevel LogLevel;
+        public readonly IDictionary<string, Dictionary<string, LogLevel>> PeripheralsCustomLogLevel;
+    }
 
     public static class Logger
     {
@@ -606,54 +628,68 @@ namespace Antmicro.Renode.Logging
 
             public object ExtractPreservedState()
             {
-                var peripheralsWithDifferentLoggingLevel = new PeripheralLogLevelState();
+                var loggerState = new LoggerState();
 
                 foreach(var backend in Logger.GetBackends().Values)
                 {
+                    var backendState = new BackendState(backend.GetLogLevel());
                     var customLogLevels = backend.GetCustomLogLevels();
                     if(customLogLevels.Count > 0)
                     {
-                        peripheralsWithDifferentLoggingLevel[backend] = new Dictionary<string, Dictionary<string, LogLevel>>();
                         foreach(var custom in customLogLevels)
                         {
                             if(!TryGetName(custom.Key, out string peripheralName, out string machineName))
                             {
-                                Log(LogLevel.Warning, "Could not extract logging level for key {0} in backend: {1}", custom.Key, backend.ToString());
+                                Log(LogLevel.Warning, "Could not extract logging level for key: {0} in backend: {1}", custom.Key, backend);
                                 continue;
                             }
-                            if(!peripheralsWithDifferentLoggingLevel[backend].TryGetValue(machineName, out var machineDict))
-                            {
-                                machineDict = new Dictionary<string, LogLevel>();
-                                peripheralsWithDifferentLoggingLevel[backend][machineName] = machineDict;
-                            }
-                            machineDict[peripheralName] = custom.Value;
+                            backendState.Add(machineName, peripheralName, custom.Value);
                         }
                     }
+
+                    if(backendState.LogLevel != DefaultLogLevel || backendState.PeripheralsCustomLogLevel.Count > 0)
+                    {
+                        loggerState.Add(backend, backendState);
+                    }
                 }
-                return peripheralsWithDifferentLoggingLevel;
+
+                return loggerState;
             }
 
             public void LoadPreservedState(object state)
             {
-                if(!(state is PeripheralLogLevelState peripheralsWithDifferentLoggingLevel))
+                if(!(state is LoggerState loggerState))
                 {
                     throw new RecoverableException("Unexpected state received while loading preserved state");
                 }
 
-                foreach(var backendToMachine in peripheralsWithDifferentLoggingLevel)
+                foreach(var backendToState in loggerState)
                 {
-                    foreach(var machineToPeripheral in backendToMachine.Value)
+                    var backend = backendToState.Key;
+                    var backendState = backendToState.Value;
+
+                    backend.Reset();
+                    backend.SetLogLevel(backendState.LogLevel);
+
+                    foreach(var machineToPeripherals in backendState.PeripheralsCustomLogLevel)
                     {
-                        if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(machineToPeripheral.Key, out var machine))
+                        var machineName = machineToPeripherals.Key;
+                        var peripheralStates = machineToPeripherals.Value;
+
+                        if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(machineName, out var machine))
                         {
-                            throw new RecoverableException($"Could not restore peripherals' logging level for Machine: {machineToPeripheral.Key}");
+                            throw new RecoverableException($"Could not restore peripherals' logging level for Machine: {machineName}");
                         }
-                        foreach(var peripheral in machineToPeripheral.Value)
+
+                        foreach(var peripheralState in peripheralStates)
                         {
+                            var peripheralName = peripheralState.Key;
+                            var peripheralLogLevel = peripheralState.Value;
+
                             IEmulationElement emulationElement = null;
-                            EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementByName(peripheral.Key, machine, out emulationElement);
+                            EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementByName(peripheralName, machine, out emulationElement);
                             int id = EmulationManager.Instance.CurrentEmulation.CurrentLogger.GetOrCreateSourceId(emulationElement);
-                            backendToMachine.Key.SetLogLevel(peripheral.Value, id);
+                            backend.SetLogLevel(peripheralLogLevel, id);
                         }
                     }
                 }
