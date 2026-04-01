@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -90,11 +90,21 @@ namespace Antmicro.Renode.Utilities.Binding
             GC.SuppressFinalize(this);
         }
 
+        private static string TypeName(Type t)
+        {
+            if(t.IsByRef)
+            {
+                // In/out/ref parameters
+                return "IntPtr";
+            }
+            return t.Name.Replace("[]", "Array");
+        }
+
         private static string ShortTypeNameFromParamsAndReturn(IEnumerable<Type> parameterTypes, Type returnType)
         {
-            var baseName = returnType == typeof(void) ? "Action" : "Func" + returnType.Name;
-            var paramNames = parameterTypes.Select(p => p.Name);
-            return string.Join("", paramNames.Prepend(baseName)).Replace("[]", "Array");
+            var baseName = returnType == typeof(void) ? "Action" : "Func" + TypeName(returnType);
+            var paramNames = parameterTypes.Select(TypeName);
+            return string.Join("", paramNames.Prepend(baseName));
         }
 
         private static string GetCName(string name)
