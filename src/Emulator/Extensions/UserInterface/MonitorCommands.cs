@@ -507,7 +507,7 @@ namespace Antmicro.Renode.UserInterface
 
         private bool FitArgumentType(TokenList tokens, Type paramType, out object result)
         {
-            result = default;
+            result = default(object);
             Type elemType;
             var isGenericList = typeof(IList).IsAssignableFrom(paramType) && paramType.IsGenericType;
             if(isGenericList)
