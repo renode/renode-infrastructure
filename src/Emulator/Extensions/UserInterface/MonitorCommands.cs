@@ -47,6 +47,7 @@ namespace Antmicro.Renode.UserInterface
         public void ClearCache()
         {
             cache.ClearCache();
+            CacheCleared?.Invoke();
         }
 
         public object ConvertValueOrThrowRecoverable(object value, Type type)
@@ -311,6 +312,8 @@ namespace Antmicro.Renode.UserInterface
         public BindingFlags CurrentBindingFlags { get; set; }
 
         public event Action Quitted;
+
+        public event Action CacheCleared;
 
         private static string GetPossibleEnumValues(Type type)
         {
