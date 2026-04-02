@@ -1335,6 +1335,34 @@ namespace Antmicro.Renode.UserInterface
 
         private const string CurrentDirectoryVariable = GlobalVariablePrefix + "CWD";
 
+        public class DeviceHandlingHelpers
+        {
+            public DeviceHandlingHelpers(Monitor monitor)
+            {
+                this.monitor = monitor;
+            }
+
+            public bool IsNameAvailable(string name)
+                => monitor.IsNameAvailable(name);
+
+            public object IdentifyDevice(string name)
+                => monitor.IdentifyDevice(name);
+
+            public object HandleDeviceChain(string name, out string chainedName, object device, IEnumerable<Token> tokens, out IEnumerable<Token> tail)
+                => monitor.HandleDeviceChain(name, out chainedName, device, tokens, out tail);
+
+            public bool ParseArgument(IList<Token> tokens, ref int i, out TokenList arg)
+                => Monitor.ParseArgument(tokens, ref i, out arg);
+
+            public bool FitArgumentType(TokenList tokens, Type paramType, out object result)
+                => monitor.FitArgumentType(tokens, paramType, out result);
+
+            public MemberInfo GetAccessor(object device, string member, bool? assertSetter = null, bool? assertGetter = null)
+                => monitor.GetAccessor(device, member, assertSetter, assertGetter);
+
+            private readonly Monitor monitor;
+        }
+
         private enum VariableType
         {
             Variable,

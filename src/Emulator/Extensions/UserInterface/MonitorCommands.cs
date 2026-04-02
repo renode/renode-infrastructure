@@ -1569,21 +1569,7 @@ namespace Antmicro.Renode.UserInterface
         private const string SelectCommand = "Select";
         private const string ForEachCommand = "ForEach";
 
-        public enum NumberModes
-        {
-            Hexadecimal,
-            Decimal,
-            Both
-        }
-
-        private class MachineWithWasPaused
-        {
-            public Machine Machine { get; set; }
-
-            public bool WasPaused { get; set; }
-        }
-
-        private class TokenList : IEnumerable<Token>
+        public class TokenList : IEnumerable<Token>
         {
             public static TokenList Single(Token token)
             {
@@ -1614,6 +1600,20 @@ namespace Antmicro.Renode.UserInterface
 
             public readonly List<Token> Tokens = new List<Token>();
             public readonly bool IsArray;
+        }
+
+        public enum NumberModes
+        {
+            Hexadecimal,
+            Decimal,
+            Both,
+        }
+
+        private class MachineWithWasPaused
+        {
+            public Machine Machine { get; set; }
+
+            public bool WasPaused { get; set; }
         }
     }
 }
