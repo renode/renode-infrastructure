@@ -1087,6 +1087,60 @@ namespace Antmicro.Renode.UserInterface
             return null;
         }
 
+        private object HandleDeviceChain(string name, out string chainedName, object device, IEnumerable<Token> tokens, out IEnumerable<Token> tail)
+        {
+            chainedName = name;
+            tail = tokens;
+            string commandValue;
+            var command = tokens.FirstOrDefault();
+            if(command is LiteralToken)
+            {
+                commandValue = command.GetObjectValue() as string;
+            }
+            else
+            {
+                return device;
+            }
+
+            if(device == null)
+            {
+                return null;
+            }
+            var type = device.GetType();
+
+            var fields = cache.Get(type, GetAvailableFields);
+            var found = (MemberInfo)fields.FirstOrDefault(x => x.Name == commandValue);
+            Type foundType;
+            if(found == null)
+            {
+                var properties = cache.Get(type, GetAvailableProperties);
+                found = properties.FirstOrDefault(x => x.Name == commandValue);
+                if(found == null)
+                {
+                    return device;
+                }
+                foundType = (found as PropertyInfo).PropertyType;
+            }
+            else
+            {
+                foundType = (found as FieldInfo).FieldType;
+            }
+
+            var parameterArray = tokens.Skip(1).ToArray();
+            if(!ParseOptionalArgument(parameterArray, out var setValue))
+            {
+                throw new RecoverableException($"Failed to parse argument: {Misc.PrettyPrintCollection(parameterArray)}");
+            }
+            //if setValue is a LiteralToken that does not name a variable, treat it as the next command to process in recursive call
+            if(CanTypeBeChained(foundType) && setValue?.FirstOrDefault() is LiteralToken lt && GetDevice(lt.Value) == null)
+            {
+                var currentObject = DeviceHelper.InvokeGet(device, found);
+                var objectFullName = $"{name} {commandValue}";
+                return HandleDeviceChain(objectFullName, out chainedName, currentObject, tokens.Skip(1), out tail);
+            }
+            return device;
+        }
+
         private string GetResultFormat(object result, int num, int? width = null)
         {
             string format;
