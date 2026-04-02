@@ -1141,6 +1141,48 @@ namespace Antmicro.Renode.UserInterface
             return device;
         }
 
+        private MemberInfo GetAccessor(object device, string member, bool? assertSetter = null, bool? assertGetter = null)
+        {
+            var type = device.GetType();
+            MemberInfo memberInfo = null;
+            var invalidGetter = false;
+            var invalidSetter = false;
+
+            var fields = cache.Get(type, GetAvailableFields);
+            var foundField = fields.FirstOrDefault(x => x.Name == member);
+            if(foundField != null)
+            {
+                invalidGetter = assertGetter == false;
+                invalidSetter = assertSetter.HasValue && assertSetter != (!foundField.IsLiteral && !foundField.IsInitOnly);
+                memberInfo = foundField;
+            }
+            else
+            {
+                var properties = cache.Get(type, GetAvailableProperties);
+                var foundProp = properties.FirstOrDefault(x => x.Name == member);
+                if(foundProp != null)
+                {
+                    invalidSetter = assertSetter != foundProp.IsCurrentlySettable(CurrentBindingFlags);
+                    invalidGetter = assertGetter != foundProp.IsCurrentlyGettable(CurrentBindingFlags);
+                    memberInfo = foundProp;
+                }
+            }
+
+            if(invalidGetter || invalidSetter)
+            {
+                var setterInfo = invalidSetter
+                    ? (assertSetter.Value ? "doesn't have setter" : "does have setter")
+                    : "";
+                var getterInfo = invalidGetter
+                    ? (assertGetter.Value ? "doesn't have getter" : "does have getter")
+                    : "";
+                var glue = invalidSetter && invalidGetter ? " and " : "";
+                throw new RecoverableException($"'{member}' {setterInfo}{glue}{getterInfo}");
+            }
+
+            return memberInfo;
+        }
+
         private string GetResultFormat(object result, int num, int? width = null)
         {
             string format;
