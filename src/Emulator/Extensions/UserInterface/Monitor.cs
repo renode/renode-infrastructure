@@ -1063,6 +1063,7 @@ namespace Antmicro.Renode.UserInterface
             Commands.Add(new MachCommand(this, () => CurrentMachine, x => CurrentMachine = x));
             Commands.Add(new ResdCommand(this));
             Commands.Add(new VerboseCommand(this, x => verboseMode = x));
+            Commands.Add(new SetAndRevertAfterCommand(this, new DeviceHandlingHelpers(this)));
         }
 
         private void DisableStringEater()
