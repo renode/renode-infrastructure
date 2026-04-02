@@ -55,6 +55,9 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             // hex number
             tokenizer.AddToken(new Regex(@"^0x([0-9]|(?i:[a-f]))+"), x => new HexToken(x));
 
+            // time interval
+            tokenizer.AddToken(new Regex(@"^(([0-9]+:)?[0-9]+:)[0-9]+(\.[0-9]+)?"), x => new TimeIntervalToken(x));
+
             // float number
             tokenizer.AddToken(new Regex(@"^[+-]?((\d+\.(\d*)?))"), x => new FloatToken(x));
 
