@@ -490,6 +490,34 @@ namespace Antmicro.Renode.UserInterface
             return unmangledName + "<" + String.Join(",", genericArguments.Select(TypePrettyName)) + ">";
         }
 
+        private IEnumerable<PropertyInfo> GetAvailableIndexers(Type objectType)
+        {
+            var properties = new List<PropertyInfo>();
+            var type = objectType;
+            while(type != null && type != typeof(object))
+            {
+                properties.AddRange(type.GetProperties(CurrentBindingFlags)
+                                    .Where(x => x.IsCallableIndexer())
+                );
+                type = type.BaseType;
+            }
+            return properties.DistinctBy(x => x.ToString()); //Look @ GetAvailableMethods for explanation.
+        }
+
+        private IEnumerable<PropertyInfo> GetAvailableProperties(Type objectType)
+        {
+            var properties = new List<PropertyInfo>();
+            var type = objectType;
+            while(type != null && type != typeof(object))
+            {
+                properties.AddRange(type.GetProperties(CurrentBindingFlags)
+                                    .Where(x => x.IsCallable())
+                );
+                type = type.BaseType;
+            }
+            return properties.DistinctBy(x => x.ToString()); //Look @ GetAvailableMethods for explanation.
+        }
+
         private bool TryParseTokenForParamType(Token token, Type type, out object result)
         {
             var underlyingType = Nullable.GetUnderlyingType(type);
@@ -1457,34 +1485,6 @@ namespace Antmicro.Renode.UserInterface
             public Machine Machine { get; set; }
 
             public bool WasPaused { get; set; }
-        }
-
-        IEnumerable<PropertyInfo> GetAvailableIndexers(Type objectType)
-        {
-            var properties = new List<PropertyInfo>();
-            var type = objectType;
-            while(type != null && type != typeof(object))
-            {
-                properties.AddRange(type.GetProperties(CurrentBindingFlags)
-                                    .Where(x => x.IsCallableIndexer())
-                );
-                type = type.BaseType;
-            }
-            return properties.DistinctBy(x => x.ToString()); //Look @ GetAvailableMethods for explanation.
-        }
-
-        IEnumerable<PropertyInfo> GetAvailableProperties(Type objectType)
-        {
-            var properties = new List<PropertyInfo>();
-            var type = objectType;
-            while(type != null && type != typeof(object))
-            {
-                properties.AddRange(type.GetProperties(CurrentBindingFlags)
-                                    .Where(x => x.IsCallable())
-                );
-                type = type.BaseType;
-            }
-            return properties.DistinctBy(x => x.ToString()); //Look @ GetAvailableMethods for explanation.
         }
 
         private class TokenList : IEnumerable<Token>
