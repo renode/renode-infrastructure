@@ -112,7 +112,7 @@ namespace Antmicro.Renode.UserInterface
                     List<object> parameters;
                     if(TryPrepareParameters(parameterArray, methodParameters, out parameters))
                     {
-                        return InvokeMethod(device, foundMethod, parameters);
+                        return DeviceHelper.InvokeMethod(device, foundMethod, parameters);
                     }
                 }
                 if(!foundExts.Any())
@@ -129,7 +129,7 @@ namespace Antmicro.Renode.UserInterface
                     List<object> parameters;
                     if(TryPrepareParameters(parameterArray, extensionParameters, out parameters))
                     {
-                        return InvokeExtensionMethod(device, foundExt, parameters);
+                        return DeviceHelper.InvokeExtensionMethod(device, foundExt, parameters);
                     }
                 }
                 throw new ParametersMismatchException(type, commandValue, name);
@@ -144,7 +144,7 @@ namespace Antmicro.Renode.UserInterface
                 //if setValue is a LiteralToken that does not name a variable, treat it as the next command to process in recursive call
                 if(CanTypeBeChained(foundField.FieldType) && setValue?.FirstOrDefault() is LiteralToken lt && GetDevice(lt.Value) == null)
                 {
-                    var currentObject = InvokeGet(device, foundField);
+                    var currentObject = DeviceHelper.InvokeGet(device, foundField);
                     var objectFullName = $"{name} {commandValue}";
                     return RecursiveExecuteDeviceAction(objectFullName, currentObject, p, 1);
                 }
@@ -154,12 +154,12 @@ namespace Antmicro.Renode.UserInterface
                     {
                         throw new RecoverableException($"Could not convert {setValue} to {foundField.FieldType}");
                     }
-                    InvokeSet(device, foundField, value);
+                    DeviceHelper.InvokeSet(device, foundField, value);
                     return null;
                 }
                 else
                 {
-                    return InvokeGet(device, foundField);
+                    return DeviceHelper.InvokeGet(device, foundField);
                 }
             }
             else if(foundProp != null)
@@ -172,7 +172,7 @@ namespace Antmicro.Renode.UserInterface
                 //if setValue is a LiteralToken that does not name a variable, treat it as the next command to process in recursive call
                 if(CanTypeBeChained(foundProp.PropertyType) && setValue?.FirstOrDefault() is LiteralToken lt && GetDevice(lt.Value) == null)
                 {
-                    var currentObject = InvokeGet(device, foundProp);
+                    var currentObject = DeviceHelper.InvokeGet(device, foundProp);
                     var objectFullName = $"{name} {commandValue}";
                     return RecursiveExecuteDeviceAction(objectFullName, currentObject, p, 1);
                 }
@@ -182,12 +182,12 @@ namespace Antmicro.Renode.UserInterface
                     {
                         throw new RecoverableException($"Could not convert {setValue} to {foundProp.PropertyType}");
                     }
-                    InvokeSet(device, foundProp, value);
+                    DeviceHelper.InvokeSet(device, foundProp, value);
                     return null;
                 }
                 else if(foundProp.IsCurrentlyGettable(CurrentBindingFlags))
                 {
-                    return InvokeGet(device, foundProp);
+                    return DeviceHelper.InvokeGet(device, foundProp);
                 }
                 else
                 {
@@ -224,12 +224,12 @@ namespace Antmicro.Renode.UserInterface
                                 throw new RecoverableException($"Could not convert {value} to {foundIndexer.PropertyType}");
                             }
 
-                            InvokeSetIndex(device, foundIndexer, parameters.Concat(new[] { convertedValue }).ToList());
+                            DeviceHelper.InvokeSetIndex(device, foundIndexer, parameters.Concat(new[] { convertedValue }).ToList());
                             return null;
                         }
                         else
                         {
-                            return InvokeGetIndex(device, foundIndexer, parameters);
+                            return DeviceHelper.InvokeGetIndex(device, foundIndexer, parameters);
                         }
                     }
                 }
@@ -255,11 +255,11 @@ namespace Antmicro.Renode.UserInterface
 
             if(foundProp?.GetMethod != null)
             {
-                return InvokeGet(node, foundProp);
+                return DeviceHelper.InvokeGet(node, foundProp);
             }
             if(foundField != null)
             {
-                return InvokeGet(node, foundField);
+                return DeviceHelper.InvokeGet(node, foundField);
             }
 
             return null;
@@ -441,62 +441,6 @@ namespace Antmicro.Renode.UserInterface
             return unmangledName + "<" + String.Join(",", genericArguments.Select(TypePrettyName)) + ">";
         }
 
-        /// <summary>
-        /// Creates the invocation context.
-        /// </summary>
-        /// <returns>The invokation context or null, if can't be handled by Dynamitey.</returns>
-        /// <param name="device">Target device.</param>
-        /// <param name="info">Field, property or method info.</param>
-        private static InvokeContext CreateInvocationContext(object device, MemberInfo info)
-        {
-            if(info.IsStatic())
-            {
-                if(info is FieldInfo || info is PropertyInfo)
-                {
-                    //FieldInfo not supported in Dynamitey
-                    return null;
-                }
-                return InvokeContext.CreateStatic(device.GetType());
-            }
-            var propertyInfo = info as PropertyInfo;
-            if(propertyInfo != null)
-            {
-                //private properties not supported in Dynamitey
-                if((propertyInfo.CanRead && propertyInfo.GetGetMethod(true).IsPrivate)
-                   || (propertyInfo.CanWrite && propertyInfo.GetSetMethod(true).IsPrivate))
-                {
-                    return null;
-                }
-            }
-            return InvokeContext.CreateContext(device, info.ReflectedType);
-        }
-
-        private object InvokeGetIndex(object device, PropertyInfo property, List<object> parameters)
-        {
-            var context = CreateInvocationContext(device, property);
-            if(context != null)
-            {
-                return Dynamic.InvokeGetIndex(context, parameters.ToArray());
-            }
-            else
-            {
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeGetIndex", property.Name));
-            }
-        }
-
-        private object InvokeWithContext(InvokeContext context, MethodInfo method, object[] parameters)
-        {
-            if(method.ReturnType == typeof(void))
-            {
-                Dynamic.InvokeMemberAction(context, method.Name, parameters);
-                return null;
-            }
-            else
-            {
-                return Dynamic.InvokeMember(context, method.Name, parameters);
-            }
-        }
-
         private bool TryParseTokenForParamType(Token token, Type type, out object result)
         {
             var underlyingType = Nullable.GetUnderlyingType(type);
@@ -575,19 +519,6 @@ namespace Antmicro.Renode.UserInterface
             }
 
             throw new InvalidOperationException($"Unhandled parameter type {paramType}");
-        }
-
-        private void InvokeSetIndex(object device, PropertyInfo property, List<object> parameters)
-        {
-            var context = CreateInvocationContext(device, property);
-            if(context != null)
-            {
-                Dynamic.InvokeSetIndex(context, parameters.ToArray());
-            }
-            else
-            {
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeSetIndex", property.Name));
-            }
         }
 
         private bool TryPrepareParameters(IList<Token> values, IList<ParameterInfo> parameters, out List<object> result)
@@ -786,19 +717,6 @@ namespace Antmicro.Renode.UserInterface
             return external;
         }
 
-        private object InvokeMethod(object device, MethodInfo method, List<object> parameters)
-        {
-            var context = CreateInvocationContext(device, method);
-            if(context != null)
-            {
-                return InvokeWithContext(context, method, parameters.ToArray());
-            }
-            else
-            {
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeMethod", method.Name));
-            }
-        }
-
         private object ConvertValue(object value, Type type)
         {
             var underlyingType = Nullable.GetUnderlyingType(type);
@@ -886,31 +804,6 @@ namespace Antmicro.Renode.UserInterface
                 return ConvertValue(value, underlyingType);
             }
             return Dynamic.InvokeConvert(value, type, true);
-        }
-
-        private void InvokeSet(object device, MemberInfo info, object parameter)
-        {
-            var context = CreateInvocationContext(device, info);
-            if(context != null)
-            {
-                Dynamic.InvokeSet(context, info.Name, parameter);
-            }
-            else
-            {
-                var propInfo = info as PropertyInfo;
-                var fieldInfo = info as FieldInfo;
-                if(fieldInfo != null)
-                {
-                    fieldInfo.SetValue(null, parameter);
-                    return;
-                }
-                if(propInfo != null)
-                {
-                    propInfo.SetValue(!propInfo.IsStatic() ? device : null, parameter, null);
-                    return;
-                }
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeSet", info.Name));
-            }
         }
 
         private bool RunCommand(ICommandInteraction writer, Command command, IList<Token> parameters)
@@ -1139,19 +1032,6 @@ namespace Antmicro.Renode.UserInterface
         private string GetNumberFormat(NumberModes mode, int width)
         {
             return NumberFormats[mode].Replace("X", "X" + width);
-        }
-
-        private object InvokeExtensionMethod(object device, MethodInfo method, List<object> parameters)
-        {
-            var context = InvokeContext.CreateStatic(method.ReflectedType);
-            if(context != null)
-            {
-                return InvokeWithContext(context, method, (new[] { device }.Concat(parameters)).ToArray());
-            }
-            else
-            {
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeExtensionMethod", method.Name));
-            }
         }
 
         private void PrintActionResult(object result, ICommandInteraction writer, bool withNewLine = true)
@@ -1516,29 +1396,6 @@ namespace Antmicro.Renode.UserInterface
             var iface = GetExternalInterfaceOrNull(name);
             device = device ?? FromMapping(name) ?? iface ?? (object)CurrentMachine[name];
             return device;
-        }
-
-        private object InvokeGet(object device, MemberInfo info)
-        {
-            var context = CreateInvocationContext(device, info);
-            if(context != null)
-            {
-                return Dynamic.InvokeGet(context, info.Name);
-            }
-            else
-            {
-                var propInfo = info as PropertyInfo;
-                var fieldInfo = info as FieldInfo;
-                if(fieldInfo != null)
-                {
-                    return fieldInfo.GetValue(null);
-                }
-                if(propInfo != null)
-                {
-                    return propInfo.GetValue(!propInfo.IsStatic() ? device : null, null);
-                }
-                throw new NotImplementedException(String.Format("Unsupported field {0} in InvokeGet", info.Name));
-            }
         }
 
         private void ProcessDeviceAction(Type deviceType, string name, IEnumerable<Token> p, ICommandInteraction writer)

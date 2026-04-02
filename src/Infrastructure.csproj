@@ -2020,6 +2020,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/I2C/STM32F1_I2C.cs" />
     <Compile Include="Emulator/Main/Peripherals/UART/IUARTWithFrameInfo.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Tokenizer/TimeIntervalToken.cs" />
+    <Compile Include="Emulator/Extensions/UserInterface/DeviceHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">
