@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -20,8 +20,6 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             var tokenizer = new Tokenizer();
             // comment
             tokenizer.AddToken(new Regex(@"^\#.*"), x => new CommentToken(x));
-
-            tokenizer.AddToken(new Regex(@"^:.*"), x => new CommentToken(x));
 
             // execution
             tokenizer.AddToken(new Regex(@"^`.*?`"), x => new ExecutionToken(x));
@@ -82,10 +80,14 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             tokenizer.AddToken(new Regex(@"^,"), x => new CommaToken(x));
 
             // literal
-            tokenizer.AddToken(new Regex(@"^[\w\.\-\?]+"), x => new LiteralToken(x));
+            tokenizer.AddToken(new Regex(@"^[\w\.\-\?][\w\.\-\?:]*"), x => new LiteralToken(x));
 
             // whitespace
             tokenizer.AddToken(new Regex(@"^\s+"), x => null);
+
+            // comment
+            tokenizer.AddToken(new Regex(@"^:.*"), x => new CommentToken(x));
+
             return tokenizer;
         }
 
