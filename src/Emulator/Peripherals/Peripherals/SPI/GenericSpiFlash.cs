@@ -246,9 +246,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 currentOperation.AddressLength = 3;
                 break;
             case (byte)Commands.FastRead:
-                // fast read - 3 bytes of address + a dummy byte
+                // fast read - 3 or 4 bytes of address (depending on mode) + a dummy byte
                 currentOperation.Operation = DecodedOperation.OperationType.ReadFast;
-                currentOperation.AddressLength = 3;
+                currentOperation.AddressLength = NumberOfAddressBytes;
                 currentOperation.State = DecodedOperation.OperationState.AccumulateCommandAddressBytes;
                 break;
             case (byte)Commands.Read:
