@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -205,6 +205,7 @@ namespace Antmicro.Renode.MonitorTests
             AssertTokenizationValues(result, 0, "xgfd", 123, "bcd");
         }
 
+        [Test]
         public void LiteralTest()
         {
             var result = tokenizer.Tokenize(".Some.Literal-With?Extra:SignsIn.It:");
