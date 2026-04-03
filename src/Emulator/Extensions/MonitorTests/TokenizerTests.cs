@@ -8,6 +8,7 @@
 using System;
 using System.Linq;
 
+using Antmicro.Renode.Time;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.UserInterface.Tokenizer;
 
@@ -211,6 +212,45 @@ namespace Antmicro.Renode.MonitorTests
             var result = tokenizer.Tokenize(".Some.Literal-With?Extra:SignsIn.It:");
             AssertTokenizationTypes(result, typeof(LiteralToken));
             AssertTokenizationValues(result, ".Some.Literal-With?Extra:SignsIn.It:");
+        }
+
+        [Test]
+        public void TimeIntervalTest()
+        {
+            var result = tokenizer.Tokenize("1 1. 1.2 1:2 1:2.3 1:2:3 0:1:2.3 1:2:3.4");
+            AssertTokenizationTypes(result, typeof(DecimalIntegerToken), typeof(FloatToken), typeof(FloatToken),
+                typeof(TimeIntervalToken), typeof(TimeIntervalToken), typeof(TimeIntervalToken),
+                typeof(TimeIntervalToken), typeof(TimeIntervalToken)
+            );
+
+            var recastTokens = result.Tokens.Select(t =>
+            {
+                if(t is DecimalIntegerToken decimalIntegerToken)
+                {
+                    return (Token)(TimeIntervalToken)decimalIntegerToken;
+                }
+                if(t is FloatToken floatToken)
+                {
+                    return (Token)(TimeIntervalToken)floatToken;
+                }
+                return t;
+            });
+            var recastResults = new TokenizationResult(result.UnmatchedCharactersLeft, recastTokens, null);
+            AssertTokenizationTypes(recastResults,
+                typeof(TimeIntervalToken), typeof(TimeIntervalToken), typeof(TimeIntervalToken), typeof(TimeIntervalToken),
+                typeof(TimeIntervalToken), typeof(TimeIntervalToken), typeof(TimeIntervalToken), typeof(TimeIntervalToken)
+            );
+
+            AssertTokenizationValues(recastResults,
+                TimeInterval.FromSeconds(1),
+                TimeInterval.FromSeconds(1),
+                TimeInterval.FromSeconds(1.2),
+                TimeInterval.FromSeconds(1 * 60 + 2),
+                TimeInterval.FromSeconds(1 * 60 + 2.3),
+                TimeInterval.FromSeconds((1 * 60 + 2) * 60 + 3),
+                TimeInterval.FromSeconds(1 * 60 + 2.3),
+                TimeInterval.FromSeconds((1 * 60 + 2) * 60 + 3.4)
+            );
         }
 
         [SetUp]
