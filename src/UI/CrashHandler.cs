@@ -26,7 +26,10 @@ namespace Antmicro.Renode.UI
             ShowErrorInConsole(message);
             try
             {
-                ShowErrorWindow(message);
+                if(CommandLineInterface.UsingXwtUI)
+                {
+                    ShowErrorWindow(message);
+                }
             }
             catch(Exception)
             {

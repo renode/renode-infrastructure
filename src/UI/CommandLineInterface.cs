@@ -152,6 +152,7 @@ namespace Antmicro.Renode.UI
                         Logger.AddBackend(ConsoleBackend.Instance, "console", true);
                         terminal = new ConsoleWindowBackendAnalyzer(true);
                         terminal.Show();
+                        UsingXwtUI = true;
                         shell.Terminal = new NavigableTerminalEmulator(terminal.IO, terminal.SizeSource);
                         shell.Terminal.PlainMode = options.Plain;
 
@@ -176,6 +177,8 @@ namespace Antmicro.Renode.UI
                 Emulator.WaitForExit();
             }
         }
+
+        public static bool UsingXwtUI { get; private set; } = false;
 
         private static void PrepareIOProvider(Options options, out IOProvider io, out ISizeSource size)
         {
@@ -210,6 +213,7 @@ namespace Antmicro.Renode.UI
             }
             else
             {
+                UsingXwtUI = true;
                 var terminal = new ConsoleWindowBackendAnalyzer(true);
                 terminal.Show();
                 io = terminal.IO;
