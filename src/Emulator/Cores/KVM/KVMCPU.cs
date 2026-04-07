@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
@@ -441,30 +440,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected const int MaxRedirectionTableEntries = 24;
 
-        /*
-        Increments each time a new translation library resource is created.
-        This counter marks each new instance of a kvm library with a new number, which is used in file names to avoid collisions.
-        It has to survive emulation reset, so the file names remain unique.
-        */
-        private static int CpuCounter = 0;
-
         private void InitBinding()
         {
-            var libraryResource = $"Antmicro.Renode.kvm-{Architecture}.so";
-            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if(assembly.TryFromResourceToTemporaryFile(libraryResource, out libraryFile, $"{CpuCounter}-{libraryResource}"))
-                {
-                    break;
-                }
-            }
-
-            Interlocked.Increment(ref CpuCounter);
-
-            if(libraryFile == null)
-            {
-                throw new ConstructionException($"Cannot find library {libraryResource}");
-            }
+            libraryFile = PlatformFileLoader.CopyPlatformFile($"kvm-{Architecture}.so");
 
             binder = new NativeBinder(this, libraryFile);
         }

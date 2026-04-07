@@ -75,59 +75,6 @@
     <Compile Remove="Emulator/Cores/KVM/**" />
   </ItemGroup>
 
-  <Target Name="PrepareEmbeddedResources" BeforeTargets="ResolveReferences" >
-    <ItemGroup>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-arm64-le.so">
-        <LogicalName>Antmicro.Renode.translate-arm64-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-arm-le.so">
-        <LogicalName>Antmicro.Renode.translate-arm-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-arm-be.so">
-        <LogicalName>Antmicro.Renode.translate-arm-be.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-arm-m-le.so">
-        <LogicalName>Antmicro.Renode.translate-arm-m-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-arm-m-be.so">
-        <LogicalName>Antmicro.Renode.translate-arm-m-be.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-i386-le.so">
-        <LogicalName>Antmicro.Renode.translate-i386-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-x86_64-le.so">
-        <LogicalName>Antmicro.Renode.translate-x86_64-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-riscv64-le.so">
-        <LogicalName>Antmicro.Renode.translate-riscv64-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-riscv-le.so">
-        <LogicalName>Antmicro.Renode.translate-riscv-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-ppc-be.so">
-        <LogicalName>Antmicro.Renode.translate-ppc-be.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-ppc64-be.so">
-        <LogicalName>Antmicro.Renode.translate-ppc64-be.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-xtensa-le.so">
-        <LogicalName>Antmicro.Renode.translate-xtensa-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-sparc-le.so">
-        <LogicalName>Antmicro.Renode.translate-sparc-le.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/translate-sparc-be.so">
-        <LogicalName>Antmicro.Renode.translate-sparc-be.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-x86.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
-        <LogicalName>Antmicro.Renode.kvm-x86.so</LogicalName>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Emulator/Cores/bin/$(Configuration)/lib/kvm-x86_64.so" Condition="$(CurrentPlatform) == 'Linux' And $(Architecture) == 'i386'">
-        <LogicalName>Antmicro.Renode.kvm-x86_64.so</LogicalName>
-      </EmbeddedResource>
-    </ItemGroup>
-  </Target>
-
   <ItemGroup>
     <ProjectReference Include="../../../lib/Migrant/Migrant/Migrant.csproj"/>
     <ProjectReference Include="../../../lib/ELFSharp/ELFSharp/ELFSharp.csproj"/>

@@ -1115,10 +1115,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibDispose();
             RenodeFreeHostBlocks();
             binder.Dispose();
-            if(!EmulationManager.DisableEmulationFilesCleanup)
-            {
-                File.Delete(libraryFile);
-            }
             if(dirtyAddressesPtr != IntPtr.Zero)
             {
                 memoryManager.Free(dirtyAddressesPtr);
@@ -1476,13 +1472,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected readonly Action TlibCleanWfiProcState;
 #pragma warning restore 649
 
-        /*
-            Increments each time a new translation library resource is created.
-            This counter marks each new instance of a translation library with a new number, which is used in file names to avoid collisions.
-            It has to survive emulation reset, so the file names remain unique.
-        */
-        private static int CpuCounter = 0;
-
         [Export]
         private IntPtr Reallocate(IntPtr oldPointer, IntPtr newSize)
         {
@@ -1643,21 +1632,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             // PowerPC always uses the big-endian translation library
             var endianSuffix = (Endianness == Endianess.BigEndian || Architecture.StartsWith("ppc")) ? "be" : "le";
-            var libraryResource = string.Format("Antmicro.Renode.translate-{0}-{1}.so", Architecture, endianSuffix);
-            foreach(var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                if(assembly.TryFromResourceToTemporaryFile(libraryResource, out libraryFile, $"{CpuCounter}-{libraryResource}"))
-                {
-                    break;
-                }
-            }
 
-            Interlocked.Increment(ref CpuCounter);
-
-            if(libraryFile == null)
-            {
-                throw new ConstructionException($"Cannot find library {libraryResource}");
-            }
+            libraryFile = PlatformFileLoader.CopyPlatformFile($"translate-{Architecture}-{endianSuffix}.so");
 
             binder = new NativeBinder(this, libraryFile);
             MaximumBlockSize = DefaultMaximumBlockSize;
