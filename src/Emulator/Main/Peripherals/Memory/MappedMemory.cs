@@ -519,6 +519,15 @@ namespace Antmicro.Renode.Peripherals.Memory
             return 0UL;
         }
 
+        public IntPtr GetSegmentMappedAddress(int segmentNo)
+        {
+            if(segmentNo >= 0 && segmentNo < sharedSegments.Length)
+            {
+                return IntPtr.Add(sharedSegments[segmentNo].MappedAddress, (int)sharedSegments[segmentNo].AlignmentOffset);
+            }
+            return IntPtr.Zero;
+        }
+
         public void WriteBytes(long offset, byte[] value)
         {
             WriteBytes(offset, value, 0, value.Length);
@@ -837,7 +846,8 @@ namespace Antmicro.Renode.Peripherals.Memory
                     mmva = mmf.CreateViewAccessor();
                     byte* ptr = null;
                     mmva.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
-                    return (IntPtr)ptr;
+                    MappedAddress = (IntPtr)ptr;
+                    return MappedAddress;
                 }
                 else
                 {
@@ -865,6 +875,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                     guid = null;
                     mmva = null;
                     mmf = null;
+                    MappedAddress = IntPtr.Zero;
                     disposed = true;
                 }
             }
@@ -878,6 +889,9 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
 
             public ulong AlignmentOffset { get; set; }
+
+            /// <remarks>Does not include <see cref="AlignmentOffset"/></remarks>
+            public IntPtr MappedAddress { get; private set; }
 
             private string MMFFileName
             {
