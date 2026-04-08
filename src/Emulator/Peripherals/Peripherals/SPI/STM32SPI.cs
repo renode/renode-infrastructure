@@ -207,7 +207,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(0, out rxDmaEnable, name: "RXDMAEN")
                 .WithTaggedFlag("TXDMAEN", 1)
                 .WithTaggedFlag("SSOE", 2)
-                .WithReservedBits(3, 1)
+                .If(series == STM32Series.L5)
+                    .Then(reg => reg
+                          .WithFlag(3, name: "NSSP") // Physical
+                    )
+                    .Else(reg => reg
+                          .WithReservedBits(3, 1)
+                    )
                 .WithTaggedFlag("FRF", 4)
                 .WithTaggedFlag("ERRIE", 5)
                 .WithFlag(6, out rxBufferNotEmptyInterruptEnable, name: "RXNEIE")
