@@ -25,11 +25,13 @@ namespace Antmicro.Renode.Peripherals.CPU
     public partial class CortexM : Arm, IPeripheralWithTransactionState
     {
         public CortexM(string cpuType, IMachine machine, NVIC nvic, [NameAlias("id")] uint cpuId = 0, Endianess endianness = Endianess.LittleEndian,
-            uint? fpuInterruptNumber = null, uint? numberOfMPURegions = null, bool enableTrustZone = false, uint? numberOfSAURegions = null, uint? numberOfIDAURegions = null)
+            uint? fpuInterruptNumber = null, uint? numberOfMPURegions = null, bool enableTrustZone = false, uint? numberOfSAURegions = null, uint? numberOfIDAURegions = null, bool isCpuWaitSignalSet = false)
             : base(cpuType, machine, cpuId, endianness, numberOfMPURegions)
         {
             CpuWaitSignal = new GPIO();
+            CpuWaitSignal.Set(isCpuWaitSignalSet);
             CpuWaitSignal.AddStateChangedHook((state) => UpdateCPUWait(state));
+            IsHalted = CpuWaitSignal.IsSet;
 
             if(nvic == null)
             {
