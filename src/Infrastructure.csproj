@@ -693,6 +693,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/TegraTimer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/OMAP_GPTimer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/STM32_Timer.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Timers/STM32_TimerTriggerMatrix.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/ARM_SP804_Timer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/EOSS3_SimplePeriodicTimer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/Cadence_TTC.cs" />
