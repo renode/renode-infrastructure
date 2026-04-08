@@ -106,7 +106,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             {
                 var allocSeg = AllocateSegment(segmentNo);
                 var originalPointer = (long)allocSeg;
-                var alignedPointer = (IntPtr)((originalPointer + Alignment) & ~(Alignment - 1));
+                var alignedPointer = (IntPtr)((originalPointer + Alignment - 1) & ~(Alignment - 1));
                 segments[segmentNo] = alignedPointer;
                 if(UsingSharedMemory)
                 {
