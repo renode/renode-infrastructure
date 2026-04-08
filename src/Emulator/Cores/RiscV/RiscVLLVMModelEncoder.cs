@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.CPU.Disassembler;
 using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -36,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             try
             {
                 pointerToFeaturesStringPointer = Marshal.AllocHGlobal(IntPtr.Size);
-                llvm_disasm_get_cpu_features(triple, pointerToFeaturesStringPointer);
+                LLVMDisasBindings.LlvmDisasmGetCpuFeatures(triple, pointerToFeaturesStringPointer);
                 featuresStringPointer = Marshal.ReadIntPtr(pointerToFeaturesStringPointer);
 
                 if(featuresStringPointer == IntPtr.Zero)
@@ -88,8 +89,5 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private static readonly SimpleCache modelsCache = new SimpleCache();
-
-        [DllImport("libllvm-disas")]
-        private static extern void llvm_disasm_get_cpu_features(string tripleName, IntPtr features);
     }
 }

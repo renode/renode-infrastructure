@@ -57,13 +57,14 @@ namespace Antmicro.Renode.Utilities.Binding
         /// </description></item>
         /// </list>
         /// </remarks>
-        public NativeBinder(IEmulationElement classToBind, string libraryFile)
+        public NativeBinder(object classToBind, string libraryFile)
         {
             delegateStore = new object[0];
             this.classToBind = classToBind;
             libraryAddress = SharedLibraries.LoadLibrary(libraryFile);
             libraryFileName = libraryFile;
-            var importFields = classToBind.GetType().GetAllFields().Where(x => x.IsDefined(typeof(ImportAttribute), false)).ToList();
+            var classType = classToBind.GetType().IsSubclassOf(typeof(Type)) ? (Type)classToBind : classToBind.GetType();
+            var importFields = classType.GetAllFields().Where(x => x.IsDefined(typeof(ImportAttribute), false)).ToList();
             EnsureWrappersType(importFields);
             wrappersObj = CreateWrappersObject();
             try
@@ -295,13 +296,13 @@ namespace Antmicro.Renode.Utilities.Binding
 
         private void ResolveCallsToNative(List<FieldInfo> importFields)
         {
-            classToBind.NoisyLog("Binding managed -> native calls.");
+            Logger.LogAs(classToBind, LogLevel.Noisy, "Binding managed -> native calls.");
 
             foreach(var field in importFields)
             {
                 var attribute = (ImportAttribute)field.GetCustomAttributes(false).First(x => x is ImportAttribute);
                 var cName = GetWrappedName(attribute.Name ?? GetCName(field.Name), attribute.UseExceptionWrapper);
-                classToBind.NoisyLog(string.Format("(NativeBinder) Binding {1} as {0}.", field.Name, cName));
+                Logger.LogAs(classToBind, LogLevel.Noisy, string.Format("(NativeBinder) Binding {1} as {0}.", field.Name, cName));
                 Delegate result = null;
                 try
                 {
@@ -406,7 +407,7 @@ namespace Antmicro.Renode.Utilities.Binding
 
         private void ResolveCallsToManaged()
         {
-            classToBind.NoisyLog("Binding native -> managed calls.");
+            Logger.LogAs(classToBind, LogLevel.Noisy, "Binding native -> managed calls.");
             var symbols = SharedLibraries.GetAllSymbols(libraryFileName);
             var classMethods = classToBind.GetType().GetAllMethods().ToArray();
             var exportedMethods = new List<MethodInfo>();
@@ -419,7 +420,7 @@ namespace Antmicro.Renode.Utilities.Binding
                 var cName = parts[2];
                 var expectedTypeName = parts[1];
                 var csName = cName.StartsWith('$') ? GetCSharpName(cName.Substring(1)) : cName;
-                classToBind.NoisyLog("(NativeBinder) Binding {0} as {2} of type {1}.", cName, expectedTypeName, csName);
+                Logger.LogAs(classToBind, LogLevel.Noisy, "(NativeBinder) Binding {0} as {2} of type {1}.", cName, expectedTypeName, csName);
 
                 // let's find the desired method
                 var desiredMethodInfo = classMethods.FirstOrDefault(method =>
@@ -465,7 +466,7 @@ namespace Antmicro.Renode.Utilities.Binding
             var notExportedMethods = classMethods.Where(x => x.IsDefined(typeof(ExportAttribute), true)).Except(exportedMethods);
             foreach(var method in notExportedMethods)
             {
-                classToBind.Log(LogLevel.Warning, "Method {0} is marked with Export attribute, but was not exported.", method.Name);
+                Logger.LogAs(classToBind, LogLevel.Warning, "Method {0} is marked with Export attribute, but was not exported.", method.Name);
             }
         }
 
@@ -481,7 +482,7 @@ namespace Antmicro.Renode.Utilities.Binding
 
         private IntPtr libraryAddress;
         private readonly string libraryFileName;
-        private readonly IEmulationElement classToBind;
+        private readonly object classToBind;
         private readonly object wrappersObj;
     }
 }

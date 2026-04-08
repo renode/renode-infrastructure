@@ -1886,7 +1886,7 @@ namespace Antmicro.Renode.Utilities
         }
 
         private const BindingFlags DefaultBindingFlags = BindingFlags.Public | BindingFlags.NonPublic |
-                BindingFlags.Instance | BindingFlags.DeclaredOnly;
+                BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
 
         private const int MACLength = 14;
         private const int ZeroPrefixPosition = 4;

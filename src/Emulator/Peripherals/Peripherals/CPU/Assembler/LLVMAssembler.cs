@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
             var model = cpu.LLVMModel;
             // We need to initialize the architecture to be used before trying to assemble.
             // It's OK and cheap to initialize it multiple times, as this only sets a few pointers.
-            init_llvm_architecture(triple);
+            LLVMDisasBindings.InitLlvmArchitecture(triple);
             if(!xtensaSupportWarningIssued && triple == "xtensa")
             {
                 Logger.Log(LogLevel.Warning, "The assembler for Xtensa is currently an experimental feature in Renode");
@@ -38,7 +38,10 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
             IntPtr outLen;
             try
             {
-                ok = llvm_asm(triple, model, alternateDialect ? 1 : 0u, code, pc, out output, out outLen);
+                unsafe
+                {
+                    ok = LLVMDisasBindings.LlvmAsm(triple, model, alternateDialect ? 1 : 0u, code, pc, (IntPtr)(&output), (IntPtr)(&outLen));
+                }
             }
             catch(EntryPointNotFoundException e)
             {
@@ -47,24 +50,15 @@ namespace Antmicro.Renode.Peripherals.CPU.Assembler
             if(!ok)
             {
                 var error = Marshal.PtrToStringAnsi(output);
-                llvm_free_asm_result(output);
+                LLVMDisasBindings.LlvmFreeAsmResult(output);
                 throw new RecoverableException(string.Format("Failed to assemble. Reason: {0}", error));
             }
 
             var result = new byte[(int)outLen];
             Marshal.Copy(output, result, 0, (int)outLen);
-            llvm_free_asm_result(output);
+            LLVMDisasBindings.LlvmFreeAsmResult(output);
             return result;
         }
-
-        [DllImport("libllvm-disas")]
-        private static extern IntPtr init_llvm_architecture(string triple);
-
-        [DllImport("libllvm-disas")]
-        private static extern bool llvm_asm(string arch, string cpu, uint flags, string instructions, ulong addr, out IntPtr output, out IntPtr outLen);
-
-        [DllImport("libllvm-disas")]
-        private static extern void llvm_free_asm_result(IntPtr result);
 
         private static bool xtensaSupportWarningIssued = false;
 
