@@ -155,11 +155,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             Registers.Control1.Define(registers)
                 .WithFlag(0, name: "CPHA") // Physical
                 .WithFlag(1, name: "CPOL") // Physical
-                .WithFlag(2, writeCallback: (_, value) =>
+                .WithFlag(2, out masterMode, writeCallback: (old_value, value) =>
                 {
-                    if(!value)
+                    if(!value && old_value)
                     {
-                        this.Log(LogLevel.Warning, "Slave mode is not supported");
+                        this.Log(LogLevel.Error, "Setting slave mode which is not supported.");
                     }
                 }, name: "MSTR")
                 .WithValueField(3, 3, name: "Baud") // Physical
@@ -168,6 +168,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                     if(!newValue)
                     {
                         IRQ.Unset();
+                    }
+                    else if(!masterMode.Value)
+                    {
+                        this.Log(LogLevel.Error, "Enabled SPI in slave mode, which is not supported.");
                     }
                 }, name: "SpiEnable")
                 .WithFlag(7, name: "LSBFIRST") // Physical
@@ -249,6 +253,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, rxDmaEnable;
+        private IFlagRegisterField masterMode;
 
         private readonly DoubleWordRegisterCollection registers;
 
