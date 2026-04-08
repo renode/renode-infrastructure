@@ -941,6 +941,24 @@ namespace Antmicro.Renode.Utilities
             return true;
         }
 
+        public static bool TryCopyToTemporaryFile(string inputFile, out string temporaryFileFullPath, string temporaryFileSuffix = null)
+        {
+            temporaryFileFullPath = TemporaryFilesManager.Instance.GetTemporaryFile(temporaryFileSuffix);
+            try
+            {
+                using(var inputFileStream = new FileStream(inputFile, FileMode.Open, FileAccess.Read, FileShare.None))
+                {
+                    CopyToFile(inputFileStream, temporaryFileFullPath);
+                }
+                return true;
+            }
+            catch
+            {
+                temporaryFileFullPath = null;
+                return false;
+            }
+        }
+
         public static ulong GrayToBinary(ulong grayEncoding)
         {
             ulong binaryEncoding = grayEncoding;
