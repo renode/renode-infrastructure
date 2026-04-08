@@ -5,9 +5,12 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Collections.Generic;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities.Collections;
@@ -16,8 +19,23 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public sealed class STM32SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IWordPeripheral, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public STM32SPI(IMachine machine, int bufferCapacity = DefaultBufferCapacity) : base(machine)
+        public STM32SPI(IMachine machine, STM32Series series, int bufferCapacity = DefaultBufferCapacity) : base(machine)
         {
+            var supportedSeries = new List<STM32Series>{
+                STM32Series.F0,
+                STM32Series.F4,
+                STM32Series.F7,
+                STM32Series.G0,
+                STM32Series.L0,
+                STM32Series.L1,
+                STM32Series.L5,
+            };
+            if(!supportedSeries.Contains(series))
+            {
+                throw new ConstructionException($"Unsupported STM32 series value: {series}!");
+            }
+            this.series = series;
+
             receiveBuffer = new CircularBuffer<byte>(bufferCapacity);
             IRQ = new GPIO();
             DMARecieve = new GPIO();
@@ -258,6 +276,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly DoubleWordRegisterCollection registers;
 
         private readonly CircularBuffer<byte> receiveBuffer;
+
+        private readonly STM32Series series;
 
         private const int DefaultBufferCapacity = 4;
 
