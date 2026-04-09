@@ -168,7 +168,11 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             var rxBufferNotEmptyInterruptFlag = IsRxBufferNotEmpty() && rxBufferNotEmptyInterruptEnable.Value;
 
-            IRQ.Set(txBufferEmptyInterruptEnable.Value || rxBufferNotEmptyInterruptFlag);
+            // Consider only the OVR event flag as the MODF (Master Mode fault event), FRE (TI frame
+            // format error) and CRCERR (CRC protocol error) are not supported by this model.
+            var errorInterrupt = errorInterruptEnable.Value && overrun.Value;
+
+            IRQ.Set(txBufferEmptyInterruptEnable.Value || rxBufferNotEmptyInterruptFlag || errorInterrupt);
         }
 
         private bool IsRxBufferNotEmpty()
@@ -232,7 +236,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                           .WithReservedBits(3, 1)
                     )
                 .WithTaggedFlag("FRF", 4)
-                .WithTaggedFlag("ERRIE", 5)
+                .WithFlag(5, out errorInterruptEnable, name: "ERRIE")
                 .WithFlag(6, out rxBufferNotEmptyInterruptEnable, name: "RXNEIE")
                 .WithFlag(7, out txBufferEmptyInterruptEnable, name: "TXEIE")
                 .If(series == STM32Series.L5)
@@ -317,6 +321,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, rxDmaEnable;
         private IFlagRegisterField masterMode;
         private IFlagRegisterField overrun;
+        private IFlagRegisterField errorInterruptEnable;
         //STM32L5 specific flags
         private IFlagRegisterField fifoReceptionThreshold;
 
