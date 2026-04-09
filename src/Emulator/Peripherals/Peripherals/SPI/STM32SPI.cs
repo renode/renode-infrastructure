@@ -158,10 +158,19 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void Update()
         {
-            var rxBufferNotEmpty = receiveBuffer.Count != 0;
-            var rxBufferNotEmptyInterruptFlag = rxBufferNotEmpty && rxBufferNotEmptyInterruptEnable.Value;
+            var rxBufferNotEmptyInterruptFlag = IsRxBufferNotEmpty() && rxBufferNotEmptyInterruptEnable.Value;
 
             IRQ.Set(txBufferEmptyInterruptEnable.Value || rxBufferNotEmptyInterruptFlag);
+        }
+
+        private bool IsRxBufferNotEmpty()
+        {
+            if(series == STM32Series.L5 && !fifoReceptionThreshold.Value)
+            {
+                return receiveBuffer.Count >= 2;
+            }
+
+            return receiveBuffer.Count != 0;
         }
 
         private void SetupRegisters()
@@ -218,11 +227,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("ERRIE", 5)
                 .WithFlag(6, out rxBufferNotEmptyInterruptEnable, name: "RXNEIE")
                 .WithFlag(7, out txBufferEmptyInterruptEnable, name: "TXEIE")
-                .WithReservedBits(8, 24)
+                .WithReservedBits(8, 4)
+                .If(family == STM32Family.L5)
+                    .Then(reg => reg
+                          .WithFlag(12, out fifoReceptionThreshold, name: "FRXTH")
+                    )
+                    .Else(reg => reg
+                          .WithReservedBits(12, 1)
+                    )
+                .WithReservedBits(13, 19)
                 .WithWriteCallback((_, __) => Update());
 
             Registers.Status.Define(registers, 2)
-                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiveBuffer.Count != 0, name: "RXNE")
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => IsRxBufferNotEmpty(), name: "RXNE")
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "TXE") // transfers are instant
                 .WithTaggedFlag("CHSIDE", 2) // r/o
                 .WithTaggedFlag("UDR", 3) // r/o
@@ -278,6 +295,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, rxDmaEnable;
         private IFlagRegisterField masterMode;
+        //STM32L5 specific flags
+        private IFlagRegisterField fifoReceptionThreshold;
 
         private readonly DoubleWordRegisterCollection registers;
 
