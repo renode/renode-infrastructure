@@ -227,12 +227,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("ERRIE", 5)
                 .WithFlag(6, out rxBufferNotEmptyInterruptEnable, name: "RXNEIE")
                 .WithFlag(7, out txBufferEmptyInterruptEnable, name: "TXEIE")
-                .WithReservedBits(8, 4)
-                .If(family == STM32Family.L5)
+                .If(series == STM32Series.L5)
                     .Then(reg => reg
+                          .WithValueField(8, 4, writeCallback: (_, dataSizeBits) =>
+                          {
+                              if(dataSizeBits > 0b111)
+                              {
+                                  this.Log(LogLevel.Warning, "Data size > 8 bits not supported");
+                              }
+                          }, name: "DS")
                           .WithFlag(12, out fifoReceptionThreshold, name: "FRXTH")
                     )
                     .Else(reg => reg
+                          .WithReservedBits(8, 4)
                           .WithReservedBits(12, 1)
                     )
                 .WithReservedBits(13, 19)
