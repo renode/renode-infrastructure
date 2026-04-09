@@ -143,7 +143,15 @@ namespace Antmicro.Renode.Peripherals.SPI
                     return;
                 }
                 var response = peripheral.Transmit((byte)value); // currently byte mode is the only one we support
-                receiveBuffer.Enqueue(response);
+                if(receiveBuffer.Count == receiveBuffer.Capacity)
+                {
+                    this.Log(LogLevel.Debug, "Receiving response while RXFIFO is full, dropping it");
+                    overrun.Value = true;
+                }
+                else
+                {
+                    receiveBuffer.Enqueue(response);
+                }
                 if(rxDmaEnable.Value)
                 {
                     // This blink is used to signal the DMA that it should perform the peripheral -> memory transaction now
@@ -252,7 +260,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("UDR", 3) // r/o
                 .WithTaggedFlag("CRCERR", 4) // rc_w0
                 .WithTaggedFlag("MODF", 5) // r/o
-                .WithTaggedFlag("OVR", 6) // r/o
+                .WithFlag(6, out overrun, FieldMode.Read, readCallback: (_, __) =>
+                {
+                    if(receiveBuffer.Count < receiveBuffer.Capacity)
+                    {
+                        overrun.Value = false;
+                    }
+                }, name: "OVR")
                 .WithTaggedFlag("BSY", 7) // r/o
                 .WithTaggedFlag("FRE", 8) // r/o
                 .WithReservedBits(9, 23);
@@ -302,6 +316,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, rxDmaEnable;
         private IFlagRegisterField masterMode;
+        private IFlagRegisterField overrun;
         //STM32L5 specific flags
         private IFlagRegisterField fifoReceptionThreshold;
 
