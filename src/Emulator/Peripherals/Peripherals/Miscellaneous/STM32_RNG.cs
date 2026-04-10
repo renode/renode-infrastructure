@@ -37,7 +37,23 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithReservedBits(0, 2)
                     .WithFlag(2, out enable, changeCallback: (_, value) => Update(), name: "RNGEN")
                     .WithFlag(3, out interruptEnable, changeCallback: (_, value) => Update(), name: "IE")
-                    .WithReservedBits(4, 28)
+                    .If(series == STM32Series.L5)
+                        .Then(reg => reg
+                            .WithReservedBits(4, 1)
+                            .WithTaggedFlag("CED", 5)
+                            .WithReservedBits(6, 2)
+                            .WithTag("RND_CONFIG3", 8, 4)
+                            .WithTaggedFlag("NISTC", 12)
+                            .WithTag("RND_CONFIG2", 13, 3)
+                            .WithTag("CLKDIV", 16, 4)
+                            .WithTag("RND_CONFIG1", 20, 6)
+                            .WithReservedBits(26, 4)
+                            .WithFlag(30, name: "CONDRST") //Nothing to do for the emulation
+                            .WithTaggedFlag("CONFIGLOCK", 31)
+                        )
+                        .Else(reg => reg
+                            .WithReservedBits(4, 28)
+                        )
                 },
                 {(long)Registers.Status, new DoubleWordRegister(this)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => enable.Value, name: "DRDY")
