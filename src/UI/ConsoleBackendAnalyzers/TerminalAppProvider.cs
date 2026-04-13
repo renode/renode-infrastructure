@@ -4,20 +4,22 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-#if PLATFORM_OSX
 using System.Diagnostics;
-using Antmicro.Renode.Utilities;
 using System.IO;
+
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.UI
 {
+    [SupportedRID("osx")]
     [ConsoleBackendAnalyzerProvider("TerminalApp")]
     public class TerminalAppProvider : ProcessBasedProvider
     {
         protected override Process CreateProcess(string consoleName, string command)
         {
             var script = TemporaryFilesManager.Instance.GetTemporaryFile();
-            File.WriteAllLines(script, new [] {
+            File.WriteAllLines(script, new[] {
                 "#!/usr/bin/env bash",
                 command
             });
@@ -26,7 +28,7 @@ namespace Antmicro.Renode.UI
             p.EnableRaisingEvents = true;
             File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
-            var arguments = $"-a /Applications/Utilities/Terminal.app {script}";
+            var arguments = $"-a Terminal.app {script}";
             p.StartInfo = new ProcessStartInfo("open", arguments)
             {
                 UseShellExecute = false,
@@ -37,7 +39,7 @@ namespace Antmicro.Renode.UI
             p.Exited += (sender, e) =>
             {
                 var proc = sender as Process;
-                if (proc.ExitCode != 0)
+                if(proc.ExitCode != 0)
                 {
                     LogError("Terminal.app", arguments, proc.ExitCode);
                 }
@@ -51,4 +53,3 @@ namespace Antmicro.Renode.UI
         }
     }
 }
-#endif

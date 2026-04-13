@@ -1,14 +1,16 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-#if PLATFORM_LINUX
 using System.Diagnostics;
+
+using Antmicro.Renode.Core;
 
 namespace Antmicro.Renode.UI
 {
+    [SupportedRID("linux")]
     [ConsoleBackendAnalyzerProvider("Putty")]
     public class PuttyProvider : ProcessBasedProvider
     {
@@ -38,5 +40,3 @@ namespace Antmicro.Renode.UI
         }
     }
 }
-
-#endif

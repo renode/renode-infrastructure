@@ -30,7 +30,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             DefineRegisters();
         }
 
-        // Linux-only
+        [SupportedRID("linux")]
         public void AttachToExternalCamera(HostCamera camera)
         {
             if(!RuntimeInfo.IsLinux())
@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             externalCamera = camera;
         }
 
-        // Linux-only
+        [SupportedRID("linux")]
         public void DetachFromExternalCamera()
         {
             if(!RuntimeInfo.IsLinux())

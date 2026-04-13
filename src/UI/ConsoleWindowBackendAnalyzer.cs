@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -56,7 +56,7 @@ namespace Antmicro.Renode.UI
 
         public void Show()
         {
-            var availableProviders = TypeManager.Instance.AutoLoadedTypes.Where(x => !x.IsAbstract && typeof(IConsoleBackendAnalyzerProvider).IsAssignableFrom(x)).ToDictionary(x => GetProviderName(x), x => x);
+            var availableProviders = TypeManager.Instance.AutoLoadedTypes.Where(x => !x.IsAbstract && typeof(IConsoleBackendAnalyzerProvider).IsAssignableFrom(x) && x.IsRIDSupported()).ToDictionary(x => GetProviderName(x), x => x);
             var preferredProvider = ConfigurationManager.Instance.Get("general", "terminal", "XTerm");
 
             foreach(var providerName in availableProviders.Keys.OrderByDescending(x => x == preferredProvider))

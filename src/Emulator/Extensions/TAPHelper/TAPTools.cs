@@ -10,6 +10,7 @@ using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -18,11 +19,13 @@ namespace Antmicro.Renode.TAPHelper
     // Linux-only
     public static class TAPTools
     {
+        [SupportedRID("linux")]
         public static int OpenTUN(IntPtr dev, bool persistent = false)
         {
             return Open_TUNTAP(dev, IFF_TUN, persistent);
         }
 
+        [SupportedRID("linux")]
         public static int OpenTAP(IntPtr dev, bool persistent = false)
         {
             return Open_TUNTAP(dev, IFF_TAP_IFF_NO_PI, persistent);

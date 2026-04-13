@@ -22,6 +22,7 @@ namespace Antmicro.Renode.Peripherals.CAN
     // Linux-only
     public static class SocketCANBridgeExtensions
     {
+        [SupportedRID("linux")]
         public static void CreateSocketCANBridge(this IMachine machine, string name, string canInterfaceName = "vcan0", bool ensureFdFrames = false, bool ensureXlFrames = false)
         {
             if(!RuntimeInfo.IsLinux())
@@ -34,6 +35,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         }
     }
 
+    [SupportedRID("linux")]
     public class SocketCANBridge : ICAN
     {
         public SocketCANBridge(string canInterfaceName = "vcan0", bool ensureFdFrames = false, bool ensureXlFrames = false)

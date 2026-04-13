@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -12,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
@@ -405,25 +406,23 @@ namespace Antmicro.Renode.Utilities
             else
             {
                 var methodDescriptions = extensionMethodsTraceFromTypeFullName[fullName];
-                var result = new MethodInfo[methodDescriptions.Count];
-                var i = -1;
-                foreach(var methodDescription in methodDescriptions)
-                {
-                    i++;
-                    var describedType = GetTypeByName(methodDescription.TypeFullName);
-                    if(!methodDescription.IsOverloaded)
+                methodInfos = methodDescriptions
+                    .Select((methodDescription) =>
                     {
-                        // method's name is unique
-                        result[i] = describedType.GetMethod(methodDescription.Name);
-                    }
-                    else
-                    {
-                        var methodsInClass = describedType.GetMethods();
-                        var matchedMethod = methodsInClass.Single(x => x.Name == methodDescription.Name && GetMethodSignature(x) == methodDescription.Signature);
-                        result[i] = matchedMethod;
-                    }
-                }
-                methodInfos = result;
+                        var describedType = GetTypeByName(methodDescription.TypeFullName);
+                        if(!methodDescription.IsOverloaded)
+                        {
+                            // method's name is unique
+                            return describedType.GetMethod(methodDescription.Name);
+                        }
+                        else
+                        {
+                            var methodsInClass = describedType.GetMethods();
+                            var matchedMethod = methodsInClass.Single(x => x.Name == methodDescription.Name && GetMethodSignature(x) == methodDescription.Signature);
+                            return matchedMethod;
+                        }
+                    })
+                    .Where(method => method.IsRIDSupported());
             }
             // we also obtain EM for base type and interfaces
             if(type.BaseType != null)

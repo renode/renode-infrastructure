@@ -771,6 +771,7 @@ namespace Antmicro.Renode.UserInterface
                 && !x.IsAbstract
                 && !x.IsConstructor
                 && !x.IsGenericMethod
+                && x.IsRIDSupported()
                 && x.IsCallable()
                 )
                 );

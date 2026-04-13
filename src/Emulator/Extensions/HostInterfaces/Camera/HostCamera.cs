@@ -20,6 +20,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
 {
     public static class HostCameraExtensions
     {
+        [SupportedRID("linux")]
         public static void AddExternalCamera(this Emulation emulation, string device, string name = "camera")
         {
             var camera = new HostCamera(device);
@@ -28,7 +29,7 @@ namespace Antmicro.Renode.HostInterfaces.Camera
         }
     }
 
-    // Linux-only
+    [SupportedRID("linux")]
     public class HostCamera : IHostMachineElement
     {
         public HostCamera(string device)

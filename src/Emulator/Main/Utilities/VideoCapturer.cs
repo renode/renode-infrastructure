@@ -17,9 +17,10 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode
 {
-    // Linux-only
+    [SupportedRID("linux")]
     public static class VideoCapturer
     {
+        [SupportedRID("linux")]
         public static bool Start(string device, IEmulationElement loggingParent)
         {
             if(!RuntimeInfo.IsLinux())
@@ -52,6 +53,7 @@ namespace Antmicro.Renode
             return RequestBuffer();
         }
 
+        [SupportedRID("linux")]
         public static void Stop()
         {
             if(!RuntimeInfo.IsLinux())
@@ -66,6 +68,7 @@ namespace Antmicro.Renode
             }
         }
 
+        [SupportedRID("linux")]
         public static byte[] GrabSingleFrame()
         {
             if(!RuntimeInfo.IsLinux())
@@ -110,6 +113,7 @@ namespace Antmicro.Renode
             return frame;
         }
 
+        [SupportedRID("linux")]
         public static Tuple<int, int> SetImageSize(int width, int height)
         {
             if(!RuntimeInfo.IsLinux())
