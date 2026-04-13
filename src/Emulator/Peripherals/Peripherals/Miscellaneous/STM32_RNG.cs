@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -78,6 +79,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }, name: "RNDATA")
                 },
             };
+            if(series == STM32Series.L5)
+            {
+                registerMap.Add((long)Registers.HealthTestControl, new DoubleWordRegister(this)
+                        .WithValueField(0, 32, writeCallback: (previous_value, new_value) =>
+                        {
+                            if(previous_value != HealthTestControlMagic && new_value != HealthTestControlMagic)
+                            {
+                                this.Log(LogLevel.Warning, "Magic value 0x{0:X} not written before 0x{1:X}", HealthTestControlMagic, new_value);
+                            }
+                        }
+                        ));
+            }
             registers = new DoubleWordRegisterCollection(this, registerMap);
         }
 
@@ -111,11 +124,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IFlagRegisterField interruptEnable;
         private readonly STM32Series series;
 
+        private const uint HealthTestControlMagic = 0x17590ABC;
+
         private enum Registers
         {
             Control = 0x0,
             Status = 0x4,
             Data = 0x8,
+            HealthTestControl = 0x10,
         }
     }
 }
