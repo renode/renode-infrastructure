@@ -252,6 +252,18 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
+        public void ResetRegister(long offset)
+        {
+            if(registers.TryGetValue(offset, out var selector))
+            {
+                selector.Reset();
+            }
+            else
+            {
+                parent.WarningLog("Tried to reset a register at offset {0}, but there is no register at that offset");
+            }
+        }
+
         public void ShadowReload()
         {
             foreach(var register in registers.Values)
