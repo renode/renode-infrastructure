@@ -7,7 +7,6 @@
 
 using System;
 using System.Diagnostics;
-using System.IO;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
@@ -20,7 +19,13 @@ namespace Antmicro.Renode.UI
         public UIProvider(int port)
         {
             uiPort = port;
-            if(!FindUIExecutable(out uiPath))
+            var binaryPath = UIExecutableName;
+
+            if(RuntimeInfo.IsWindows())
+            {
+                binaryPath += ".exe";
+            }
+            if(!PlatformFileLoader.TryFindPlatformFile(binaryPath, out uiPath))
             {
                 Logger.Log(LogLevel.Error, "Couldn't find the {0} executable", UIExecutableName);
                 return;
@@ -62,33 +67,6 @@ namespace Antmicro.Renode.UI
                 proc.Start();
                 proc.WaitForExit();
             }
-        }
-
-        private static bool TryUIPath(string prefix, out string path)
-        {
-            path = Path.Join(prefix, UIExecutableName);
-            if(RuntimeInfo.IsWindows())
-            {
-                path += ".exe";
-            }
-            Logger.Log(LogLevel.Info, "Looking for {0} at {1}", UIExecutableName, path);
-            return File.Exists(path);
-        }
-
-        private static bool FindUIExecutable(out string path)
-        {
-            // Try to find binary next to assembly
-            // This is needed for non-portable builds since the executable may actually be the `dotnet` binary and not Renode-specific
-            if(TryUIPath(AppDomain.CurrentDomain.BaseDirectory, out path))
-            {
-                return true;
-            }
-            // Fallback for portable - look for binary near executable directory
-            if(TryUIPath(Misc.ExecutableDirectory, out path))
-            {
-                return true;
-            }
-            return false;
         }
 
         private static void ShowXwtError(string primary, string secondary)
