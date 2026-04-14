@@ -205,6 +205,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string GetLLVMTriple(uint flags) => AllLLVMTriples[0];
 
+        public uint? InitVectorTableOffsetNonSecure { get; set; } = null;
+
+        public uint? InitVectorTableOffset { get; set; } = null;
+
         public GPIO CpuWaitSignal { get; }
 
         public override string Architecture { get { return "arm-m"; } }
@@ -862,6 +866,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(EmulationState == EmulationCPUState.Running)
             {
+                TryInitVTOR();
                 InitPCAndSP();
             }
             base.OnLeavingResetState();
@@ -973,6 +978,18 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return 0x0;
             }
             return getter();
+        }
+
+        private void TryInitVTOR()
+        {
+            if(InitVectorTableOffset != null)
+            {
+                VectorTableOffset = InitVectorTableOffset.Value;
+            }
+            if(InitVectorTableOffsetNonSecure != null)
+            {
+                VectorTableOffsetNonSecure = InitVectorTableOffsetNonSecure.Value;
+            }
         }
 
         private void InitPCAndSP()
