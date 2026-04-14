@@ -1323,6 +1323,7 @@
     <Compile Include="Emulator/Peripherals/Peripherals/Video/Allegro_E310.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/Assembler/LLVMAssembler.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Analog/STM32F3_ADC.cs" />
+    <Compile Include="Emulator/Peripherals/Peripherals/Analog/STM32L5_ADC.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CPU/MSP430X/MSP430X.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/SAMD21_Timer.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/Timers/SAMD21_RTC.cs" />
