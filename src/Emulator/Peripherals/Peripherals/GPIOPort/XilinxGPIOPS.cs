@@ -66,13 +66,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 this.WarningLog($"Read from EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported, returning 0.", offset);
                 return 0;
             case RegistersOffsets.InputData0:
-                return 0;
+                return OutputData0;
             case RegistersOffsets.InputData1:
-                return 0;
+                return OutputData1;
             case RegistersOffsets.InputData2:
-                return 0;
+                return OutputData2;
             case RegistersOffsets.InputData3:
-                return 0;
+                return OutputData3;
             case RegistersOffsets.InputData4:
             case RegistersOffsets.InputData5:
                 this.WarningLog($"Read from EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported, returning 0.", offset);
