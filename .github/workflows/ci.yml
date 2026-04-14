@@ -1,0 +1,36 @@
+name: Renode CI
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  formatting-check:
+    name: Formatting Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Install Dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: .github/workflows/global.json
+
+      - name: Setup Dotnet artifacts
+        run: |
+          ln -s .github/workflows/global.json global.json
+          ln -s .github/workflows/Directory.Build.targets Directory.Build.targets
+          ln -s .github/workflows/.editorconfig .editorconfig
+          mkdir -p ../../output
+          # Dotnet fails to find properties.csproj if it is a symbolic link
+          cp src/Emulator/Cores/linux-properties.csproj ../../output/properties.csproj
+
+      - name: Register dotnet-format problem matcher
+        run: |
+          echo "::add-matcher::.github/workflows/problem-matcher.json"
+
+      - name: Run format check
+        run: |
+          dotnet format ./src/Infrastructure_NET.csproj --exclude lib --verify-no-changes --severity warn
