@@ -72,8 +72,7 @@ namespace Antmicro.Renode.Time
         // Ratio - i.e. how many emulator ticks are needed for this clock entry tick
         public Fraction Ratio { get; }
 
-        private static Fraction FrequencyToRatio(ulong desiredFrequency)
-        {
+        private static Fraction FrequencyToRatio(ulong desiredFrequency) {
             var maxHz = TimeInterval.TicksPerSecond;
             return new Fraction(desiredFrequency, maxHz);
         }

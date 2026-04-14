@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 else
                 {
                     if((lineStatus & LineStatus.DataReady) != 0)
-                    {
+                    {   
                         lineStatus |= LineStatus.OverrunErrorIndicator;
                     }
                     receiverBuffer = value;

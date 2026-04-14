@@ -162,8 +162,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public bool AutoUpdate { get; set; }
-
         public ulong Limit
         {
             get
@@ -299,6 +297,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             LimitReached = null;
         }
+
+        public bool AutoUpdate { get; set; }
 
         protected virtual void OnLimitReached()
         {
