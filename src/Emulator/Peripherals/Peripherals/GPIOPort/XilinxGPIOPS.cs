@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -47,6 +47,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 return OutputData3 & 0xFFFF;
             case RegistersOffsets.MaskableOutputData3Hi:
                 return OutputData3 >> 16;
+            case RegistersOffsets.MaskableOutputData4Low:
+            case RegistersOffsets.MaskableOutputData4Hi:
+            case RegistersOffsets.MaskableOutputData5Low:
+            case RegistersOffsets.MaskableOutputData5Hi:
+                this.WarningLog($"Read from EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported, returning 0.", offset);
+                return 0;
             case RegistersOffsets.OutputData0:
                 return OutputData0;
             case RegistersOffsets.OutputData1:
@@ -55,6 +61,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 return OutputData2;
             case RegistersOffsets.OutputData3:
                 return OutputData3;
+            case RegistersOffsets.OutputData4:
+            case RegistersOffsets.OutputData5:
+                this.WarningLog($"Read from EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported, returning 0.", offset);
+                return 0;
             case RegistersOffsets.InputData0:
                 return 0;
             case RegistersOffsets.InputData1:
@@ -62,6 +72,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             case RegistersOffsets.InputData2:
                 return 0;
             case RegistersOffsets.InputData3:
+                return 0;
+            case RegistersOffsets.InputData4:
+            case RegistersOffsets.InputData5:
+                this.WarningLog($"Read from EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported, returning 0.", offset);
                 return 0;
             default:
                 this.LogUnhandledRead(offset);
@@ -111,6 +125,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 OutputData3 = (OutputData3 & 0x0000FFFF) | (value << 16);
                 this.DoPinOperation(3, value & 0xFFFF, 0x0000FFFF | value >> 16);
                 break;
+            case RegistersOffsets.MaskableOutputData4Low:
+            case RegistersOffsets.MaskableOutputData4Hi:
+            case RegistersOffsets.MaskableOutputData5Low:
+            case RegistersOffsets.MaskableOutputData5Hi:
+                this.WarningLog($"Write to EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported", offset);
+                break;
             case RegistersOffsets.OutputData0:
                 OutputData0 = value;
                 this.DoPinOperation(0, value, 0);
@@ -127,6 +147,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 OutputData2 = value;
                 this.DoPinOperation(2, value, 0);
                 break;
+            case RegistersOffsets.OutputData4:
+            case RegistersOffsets.OutputData5:
+                this.WarningLog($"Write to EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported", offset);
+                break;
             case RegistersOffsets.InputData0:
                 this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
                 break;
@@ -138,6 +162,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 break;
             case RegistersOffsets.InputData3:
                 this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
+                break;
+            case RegistersOffsets.InputData4:
+            case RegistersOffsets.InputData5:
+                this.WarningLog($"Write to EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported", offset);
                 break;
             default:
                 this.LogUnhandledWrite(offset, value);
@@ -265,14 +293,22 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             MaskableOutputData2Hi = 0x14,
             MaskableOutputData3Low = 0x18,
             MaskableOutputData3Hi = 0x1C,
+            MaskableOutputData4Low = 0x20,
+            MaskableOutputData4Hi = 0x24,
+            MaskableOutputData5Low = 0x28,
+            MaskableOutputData5Hi = 0x2C,
             OutputData0 = 0x40,
             OutputData1 = 0x44,
             OutputData2 = 0x48,
             OutputData3 = 0x4C,
+            OutputData4 = 0x50,
+            OutputData5 = 0x54,
             InputData0 = 0x60,
             InputData1 = 0x64,
             InputData2 = 0x68,
-            InputData3 = 0x6C
+            InputData3 = 0x6C,
+            InputData4 = 0x70,
+            InputData5 = 0x74,
         }
     }
 }
