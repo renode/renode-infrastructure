@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //                          If false, third watchdog threshold configuration register will live under this register's offset.
     //
     // * - Feature is either partially implemented, or not at all.
-    public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral
+    public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral
     {
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null,
             int? watchdogCount = null, bool? hasCalibration = null, int? channelCount = null, bool? hasPrescaler = null,
@@ -171,6 +171,16 @@ namespace Antmicro.Renode.Peripherals.Analog
         }
 
         public void WriteDoubleWord(long offset, uint value)
+        {
+            RegistersCollection.Write(offset, value);
+        }
+
+        public ushort ReadWord(long offset)
+        {
+            return (ushort)RegistersCollection.Read(offset);
+        }
+
+        public void WriteWord(long offset, ushort value)
         {
             RegistersCollection.Write(offset, value);
         }
