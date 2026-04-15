@@ -228,6 +228,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 returnValue |= ((uint)direction) << 4;
                 returnValue |= peripheralIncrement ? (1u << 6) : 0u;
                 returnValue |= memoryIncrement ? (1u << 7) : 0u;
+                returnValue |= ((uint)peripheralTransferType >> 1) << 8;
+                returnValue |= ((uint)memoryTransferType >> 1) << 10;
                 returnValue |= (uint)(priority << 12);
                 return returnValue;
             }
@@ -239,9 +241,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 direction = (Direction)((value >> 4) & 1);
                 peripheralIncrement = (value & (1 << 6)) != 0;
                 memoryIncrement = (value & (1 << 7)) != 0;
+                HandleConfigureWriteSizes(value);
                 priority = (byte)((value >> 12) & 3);
 
-                if((value & ~0x30DB) != 0)
+                if((value & ~0x3FDB) != 0)
                 {
                     parent.Log(LogLevel.Warning, "Channel {0}: some unhandled bits were written to configuration register. Value is 0x{1:X}.", channelNo, value);
                 }
@@ -250,6 +253,32 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     DoTransfer();
                 }
+            }
+
+            private void HandleConfigureWriteSizes(uint value)
+            {
+                if((value & 1) == 0) // MSIZE and PSIZE are read-only if EN=1
+                {
+                    int size = 0;
+                    if(DecodeConfigurationSize(value, 8, out size))
+                    {
+                        peripheralTransferType = (TransferType)(1 << size);
+                    }
+                    if(DecodeConfigurationSize(value, 10, out size))
+                    {
+                        memoryTransferType = (TransferType)(1 << size);
+                    }
+                }
+            }
+
+            private bool DecodeConfigurationSize(uint value, int offset, out int size)
+            {
+                size = (int)(value >> offset) & 3;
+                if(size == 3)
+                {
+                    parent.Log(LogLevel.Warning, "Channel {0}: Invalid reserved value for size", channelNo);
+                }
+                return size < 3;
             }
 
             private Direction direction;
