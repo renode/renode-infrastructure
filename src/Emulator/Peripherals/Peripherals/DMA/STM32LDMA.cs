@@ -215,7 +215,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 var request = new Request(sourceAddress, destinationAddress, numberOfData * (int)sourceTransferType, sourceTransferType, destinationTransferType,
                                   incrementSourceAddress, incrementDestinationAddress);
                 parent.engine.IssueCopy(request);
-                IRQ.Set();
+                if(completeInterruptEnabled)
+                {
+                    IRQ.Set();
+                }
             }
 
             public GPIO IRQ { get; private set; }
