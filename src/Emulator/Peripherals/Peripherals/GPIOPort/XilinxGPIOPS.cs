@@ -8,10 +8,11 @@
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    public class XilinxGPIOPS : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize
+    public class XilinxGPIOPS : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize, IHasMappedRegisters
     {
         public XilinxGPIOPS(IMachine machine, uint numberOfGpioBanks = 4) : base(machine, 54 + 64) //54 MIO + 64 EMIO
         {
@@ -21,6 +22,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 portControllers[i] = new GPIOController(this, i);
             }
         }
+
+        public string OffsetToString(long offset) => registerMapper.ToString(offset);
 
         public uint ReadDoubleWord(long offset)
         {
@@ -210,6 +213,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private uint OutputData1;
         private uint OutputData2;
         private uint OutputData3;
+        private readonly RegisterMapper registerMapper = new RegisterMapper(typeof(RegistersOffsets));
         private readonly uint[] portOffsets = new uint[] { 0, 32, 54, 86 };
 
         private readonly GPIOController[] portControllers;
@@ -285,30 +289,92 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         /* Offsets */
         private enum RegistersOffsets : uint
         {
-            MaskableOutputData0Low = 0x00,
-            MaskableOutputData0Hi = 0x04,
-            MaskableOutputData1Low = 0x08,
-            MaskableOutputData1Hi = 0x0C,
-            MaskableOutputData2Low = 0x10,
-            MaskableOutputData2Hi = 0x14,
-            MaskableOutputData3Low = 0x18,
-            MaskableOutputData3Hi = 0x1C,
-            MaskableOutputData4Low = 0x20,
-            MaskableOutputData4Hi = 0x24,
-            MaskableOutputData5Low = 0x28,
-            MaskableOutputData5Hi = 0x2C,
-            OutputData0 = 0x40,
-            OutputData1 = 0x44,
-            OutputData2 = 0x48,
-            OutputData3 = 0x4C,
-            OutputData4 = 0x50,
-            OutputData5 = 0x54,
-            InputData0 = 0x60,
-            InputData1 = 0x64,
-            InputData2 = 0x68,
-            InputData3 = 0x6C,
-            InputData4 = 0x70,
-            InputData5 = 0x74,
+            MaskableOutputData0Low = 0x000,
+            MaskableOutputData0Hi  = 0x004,
+            MaskableOutputData1Low = 0x008,
+            MaskableOutputData1Hi  = 0x00C,
+            MaskableOutputData2Low = 0x010,
+            MaskableOutputData2Hi  = 0x014,
+            MaskableOutputData3Low = 0x018,
+            MaskableOutputData3Hi  = 0x01C,
+            MaskableOutputData4Low = 0x020,
+            MaskableOutputData4Hi  = 0x024,
+            MaskableOutputData5Low = 0x028,
+            MaskableOutputData5Hi  = 0x02C,
+
+            OutputData0 = 0x040,
+            OutputData1 = 0x044,
+            OutputData2 = 0x048,
+            OutputData3 = 0x04C,
+            OutputData4 = 0x050,
+            OutputData5 = 0x054,
+
+            InputData0 = 0x060,
+            InputData1 = 0x064,
+            InputData2 = 0x068,
+            InputData3 = 0x06C,
+            InputData4 = 0x070,
+            InputData5 = 0x074,
+
+            DirectionMode0 = 0x204,
+            OutputEnable0  = 0x208,
+            IntMask0       = 0x20C,
+            IntEnable0     = 0x210,
+            IntDisable0    = 0x214,
+            IntStatus0     = 0x218,
+            IntType0       = 0x21C,
+            IntPolarity0   = 0x220,
+            IntAny0        = 0x224,
+
+            DirectionMode1 = 0x244,
+            OutputEnable1  = 0x248,
+            IntMask1       = 0x24C,
+            IntEnable1     = 0x250,
+            IntDisable1    = 0x254,
+            IntStatus1     = 0x258,
+            IntType1       = 0x25C,
+            IntPolarity1   = 0x260,
+            IntAny1        = 0x264,
+
+            DirectionMode2 = 0x284,
+            OutputEnable2  = 0x288,
+            IntMask2       = 0x28C,
+            IntEnable2     = 0x290,
+            IntDisable2    = 0x294,
+            IntStatus2     = 0x298,
+            IntType2       = 0x29C,
+            IntPolarity2   = 0x2A0,
+            IntAny2        = 0x2A4,
+
+            DirectionMode3 = 0x2C4,
+            OutputEnable3  = 0x2C8,
+            IntMask3       = 0x2CC,
+            IntEnable3     = 0x2D0,
+            IntDisable3    = 0x2D4,
+            IntStatus3     = 0x2D8,
+            IntType3       = 0x2DC,
+            IntPolarity3   = 0x2E0,
+            IntAny3        = 0x2E4,
+
+            DirectionMode4 = 0x304,
+            OutputEnable4  = 0x308,
+            IntMask4       = 0x30C,
+            IntEnable4     = 0x310,
+            IntDisable4    = 0x314,
+            IntStatus4     = 0x318,
+            IntType4       = 0x31C,
+            IntPolarity4   = 0x320,
+            IntAny4        = 0x324,
+
+            DirectionMode5 = 0x344,
+            OutputEnable5  = 0x348,
+            IntMask5       = 0x34C,
+            IntEnable5     = 0x350,
+            IntDisable5    = 0x354,
+            IntStatus5     = 0x358,
+            IntType5       = 0x35C,
+            IntPolarity5   = 0x360,
+            IntAny5        = 0x364,
         }
     }
 }
