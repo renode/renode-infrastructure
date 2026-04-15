@@ -14,12 +14,12 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public sealed class STM32LDMA : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
+    public sealed class STM32LDMA : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IDMA
     {
         public STM32LDMA(IMachine machine)
         {
             engine = new DmaEngine(machine.GetSystemBus(this));
-            channels = new Channel[8];
+            channels = new Channel[this.NumberOfChannels];
             for(var i = 0; i < channels.Length; i++)
             {
                 channels[i] = new Channel(this, i);
@@ -65,6 +65,18 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
         }
 
+        public void RequestTransfer(int channel)
+        {
+            if(channel > 0 && channel <= channels.Length)
+            {
+                channels[channel - 1].DoTransfer();
+            }
+            else
+            {
+                this.Log(LogLevel.Warning, "Invalid channel {0}, no transfer performed.");
+            }
+        }
+
         public IReadOnlyDictionary<int, IGPIO> Connections { get { var i = 0; return channels.ToDictionary(x => i++, y => (IGPIO)y.IRQ); } }
 
         public long Size
@@ -74,6 +86,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return 0x400;
             }
         }
+
+        public int NumberOfChannels { get => 8; }
 
         private uint HandleInterruptStatusRead()
         {
@@ -173,6 +187,37 @@ namespace Antmicro.Renode.Peripherals.DMA
                 direction = 0;
             }
 
+            public void DoTransfer()
+            {
+                uint sourceAddress, destinationAddress;
+                bool incrementSourceAddress, incrementDestinationAddress;
+                TransferType sourceTransferType, destinationTransferType;
+
+                if(direction == Direction.ReadFromMemory)
+                {
+                    sourceAddress = memoryAddress;
+                    destinationAddress = peripheralAddress;
+                    incrementSourceAddress = memoryIncrement;
+                    incrementDestinationAddress = peripheralIncrement;
+                    sourceTransferType = memoryTransferType;
+                    destinationTransferType = peripheralTransferType;
+                }
+                else
+                {
+                    sourceAddress = peripheralAddress;
+                    destinationAddress = memoryAddress;
+                    incrementSourceAddress = peripheralIncrement;
+                    incrementDestinationAddress = memoryIncrement;
+                    sourceTransferType = peripheralTransferType;
+                    destinationTransferType = memoryTransferType;
+                }
+
+                var request = new Request(sourceAddress, destinationAddress, numberOfData * (int)sourceTransferType, sourceTransferType, destinationTransferType,
+                                  incrementSourceAddress, incrementDestinationAddress);
+                parent.engine.IssueCopy(request);
+                IRQ.Set();
+            }
+
             public GPIO IRQ { get; private set; }
 
             private uint HandleConfigurationRead()
@@ -205,37 +250,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     DoTransfer();
                 }
-            }
-
-            private void DoTransfer()
-            {
-                uint sourceAddress, destinationAddress;
-                bool incrementSourceAddress, incrementDestinationAddress;
-                TransferType sourceTransferType, destinationTransferType;
-
-                if(direction == Direction.ReadFromMemory)
-                {
-                    sourceAddress = memoryAddress;
-                    destinationAddress = peripheralAddress;
-                    incrementSourceAddress = memoryIncrement;
-                    incrementDestinationAddress = peripheralIncrement;
-                    sourceTransferType = memoryTransferType;
-                    destinationTransferType = peripheralTransferType;
-                }
-                else
-                {
-                    sourceAddress = peripheralAddress;
-                    destinationAddress = memoryAddress;
-                    incrementSourceAddress = peripheralIncrement;
-                    incrementDestinationAddress = memoryIncrement;
-                    sourceTransferType = peripheralTransferType;
-                    destinationTransferType = memoryTransferType;
-                }
-
-                var request = new Request(sourceAddress, destinationAddress, numberOfData, sourceTransferType, destinationTransferType,
-                                  incrementSourceAddress, incrementDestinationAddress);
-                parent.engine.IssueCopy(request);
-                IRQ.Set();
             }
 
             private Direction direction;
