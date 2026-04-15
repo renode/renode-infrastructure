@@ -69,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 if(dmaChannel <= 0 || dmaChannel > dmaPeripheral.NumberOfChannels)
                 {
-                    throw new ConstructionException($"Invalid 'dmaChannel' argument value: '{dmaChannel}'. Available channels: 1-{dma.NumberOfChannels}");
+                    throw new ConstructionException($"Invalid 'dmaChannel' argument value: '{dmaChannel}'. Available channels: 1-{dmaPeripheral.NumberOfChannels}");
                 }
             }
 
