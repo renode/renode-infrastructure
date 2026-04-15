@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,14 +9,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 {
     public class RegisterMapper
     {
-        public RegisterMapper(Type peripheralType)
+        public RegisterMapper(Type type)
         {
+            if(type.IsEnum)
+            {
+                RegisterEnumMapping(type);
+                return;
+            }
+
+            var peripheralType = type;
             var types = peripheralType.GetAllNestedTypes();
             var interestingEnums = new List<Type>();
 
@@ -27,17 +35,27 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             }
             interestingEnums.AddRange(types.Where(t => t.BaseType == typeof(Enum) && t.Name.IndexOf("register", StringComparison.CurrentCultureIgnoreCase) != -1));
 
-            foreach(var type in interestingEnums)
+            foreach(var interestingEnum in interestingEnums)
             {
-                foreach(var value in type.GetEnumValues())
-                {
-                    var l = Convert.ToInt64(value);
-                    var s = Enum.GetName(type, value);
+                RegisterEnumMapping(interestingEnum);
+            }
+        }
 
-                    if(!map.ContainsKey(l))
-                    {
-                        map.Add(l, s);
-                    }
+        public void RegisterEnumMapping(Type @enum)
+        {
+            if(!@enum.IsEnum)
+            {
+                throw new RecoverableException("@enum parameter must be an enum type");
+            }
+
+            foreach(var value in @enum.GetEnumValues())
+            {
+                var l = Convert.ToInt64(value);
+                var s = Enum.GetName(@enum, value);
+
+                if(!map.ContainsKey(l))
+                {
+                    map.Add(l, s);
                 }
             }
         }
