@@ -157,17 +157,26 @@ namespace Antmicro.Renode.MonitorTests
             AssertTokenizationTypes(result, typeof(BooleanToken));
             AssertTokenizationValues(result, true);
 
-            result = tokenizer.Tokenize("TrUe");
+            result = tokenizer.Tokenize("True");
             AssertTokenizationTypes(result, typeof(BooleanToken));
             AssertTokenizationValues(result, true);
-
-            result = tokenizer.Tokenize("FalSE");
-            AssertTokenizationTypes(result, typeof(BooleanToken));
-            AssertTokenizationValues(result, false);
 
             result = tokenizer.Tokenize("false");
             AssertTokenizationTypes(result, typeof(BooleanToken));
             AssertTokenizationValues(result, false);
+
+            result = tokenizer.Tokenize("False");
+            AssertTokenizationTypes(result, typeof(BooleanToken));
+            AssertTokenizationValues(result, false);
+
+            // Improperly cased boolean values will be parsed as literal tokens
+            result = tokenizer.Tokenize("TRUE");
+            AssertTokenizationTypes(result, typeof(LiteralToken));
+            AssertTokenizationValues(result, "TRUE");
+
+            result = tokenizer.Tokenize("FaLse");
+            AssertTokenizationTypes(result, typeof(LiteralToken));
+            AssertTokenizationValues(result, "FaLse");
         }
 
         [Test]

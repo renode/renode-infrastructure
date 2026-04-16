@@ -65,7 +65,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             tokenizer.AddToken(new Regex(@"^[+-]?\d+"), x => new DecimalIntegerToken(x));
 
             // boolean ignore case
-            tokenizer.AddToken(new Regex(@"^(?i)(true|false)"), x => new BooleanToken(x));
+            tokenizer.AddToken(new Regex(@"^(true|false|True|False)"), x => new BooleanToken(x));
 
             // "null"
             tokenizer.AddToken(new Regex(@"^null"), x => new NullToken(x));
