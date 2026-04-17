@@ -12,7 +12,7 @@
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\lib\AntShell\AntShell\AntShell_NET.csproj"/>
-    <ProjectReference Include="..\..\Infrastructure_NET.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\AntShell\AntShell\AntShell.csproj"/>
+    <ProjectReference Include="..\..\Infrastructure.csproj"/>
   </ItemGroup>
 </Project>

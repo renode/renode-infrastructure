@@ -8,7 +8,7 @@
   </PropertyGroup>
   <Import Project="$(PropertiesLocation)" />
   <ItemGroup>
-    <ProjectReference Include="..\..\Infrastructure_NET.csproj"/>
-    <ProjectReference Include="..\..\..\..\..\lib\AntShell\AntShell\AntShell_NET.csproj"/>
+    <ProjectReference Include="..\..\Infrastructure.csproj"/>
+    <ProjectReference Include="..\..\..\..\..\lib\AntShell\AntShell\AntShell.csproj"/>
   </ItemGroup>
 </Project>

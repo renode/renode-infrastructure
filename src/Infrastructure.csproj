@@ -84,7 +84,7 @@
     <Compile Remove="Emulator/Extensions/TAPHelper/DynamicModuleSpawner.cs" />
     <!--
     Exclude Assembly* files that may remain from removed Extensions, cores*, Emulator, Peripherals and UI projects.
-    They cause conflict with the new Infrastructure_NET.csproj
+    They cause conflict with the new Infrastructure.csproj
     -->
     <Compile Remove="**/obj/**/*AssemblyInfo.cs"/>
     <Compile Remove="**/obj/**/*AssemblyAttributes.cs"/>
@@ -147,19 +147,19 @@
   </Target>
 
   <ItemGroup>
-    <ProjectReference Include="../../../lib/Migrant/Migrant/Migrant_NET.csproj"/>
-    <ProjectReference Include="../../../lib/ELFSharp/ELFSharp/ELFSharp_NET.csproj"/>
-    <ProjectReference Include="../../../lib/AntShell/AntShell/AntShell_NET.csproj"/>
-    <ProjectReference Include="../../../lib/FdtSharp/FdtSharp/FdtSharp_NET.csproj"/>
-    <ProjectReference Include="../../../lib/termsharp/TermSharp_NET.csproj"/>
-    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt/Xwt_NET.csproj"/>
-    <ProjectReference Include="../../../lib/Packet.Net/PacketDotNet/PacketDotNet_NET.csproj"/>
-    <ProjectReference Include="../../../lib/bc-csharp/crypto/crypto_NET.csproj"/>
-    <ProjectReference Include="../../../lib/CxxDemangler/CxxDemangler/CxxDemangler_NET.csproj"/>
-    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.Gtk/Xwt.Gtk3_NET.csproj" Condition=" $(OS) != 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
-    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.WPF/Xwt.WPF_NET.csproj" Condition=" $(OS) == 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
-    <ProjectReference Include="../../../lib/BigGustave/src/BigGustave/BigGustave_NET.csproj"/>
-    <ProjectReference Include="../../../lib/options-parser/OptionsParser_NET.csproj"/>
+    <ProjectReference Include="../../../lib/Migrant/Migrant/Migrant.csproj"/>
+    <ProjectReference Include="../../../lib/ELFSharp/ELFSharp/ELFSharp.csproj"/>
+    <ProjectReference Include="../../../lib/AntShell/AntShell/AntShell.csproj"/>
+    <ProjectReference Include="../../../lib/FdtSharp/FdtSharp/FdtSharp.csproj"/>
+    <ProjectReference Include="../../../lib/termsharp/TermSharp.csproj"/>
+    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt/Xwt.csproj"/>
+    <ProjectReference Include="../../../lib/Packet.Net/PacketDotNet/PacketDotNet.csproj"/>
+    <ProjectReference Include="../../../lib/bc-csharp/crypto/crypto.csproj"/>
+    <ProjectReference Include="../../../lib/CxxDemangler/CxxDemangler/CxxDemangler.csproj"/>
+    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.Gtk/Xwt.Gtk3.csproj" Condition=" $(OS) != 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
+    <ProjectReference Include="../../../lib/termsharp/xwt/Xwt.WPF/Xwt.WPF.csproj" Condition=" $(OS) == 'Windows_NT' And $(GUI_DISABLED) != 'true' "/>
+    <ProjectReference Include="../../../lib/BigGustave/src/BigGustave/BigGustave.csproj"/>
+    <ProjectReference Include="../../../lib/options-parser/OptionsParser.csproj"/>
   </ItemGroup>
 
   <ItemGroup>
