@@ -822,10 +822,12 @@ namespace Antmicro.Renode.Peripherals.CAN
                     element.BitRateSwitching);
             }
 
+#pragma warning disable CS0649 // Fields are assigned via `Packet.Decode()`
             [PacketField, Offset(doubleWords: 1, bits:  24), Width(bits: 8)]
             public byte MessageMarker;
             [PacketField, Offset(doubleWords: 1, bits:  23), Width(bits: 1)]
             public bool EventFIFOControl;
+#pragma warning restore CS0649
         }
 
         private class MessageElement
@@ -916,8 +918,10 @@ namespace Antmicro.Renode.Peripherals.CAN
                 }
             }
 
+#pragma warning disable CS0649 // Field is assigned via `Packet.Decode()`
             [PacketField, Offset(doubleWords: 0, bits:  31), Width(bits: 1)]
             public bool ErrorStateIndicator;
+#pragma warning restore CS0649
             [PacketField, Offset(doubleWords: 0, bits:  30), Width(bits: 1)]
             public bool ExtendedId;
             [PacketField, Offset(doubleWords: 0, bits:  29), Width(bits: 1)]
@@ -1003,6 +1007,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 }
             }
 
+#pragma warning disable CS0649 // Fields are assigned via `Packet.Decode()`
             [PacketField, Offset(doubleWords: 0, bits:  29), Width(bits: 3)]
             public StandardFilterType FilterType;
             [PacketField, Offset(doubleWords: 0, bits: 27), Width(bits:2)]
@@ -1011,6 +1016,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public ushort FilterId1;
             [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits:11)]
             public ushort FilterId2;
+#pragma warning restore CS0649
 
             public enum StandardFilterType
             {
@@ -1045,6 +1051,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 }
             }
 
+#pragma warning disable CS0649 // Fields are assigned via `Packet.Decode()`
             [PacketField, Offset(doubleWords: 0, bits: 29), Width(bits:3)]
             public FilterElementConfig Config;
             [PacketField, Offset(doubleWords: 0, bits: 0), Width(bits:29)]
@@ -1053,6 +1060,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public ExtendedFilterType FilterType;
             [PacketField, Offset(doubleWords: 1, bits: 0), Width(bits:29)]
             public uint FilterId2;
+#pragma warning restore CS0649
 
             public enum ExtendedFilterType
             {
