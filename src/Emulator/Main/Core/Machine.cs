@@ -344,6 +344,7 @@ namespace Antmicro.Renode.Core
                     foreach(var peripheral in registeredPeripherals.Distinct().Where(p => p != this && !(unresetable?.Contains(p) ?? false)))
                     {
                         peripheral.Reset();
+                        PeripheralReset?.Invoke(this, peripheral);
                     }
                 }
                 postReset?.Invoke();
