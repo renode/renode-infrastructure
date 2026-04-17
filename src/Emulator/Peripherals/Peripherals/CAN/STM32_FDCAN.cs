@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 {
     public class STM32_FDCAN : BasicDoubleWordPeripheral, ICAN, IKnownSize
     {
-        public STM32_FDCAN(IMachine machine, MappedMemory messageRam) : base(machine)
+        public STM32_FDCAN(IMachine machine, ArrayMemory messageRam) : base(machine)
         {
             this.messageRam = messageRam;
             Int0 = new GPIO();
@@ -473,7 +473,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 return;
             }
             var txEvent = new TxEventElement(message, false, ReadTimestampCounter());
-            messageRam.WriteBytes((long)MessageRAMOffsets.TxEventFIFO + ((long)Packet.CalculateLength<TxEventElement>() * (long)txEventFIFOPutIndex.Value), Packet.Encode(txEvent));
+            messageRam.WriteBytes((long)MessageRAMOffsets.TxEventFIFO + ((long)Packet.CalculateLength<TxEventElement>() * (long)txEventFIFOPutIndex.Value), Packet.Encode(txEvent), 0, (int)Packet.CalculateLength<TxEventElement>(), this);
             interruptStatusFlags[(long)Interrupts.TxEventFIFONewEntry].Value = true;
             txEventFIFOPutIndex.Value = (txEventFIFOPutIndex.Value + 1) % 3;
             if(txEventFIFOPutIndex.Value == txEventFIFOGetIndex.Value)
@@ -539,10 +539,13 @@ namespace Antmicro.Renode.Peripherals.CAN
             messageElement.DataLength = message.Data.Length;
             messageElement.RxTimestamp = ReadTimestampCounter();
             messageElement.DataBytes = message.Data;
+            // Resize the data array to always be the maximum size
+            // This makes the logic around Packet encoding simpler
+            Array.Resize(ref messageElement.DataBytes, 64);
 
             // Store the message in memory
             var fifoBaseOffset = rxFifo == 0 ? (long)MessageRAMOffsets.RxFIFO0 : (long)MessageRAMOffsets.RxFIFO1;
-            messageRam.WriteBytes(fifoBaseOffset + ((long)rxFIFOPutIndex[rxFifo].Value * Packet.CalculateLength<RxMessageElement>()), Packet.Encode<RxMessageElement>(messageElement));
+            messageRam.WriteBytes(fifoBaseOffset + ((long)rxFIFOPutIndex[rxFifo].Value * Packet.CalculateLength<RxMessageElement>()), Packet.Encode<RxMessageElement>(messageElement), 0, Packet.CalculateLength<RxMessageElement>(), this);
             rxFIFOPutIndex[rxFifo].Value = (rxFIFOPutIndex[rxFifo].Value + 1) % 3;
             if(rxFIFOPutIndex[rxFifo].Value == rxFIFOGetIndex[rxFifo].Value)
             {
@@ -791,7 +794,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         private readonly IFlagRegisterField[] rxFIFOFull;
         private readonly IValueRegisterField[] rxFIFOPutIndex;
         private readonly IValueRegisterField[] rxFIFOGetIndex;
-        private readonly MappedMemory messageRam;
+        private readonly ArrayMemory messageRam;
         private readonly LimitTimer timestampCounter;
         private readonly LimitTimer timeoutCounter;
         private readonly uint kernelFrequency;
@@ -800,6 +803,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         private const int MessageBufferMaxDataBytes = 64;
         private const int MessageBufferElementSize = MessageBufferHeaderSize + MessageBufferMaxDataBytes;
 
+        [LeastSignificantByteFirst]
         private class RxMessageElement : MessageElement
         {
             [PacketField, Offset(doubleWords: 1, bits:  31), Width(bits: 1)]
@@ -810,6 +814,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public ushort RxTimestamp;
         }
 
+        [LeastSignificantByteFirst]
         private class TxMessageElement : MessageElement
         {
             public static explicit operator CANMessageFrame(TxMessageElement element)
@@ -830,6 +835,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 #pragma warning restore CS0649
         }
 
+        [LeastSignificantByteFirst]
         private class MessageElement
         {
             public uint StardardId { get => BitHelper.GetValue(Identifier, 18, 11); }
@@ -938,6 +944,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             public byte[] DataBytes;
         }
 
+        [LeastSignificantByteFirst]
         private class TxEventElement
         {
             public TxEventElement(TxMessageElement message, bool wasCancelled, ushort timestamp)
@@ -984,6 +991,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
         }
 
+        [LeastSignificantByteFirst]
         private class StandardFilterElement : IFilterElement
         {
             public bool MatchesId(uint id, uint _)
@@ -994,23 +1002,23 @@ namespace Antmicro.Renode.Peripherals.CAN
                 }
                 switch(this.FilterType)
                 {
-                    case StandardFilterType.RangeFilter:
-                        return (FilterId1 <= id && id <= FilterId2);
-                    case StandardFilterType.DualIDFilter:
-                        return (id == FilterId1 || id == FilterId2);
-                    case StandardFilterType.ClassicFilter:
-                        return ((id & FilterId2) == (FilterId1 & FilterId2));
-                    case StandardFilterType.Disabled:
-                        return false;
-                    default:
-                        throw new UnreachableException("Unexpected StandardFilterType variant");
+                case StandardFilterType.RangeFilter:
+                    return (FilterId1 <= id && id <= FilterId2);
+                case StandardFilterType.DualIDFilter:
+                    return (id == FilterId1 || id == FilterId2);
+                case StandardFilterType.ClassicFilter:
+                    return ((id & FilterId2) == (FilterId1 & FilterId2));
+                case StandardFilterType.Disabled:
+                    return false;
+                default:
+                    throw new UnreachableException($"Unexpected StandardFilterType variant {this.FilterType}");
                 }
             }
 
 #pragma warning disable CS0649 // Fields are assigned via `Packet.Decode()`
-            [PacketField, Offset(doubleWords: 0, bits:  29), Width(bits: 3)]
+            [PacketField, Offset(doubleWords: 0, bits:  29), Width(bits: 2)]
             public StandardFilterType FilterType;
-            [PacketField, Offset(doubleWords: 0, bits: 27), Width(bits:2)]
+            [PacketField, Offset(doubleWords: 0, bits: 27), Width(bits:3)]
             public FilterElementConfig Config;
             [PacketField, Offset(doubleWords: 0, bits: 16), Width(bits:11)]
             public ushort FilterId1;
@@ -1027,6 +1035,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
         }
 
+        [LeastSignificantByteFirst]
         private class ExtendedFilterElement : IFilterElement
         {
             public bool MatchesId(uint id, uint xidMask)
