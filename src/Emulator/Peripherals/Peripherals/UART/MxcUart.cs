@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -28,6 +28,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
                             return 0x0;
                         }
+                        UpdateInterrupts();
                         return character;
                     }, name: "RX_DATA")
                     .WithReservedBits(8, 2)
@@ -50,16 +51,17 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("TXDMAEN", 3)
                     .WithTaggedFlag("SNDBRK", 4)
                     .WithTaggedFlag("RTSDEN", 5)
-                    .WithTaggedFlag("TXMPTYEN", 6)
+                    .WithFlag(6, out transmitEmptyInterruptEnable, name: "TXMPTYEN")
                     .WithTaggedFlag("IREN", 7)
                     .WithTaggedFlag("RXDMAEN", 8)
-                    .WithTaggedFlag("RRDYEN", 9)
+                    .WithFlag(9, out receiverReadyInterruptEnable, name: "RRDYEN")
                     .WithTag("ICD", 10, 2)
                     .WithTaggedFlag("IDEN", 12)
-                    .WithTaggedFlag("TRDYEN", 13)
+                    .WithFlag(13, out transmitterReadyInterruptEnable, name: "TRDYEN")
                     .WithTaggedFlag("ADBR", 14)
                     .WithTaggedFlag("ADEN", 15)
                     .WithReservedBits(16, 16)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.Control2, new DoubleWordRegister(this, 0x00000001)
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "SRST")
@@ -98,10 +100,10 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.Control4, new DoubleWordRegister(this, 0x00008000)
-                    .WithTaggedFlag("DREN", 0)
+                    .WithFlag(0, out receiveDataReadyInterruptEnable, name: "DREN")
                     .WithTaggedFlag("OREN", 1)
                     .WithTaggedFlag("BKEN", 2)
-                    .WithTaggedFlag("TCEN", 3)
+                    .WithFlag(3, out transmitCompleteInterruptEnable, name: "TCEN")
                     .WithTaggedFlag("LPBYP", 4)
                     .WithTaggedFlag("IRSC", 5)
                     .WithTaggedFlag("IDDMAEN", 6)
@@ -110,9 +112,10 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("INVR", 9)
                     .WithTag("CTSTL", 10, 6)
                     .WithReservedBits(16, 16)
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.FifoControl, new DoubleWordRegister(this, 0x00008001)
-                    .WithTag("RXTL", 0, 6)
+                    .WithValueField(0, 6, out receiveTriggerLevel, name: "RXTL")
                     .WithTaggedFlag("DCEDTE", 6)
                     .WithTag("RFDIV", 7, 3)
                     .WithTag("TXTL", 10, 6)
@@ -125,11 +128,11 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("RXDS", 6)
                     .WithTaggedFlag("DTRD", 7)
                     .WithTaggedFlag("AGTIM", 8)
-                    .WithTaggedFlag("RRDY", 9)
+                    .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => Count > (int)receiveTriggerLevel.Value, name: "RRDY")
                     .WithTaggedFlag("FRAMERR", 10)
                     .WithTaggedFlag("ESCF", 11)
                     .WithTaggedFlag("RTSD", 12)
-                    .WithTaggedFlag("TRDY", 13)
+                    .WithFlag(13, FieldMode.Read, valueProviderCallback: _ => true, name: "TRDY")
                     .WithTaggedFlag("RTSS", 14)
                     .WithTaggedFlag("PARITYERR", 15)
                     .WithReservedBits(16, 16)
@@ -138,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => Count > 0, name: "RDR")
                     .WithTaggedFlag("ORE", 1)
                     .WithTaggedFlag("BRCD", 2)
-                    .WithTaggedFlag("TXDC", 3)
+                    .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => true, name: "TXDC")
                     .WithTaggedFlag("RTSF", 4)
                     .WithTaggedFlag("DCDIN", 5)
                     .WithTaggedFlag("DCDDELT", 6)
@@ -149,7 +152,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("ACST", 11)
                     .WithTaggedFlag("IDLE", 12)
                     .WithTaggedFlag("DTRF", 13)
-                    .WithTaggedFlag("TXFE", 14)
+                    .WithFlag(14, FieldMode.Read, valueProviderCallback: _ => true, name: "TXFE")
                     .WithTaggedFlag("ADET", 15)
                     .WithReservedBits(16, 16)
                 },
@@ -210,6 +213,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             base.Reset();
             registers.Reset();
+            IRQ.Unset();
         }
 
         public GPIO IRQ { get; }
@@ -224,13 +228,38 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
-            // intentionally left blank
+            UpdateInterrupts();
         }
 
         protected override void QueueEmptied()
         {
-            // intentionally left blank
+            UpdateInterrupts();
         }
+
+        private void UpdateInterrupts()
+        {
+            var txFifoEmpty = true;
+            var txComplete = true;
+
+            var txReady = true;
+            var rxReady = Count > 0;
+
+            var irq = (transmitEmptyInterruptEnable.Value && txFifoEmpty)
+                   || (transmitterReadyInterruptEnable.Value && txReady)
+                   || (receiverReadyInterruptEnable.Value && rxReady)
+                   || (receiveDataReadyInterruptEnable.Value && rxReady)
+                   || (transmitCompleteInterruptEnable.Value && txComplete);
+
+            IRQ.Set(irq);
+        }
+
+        private readonly IFlagRegisterField transmitEmptyInterruptEnable;
+        private readonly IFlagRegisterField transmitterReadyInterruptEnable;
+        private readonly IFlagRegisterField receiverReadyInterruptEnable;
+        private readonly IFlagRegisterField receiveDataReadyInterruptEnable;
+        private readonly IFlagRegisterField transmitCompleteInterruptEnable;
+
+        private readonly IValueRegisterField receiveTriggerLevel;
 
         private readonly DoubleWordRegisterCollection registers;
 
