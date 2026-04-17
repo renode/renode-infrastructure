@@ -72,17 +72,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(resetPeripherals)
             {
                 var cpu = CPU;
-                var exclude = new List<IPeripheral> { this, machine.SystemBus };
-                if(resetProcessor)
+                var exclude = new List<IPeripheral> { this, machine.SystemBus, cpu };
+                if(!resetProcessor && Watchdog != null)
                 {
-                    if(cpu != null)
-                    {
-                        exclude.Add(cpu);
-                    }
-                    if(Watchdog != null)
-                    {
-                        exclude.Add(Watchdog);
-                    }
+                    exclude.Add(Watchdog);
                 }
 
                 var currentVectorBase = cpu?.VectorTableOffset ?? 0x0;
@@ -93,6 +86,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         PostReset?.Invoke(lastResetReason.Value);
                         if(resetProcessor && cpu != null)
                         {
+                            cpu.Reset();
                             cpu.VectorTableOffset = currentVectorBase;
                             cpu.Resume();
                         }
