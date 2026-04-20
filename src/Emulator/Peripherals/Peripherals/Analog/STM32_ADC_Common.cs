@@ -299,7 +299,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 else
                 {
                     data.Value = GetSampleFromChannel(currentChannel);
-                    if(dmaEnabled.Value)
+                    if(dmaEnabled.Value && !adcOverrunFlag.Value)
                     {
                         SendDmaRequest();
                     }
