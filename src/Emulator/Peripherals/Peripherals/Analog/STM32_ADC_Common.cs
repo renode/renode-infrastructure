@@ -457,7 +457,19 @@ namespace Antmicro.Renode.Peripherals.Analog
                         externalTrigger = (val > 0);
                     }, name: "EXTEN")
                 .WithTaggedFlag("OVRMOD", 12)
-                .WithTaggedFlag("CONT", 13)
+                .WithFlag(13, out continuous, writeCallback: (prevVal, val) =>
+                    {
+                        if(!val)
+                        {
+                            samplingThread.Stop();
+                            sequenceInProgress = false;
+                        }
+                        else if (startFlag.Value && !prevVal)
+                        {
+                            this.Log(LogLevel.Warning, "Can set continuous mode only when ADSTART is 0");
+                            continuous.Value = false;
+                        }
+                    }, name: "CONT")
                 .WithFlag(14, out waitFlag, name: "WAIT")
                 .WithTaggedFlag("DISCEN", 16)
                 .WithReservedBits(17, 4)
@@ -564,7 +576,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                         {
                             if(val)
                             {
-                                if(externalTrigger)
+                                if(externalTrigger || continuous.Value)
                                 {
                                     samplingThread.Start();
                                 }
@@ -694,6 +706,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField adcRegulatorEnable;
 
         private IFlagRegisterField adcOverrunFlag;
+        private IFlagRegisterField continuous;
         private IFlagRegisterField waitFlag;
         private IFlagRegisterField startFlag;
         private IFlagRegisterField analogWatchdogEnable;
