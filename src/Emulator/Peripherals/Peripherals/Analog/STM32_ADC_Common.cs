@@ -44,16 +44,20 @@ namespace Antmicro.Renode.Peripherals.Analog
     //                          If false, that means the model exposes features like auto-off in one of the configuration registers.
     //    *hasChannelSelect --- Specifies whether this ADC has channel selection register.
     //                          If false, third watchdog threshold configuration register will live under this register's offset.
+    //    *hasOffset ---------- Specifies whether this ADC has offset registers. These registered
+    //                          are tagged but not used by the model.
     //
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral
     {
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null,
             int? watchdogCount = null, bool? hasCalibration = null, int? channelCount = null, bool? hasPrescaler = null,
-            bool? hasVbatPin = null, bool? hasChannelSequence = null, bool? hasPowerRegister = null, bool? hasChannelSelect = null)
+            bool? hasVbatPin = null, bool? hasChannelSequence = null, bool? hasPowerRegister = null, bool? hasChannelSelect = null,
+            bool? hasOffset = null)
         {
             if(!watchdogCount.HasValue || !hasCalibration.HasValue || !channelCount.HasValue || !hasPrescaler.HasValue ||
-                !hasVbatPin.HasValue || !hasChannelSequence.HasValue || !hasPowerRegister.HasValue || !hasChannelSelect.HasValue)
+                !hasVbatPin.HasValue || !hasChannelSequence.HasValue || !hasPowerRegister.HasValue || !hasChannelSelect.HasValue ||
+                !hasOffset.HasValue)
             {
                 throw new ConstructionException("Missing configuration options");
             }
@@ -100,7 +104,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                                                                                  hasPrescaler.Value,
                                                                                  hasVbatPin.Value,
                                                                                  hasChannelSequence.Value,
-                                                                                 hasPowerRegister.Value));
+                                                                                 hasPowerRegister.Value,
+                                                                                 hasOffset.Value));
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
@@ -398,7 +403,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             return referencedValue;
         }
 
-        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister)
+        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset)
         {
             var isrRegister = new DoubleWordRegister(this)
                 .WithFlag(0, out adcReadyFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "ADRDY")
@@ -689,6 +694,19 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(2, 30));
             }
 
+            if(hasOffset)
+            {
+                for(uint i = 0; i < 4; i++)
+                {
+                    registers.Add((long)Registers.OffsetRegister1 + 4 * i, new DoubleWordRegister(this)
+                        .WithTag("OFFSET", 0, 12)
+                        .WithReservedBits(12, 14)
+                        .WithTag("OFFSET_CH", 26, 5)
+                        .WithTaggedFlag("OFFSET_EN", 31)
+                    );
+                }
+            }
+
             return registers;
         }
 
@@ -789,6 +807,11 @@ namespace Antmicro.Renode.Peripherals.Analog
             RegularSequence1       = 0x30, // ADC_SQR1
             // Gap intended
             DataRegister           = 0x40, // ADC_DR
+            // Gap intended
+            OffsetRegister1        = 0x60, // ADC_OFR1
+            OffsetRegister2        = 0x64, // ADC_OFR2
+            OffsetRegister3        = 0x68, // ADC_OFR3
+            OffsetRegister4        = 0x6C, // ADC_OFR4
             // Gap intended
             Power                  = 0x44, // ADC_PWRR
             // Gap intended
