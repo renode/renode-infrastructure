@@ -209,8 +209,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             var endOfSampling = endOfSamplingFlag.Value && endOfSamplingInterruptEnable.Value;
             var endOfConversion = endOfConversionFlag.Value && endOfConversionInterruptEnable.Value;
             var endOfSequence = endOfSequenceFlag.Value && endOfSequenceInterruptEnable.Value;
+            var overrun = adcOverrunFlag.Value && adcOverrunInterruptEnable.Value;
 
-            IRQ.Set(adcReady || analogWatchdog || endOfSampling || endOfConversion || endOfSequence);
+            IRQ.Set(adcReady || analogWatchdog || endOfSampling || endOfConversion || endOfSequence || overrun);
         }
 
         private void StartSampling()
@@ -314,6 +315,10 @@ namespace Antmicro.Renode.Peripherals.Analog
                                 this.Log(LogLevel.Debug, "Analog watchdog {0} flag raised for value {1} on channel {2}", i, data.Value, currentChannel);
                             }
                         }
+                    }
+                    if(endOfConversionFlag.Value)
+                    {
+                        adcOverrunFlag.Value = true;
                     }
                     endOfConversionFlag.Value = true;
                     UpdateInterrupts();
