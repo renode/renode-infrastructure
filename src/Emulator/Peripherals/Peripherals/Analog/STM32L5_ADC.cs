@@ -28,7 +28,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 hasChannelSelect: false,
                 hasChannelSequence: true,
                 hasPowerRegister: false,
-                hasOffset: true
+                hasOffset: true,
+                hasDifferentialMode: true
             )
         { }
     }

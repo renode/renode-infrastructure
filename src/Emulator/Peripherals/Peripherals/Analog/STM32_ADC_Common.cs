@@ -44,8 +44,9 @@ namespace Antmicro.Renode.Peripherals.Analog
     //                          If false, that means the model exposes features like auto-off in one of the configuration registers.
     //    *hasChannelSelect --- Specifies whether this ADC has channel selection register.
     //                          If false, third watchdog threshold configuration register will live under this register's offset.
-    //    *hasOffset ---------- Specifies whether this ADC has offset registers. These registered
-    //                          are tagged but not used by the model.
+    //    *hasOffset ---------- Specifies whether this ADC has offset registers. These registers are tagged but not used by the model.
+    //    *hasDifferentialMode  Specifies whether this has differential mode. The differential mode register is tagged but its
+    //                          value is not used by the model.
     //
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral
@@ -53,11 +54,11 @@ namespace Antmicro.Renode.Peripherals.Analog
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null,
             int? watchdogCount = null, bool? hasCalibration = null, int? channelCount = null, bool? hasPrescaler = null,
             bool? hasVbatPin = null, bool? hasChannelSequence = null, bool? hasPowerRegister = null, bool? hasChannelSelect = null,
-            bool? hasOffset = null)
+            bool? hasOffset = null, bool? hasDifferentialMode = null)
         {
             if(!watchdogCount.HasValue || !hasCalibration.HasValue || !channelCount.HasValue || !hasPrescaler.HasValue ||
                 !hasVbatPin.HasValue || !hasChannelSequence.HasValue || !hasPowerRegister.HasValue || !hasChannelSelect.HasValue ||
-                !hasOffset.HasValue)
+                !hasOffset.HasValue || !hasDifferentialMode.HasValue)
             {
                 throw new ConstructionException("Missing configuration options");
             }
@@ -105,7 +106,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                                                                                  hasVbatPin.Value,
                                                                                  hasChannelSequence.Value,
                                                                                  hasPowerRegister.Value,
-                                                                                 hasOffset.Value));
+                                                                                 hasOffset.Value,
+                                                                                 hasDifferentialMode.Value));
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
@@ -403,7 +405,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             return referencedValue;
         }
 
-        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset)
+        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset, bool hasDifferentialMode)
         {
             var isrRegister = new DoubleWordRegister(this)
                 .WithFlag(0, out adcReadyFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "ADRDY")
@@ -707,6 +709,14 @@ namespace Antmicro.Renode.Peripherals.Analog
                 }
             }
 
+            if(hasDifferentialMode)
+            {
+                registers.Add((long)Registers.DifferentialMode, new DoubleWordRegister(this)
+                    .WithTag("DIFSEL", 0, 19)
+                    .WithReservedBits(19, 13)
+                );
+            }
+
             return registers;
         }
 
@@ -817,6 +827,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             // Gap intended
             Watchdog2Configuration = 0xA0, // ADC_AWD2CR
             Watchdog3Configuration = 0xA4, // ADC_AWD3CR
+            // Gap intended
+            DifferentialMode       = 0xB0, // ADC_DIFSEL
             // Gap intended
             CalibrationFactor      = 0xC4, // ADC_CALFACT
             // Gap intended
