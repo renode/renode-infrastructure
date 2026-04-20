@@ -19,6 +19,10 @@ using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
+#if !NET
+using Antmicro.Renode.Exceptions;
+#endif
+
 namespace Antmicro.Renode.Peripherals.CAN
 {
     public class STM32_FDCAN : BasicDoubleWordPeripheral, ICAN, IKnownSize
