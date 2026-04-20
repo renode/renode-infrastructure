@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     TryStoreReceivedMessage(message, 0, filterIndex, out var _, nonMatchingFrame: true);
                     break;
                 case AcceptMode.AcceptInRxFIFO1:
-                    TryStoreRecivedMessage(message, 1, filterIndex, out var _, nonMatchingFrame: true);
+                    TryStoreReceivedMessage(message, 1, filterIndex, out var __, nonMatchingFrame: true);
                     break;
                 default:
                     this.DebugLog("Frame not matching any filter and non-matching frames are configured to be dropped");
