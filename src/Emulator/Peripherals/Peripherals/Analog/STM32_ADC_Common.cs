@@ -298,7 +298,11 @@ namespace Antmicro.Renode.Peripherals.Analog
                 }
                 else
                 {
-                    data.Value = GetSampleFromChannel(currentChannel);
+                    uint sample = GetSampleFromChannel(currentChannel);
+                    if(!adcOverrunFlag.Value || overrunMode.Value)
+                    {
+                        data.Value = sample;
+                    }
                     if(dmaEnabled.Value && !adcOverrunFlag.Value)
                     {
                         SendDmaRequest();
@@ -309,7 +313,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                     {
                         if(WatchdogEnabled(i))
                         {
-                            if(data.Value > analogWatchdogHighValues[i].Value || data.Value < analogWatchdogLowValues[i].Value)
+                            if(sample > analogWatchdogHighValues[i].Value || sample < analogWatchdogLowValues[i].Value)
                             {
                                 analogWatchdogFlags[i].Value = true;
                                 this.Log(LogLevel.Debug, "Analog watchdog {0} flag raised for value {1} on channel {2}", i, data.Value, currentChannel);
@@ -461,7 +465,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                         // This Peripheral mocks external trigger using `externalEventFrequency`, so we only distinguish between manual/external trigger
                         externalTrigger = (val > 0);
                     }, name: "EXTEN")
-                .WithTaggedFlag("OVRMOD", 12)
+                .WithFlag(12, out overrunMode, name: "OVRMOD")
                 .WithFlag(13, out continuous, writeCallback: (prevVal, val) =>
                     {
                         if(!val)
@@ -711,6 +715,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField adcRegulatorEnable;
 
         private IFlagRegisterField adcOverrunFlag;
+        private IFlagRegisterField overrunMode;
         private IFlagRegisterField continuous;
         private IFlagRegisterField waitFlag;
         private IFlagRegisterField startFlag;
