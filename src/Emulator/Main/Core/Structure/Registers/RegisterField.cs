@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -182,6 +182,23 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 return $"[RegisterType<{typeof(T).Name}> Value={Value} Width={Width}]";
             }
 
+            /// <see cref="RegisterField.DumpValue"/>
+            public override Tuple<string, bool> DumpValue(bool allowSideEffects)
+            {
+                var reliable = allowSideEffects || ValueProviderCallback == null;
+
+                if(allowSideEffects && ValueProviderCallback != null)
+                {
+                    Value = ValueProviderCallback(Value);
+                }
+
+                if(typeof(T) == typeof(ulong))
+                {
+                    return Tuple.Create($"0x{Value:X}", reliable);
+                }
+                return Tuple.Create($"{Value}", reliable);
+            }
+
             public T Value
             {
                 get => GetValueFrom(parent.UnderlyingValue);
@@ -249,6 +266,18 @@ namespace Antmicro.Renode.Core.Structure.Registers
             public abstract ulong CallValueProviderHandler(ulong currentValue);
 
             public abstract void CallShadowReloadHandler(ulong oldValue, ulong newValue);
+
+            /// <summary>
+            /// Dump a register field value.
+            /// </summary>
+            /// <param name="allowSideEffects">If true, the call to this method may have a side
+            /// effect by calling <see cref="IRegisterField<T>.ValueProviderCallback"></param>
+            /// <returns>
+            /// A tuple made of the string representation of the value and a boolean indicating if
+            /// the value is reliable or not. A value may not be reliable if the field has a
+            /// ValueProviderCallback that has not been called.
+            /// </returns>
+            public abstract Tuple<string, bool> DumpValue(bool allowSideEffects = false);
 
             public readonly int Position;
             public readonly int Width;

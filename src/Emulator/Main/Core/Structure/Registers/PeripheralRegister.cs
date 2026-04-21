@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -237,6 +237,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         void Reset();
 
         void ShadowReload();
+
+        string[,] Dump(bool allowSideEffects);
     }
 
     /// <summary>
@@ -448,6 +450,43 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
 
             CallShadowReloadHandlers(oldValue, UnderlyingShadowValue);
+        }
+
+        public string[,] Dump(bool allowSideEffects = false)
+        {
+            var fields = new List<DumpedField>();
+            foreach(var field in registerFields)
+            {
+                var fieldValue = field.DumpValue(allowSideEffects);
+                fields.Add(
+                    new DumpedField
+                    {
+                        Name = field.Name ?? "",
+                        Position = field.Position,
+                        Width = field.Width,
+                        Value = fieldValue.Item1,
+                        ValueIsReliable = fieldValue.Item2
+                    });
+            }
+            foreach(var tag in tags)
+            {
+                fields.Add(
+                    new DumpedField
+                    {
+                        Name = tag.Name ?? "",
+                        Position = tag.Position,
+                        Width = tag.Width,
+                        Value = $"0x{BitHelper.GetMaskedValue(this.resetValue, tag.Position, tag.Width):X}",
+                        ValueIsReliable = true
+                    });
+            }
+            fields.Sort((x, y) => x.Position.CompareTo(y.Position));
+
+            var table = new Table().AddRow("Name", "Bits", "Value", "Reliability");
+            table.AddRows(fields, x => x.Name, x => $"{x.Position}" + (x.Width == 1 ? "" : $"-{x.Position + x.Width - 1}"),
+                          x => x.Value, x => x.ValueIsReliable ? "" : "Not reliable");
+
+            return table.ToArray();
         }
 
         public int RegisterWidth { get; }
@@ -753,5 +792,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         private readonly IPeripheral parent;
         private readonly ulong resetValue;
+
+        private struct DumpedField
+        {
+            public string Name;
+            public int Position;
+            public int Width;
+            public string Value;
+            public bool ValueIsReliable;
+        }
     }
 }

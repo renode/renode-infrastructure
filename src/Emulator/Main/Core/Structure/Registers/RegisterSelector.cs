@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -61,6 +61,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         public bool HasRegister()
         {
             return conditionalRegisters.Count == 1 || conditionalRegisters.Any(c => c.Condition());
+        }
+
+        public string[,] Dump(bool allowSideEffects = false)
+        {
+            return GetRegister().Dump(allowSideEffects);
         }
 
         private IPeripheralRegister<T> GetRegister()
