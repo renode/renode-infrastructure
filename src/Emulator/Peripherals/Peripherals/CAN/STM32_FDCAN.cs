@@ -163,9 +163,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             Registers.RAMWatchdogRegister.Define(this, name: "FDCAN_RWD")
                 .WithReservedBits(16, 16)
                 .WithTag("WDV", 8, 8)
-                .WithValueField(0, 8, out ramWatchdogResetValue,
-                    writeCallback: (oldVal, newVal) => ramWatchdogResetValue.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "WDC");
+                .WithConditionallyWritableValueField(0, 8, out ramWatchdogResetValue, ConfigChangeEnabled, name: "WDC");
             Registers.CCControlRegister.Define(this, 0x1, name: "FDCAN_CCCR")
                 .WithReservedBits(16, 16)
                 .WithTaggedFlag("NISO", 15) // Non-ISO Operation
@@ -181,46 +179,31 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithFlag(4, out clockStopRequested, changeCallback: (_, val) => RequestClockStopCallback(val), name: "CSR")
                 .WithFlag(3, out clockStopAcknowledge, mode: FieldMode.Read, name: "CSA")
                 .WithTaggedFlag("ASM", 2) // ASM restricted mode
-                .WithFlag(1, out configurationChangeEnable,
-                    writeCallback: (oldVal, newVal) => configurationChangeEnable.Value = initFlag.Value ? newVal : oldVal,
+                .WithConditionallyWritableFlag(1, out configurationChangeEnable, () => initFlag.Value,
                     changeCallback: (_, val) => CCEBitChangedCallback(val),
                     name: "CCE")
                 .WithFlag(0, out initFlag, name: "INIT", changeCallback: (_, val) => InitBitChangedCallback(val));
             Registers.NominalBitTimingAndPrescalerRegister.Define(this, 0x06000A03, name: "FDCAN_NBTP")
                 .WithTag("NSJW", 25, 7) // Nominal sync jump width, not simulated in renode
                 .WithReservedBits(7, 1)
-                .WithValueField(16, 9, out bitRatePrescaler,
-                    writeCallback: (oldVal, newVal) => bitRatePrescaler.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "NBRP")
-                .WithValueField(8, 8, out timeSegmentBeforeSamplePoint,
-                    writeCallback: (oldVal, newVal) => timeSegmentBeforeSamplePoint.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "NTSEG")
+                .WithConditionallyWritableValueField(16, 9, out bitRatePrescaler, ConfigChangeEnabled, name: "NBRP")
+                .WithConditionallyWritableValueField(8, 8, out timeSegmentBeforeSamplePoint, ConfigChangeEnabled, name: "NTSEG")
                 .WithValueField(0, 7, out timeSegmentAfterSamplePoint, name: "NTSEG2")
                 .WithChangeCallback((_, __) => UpdateTimerConfiguration());
             Registers.TimestampCounterConfigRegister.Define(this, name: "FDCAN_TSCC")
                 .WithReservedBits(20, 12)
                 .WithReservedBits(2, 14)
-                .WithValueField(16, 4, out timestampCounterPrescaler,
-                    writeCallback: (oldVal, newVal) => timestampCounterPrescaler.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "TCP")
-                .WithEnumField<DoubleWordRegister, TimestampMode>(0, 2, out timestampMode,
-                    writeCallback: (oldVal, newVal) => timestampMode.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "TSS")
+                .WithConditionallyWritableValueField(16, 4, out timestampCounterPrescaler, ConfigChangeEnabled, name: "TCP")
+                .WithConditionallyWritableEnumField<DoubleWordRegister, TimestampMode>(0, 2, out timestampMode, ConfigChangeEnabled, name: "TSS")
                 .WithChangeCallback((_, __) => UpdateTimerConfiguration());
             Registers.TimestampCounterValueRegister.Define(this, name: "FDCAN_TSCV")
                 .WithReservedBits(16, 16)
                 .WithValueField(0, 16, valueProviderCallback: _ => ReadTimestampCounter(), writeCallback: (_, __) => ResetTimestampCounter());
             Registers.TimeoutCounterConfigRegister.Define(this, 0xFFFF0000, name: "FDCAN_TOCC")
                 .WithReservedBits(3, 13)
-                .WithValueField(16, 16, out timeoutPeriod,
-                    writeCallback: (oldVal, newVal) => timeoutPeriod.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "TOP")
-                .WithEnumField<DoubleWordRegister, TimeoutSelect>(1, 2, out timeoutSelect,
-                    writeCallback: (oldVal, newVal) => timeoutSelect.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "TOS")
-                .WithFlag(0, out timeoutCounterEnable,
-                    writeCallback: (oldVal, newVal) => timeoutCounterEnable.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "ETOC")
+                .WithConditionallyWritableValueField(16, 16, out timeoutPeriod, ConfigChangeEnabled, name: "TOP")
+                .WithConditionallyWritableEnumField<DoubleWordRegister, TimeoutSelect>(1, 2, out timeoutSelect, ConfigChangeEnabled, name: "TOS")
+                .WithConditionallyWritableFlag(0, out timeoutCounterEnable, ConfigChangeEnabled, name: "ETOC")
                 .WithChangeCallback((_, __) => UpdateTimerConfiguration());
             Registers.TimeoutCounterValueRegister.Define(this, 0x0000FFFF, name: "FDCAN_TOCV")
                 .WithReservedBits(16, 16)
@@ -249,12 +232,8 @@ namespace Antmicro.Renode.Peripherals.CAN
             Registers.TransmitterDelayCompensationRegister.Define(this, name: "FDCAN_TDCR")
                 .WithReservedBits(15, 17)
                 .WithReservedBits(7, 1)
-                .WithValueField(8, 7, out transmitterDelayCompensationEffect,
-                    writeCallback: (oldVal, newVal) => transmitterDelayCompensationEffect.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "TDCO")
-                .WithValueField(0, 7, out transmitterDelayCompensationFilter,
-                    writeCallback: (oldVal, newVal) => transmitterDelayCompensationFilter.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "TDCF");
+                .WithConditionallyWritableValueField(8, 7, out transmitterDelayCompensationEffect, ConfigChangeEnabled, name: "TDCO")
+                .WithConditionallyWritableValueField(0, 7, out transmitterDelayCompensationFilter, ConfigChangeEnabled, name: "TDCF");
             Registers.InterruptRegister.Define(this, name: "FDCAN_IR")
                 .WithReservedBits(24, 8)
                 .WithFlags(0, 24, out interruptStatusFlags, mode: FieldMode.Read | FieldMode.WriteOneToClear)
@@ -280,38 +259,20 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithChangeCallback((_, __) => UpdateInterrupts());
             Registers.GlobalFilterConfigRegister.Define(this, name: "FDCAN_RXGFC")
                 .WithReservedBits(28, 4)
-                .WithValueField(24, 4, out numberOfExtendedFilters,
-                    writeCallback: (oldVal, newVal) => numberOfExtendedFilters.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "LSE")
+                .WithConditionallyWritableValueField(24, 4, out numberOfExtendedFilters, ConfigChangeEnabled, name: "LSE")
                 .WithReservedBits(21, 3)
-                .WithValueField(16, 5, out numberOfStandardFilters,
-                    writeCallback: (oldVal, newVal) => numberOfStandardFilters.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "LSS")
+                .WithConditionallyWritableValueField(16, 5, out numberOfStandardFilters, ConfigChangeEnabled, name: "LSS")
                 .WithReservedBits(10, 6)
-                .WithFlag(9, out fifo0Overwrite,
-                    writeCallback: (oldVal, newVal) => fifo0Overwrite.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "F0OM")
-                .WithFlag(8, out fifo1Overwrite,
-                    writeCallback: (oldVal, newVal) => fifo1Overwrite.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "F1OM")
+                .WithConditionallyWritableFlag(9, out fifo0Overwrite, ConfigChangeEnabled, name: "F0OM")
+                .WithConditionallyWritableFlag(8, out fifo1Overwrite, ConfigChangeEnabled, name: "F1OM")
                 .WithReservedBits(6, 2)
-                .WithEnumField<DoubleWordRegister, AcceptMode>(4, 2, out acceptNonMatchingFramesStandard,
-                    writeCallback: (oldVal, newVal) => acceptNonMatchingFramesStandard.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "ANFS")
-                .WithEnumField<DoubleWordRegister, AcceptMode>(2, 2, out acceptNonMatchingFramesExtended,
-                    writeCallback: (oldVal, newVal) => acceptNonMatchingFramesExtended.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "ANFE")
-                .WithFlag(1, out rejectRemoteFramesStandard,
-                    writeCallback: (oldVal, newVal) => rejectRemoteFramesStandard.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "RRFS")
-                .WithFlag(0, out rejectRemoteFramesExtended,
-                    writeCallback: (oldVal, newVal) => rejectRemoteFramesExtended.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "RRFE");
+                .WithConditionallyWritableEnumField<DoubleWordRegister, AcceptMode>(4, 2, out acceptNonMatchingFramesStandard, ConfigChangeEnabled, name: "ANFS")
+                .WithConditionallyWritableEnumField<DoubleWordRegister, AcceptMode>(2, 2, out acceptNonMatchingFramesExtended, ConfigChangeEnabled, name: "ANFE")
+                .WithConditionallyWritableFlag(1, out rejectRemoteFramesStandard, ConfigChangeEnabled, name: "RRFS")
+                .WithConditionallyWritableFlag(0, out rejectRemoteFramesExtended, ConfigChangeEnabled, name: "RRFE");
             Registers.ExtendedIDAndMaskRegister.Define(this, 0x1FFFFFFF, name: "FDCAN_XIDAM")
                 .WithReservedBits(29, 3)
-                .WithValueField(0, 29, out extendedIDMask,
-                    writeCallback: (oldVal, newVal) => extendedIDMask.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "EIDM");
+                .WithConditionallyWritableValueField(0, 29, out extendedIDMask, ConfigChangeEnabled, name: "EIDM");
             Registers.HighPriorityMessageStatusRegister.Define(this, name: "FDCAN_HPMS")
                 .WithReservedBits(16, 16)
                 .WithFlag(15, out lastHighPrioFilterList, mode: FieldMode.Read, name: "FLST")
@@ -350,9 +311,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             }, Registers.RxFIFO1AcknowlegeRegister - Registers.RxFIFO0AcknowlegeRegister);
             Registers.TxBufferConfigurationRegister.Define(this, name: "FXCAN_TXBC")
                 .WithReservedBits(25, 7)
-                .WithFlag(24, out txFIFOQueueModeFlag,
-                    writeCallback: (oldVal, newVal) => txFIFOQueueModeFlag.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
-                    name: "TFQM")
+                .WithConditionallyWritableFlag(24, out txFIFOQueueModeFlag, ConfigChangeEnabled, name: "TFQM")
                 .WithReservedBits(0, 24);
             Registers.TxFIFOStatusRegister.Define(this, 0x00000003, name: "FDCAN_TXFQS")
                 .WithReservedBits(22, 10)
@@ -425,8 +384,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     name: "EFAI");
             Registers.ConfigClockDividerRegister.Define(this, name: "FDCAN_CKDIV")
                 .WithReservedBits(4, 28)
-                .WithValueField(0, 4, out inputClockDivider,
-                    writeCallback: (oldVal, newVal) => inputClockDivider.Value = initFlag.Value && configurationChangeEnable.Value ? newVal : oldVal,
+                .WithConditionallyWritableValueField(0, 4, out inputClockDivider, ConfigChangeEnabled,
                     changeCallback: (_, __) => UpdateTimerConfiguration(),
                     name: "PDIV");
         }
@@ -733,6 +691,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 clockStopAcknowledge.Value = true;
             }
         }
+
+        private Func<bool> ConfigChangeEnabled => () => initFlag.Value && configurationChangeEnable.Value;
 
         private IFlagRegisterField protocolExceptionHandlingDisable;
         private IFlagRegisterField fdOperationEnable;
