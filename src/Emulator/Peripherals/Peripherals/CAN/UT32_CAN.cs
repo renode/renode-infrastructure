@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -69,9 +69,9 @@ namespace Antmicro.Renode.Peripherals.CAN
         protected override void DefineRegisters()
         {
             Registers.Mode.Define(this, 1)
-                .WithConditionallyWritableFlag(1, out listenOnlyMode, () => resetMode, this, name: "LOM")
-                .WithConditionallyWritableFlag(2, out selfTestMode, () => resetMode, this, name: "STM")
-                .WithConditionallyWritableFlag(3, out singleAcceptanceFilter, () => resetMode, this, name: "AFM")
+                .WithConditionallyWritableFlag(1, out listenOnlyMode, () => resetMode, name: "LOM")
+                .WithConditionallyWritableFlag(2, out selfTestMode, () => resetMode, name: "STM")
+                .WithConditionallyWritableFlag(3, out singleAcceptanceFilter, () => resetMode, name: "AFM")
                 .WithTaggedFlag("SM", 4) // Sleep mode, SJA1000 only
                                          // Keep last to delay its action by relying on callback ordering
                 .WithFlag(0, changeCallback: (_, value) => resetMode = value, valueProviderCallback: _ => resetMode, name: "RM")
@@ -501,30 +501,6 @@ namespace Antmicro.Renode.Peripherals.CAN
             Id3 = 0x13,
             Id4 = 0x14,
             Data = 0x15, // 0x15..0x1c
-        }
-    }
-
-    internal static class PeripheralRegisterExtensions
-    {
-        public static T WithConditionallyWritableFlag<T>(this T register, int position, out IFlagRegisterField flagField, Func<bool> writabilityCondition, IPeripheral parent, Action<bool, bool> readCallback = null,
-            Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, bool softResettable = true, string name = null)
-            where T : PeripheralRegister
-        {
-            IFlagRegisterField ff = null;
-            ff = register.DefineFlagField(position, FieldMode.Read | FieldMode.Write, readCallback, writeCallback, changeCallback: (oldValue, value) =>
-            {
-                if(!writabilityCondition())
-                {
-                    parent.WarningLog("Flag {0} was changed while this was not allowed", name);
-                    ff.Value = oldValue;
-                }
-                else
-                {
-                    changeCallback?.Invoke(oldValue, value);
-                }
-            }, valueProviderCallback, null, softResettable, name);
-            flagField = ff;
-            return register;
         }
     }
 }

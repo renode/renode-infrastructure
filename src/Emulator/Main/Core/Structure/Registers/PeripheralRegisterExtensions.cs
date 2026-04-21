@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -196,6 +196,26 @@ namespace Antmicro.Renode.Core.Structure.Registers
             return register;
         }
 
+        public static T WithConditionallyWritableValueField<T>(this T register, int position, int width, out IValueRegisterField valueField, Func<bool> writabilityCondition, Action<ulong, ulong> readCallback = null,
+            Action<ulong, ulong> writeCallback = null, Action<ulong, ulong> changeCallback = null, Func<ulong, ulong> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where T : PeripheralRegister
+        {
+            IValueRegisterField vf = null;
+            vf = register.DefineValueField(position, width, FieldMode.Read | FieldMode.Write, readCallback, writeCallback, changeCallback: (oldValue, value) =>
+            {
+                if(!writabilityCondition())
+                {
+                    vf.Value = oldValue;
+                }
+                else
+                {
+                    changeCallback?.Invoke(oldValue, value);
+                }
+            }, valueProviderCallback, null, softResettable, name);
+            valueField = vf;
+            return register;
+        }
+
         /// <summary>
         /// Fluent API for creation of set of value fields. For parameters see the other overload of <see cref="PeripheralRegisterExtensions.WithValueFields"/>.
         /// This overload allows you to retrieve the created array of fields via <c>valueFields</c> parameter.
@@ -232,6 +252,27 @@ namespace Antmicro.Renode.Core.Structure.Registers
             where T : struct, IConvertible
         {
             enumField = register.DefineEnumField<T>(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, shadowReloadCallback, softResettable, name);
+            return register;
+        }
+
+        public static R WithConditionallyWritableEnumField<R, T>(this R register, int position, int width, out IEnumRegisterField<T> enumField, Func<bool> writabilityCondition, Action<T, T> readCallback = null,
+            Action<T, T> writeCallback = null, Action<T, T> changeCallback = null, Func<T, T> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where R : PeripheralRegister
+            where T : struct, IConvertible
+        {
+            IEnumRegisterField<T> ef = null;
+            ef = register.DefineEnumField<T>(position, width, FieldMode.Read | FieldMode.Write, readCallback, writeCallback, changeCallback: (oldValue, value) =>
+            {
+                if(!writabilityCondition())
+                {
+                    ef.Value = oldValue;
+                }
+                else
+                {
+                    changeCallback?.Invoke(oldValue, value);
+                }
+            }, valueProviderCallback, null, softResettable, name);
+            enumField = ef;
             return register;
         }
 
@@ -336,6 +377,26 @@ namespace Antmicro.Renode.Core.Structure.Registers
             where T : PeripheralRegister
         {
             flagField = register.DefineFlagField(position, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, shadowReloadCallback, softResettable, name);
+            return register;
+        }
+
+        public static T WithConditionallyWritableFlag<T>(this T register, int position, out IFlagRegisterField flagField, Func<bool> writabilityCondition, Action<bool, bool> readCallback = null,
+            Action<bool, bool> writeCallback = null, Action<bool, bool> changeCallback = null, Func<bool, bool> valueProviderCallback = null, bool softResettable = true, string name = null)
+            where T : PeripheralRegister
+        {
+            IFlagRegisterField ff = null;
+            ff = register.DefineFlagField(position, FieldMode.Read | FieldMode.Write, readCallback, writeCallback, changeCallback: (oldValue, value) =>
+            {
+                if(!writabilityCondition())
+                {
+                    ff.Value = oldValue;
+                }
+                else
+                {
+                    changeCallback?.Invoke(oldValue, value);
+                }
+            }, valueProviderCallback, null, softResettable, name);
+            flagField = ff;
             return register;
         }
 
