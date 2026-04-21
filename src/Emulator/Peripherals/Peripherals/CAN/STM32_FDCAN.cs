@@ -326,7 +326,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     name: "TFFL");
             Registers.TxBufferRequestPendingRegister.Define(this, name: "FDCAN_TXBRP")
                 .WithReservedBits(3, 29)
-                .WithValueField(0, 3, valueProviderCallback: _ => 0, name: "TRP"); // Transfers are instant in Renode so can not be observed as pending
+                .WithValueField(0, 3, out requestPendingFlags, name: "TRP");
             Registers.TxBufferAddRequestRegister.Define(this, name: "FDCAN_TXBAR")
                 .WithReservedBits(3, 29)
                 .WithValueField(0, 3, valueProviderCallback: _ => 0, writeCallback: (_, val) =>
@@ -335,8 +335,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                     {
                         if(initFlag.Value)
                         {
-                            // TODO: Handle pending bits and similar in this case
                             this.WarningLog("Tried to start transfer while in bus off state");
+                            requestPendingFlags.Value = val;
                             return;
                         }
                         BitHelper.ForeachActiveBit(val, SendBuffer);
@@ -678,6 +678,15 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     timeoutCounter.Enabled = timeoutCounterEnable.Value;
                 }
+                // If any tx requests where started while in bus-off state, execute them here
+                if(requestPendingFlags.Value != 0)
+                {
+                    BitHelper.ForeachActiveBit(requestPendingFlags.Value, SendBuffer);
+                    requestPendingFlags.Value = 0;
+                    interruptStatusFlags[(long)Interrupts.TxFIFOEmpty].Value = true;
+                    interruptStatusFlags[(long)Interrupts.TransmissionCompleted].Value = true;
+                    UpdateInterrupts();
+                }
             }
         }
 
@@ -755,6 +764,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IValueRegisterField txEventFIFOGetIndex;
         private IValueRegisterField inputClockDivider;
         private IFlagRegisterField bitRateSwitching;
+        private IValueRegisterField requestPendingFlags;
         private readonly IFlagRegisterField[] rxFIFOFull;
         private readonly IValueRegisterField[] rxFIFOPutIndex;
         private readonly IValueRegisterField[] rxFIFOGetIndex;
