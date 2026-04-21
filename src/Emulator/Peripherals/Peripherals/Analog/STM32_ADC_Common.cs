@@ -461,7 +461,13 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             var configurationRegister1 = new DoubleWordRegister(this)
                 .WithFlag(0, out dmaEnabled, name: "DMAEN")
-                .WithTaggedFlag("DMACFG", 1)
+                .WithFlag(1, writeCallback: (_, val) =>
+                    {
+                        if(!val && dmaEnabled.Value)
+                        {
+                            this.Log(LogLevel.Warning, "DMA One Shot mode not supported");
+                        }
+                    }, name: "DMACFG")
                 // When fully configurable channel sequencer is available, the SCANDIR and RES fields are swapped
                 .WithEnumField<DoubleWordRegister, ScanDirection>(hasChannelSequence ? 4 : 2, 1, out scanDirection, name: "SCANDIR")
                 .WithEnumField<DoubleWordRegister, Resolution>(hasChannelSequence ? 2 : 3, 2, out resolution, name: "RES")
