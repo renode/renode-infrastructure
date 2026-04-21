@@ -75,11 +75,6 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             this.machine = machine;
 
-            bool calibration = hasCalibration.Value;
-            bool prescaler = hasPrescaler.Value;
-            bool vbatPin = hasVbatPin.Value;
-            bool channelSequence = hasChannelSequence.Value;
-            bool powerRegister = hasPowerRegister.Value;
             ChannelCount = channelCount.Value;
             WatchdogCount = watchdogCount.Value;
             this.hasChannelSelect = hasChannelSelect.Value;
@@ -101,7 +96,11 @@ namespace Antmicro.Renode.Peripherals.Analog
                 analogWatchdog3SelectedChannels = new IFlagRegisterField[ChannelCount];
             }
 
-            registers = new DoubleWordRegisterCollection(this, BuildRegistersMap(calibration, prescaler, vbatPin, channelSequence, powerRegister));
+            registers = new DoubleWordRegisterCollection(this, BuildRegistersMap(hasCalibration.Value,
+                                                                                 hasPrescaler.Value,
+                                                                                 hasVbatPin.Value,
+                                                                                 hasChannelSequence.Value,
+                                                                                 hasPowerRegister.Value));
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
