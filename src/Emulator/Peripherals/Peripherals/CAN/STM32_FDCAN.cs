@@ -13,22 +13,26 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
-#if !NET
-using Antmicro.Renode.Exceptions;
-#endif
-
 namespace Antmicro.Renode.Peripherals.CAN
 {
     public class STM32_FDCAN : BasicDoubleWordPeripheral, ICAN, IKnownSize
     {
-        public STM32_FDCAN(IMachine machine, ArrayMemory messageRam) : base(machine)
+        public STM32_FDCAN(IMachine machine, STM32Series series, ArrayMemory messageRam) : base(machine)
         {
+            switch(series)
+            {
+            case STM32Series.L5:
+                break;
+            default:
+                throw new ConstructionException($"FDCAN model currently only supports the L5 series variant, {series} provided");
+            }
             this.messageRam = messageRam;
             Int0 = new GPIO();
             Int1 = new GPIO();
