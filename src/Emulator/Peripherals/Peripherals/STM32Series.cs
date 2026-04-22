@@ -14,6 +14,11 @@ namespace Antmicro.Renode.Peripherals
          */
         F0,
 
+        /* For F1 series technical documentation and reference manuals, see
+         * https://www.st.com/en/microcontrollers-microprocessors/stm32f1-series/documentation.html
+         */
+        F1,
+
         /* For F4 series technical documentation and reference manuals, see
          * https://www.st.com/en/microcontrollers-microprocessors/stm32f4-series/documentation.html
          * */
