@@ -16,6 +16,13 @@ EXTERN_C void tlib_try_interrupt_translation_block(void);
 
 #include "map.h"
 
+/* Some platforms need special handling to expose functions */
+#ifdef RENODE_BRIDGE_API
+#define EXPORT_C EXTERN_C RENODE_BRIDGE_API
+#else
+#define EXPORT_C EXTERN_C
+#endif
+
 #define VA_NARGS_IMPL(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, N, ...) N
 #define VA_NARGS(...) VA_NARGS_IMPL(_, ##__VA_ARGS__, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
@@ -114,7 +121,7 @@ typedef char *charptr;
         IF_THEN_ELSE(HAS_RETURN(RETURN_TYPE), return retval;,)                                    \
     }                                                                                             \
                                                                                                   \
-    EXTERN_C void CONCAT_EXP_5(renode_external_attach__, CSHARP_PREFIX(RETURN_TYPE),              \
+    EXPORT_C void CONCAT_EXP_5(renode_external_attach__, CSHARP_PREFIX(RETURN_TYPE),              \
                                 CSHARP_TYPE(RETURN_TYPE),                                         \
                                 CONCAT(MAP_LIST(CSHARP_TYPE, __VA_ARGS__)),                       \
                                 __##IMPORTED_NAME(RETURN_TYPE (*param)(PARAMS(__VA_ARGS__))))     \
