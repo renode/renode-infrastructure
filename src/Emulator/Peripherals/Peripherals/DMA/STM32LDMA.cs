@@ -186,6 +186,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 priority = 0;
                 direction = 0;
                 circularMode = false;
+                halfTransferInterrupt = false;
             }
 
             public void DoTransfer()
@@ -228,6 +229,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 var returnValue = 0u;
                 returnValue |= completeInterruptEnabled ? (1u << 1) : 0u;
+                returnValue |= halfTransferInterrupt ? (1u << 2) : 0u;
                 returnValue |= transferErrorInterruptEnabled ? (1u << 3) : 0u;
                 returnValue |= ((uint)direction) << 4;
                 returnValue |= circularMode ? (1u << 5) : 0u;
@@ -241,7 +243,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private void HandleConfigurationWrite(uint value)
             {
+                bool previousHalfTransferInterrupt = halfTransferInterrupt;
+
                 completeInterruptEnabled = (value & (1 << 1)) != 0;
+                halfTransferInterrupt = (value & (1 << 2)) != 0;
                 transferErrorInterruptEnabled = (value & (1 << 3)) != 0;
                 direction = (Direction)((value >> 4) & 1);
                 circularMode = (value & (1 << 5)) != 0;
@@ -250,9 +255,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 HandleConfigureWriteSizes(value);
                 priority = (byte)((value >> 12) & 3);
 
-                if((value & ~0x3FFB) != 0)
+                if((value & ~0x3FFF) != 0)
                 {
                     parent.Log(LogLevel.Warning, "Channel {0}: some unhandled bits were written to configuration register. Value is 0x{1:X}.", channelNo, value);
+                }
+                if(halfTransferInterrupt && !previousHalfTransferInterrupt)
+                {
+                    parent.Log(LogLevel.Warning, "Channel {0}: half transfer interrupt not supported.", channelNo);
                 }
 
                 if((value & 1) != 0)
@@ -297,6 +306,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private uint peripheralAddress;
             private bool peripheralIncrement;
             private bool circularMode;
+            private bool halfTransferInterrupt;
 
             private bool memoryIncrement;
             private TransferType peripheralTransferType;
