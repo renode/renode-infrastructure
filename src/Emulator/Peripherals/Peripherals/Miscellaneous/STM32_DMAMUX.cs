@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,10 +11,11 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.DMA;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class STM32_DMAMUX : BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput
+    public class STM32_DMAMUX : BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput, IDMA
     {
         public STM32_DMAMUX(Machine machine, int numberOfOutputRequestChannels, int numberOfRequestGeneratorChannels) : base(machine)
         {
@@ -51,9 +52,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        public void RequestTransfer(int number)
+        {
+            OnGPIO(number, true);
+            OnGPIO(number, false);
+        }
+
         public long Size => 0x400;
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
+
+        public int NumberOfChannels { get => nrOfOutputRequestChannels; }
 
         private void DefineRegisters()
         {
