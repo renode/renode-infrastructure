@@ -550,15 +550,15 @@ namespace Antmicro.Renode.Utilities.Packets
             return offset - startingOffset;
         }
 
-        private static MonoUInt128 GetOptionalFieldPresenceBitmap(Type t, object obj)
+        private static UInt128 GetOptionalFieldPresenceBitmap(Type t, object obj)
         {
             if(obj == null)
             {
-                return MonoUInt128.MaxValue;
+                return UInt128.MaxValue;
             }
             var items = GetFieldsAndProperties(t);
-            var bitmap = MonoUInt128.Zero;
-            var bit = MonoUInt128.One;
+            var bitmap = UInt128.Zero;
+            var bit = UInt128.One;
             foreach(var item in items.Where(x => x.IsOptional))
             {
                 if(item.IsPresent(obj))
@@ -566,7 +566,7 @@ namespace Antmicro.Renode.Utilities.Packets
                     bitmap |= bit;
                 }
                 bit <<= 1;
-                if(bit.IsZero)
+                if(bit == 0)
                 {
                     throw new ArgumentException($"{t.Name} has too many optional fields ({items.Length}), maximum is 128");
                 }
@@ -613,7 +613,7 @@ namespace Antmicro.Renode.Utilities.Packets
         }
 
         // Separate function to prevent unintentional context capture when using a lambda, which completely destroys caching.
-        private static int CalculateBitLengthCacheGenerator(Type t, MonoUInt128 optionalFieldPresence)
+        private static int CalculateBitLengthCacheGenerator(Type t, UInt128 optionalFieldPresence)
         {
             t = Nullable.GetUnderlyingType(t) ?? t;
             t = t.IsEnum ? t.GetEnumUnderlyingType() : t;
@@ -626,12 +626,12 @@ namespace Antmicro.Renode.Utilities.Packets
 
             var maxOffset = 0;
             var offset = 0;
-            var optionalBit = MonoUInt128.One;
+            var optionalBit = UInt128.One;
             foreach(var element in fieldsAndProperties)
             {
                 if(element.IsOptional)
                 {
-                    var isPresent = !(optionalFieldPresence & optionalBit).IsZero;
+                    var isPresent = (optionalFieldPresence & optionalBit) != 0;
                     optionalBit <<= 1;
                     if(!isPresent)
                     {
@@ -693,18 +693,18 @@ namespace Antmicro.Renode.Utilities.Packets
         }
 
         // Separate function for the same reasons as CalculateLengthCacheGenerator
-        private static int CalculateOffsetGenerator(Type t, MonoUInt128 optionalFieldPresence, string fieldName)
+        private static int CalculateOffsetGenerator(Type t, UInt128 optionalFieldPresence, string fieldName)
         {
             var fieldsAndProperties = GetFieldsAndProperties(t);
 
             var maxOffset = 0;
             var offset = 0;
-            var optionalBit = MonoUInt128.One;
+            var optionalBit = UInt128.One;
             foreach(var element in fieldsAndProperties)
             {
                 if(element.IsOptional)
                 {
-                    var isPresent = !(optionalFieldPresence & optionalBit).IsZero;
+                    var isPresent = (optionalFieldPresence & optionalBit) != 0;
                     optionalBit <<= 1;
                     if(!isPresent)
                     {
