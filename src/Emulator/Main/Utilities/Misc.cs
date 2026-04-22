@@ -840,6 +840,14 @@ namespace Antmicro.Renode.Utilities
                 return true;
             }
 
+            // If BaseDirectory is empty (e.g. when hosted as a native library), fall back to
+            // the physical location of this assembly on disk.
+            var assemblyLocation = Path.GetDirectoryName(typeof(Misc).Assembly.Location);
+            if(!string.IsNullOrEmpty(assemblyLocation) && TryGetRootDirectory(assemblyLocation, out directory))
+            {
+                return true;
+            }
+
             // If we couldn't find root directory in previous step, try again
             // starting from directory of main process' executable. This is fallback for
             // when Renode was executed from self-contained binary.
