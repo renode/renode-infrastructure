@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 if(requestId[channelId].Value == (ulong)number)
                 {
-                    this.NoisyLog("Set IRQ {0}: {1}", number, value);
+                    this.NoisyLog("Set IRQ for channel (request id {1}): {2}", channelId, number, value);
                     Connections[channelId].Set(value);
                 }
             }
