@@ -187,14 +187,6 @@ namespace Antmicro.Renode.UI
                 ioSource = console;
                 size = console;
             }
-            else if(options.Port >= 0)
-            {
-                var socket = new SocketIOSource(options.Port);
-                ioSource = socket;
-                size = socket;
-
-                Logger.Log(LogLevel.Info, "Monitor available in telnet mode on port {0}", options.Port);
-            }
 #if NET
             else if(options.ServerMode)
             {
@@ -207,6 +199,14 @@ namespace Antmicro.Renode.UI
             {
                 ioSource = new DummyIOSource();
                 size = null;
+            }
+            else if(options.Port >= 0)
+            {
+                var socket = new SocketIOSource(options.Port);
+                ioSource = socket;
+                size = socket;
+
+                Logger.Log(LogLevel.Info, "Monitor available in telnet mode on port {0}", options.Port);
             }
             else
             {
