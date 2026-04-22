@@ -9,9 +9,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-#if !NET
-using Antmicro.Renode.Exceptions;
-#endif
 using Antmicro.Renode.Time;
 using Antmicro.Renode.UserInterface.Tokenizer;
 using Antmicro.Renode.Utilities;

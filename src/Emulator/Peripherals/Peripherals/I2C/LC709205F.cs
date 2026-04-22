@@ -11,9 +11,6 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-#if !NET
-using Antmicro.Renode.Exceptions;
-#endif
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 

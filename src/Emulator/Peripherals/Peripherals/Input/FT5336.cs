@@ -10,9 +10,6 @@ using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
-#if !NET
-using Antmicro.Renode.Exceptions;
-#endif
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Utilities;

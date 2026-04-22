@@ -2828,11 +2828,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             private readonly TValue globalAllAccess;
         }
 
-        private
-#if NET
-        readonly
-#endif
-        struct FoundRegistrationInfo
+        private readonly struct FoundRegistrationInfo
         {
             public FoundRegistrationInfo(BusRangeRegistration registrationPoint, PeripheralCollection collection, PeripheralAccessMethods accessMethods)
             {

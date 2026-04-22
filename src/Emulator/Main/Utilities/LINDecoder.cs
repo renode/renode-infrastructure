@@ -10,10 +10,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-#if !NET
-using Antmicro.Renode.Exceptions;
-#endif
-
 namespace Antmicro.Renode.Utilities
 {
     public interface ILINEntry

@@ -25,7 +25,6 @@ namespace Antmicro.Renode.UI
             {
                 Console.TreatControlCAsInput = true;
             }
-#if NET
             if(!RuntimeInfo.IsWindows())
             {
                 winchRegistration = PosixSignalRegistration.Create(
@@ -33,7 +32,6 @@ namespace Antmicro.Renode.UI
                     _ => Resized()
                 );
             }
-#endif
 
             checker = new UTF8Checker();
 
@@ -48,9 +46,7 @@ namespace Antmicro.Renode.UI
 
         public void Dispose()
         {
-#if NET
             winchRegistration?.Dispose();
-#endif
         }
 
         public void Flush()
@@ -199,9 +195,7 @@ namespace Antmicro.Renode.UI
             }
         }
 
-#if NET
         private readonly PosixSignalRegistration winchRegistration;
-#endif
 
         private readonly UTF8Checker checker;
         private readonly bool isInputRedirected;

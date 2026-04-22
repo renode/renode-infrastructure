@@ -9,11 +9,7 @@ using System.Runtime.CompilerServices;
 
 namespace Antmicro.Renode.Utilities
 {
-    public
-#if NET
-    readonly
-#endif
-    struct Fraction
+    public readonly struct Fraction
     {
         public readonly ulong Numerator;
         public readonly ulong Denominator;

@@ -89,11 +89,7 @@ namespace Antmicro.Renode.UnitTests.Utilities
 
             public void Dispose()
             {
-#if NET
                 underlyingThread.Interrupt();
-#else
-                underlyingThread.Abort();
-#endif
                 underlyingThread.Join();
             }
 

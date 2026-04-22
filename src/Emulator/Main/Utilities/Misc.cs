@@ -439,55 +439,10 @@ namespace Antmicro.Renode.Utilities
             throw new ArgumentException($"Can't cast {number.GetType()} to ulong", "number");
         }
 
-#if !NET
-        // Enumerable.TakeLast is in the standard library on .NET Core but isn't available on .NET Framework
-        public static IEnumerable<T> TakeLast<T>(this IEnumerable<T> @this, int count)
-        {
-            // This will enumerate the collection twice - it might be not optimal for performance sensitive operations
-            return @this.Skip(Math.Max(0, @this.Count() - count));
-        }
-
-        public static IEnumerable<T[]> Chunk<T>(this IEnumerable<T> @this, int size)
-        {
-            var buffer = new Queue<T>();
-            foreach(var item in @this)
-            {
-                buffer.Enqueue(item);
-                if(buffer.Count == size)
-                {
-                    yield return buffer.ToArray();
-                    buffer.Clear();
-                }
-            }
-
-            if(buffer.Count > 0)
-            {
-                yield return buffer.ToArray();
-            }
-        }
-
-        public static void Fill<T>(this T[] array, T value, int startIndex = 0, int? count = null)
-        {
-            if(startIndex >= array.Length || startIndex < 0)
-            {
-                throw new ArgumentException("has to be a legal index", nameof(startIndex));
-            }
-            count = count ?? array.Length - startIndex;
-            if(startIndex + count.Value > array.Length)
-            {
-                throw new ArgumentException("value out of bounds", nameof(count));
-            }
-            for(var i = 0; i < count.Value; ++i)
-            {
-                array[startIndex + i] = value;
-            }
-        }
-#else
         public static void Fill<T>(this T[] array, T value, int startIndex = 0, int? count = null)
         {
             Array.Fill(array, value, startIndex, count ?? array.Length - startIndex);
         }
-#endif
 
         public static IEnumerable<T> Iterate<T>(Func<T> function)
         {
@@ -1623,13 +1578,6 @@ namespace Antmicro.Renode.Utilities
             }
             return -1;
         }
-
-#if !NET
-        public static TSource MinBy<TSource, T>(this IEnumerable<TSource> source, Func<TSource, T> map) where T: IComparable<T>
-        {
-            return source.Aggregate((a, b) => map(a).CompareTo(map(b)) < 0 ? a : b);
-        }
-#endif
 
         public static string Stringify<TSource>(this IEnumerable<TSource> source, string separator = " ", int limitPerLine = 0)
         {

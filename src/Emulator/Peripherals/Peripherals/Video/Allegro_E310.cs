@@ -475,7 +475,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
             public void Dispose()
             {
-#if PLATFORM_LINUX && NET
+#if PLATFORM_LINUX
                 appSrc?.Dispose();
                 appSink?.Dispose();
                 pipeline?.SetState(Gst.State.Null);
@@ -506,7 +506,7 @@ namespace Antmicro.Renode.Peripherals.Video
             public readonly int SourceBitDepth;
             public readonly Profile Profile;
 
-#if PLATFORM_LINUX && NET
+#if PLATFORM_LINUX
             private void InitializePipeline()
             {
                 try

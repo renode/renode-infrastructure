@@ -9,9 +9,6 @@ using System.Diagnostics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
-#if !NET
-using Antmicro.Renode.Exceptions;
-#endif
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;

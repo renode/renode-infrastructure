@@ -33,7 +33,6 @@ namespace Antmicro.Renode.UI
                 HideMonitor = true;
             }
 
-#if NET
             if(ServerMode && !UI)
             {
                 DisableXwt = true;
@@ -48,13 +47,6 @@ namespace Antmicro.Renode.UI
                 error = "--server-mode (or --ui) and --robot-debug-on-error cannot be set at the same time";
                 return false;
             }
-#else
-            if(ServerMode)
-            {
-                error = "--server-mode is allowed only in .NET build";
-                return false;
-            }
-#endif
 
             error = null;
             return true;

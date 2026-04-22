@@ -45,14 +45,13 @@ namespace Antmicro.Renode.UI
                     ConsoleBackend.Instance.PlainMode = true;
                 }
             }
-#if NET
             if(options.ServerMode)
             {
                 // This is only http endoint - 29170 is used for backward compatibility with ws proxy
                 // it does not create new socket
                 Logger.AddBackend(new WebSocketNetworkBackend("/telnet/29170", false), "network");
             }
-#endif
+
             Logger.AddBackend(new MemoryBackend(), "memory");
             Emulator.ShowAnalyzers = !options.HideAnalyzers;
             IDisposable ui = null;
@@ -62,14 +61,12 @@ namespace Antmicro.Renode.UI
                 File.WriteAllText(options.PidFile, pid.ToString());
             }
 
-#if NET
             if(options.UI)
             {
                 var uiProvider = new UIProvider(WebSockets.WebSocketsManager.Instance.Port);
                 uiProvider.WindowClosed += Emulator.Exit;
                 ui = uiProvider;
             }
-#endif
             else if(!options.DisableXwt || options.RobotDebug)
             {
                 ui = XwtProvider.Create(new WindowedUserInterfaceProvider());
@@ -105,10 +102,8 @@ namespace Antmicro.Renode.UI
 
                 if(options.ServerMode)
                 {
-#if NET
                     uartAnalyzerType = typeof(WebSocketUartAnalyzer);
                     videoAnalyzerType = typeof(DummyVideoAnalyzer);
-#endif
                 }
                 else if(ui == null || options.RobotDebug)
                 {
@@ -190,14 +185,12 @@ namespace Antmicro.Renode.UI
                 ioSource = console;
                 size = console;
             }
-#if NET
             else if(options.ServerMode)
             {
                 var socket = new WebSocketIOSource("/telnet/29169");
                 ioSource = socket;
                 size = socket;
             }
-#endif
             else if(options.HideMonitor)
             {
                 ioSource = new DummyIOSource();

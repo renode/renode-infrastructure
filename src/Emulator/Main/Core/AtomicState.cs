@@ -59,20 +59,11 @@ namespace Antmicro.Renode.Core
 
             parent.DebugLog("Allocating store table with size {0}...", StoreTableSize);
             // Table must be naturally aligned in order to efficiently calculate the address of its elements.
-#if NET
             unsafe
             {
                 storeTablePointer =
                     (IntPtr)NativeMemory.AlignedAlloc((UIntPtr)StoreTableSize, (UIntPtr)StoreTableSize);
             }
-#else
-            // On Mono/.NET Framework NativeMemory is not available, so the allocation
-            // needs to be aligned manually:
-            unalignedStoreTablePointer = Marshal.AllocHGlobal(2 * StoreTableSize);
-
-            storeTablePointer = (IntPtr)(((long)unalignedStoreTablePointer + StoreTableSize)
-                                         & ~(StoreTableSize - 1));
-#endif
             parent.DebugLog("Store table allocated at 0x{0:X}", storeTablePointer);
         }
 
@@ -80,14 +71,10 @@ namespace Antmicro.Renode.Core
         {
             Marshal.FreeHGlobal(AtomicMemoryStatePointer);
 
-#if NET
             unsafe
             {
                 NativeMemory.AlignedFree((void*)storeTablePointer);
             }
-#else
-            Marshal.FreeHGlobal(unalignedStoreTablePointer);
-#endif
         }
 
         public IntPtr AtomicMemoryStatePointer => atomicMemoryStatePointer;
@@ -179,10 +166,7 @@ namespace Antmicro.Renode.Core
 
         [Transient]
         private IntPtr storeTablePointer;
-#if !NET
-        [Transient]
-        private IntPtr unalignedStoreTablePointer;
-#endif
+
         private byte[] storeTable;
         private int storeTableBits;
 

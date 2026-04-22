@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-#if NET
 using System;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -253,4 +252,3 @@ namespace Antmicro.Renode.HostInterfaces.Network
         private readonly object lockObject = new object();
     }
 }
-#endif

@@ -31,11 +31,7 @@ namespace Antmicro.Renode.Testing
             var finished = thread.Join(timeout);
             if(!finished)
             {
-#if NET
                 thread.Interrupt();
-#else
-                thread.Abort();
-#endif
             }
             result = res;
             return finished;

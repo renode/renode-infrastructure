@@ -23,9 +23,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
 #if PLATFORM_WINDOWS
             result = new WindowsTapInterface(hostInterfaceName);
 #elif PLATFORM_OSX
-#if NET
             Logger.Warning("OsX Tap Interface is obsolete and will be removed in a future release. Please use CreateVmnetHelper instead.");
-#endif
             if(persistent)
             {
                 throw new RecoverableException("Persitent TAP is not available on OS X.");
@@ -46,11 +44,11 @@ namespace Antmicro.Renode.HostInterfaces.Network
 
         public static void CreateVmnetHelper(this Emulation emulation, string path, string name, bool autoConf = false)
         {
-#if PLATFORM_OSX && NET
+#if PLATFORM_OSX
             var result = new SocketInterface(path,async socketInterface => await VmnetHelperInterface.ConfigureInterface(socketInterface, autoConf));
             emulation.HostMachine.AddHostMachineElement(result, name);
 #else
-            throw new RecoverableException("CreateVmnetHelper is available only on macOS with dotnet.");
+            throw new RecoverableException("CreateVmnetHelper is available only on macOS.");
 #endif
         }
     }

@@ -9,11 +9,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core
 {
-    public
-#if NET
-    readonly
-#endif
-    struct StateMask
+    public readonly struct StateMask
     {
         public StateMask(ulong state, ulong mask)
         {
