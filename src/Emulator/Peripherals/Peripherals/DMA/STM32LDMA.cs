@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,7 +14,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public sealed class STM32LDMA : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IDMA
+    public sealed class STM32LDMA : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IDMA, IGPIOReceiver
     {
         public STM32LDMA(IMachine machine)
         {
@@ -29,6 +29,16 @@ namespace Antmicro.Renode.Peripherals.DMA
         public void Reset()
         {
             // TODO
+        }
+
+        public void OnGPIO(int number, bool value)
+        {
+            if(number < 0 || number >= channels.Length)
+            {
+                this.WarningLog("Attempted to signal DMA channel {0}. Maximum value is {1}", number, channels.Length - 1);
+                return;
+            }
+            channels[number].OnGPIO(value);
         }
 
         public uint ReadDoubleWord(long offset)
@@ -221,6 +231,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     IRQ.Set();
                 }
+            }
+
+            public void OnGPIO(bool value)
+            {
+                if(!value)
+                {
+                    return;
+                }
+
+                DoTransfer();
             }
 
             public GPIO IRQ { get; private set; }
