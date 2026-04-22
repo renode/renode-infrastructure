@@ -23,6 +23,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             var supportedSeries = new List<STM32Series>{
                 STM32Series.F0,
+                STM32Series.F1,
                 STM32Series.F4,
                 STM32Series.F7,
                 STM32Series.G0,
