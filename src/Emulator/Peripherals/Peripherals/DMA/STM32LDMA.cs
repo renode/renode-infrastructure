@@ -185,6 +185,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 numberOfData = 0;
                 priority = 0;
                 direction = 0;
+                circularMode = false;
             }
 
             public void DoTransfer()
@@ -229,6 +230,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 returnValue |= completeInterruptEnabled ? (1u << 1) : 0u;
                 returnValue |= transferErrorInterruptEnabled ? (1u << 3) : 0u;
                 returnValue |= ((uint)direction) << 4;
+                returnValue |= circularMode ? (1u << 5) : 0u;
                 returnValue |= peripheralIncrement ? (1u << 6) : 0u;
                 returnValue |= memoryIncrement ? (1u << 7) : 0u;
                 returnValue |= ((uint)peripheralTransferType >> 1) << 8;
@@ -242,12 +244,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 completeInterruptEnabled = (value & (1 << 1)) != 0;
                 transferErrorInterruptEnabled = (value & (1 << 3)) != 0;
                 direction = (Direction)((value >> 4) & 1);
+                circularMode = (value & (1 << 5)) != 0;
                 peripheralIncrement = (value & (1 << 6)) != 0;
                 memoryIncrement = (value & (1 << 7)) != 0;
                 HandleConfigureWriteSizes(value);
                 priority = (byte)((value >> 12) & 3);
 
-                if((value & ~0x3FDB) != 0)
+                if((value & ~0x3FFB) != 0)
                 {
                     parent.Log(LogLevel.Warning, "Channel {0}: some unhandled bits were written to configuration register. Value is 0x{1:X}.", channelNo, value);
                 }
@@ -293,6 +296,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private uint memoryAddress;
             private uint peripheralAddress;
             private bool peripheralIncrement;
+            private bool circularMode;
 
             private bool memoryIncrement;
             private TransferType peripheralTransferType;
