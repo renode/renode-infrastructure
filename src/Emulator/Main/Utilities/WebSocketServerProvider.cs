@@ -179,8 +179,11 @@ namespace Antmicro.Renode.Utilities
 
         public WebSocketConnection CurrentConnection => connections.FirstOrDefault();
 
+        public event Action<int, int> Resized;
+
         private void NewConnectionEventHandler(WebSocketConnection sender, List<string> extraSegments)
         {
+            sender.Resized += Resized;
             if(bufferMessages)
             {
                 while(bufferQueue.TryDequeue(out var bytes))
@@ -198,6 +201,7 @@ namespace Antmicro.Renode.Utilities
     {
         public Action<WebSocketConnection, byte[]> DataBlockReceived;
         public Action<WebSocketConnection> Disconnected;
+        public Action<WebSocketConnection, int, int> Resized;
         public string Endpoint;
     }
 
@@ -254,9 +258,13 @@ namespace Antmicro.Renode.Utilities
             enqueuedEvent.Set();
         }
 
+        public void TriggerResize(int width, int height) => Resized?.Invoke(width, height);
+
         public int BufferSize { get; private set; }
 
         public event Action<byte[]> DataBlockReceived;
+
+        public event Action<int, int> Resized;
 
         private async Task AsyncReader()
         {

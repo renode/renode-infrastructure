@@ -190,9 +190,9 @@ namespace Antmicro.Renode.UI
 #if NET
             else if(options.ServerMode)
             {
-                ioSource = new WebSocketIOSource("/telnet/29169");
-                // TODO: Report terminal size via main WS connection?
-                size = null;
+                var socket = new WebSocketIOSource("/telnet/29169");
+                ioSource = socket;
+                size = socket;
             }
 #endif
             else if(options.HideMonitor)
