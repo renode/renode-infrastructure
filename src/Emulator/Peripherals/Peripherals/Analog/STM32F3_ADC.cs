@@ -12,7 +12,8 @@ namespace Antmicro.Renode.Peripherals.Analog
 {
     public class STM32F3_ADC : STM32_ADC_Common
     {
-        public STM32F3_ADC(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null)
+        public STM32F3_ADC(IMachine machine, double referenceVoltage, uint externalEventFrequency,
+                           int dmaChannel = 0, IDMA dmaPeripheral = null, bool dualMode = false)
             : base(
                 machine,
                 referenceVoltage,
@@ -30,7 +31,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 hasPowerRegister: true,
                 hasOffset: true,
                 hasDifferentialMode: true,
-                samplingTime: SamplingTime.PerChannel
+                samplingTime: SamplingTime.PerChannel,
+                dualMode: dualMode
             )
         { }
     }

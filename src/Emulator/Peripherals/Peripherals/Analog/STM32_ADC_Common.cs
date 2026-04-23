@@ -49,6 +49,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //                          value is not used by the model.
     //    *samplingTime ------- Specifies from the SamplingTime enum how the sampling time registers are defined. These registers
     //                          are tagged but their value are not used by the model.
+    //    *dualMode ----------- Indicates if there is a secondary ADC that can work in dual mode.
     //
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral
@@ -56,11 +57,11 @@ namespace Antmicro.Renode.Peripherals.Analog
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null,
             int? watchdogCount = null, bool? hasCalibration = null, int? channelCount = null, bool? hasPrescaler = null,
             bool? hasVbatPin = null, bool? hasChannelSequence = null, bool? hasPowerRegister = null, bool? hasChannelSelect = null,
-            bool? hasOffset = null, bool? hasDifferentialMode = null, SamplingTime? samplingTime = null)
+            bool? hasOffset = null, bool? hasDifferentialMode = null, SamplingTime? samplingTime = null, bool? dualMode = null)
         {
             if(!watchdogCount.HasValue || !hasCalibration.HasValue || !channelCount.HasValue || !hasPrescaler.HasValue ||
                 !hasVbatPin.HasValue || !hasChannelSequence.HasValue || !hasPowerRegister.HasValue || !hasChannelSelect.HasValue ||
-                !hasOffset.HasValue || !hasDifferentialMode.HasValue || !samplingTime.HasValue)
+                !hasOffset.HasValue || !hasDifferentialMode.HasValue || !samplingTime.HasValue || !dualMode.HasValue)
             {
                 throw new ConstructionException("Missing configuration options");
             }
@@ -110,7 +111,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                                                                                  hasPowerRegister.Value,
                                                                                  hasOffset.Value,
                                                                                  hasDifferentialMode.Value,
-                                                                                 samplingTime.Value));
+                                                                                 samplingTime.Value,
+                                                                                 dualMode.Value));
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
@@ -408,7 +410,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             return referencedValue;
         }
 
-        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime)
+        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode)
         {
             var isrRegister = new DoubleWordRegister(this)
                 .WithFlag(0, out adcReadyFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "ADRDY")
@@ -721,6 +723,17 @@ namespace Antmicro.Renode.Peripherals.Analog
                 registers.Add((long)Registers.DifferentialMode, new DoubleWordRegister(this)
                     .WithTag("DIFSEL", 0, 19)
                     .WithReservedBits(19, 13)
+                );
+            }
+
+            if(dualMode)
+            {
+                /* dualMode is not really supported, let's mock ADEN and ADDIS so software can
+                 * disable the ADC2 and checks that it is disabled.
+                 */
+                registers.Add((long)Registers.Control + 0x100, new DoubleWordRegister(this)
+                    .WithTaggedFlag("ADEN", 0)
+                    .WithFlag(1, valueProviderCallback: _ => false, name: "ADDIS")
                 );
             }
 

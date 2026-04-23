@@ -30,7 +30,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 hasPowerRegister: false,
                 hasOffset: true,
                 hasDifferentialMode: true,
-                samplingTime: SamplingTime.PerChannel
+                samplingTime: SamplingTime.PerChannel,
+                dualMode: true
             )
         { }
     }
