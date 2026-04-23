@@ -1034,10 +1034,11 @@ namespace Antmicro.Renode.Core
                 }
             }
 
-            // Register io_executable flags for all ArrayMemory peripherals
+            // Register io_executable flags for all non-IMapped peripherals so that
+            // instruction fetches from them go through I/O callbacks instead of aborting.
             foreach(var context in SystemBus.GetAllContextKeys())
             {
-                foreach(var registration in SystemBus.GetRegistrationsForPeripheralType<Peripherals.Memory.ArrayMemory>(context))
+                foreach(var registration in SystemBus.GetRegistrationsForPeripheralType<IBusPeripheral>(context).Where(r => !(r.Peripheral is IMapped)))
                 {
                     var range = registration.RegistrationPoint.Range;
                     var perCore = registration.RegistrationPoint.Initiator;
