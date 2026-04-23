@@ -305,7 +305,15 @@ namespace Antmicro.Renode.Utilities
                 }
 
                 var fixedBuffer = buffer.Take(totalBytes).ToArray();
-                DataBlockReceived.Invoke(fixedBuffer);
+                try
+                {
+                    DataBlockReceived.Invoke(fixedBuffer);
+                }
+                catch(Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, "WebSocket: Exception during buffer read: {0}", ex);
+                    break;
+                }
             }
 
             if(!cancellationToken.IsCancellationRequested)
