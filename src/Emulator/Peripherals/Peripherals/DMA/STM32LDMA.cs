@@ -28,7 +28,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public void Reset()
         {
-            // TODO
+            for(var i = 0; i < channels.Length; i++)
+            {
+                channels[i].Reset();
+            }
         }
 
         public void OnGPIO(int number, bool value)
