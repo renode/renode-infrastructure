@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -223,8 +223,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly STM32F1GPIOPort gpioPortE;
         private readonly STM32F1GPIOPort gpioPortF;
         private readonly STM32F1GPIOPort gpioPortG;
-        private static readonly int NoTimers = 18;
-        private readonly ulong[] timRemaps = new ulong[NoTimers];
+        private readonly ulong[] timRemaps = new ulong[NumberOfTimers];
+
+        private const int NumberOfTimers = 18;
 
         private class GpioPinCollection : List<GpioPin>
         {
