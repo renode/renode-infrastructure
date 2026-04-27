@@ -16,9 +16,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class S32K3XX_SystemTimerModule : LimitTimer, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public S32K3XX_SystemTimerModule(IMachine machine, ulong clockFrequency) : base(machine.ClockSource, clockFrequency, uint.MaxValue)
+        public S32K3XX_SystemTimerModule(IMachine machine, ulong clockFrequency) : base(machine.ClockSource, clockFrequency, uint.MaxValue, Direction.Ascending, eventEnabled: true)
         {
             IRQ = new GPIO();
+            this.machine = machine;
 
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();
@@ -27,16 +28,24 @@ namespace Antmicro.Renode.Peripherals.Timers
             for(var i = 0; i < ChannelCount; ++i)
             {
                 var j = i;
-                channelTimer[i] = new LimitTimer(machine.ClockSource, clockFrequency, this, $"channel#{j}", workMode: WorkMode.OneShot);
-                channelTimer[i].LimitReached += UpdateInterrupts;
+                channelTimer[i] = new LimitTimer(machine.ClockSource, clockFrequency, this, $"channel#{j}", workMode: WorkMode.OneShot, direction: Direction.Ascending);
+                channelTimer[i].LimitReached += () =>
+                {
+                    this.DebugLog("Channel #{0} triggered at time 0x{1:X}", j, Value);
+                    UpdateInterrupts();
+                };
             }
 
             LimitReached += () =>
             {
                 for(var i = 0; i < ChannelCount; ++i)
                 {
-                    channelTimer[i].Value = channelTimer[i].Limit;
+                    channelTimer[i].Value = 0;
                     channelTimer[i].Enabled = channelTimer[i].EventEnabled;
+                    if(channelTimer[i].Enabled)
+                    {
+                        this.DebugLog("Channel #{0} will trigger at 0x{1:X}", i, channelTimer[i].Limit);
+                    }
                 }
             };
         }
@@ -96,8 +105,16 @@ namespace Antmicro.Renode.Peripherals.Timers
             ;
 
             Registers.Count.Define(this)
-                .WithValueField(0, 32, FieldMode.Read, name: "TimerCount",
-                    valueProviderCallback: _ => Value)
+                .WithValueField(0, 32, name: "TimerCount",
+                    valueProviderCallback: _ =>
+                    {
+                        if(machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu))
+                        {
+                            cpu.SyncTime();
+                        }
+                        return Value;
+                    },
+                    writeCallback: (_, value) => Value = value)
             ;
 
             var channelSize = (uint)(Registers.ChannelControl1 - Registers.ChannelControl0);
@@ -111,17 +128,19 @@ namespace Antmicro.Renode.Peripherals.Timers
                             channelTimer[index].EventEnabled = value;
                             if(!value)
                             {
+                                channelTimer[index].Enabled = false;
                                 return;
                             }
 
                             if(channelTimer[index].Limit > Value)
                             {
+                                this.Log(LogLevel.Debug, "Channel#{0} has been enabled, will trigger at 0x{1:X}.", index, channelTimer[index].Limit);
                                 channelTimer[index].Value = Value;
                                 channelTimer[index].Enabled = true;
                             }
                             else
                             {
-                                this.Log(LogLevel.Debug, "Channel#{0} has been enabled, but it will be started after counter underflows.");
+                                this.Log(LogLevel.Debug, "Channel#{0} has been enabled, but it will be started after counter overflows.", index);
                             }
                         })
                     .WithReservedBits(1, 31)
@@ -156,7 +175,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         private readonly LimitTimer[] channelTimer;
-
+        private readonly IMachine machine;
         private const uint ChannelCount = 4;
 
         private enum Registers
