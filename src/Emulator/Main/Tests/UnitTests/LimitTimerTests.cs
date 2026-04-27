@@ -121,7 +121,7 @@ namespace Antmicro.Renode.UnitTests
             var ticked = false;
             timer.LimitReached += () => ticked = true;
             mockClockSource.AdvanceBySeconds(2);
-            timer.Direction = Direction.Descending; // and then change the direction
+            timer.Direction = Direction.Descending;
             mockClockSource.AdvanceBySeconds(2);
             Assert.IsTrue(ticked);
         }
@@ -145,7 +145,6 @@ namespace Antmicro.Renode.UnitTests
             timer.EventEnabled = true;
             var ticked = false;
             timer.LimitReached += () => ticked = true;
-            // var val =timer.Value;
             mockClockSource.AdvanceBySeconds(10);
             Assert.IsTrue(ticked);
         }
