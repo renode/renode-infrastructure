@@ -5,18 +5,27 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class STM32F1AFIO : BasicDoubleWordPeripheral, IKnownSize
+    public class STM32F1AFIO : BasicDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize
     {
         public STM32F1AFIO(Machine machine, STM32F1GPIOPort[] gpioPorts) : base(machine)
         {
+            if(gpioPorts.Length != NumberOfPorts)
+            {
+                throw new ConstructionException($"Unexpected number of gpioPorts, expected: {NumberOfPorts}, got: {gpioPorts.Length}");
+            }
+
             this.gpioPortA = gpioPorts[0];
             this.gpioPortB = gpioPorts[1];
             this.gpioPortC = gpioPorts[2];
@@ -24,6 +33,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             this.gpioPortE = gpioPorts[4];
             this.gpioPortF = gpioPorts[5];
             this.gpioPortG = gpioPorts[6];
+
+            var innerConnections = Enumerable.Range(0, NumberOfPins)
+                .Select(index => new KeyValuePair<int, IGPIO>(index, new GPIO()))
+                .ToDictionary()
+            ;
+            Connections = new ReadOnlyDictionary<int, IGPIO>(innerConnections);
+            gpioRedirectors = Enumerable.Range(0, NumberOfPins)
+                .Select(index => new GPIORedirector(this, Connections[index]))
+                .ToArray()
+            ;
+
+            for(var portIndex = 0; portIndex < NumberOfPorts; ++portIndex)
+            {
+                for(var pinIndex = 0; pinIndex < NumberOfPins; ++pinIndex)
+                {
+                    gpioPorts[portIndex].Connections[pinIndex].Connect(gpioRedirectors[pinIndex], portIndex);
+                }
+            }
 
             // TIM1 alternate function remapping (Table 46, page 179/1136 in RM0008 Rev 21)
             timerGpioRemap[1] = new[]
@@ -138,28 +165,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 .WithTaggedFlag("PTP_PPS_REMAP", 30)
                 .WithReservedBits(31, 1));
             RegistersCollection.AddRegister((long)Registers.ExternalInterrupt1, new DoubleWordRegister(this)
-                .WithTag("EXTI0", 0, 4)
-                .WithTag("EXTI1", 4, 4)
-                .WithTag("EXTI2", 8, 4)
-                .WithTag("EXTI3", 12, 4)
+                .WithValueFields(0, 4, 4,
+                    valueProviderCallback: (index, _) => (uint)gpioRedirectors[index].InputPort,
+                    writeCallback: (index, _, value) => gpioRedirectors[index].InputPort = (int)value)
                 .WithReservedBits(16, 16));
             RegistersCollection.AddRegister((long)Registers.ExternalInterrupt2, new DoubleWordRegister(this)
-                .WithTag("EXTI4", 0, 4)
-                .WithTag("EXTI5", 4, 4)
-                .WithTag("EXTI6", 8, 4)
-                .WithTag("EXTI7", 12, 4)
+                .WithValueFields(0, 4, 4,
+                    valueProviderCallback: (index, _) => (uint)gpioRedirectors[4 + index].InputPort,
+                    writeCallback: (index, _, value) => gpioRedirectors[4 + index].InputPort = (int)value)
                 .WithReservedBits(16, 16));
             RegistersCollection.AddRegister((long)Registers.ExternalInterrupt3, new DoubleWordRegister(this)
-                .WithTag("EXTI8", 0, 4)
-                .WithTag("EXTI9", 4, 4)
-                .WithTag("EXTI10", 8, 4)
-                .WithTag("EXTI11", 12, 4)
+                .WithValueFields(0, 4, 4,
+                    valueProviderCallback: (index, _) => (uint)gpioRedirectors[8 + index].InputPort,
+                    writeCallback: (index, _, value) => gpioRedirectors[8 + index].InputPort = (int)value)
                 .WithReservedBits(16, 16));
             RegistersCollection.AddRegister((long)Registers.ExternalInterrupt4, new DoubleWordRegister(this)
-                .WithTag("EXTI12", 0, 4)
-                .WithTag("EXTI13", 4, 4)
-                .WithTag("EXTI14", 8, 4)
-                .WithTag("EXTI15", 12, 4)
+                .WithValueFields(0, 4, 4,
+                    valueProviderCallback: (index, _) => (uint)gpioRedirectors[12 + index].InputPort,
+                    writeCallback: (index, _, value) => gpioRedirectors[12 + index].InputPort = (int)value)
                 .WithReservedBits(16, 16));
             RegistersCollection.AddRegister((long)Registers.Map2, new DoubleWordRegister(this)
                 .WithFlag(0, name: "TIM15_REMAP", writeCallback: (_, value) => TimRemapCallback(15, value), valueProviderCallback: _ => timRemaps[15] != 0)
@@ -181,7 +204,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Reset();
         }
 
+        public override void Reset()
+        {
+            base.Reset();
+
+            foreach(var redirector in gpioRedirectors)
+            {
+                redirector.Reset();
+            }
+        }
+
         public long Size => 0x400;
+
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         private void TimRemapCallback(ulong timer, ulong newValue)
         {
@@ -224,8 +259,74 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly STM32F1GPIOPort gpioPortF;
         private readonly STM32F1GPIOPort gpioPortG;
         private readonly ulong[] timRemaps = new ulong[NumberOfTimers];
+        private readonly GPIORedirector[] gpioRedirectors;
 
         private const int NumberOfTimers = 18;
+        private const int NumberOfPorts = 7;
+        private const int NumberOfPins = 16;
+
+        private class GPIORedirector : IGPIOReceiver
+        {
+            public GPIORedirector(IEmulationElement parent, IGPIO receiver)
+            {
+                this.parent = parent;
+                this.receiver = receiver;
+            }
+
+            public void OnGPIO(int number, bool value)
+            {
+                if(!IsPortNumberValid(number))
+                {
+                    parent.Log(LogLevel.Error, "Received input from unexpected GPIO port #{0}", number);
+                    return;
+                }
+
+                inputCache[number] = value;
+                if(InputPort == number)
+                {
+                    receiver.Set(value);
+                }
+            }
+
+            public void Reset()
+            {
+                for(var i = 0; i < inputCache.Length; ++i)
+                {
+                    inputCache[i] = false;
+                }
+                InputPort = 0;
+            }
+
+            public int InputPort
+            {
+                get => inputPort;
+                set
+                {
+                    if(!IsPortNumberValid(inputPort))
+                    {
+                        parent.Log(LogLevel.Error, "Set EXTI input to unexpected GPIO port #{0}", inputPort);
+                        return;
+                    }
+
+                    if(inputPort != value)
+                    {
+                        receiver.Set(inputCache[inputPort]);
+                    }
+                    inputPort = value;
+                }
+            }
+
+            private bool IsPortNumberValid(int number)
+            {
+                return number >= 0 && number < STM32F1AFIO.NumberOfPorts;
+            }
+
+            private int inputPort;
+
+            private readonly IEmulationElement parent;
+            private readonly IGPIO receiver;
+            private readonly bool[] inputCache = new bool[STM32F1AFIO.NumberOfPorts];
+        }
 
         private class GpioPinCollection : List<GpioPin>
         {
