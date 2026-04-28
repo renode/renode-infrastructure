@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -16,6 +16,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
 using Antmicro.Renode.Peripherals.UART;
+using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 
@@ -29,6 +30,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public Arm(string cpuType, IMachine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null, ArmSignalsUnit signalsUnit = null)
             : base(cpuId, cpuType, machine, endianness)
         {
+            semihostingHandler = new SemihostingHandler(this);
             if(numberOfMPURegions.HasValue)
             {
                 this.NumberOfMPURegions = numberOfMPURegions.Value;
@@ -84,8 +86,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibSetEventFlag(value ? 1 : 0);
         }
 
+        public override void Dispose()
+        {
+            semihostingHandler.Dispose();
+            base.Dispose();
+        }
+
         public override void Reset()
         {
+            semihostingHandler.Reset();
             base.Reset();
             foreach(var config in defaultTCMConfiguration)
             {
@@ -126,17 +135,17 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)
         {
-            if(semihostingUart != null)
+            if(SemihostingUart != null)
             {
                 throw new RegistrationException("A semihosting uart is already registered.");
             }
-            semihostingUart = peripheral;
+            SemihostingUart = peripheral;
             machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
         }
 
         public void Unregister(SemihostingUart peripheral)
         {
-            semihostingUart = null;
+            SemihostingUart = null;
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
@@ -258,6 +267,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         public bool ImplementsPMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Physical_PMSA;
 
         public bool ImplementsVMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Virtual_VMSA;
+
+        [HideInMonitor]
+        public SemihostingUart SemihostingUart { get; private set; }
+
+        public string SemihostingDirectory
+        {
+            get => semihostingHandler.SemihostingDirectory;
+            set => semihostingHandler.SemihostingDirectory = value;
+        }
 
         public override Endianess DisassemblyHexFormatting => Endianess.LittleEndian;
 
@@ -382,41 +400,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private uint DoSemihosting()
         {
-            var uart = semihostingUart;
-            //this.Log(LogLevel.Error, "Semihosing, r0={0:X}, r1={1:X} ({2:X})", this.GetRegister(0), this.GetRegister(1), this.TranslateAddress(this.GetRegister(1)));
-
-            uint operation = R[0];
-            uint r1 = R[1];
-            uint result = 0;
-            switch(operation)
-            {
-            case 7: // SYS_READC
-                if(uart == null) break;
-                result = uart.SemihostingGetByte();
-                break;
-            case 3: // SYS_WRITEC
-            case 4: // SYS_WRITE0
-                if(uart == null) break;
-                string s = "";
-                if(!this.TryTranslateAddress(r1, MpuAccess.InstructionFetch, out var addr))
-                {
-                    this.Log(LogLevel.Debug, "Address translation failed when executing semihosting write operation for address: 0x{0:X}", r1);
-                    break;
-                }
-                do
-                {
-                    var c = this.Bus.ReadByte(addr++);
-                    if(c == 0) break;
-                    s = s + Convert.ToChar(c);
-                    if((operation) == 3) break; // SYS_WRITEC
-                } while(true);
-                uart.SemihostingWriteString(s);
-                break;
-            default:
-                this.Log(LogLevel.Debug, "Unknown semihosting operation: 0x{0:X}", operation);
-                break;
-            }
-            return result;
+            return semihostingHandler.DoSemihosting(operation: (uint)R[0], argumentsAddress: (uint)R[1]);
         }
 
         [Export]
@@ -496,8 +480,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private ArmPerformanceMonitoringUnit performanceMonitoringUnit;
 
-        private SemihostingUart semihostingUart = null;
-
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
         [Import]
@@ -558,6 +540,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             "STREX instruction"
         };
 
+        private readonly SemihostingHandler semihostingHandler;
         private readonly List<TCMConfiguration> defaultTCMConfiguration = new List<TCMConfiguration>();
         private readonly ArmSignalsUnit signalsUnit;
 

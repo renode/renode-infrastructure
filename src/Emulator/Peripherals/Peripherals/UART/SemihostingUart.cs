@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void Reset()
         {
-            readFifo = new Queue<uint>(ReceiveFifoSize);    // typed chars are stored here
+            readFifo = new Queue<byte>(ReceiveFifoSize);    // typed chars are stored here
         }
 
         public void WriteChar(byte value) // char is typed
@@ -32,11 +32,47 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public byte SemihostingGetByte()
+        public byte SemihostingReadByte()
         {
             lock(UartLock)
             {
-                return readFifo.Count > 0 ? (byte)readFifo.Dequeue() : (byte)0;
+                return readFifo.Count > 0 ? readFifo.Dequeue() : (byte)0;
+            }
+        }
+
+        public int SemihostingReadBytes(byte[] buffer, int offset, int count)
+        {
+            ReadWriteCheck(buffer, offset, count);
+
+            lock(UartLock)
+            {
+                count = readFifo.Count < count ? readFifo.Count : count;
+                for(var i = offset; i < count + offset; i++)
+                {
+                    buffer[i] = readFifo.Dequeue();
+                }
+            }
+            return count;
+        }
+
+        public void SemihostingWriteByte(byte b)
+        {
+            lock(UartLock)
+            {
+                OnCharReceived(b);
+            }
+        }
+
+        public void SemihostingWriteBytes(byte[] buffer, int offset, int count)
+        {
+            ReadWriteCheck(buffer, offset, count);
+
+            lock(UartLock)
+            {
+                for(var i = offset; i < count + offset; i++)
+                {
+                    OnCharReceived(buffer[i]);
+                }
             }
         }
 
@@ -44,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock(UartLock)
             {
-                for(int i = 0; i < s.Length; i++)
+                for(var i = 0; i < s.Length; i++)
                 {
                     OnCharReceived(Convert.ToByte(s[i]));
                 }
@@ -87,7 +123,32 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        private Queue<uint> readFifo;
+        private void ReadWriteCheck(byte[] buffer, int offset, int count)
+        {
+            try
+            {
+                if(buffer == null || checked(offset + count) > buffer.Length)
+                {
+                    throw new ArgumentException();
+                }
+            }
+            catch(OverflowException e)
+            {
+                throw new ArgumentException(e.Message);
+            }
+
+            if(offset < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            }
+
+            if(count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+        }
+
+        private Queue<byte> readFifo;
 
         private readonly object UartLock = new object();
         private const int ReceiveFifoSize = 16;
