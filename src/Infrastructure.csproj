@@ -79,12 +79,6 @@
     <Compile Remove="Emulator/Main/Tests/**/*"/>
     <Compile Remove="Emulator/Peripherals/Test/**/*"/>
     <Compile Remove="Emulator/Extensions/MonitorTests/**/*" />
-    <!--
-    Exclude Assembly* files that may remain from removed Extensions, cores*, Emulator, Peripherals and UI projects.
-    They cause conflict with the new Infrastructure.csproj
-    -->
-    <Compile Remove="**/obj/**/*AssemblyInfo.cs"/>
-    <Compile Remove="**/obj/**/*AssemblyAttributes.cs"/>
   </ItemGroup>
   <ItemGroup Condition="$(CurrentPlatform) != 'Linux' Or $(Architecture) != 'i386'">
     <Compile Remove="Emulator/Cores/KVM/**" />
