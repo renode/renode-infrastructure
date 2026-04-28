@@ -86,7 +86,21 @@ namespace Antmicro.Renode.UI
 
         public bool IsAnythingAttached => (ByteRead != null);
 
-        public Position Size => new Position(Console.WindowWidth, Console.WindowHeight);
+        public Position Size
+        {
+            get
+            {
+                try
+                {
+                    return new Position(Math.Max(Console.WindowWidth, 0), Math.Max(Console.WindowHeight, 0));
+                }
+                // The window size accessors throw on Windows if all standard FDs aren't consoles
+                catch
+                {
+                    return new Position(0, 0);
+                }
+            }
+        }
 
         public event Action<int> ByteRead;
 
