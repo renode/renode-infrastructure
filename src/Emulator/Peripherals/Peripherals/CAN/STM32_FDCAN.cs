@@ -497,7 +497,14 @@ namespace Antmicro.Renode.Peripherals.CAN
             var messageElement = new RxMessageElement();
             messageElement.ExtendedId = message.ExtendedFormat;
             messageElement.RemoteTransmissionRequest = message.RemoteFrame;
-            messageElement.Identifier = message.Id;
+            if(message.ExtendedFormat)
+            {
+                messageElement.Identifier = message.Id;
+            }
+            else
+            {
+                messageElement.StardardId = message.Id;
+            }
             messageElement.AcceptedNonMatchingFrame = nonMatchingFrame;
             messageElement.FilterIndex = (byte)filterIndex;
             messageElement.FDFormat = message.FDFormat;
@@ -816,7 +823,15 @@ namespace Antmicro.Renode.Peripherals.CAN
         [LeastSignificantByteFirst]
         private class MessageElement
         {
-            public uint StardardId { get => BitHelper.GetValue(Identifier, 18, 11); }
+            public uint StardardId
+            {
+                // Standard length IDs are stored in bits 18-29 of the Identifier field
+                get => BitHelper.GetValue(Identifier, 18, 11);
+                set
+                {
+                    Identifier = value << 18;
+                }
+            }
 
             public int DataLength
             {
