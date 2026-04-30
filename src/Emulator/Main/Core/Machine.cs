@@ -61,10 +61,9 @@ namespace Antmicro.Renode.Core
             SetLocalName(SystemBus, SystemBusName);
             gdbStubs = new Dictionary<int, GdbStub>();
 
-            invalidatedAddressesByCpu = new Dictionary<ICPU, List<long>>();
-            invalidatedAddressesByArchitecture = new Dictionary<string, List<long>>();
-            invalidatedAddressesLock = new object();
-            firstUnbroadcastedDirtyAddressIndex = new Dictionary<ICPU, int>();
+            dirtyPagesLock = new object();
+            dirtyPagesForConsumer = new Dictionary<ICPU, HashSet<long>>();
+            cpusNeedingFullFlush = new HashSet<ICPU>();
 
             if(createLocalTimeSource)
             {
@@ -277,36 +276,54 @@ namespace Antmicro.Renode.Core
 
         public long[] GetNewDirtyAddressesForCore(ICPU cpu)
         {
-            if(!firstUnbroadcastedDirtyAddressIndex.ContainsKey(cpu))
+            lock(dirtyPagesLock)
             {
-                throw new RecoverableException($"No entries for a cpu: {cpu.GetName()}. Was the cpu registered properly?");
-            }
+                if(!dirtyPagesForConsumer.ContainsKey(cpu))
+                {
+                    throw new RecoverableException($"No entries for a cpu: {cpu.GetName()}. Was the cpu registered properly?");
+                }
 
-            long[] newAddresses;
-            lock(invalidatedAddressesLock)
-            {
-                var firstUnsentIndex = firstUnbroadcastedDirtyAddressIndex[cpu];
-                var addressesCount = invalidatedAddressesByCpu[cpu].Count - firstUnsentIndex;
-                newAddresses = invalidatedAddressesByCpu[cpu].GetRange(firstUnsentIndex, addressesCount).ToArray();
-                firstUnbroadcastedDirtyAddressIndex[cpu] += addressesCount;
+                // If this CPU was halted while others wrote code pages,
+                // signal the caller to do a full TLB flush instead.
+                if(cpusNeedingFullFlush.Remove(cpu))
+                {
+                    dirtyPagesForConsumer[cpu].Clear();
+                    return null;
+                }
+
+                var pageSet = dirtyPagesForConsumer[cpu];
+                if(pageSet.Count == 0)
+                {
+                    return Array.Empty<long>();
+                }
+                var result = pageSet.ToArray();
+                pageSet.Clear();
+                return result;
             }
-            return newAddresses;
         }
 
         public void AppendDirtyAddresses(ICPU cpu, long[] addresses)
         {
-            if(!invalidatedAddressesByCpu.ContainsKey(cpu))
+            lock(dirtyPagesLock)
             {
-                throw new RecoverableException($"Invalid cpu: {cpu.GetName()}");
-            }
-
-            lock(invalidatedAddressesLock)
-            {
-                if(invalidatedAddressesByCpu[cpu].Count + addresses.Length > invalidatedAddressesByCpu[cpu].Capacity)
+                foreach(var entry in dirtyPagesForConsumer)
                 {
-                    TryReduceBroadcastedDirtyAddresses(cpu);
+                    var consumer = entry.Key;
+                    if(consumer == cpu || consumer.Architecture != cpu.Architecture)
+                    {
+                        continue;
+                    }
+                    if(consumer.IsHalted)
+                    {
+                        cpusNeedingFullFlush.Add(consumer);
+                        continue;
+                    }
+                    var pageSet = entry.Value;
+                    foreach(var addr in addresses)
+                    {
+                        pageSet.Add(addr);
+                    }
                 }
-                invalidatedAddressesByCpu[cpu].AddRange(addresses);
             }
         }
 
@@ -1670,12 +1687,10 @@ namespace Antmicro.Renode.Core
                         {
                             throw new RecoverableException($"{cpu.Model ?? "Unknown model"}: CPU architecture not provided");
                         }
-                        invalidatedAddressesByCpu.Remove(cpu);
-                        firstUnbroadcastedDirtyAddressIndex.Remove(cpu);
-
-                        if(!invalidatedAddressesByCpu.Any(pair => pair.Key.Architecture == cpu.Architecture))
+                        lock(dirtyPagesLock)
                         {
-                            invalidatedAddressesByArchitecture.Remove(cpu.Architecture);
+                            dirtyPagesForConsumer.Remove(cpu);
+                            cpusNeedingFullFlush.Remove(cpu);
                         }
                     }
 
@@ -1703,29 +1718,6 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        private void TryReduceBroadcastedDirtyAddresses(ICPU cpu)
-        {
-            var sameArchitectureCPUs = firstUnbroadcastedDirtyAddressIndex
-                .Where(pair => pair.Key.Architecture == cpu.Architecture)
-                .ToArray();
-
-            var firstUnread = sameArchitectureCPUs.Select(pair => pair.Value).Min();
-            if(firstUnread == 0)
-            {
-                var laggingCPUNames = sameArchitectureCPUs.Where(pair => pair.Value == 0).Select(pair => pair.Key.GetName());
-                cpu.DebugLog(
-                    "Attempted reduction of {0} dirty addresses list failed, current count: {1}, CPUs that didn't fetch any: {2}",
-                    cpu.Architecture, invalidatedAddressesByCpu[cpu].Count, string.Join(", ", laggingCPUNames));
-                return;
-            }
-
-            invalidatedAddressesByCpu[cpu].RemoveRange(0, (int)firstUnread);
-            foreach(var key in sameArchitectureCPUs.Select(pair => pair.Key))
-            {
-                firstUnbroadcastedDirtyAddressIndex[key] -= firstUnread;
-            }
-        }
-
         private void Register(IPeripheral peripheral, IRegistrationPoint registrationPoint, IPeripheral parent)
         {
             using(ObtainPausedState(true))
@@ -1745,8 +1737,10 @@ namespace Antmicro.Renode.Core
 
                         if(architecturesWithBroadcastSupport.Contains(cpu.Architecture))
                         {
-                            InitializeInvalidatedAddressesList(cpu);
-                            firstUnbroadcastedDirtyAddressIndex[cpu] = 0;
+                            lock(dirtyPagesLock)
+                            {
+                                dirtyPagesForConsumer[cpu] = new HashSet<long>();
+                            }
                         }
                     }
                     if(ownLife != null)
@@ -1832,18 +1826,6 @@ namespace Antmicro.Renode.Core
             return parents;
         }
 
-        private void InitializeInvalidatedAddressesList(ICPU cpu)
-        {
-            lock(invalidatedAddressesLock)
-            {
-                if(!invalidatedAddressesByArchitecture.TryGetValue(cpu.Architecture, out var invalidatedAddressesList))
-                {
-                    invalidatedAddressesList = new List<long>() { Capacity = InitialDirtyListLength };
-                    invalidatedAddressesByArchitecture.Add(cpu.Architecture, invalidatedAddressesList);
-                }
-                invalidatedAddressesByCpu[cpu] = invalidatedAddressesList;
-            }
-        }
 
         private bool wasDeserialized;
         private int currentStampLevel;
@@ -1867,11 +1849,11 @@ namespace Antmicro.Renode.Core
         private readonly object recorderPlayerLock = new object();
 
         private readonly BaseClockSource clockSource;
-        private readonly object invalidatedAddressesLock;
-        private readonly Dictionary<string, List<long>> invalidatedAddressesByArchitecture;
-        private readonly Dictionary<ICPU, List<long>> invalidatedAddressesByCpu;
-
-        private readonly Dictionary<ICPU, int> firstUnbroadcastedDirtyAddressIndex;
+        private readonly object dirtyPagesLock;
+        // Key: consumer CPU, Value: set of dirty page addresses it hasn't seen yet
+        private readonly Dictionary<ICPU, HashSet<long>> dirtyPagesForConsumer;
+        // CPUs that were halted when dirty pages were appended — need full TLB flush on resume
+        private readonly HashSet<ICPU> cpusNeedingFullFlush;
 
         /*
          *  Variables used for memory invalidation
@@ -1895,7 +1877,6 @@ namespace Antmicro.Renode.Core
         private readonly MultiTree<IPeripheral, IRegistrationPoint> registeredPeripherals;
         private readonly object disposedSync;
 
-        private const int InitialDirtyListLength = 1 << 16;
 
         private sealed class PausedState : IDisposable
         {

@@ -1704,6 +1704,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         private IntPtr GetDirty(IntPtr size)
         {
             var dirtyAddressesList = machine.GetNewDirtyAddressesForCore(this);
+
+            // null means this CPU was halted while others wrote code pages —
+            // do a full translation cache flush to ensure no stale translations.
+            if(dirtyAddressesList == null)
+            {
+                TlibInvalidateTranslationCache();
+                Marshal.WriteInt64(size, 0);
+                return dirtyAddressesPtr;
+            }
+
             var newAddressesCount = dirtyAddressesList.Length;
 
             if(newAddressesCount > 0)
