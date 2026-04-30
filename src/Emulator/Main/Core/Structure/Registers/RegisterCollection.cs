@@ -114,6 +114,35 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
     }
 
+    public static class RegisterCollectionExtensions
+    {
+        public static string[,] DumpRegister<T>(this IProvidesRegisterCollection<T> @this, long offset, bool allowSideEffects = false)
+            where T : IRegisterCollection
+        {
+            return @this.RegistersCollection.DumpRegister(offset, allowSideEffects);
+        }
+
+        public static string[,] DumpQuadWordRegister(this IProvidesRegisterCollection<QuadWordRegisterCollection> @this, long offset, bool allowSideEffects = false)
+        {
+            return @this.DumpRegister(offset, allowSideEffects);
+        }
+
+        public static string[,] DumpDoubleWordRegister(this IProvidesRegisterCollection<DoubleWordRegisterCollection> @this, long offset, bool allowSideEffects = false)
+        {
+            return @this.DumpRegister(offset, allowSideEffects);
+        }
+
+        public static string[,] DumpWordRegister(this IProvidesRegisterCollection<WordRegisterCollection> @this, long offset, bool allowSideEffects = false)
+        {
+            return @this.DumpRegister(offset, allowSideEffects);
+        }
+
+        public static string[,] DumpByteRegister(this IProvidesRegisterCollection<ByteRegisterCollection> @this, long offset, bool allowSideEffects = false)
+        {
+            return @this.DumpRegister(offset, allowSideEffects);
+        }
+    }
+
     public abstract class BaseRegisterCollection<T, R> : IRegisterCollection where R : PeripheralRegister, IPeripheralRegister<T> where T : struct
     {
         /// <summary>
@@ -488,6 +517,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
     public interface IRegisterCollection
     {
+        string[,] DumpRegister(long offset, bool allowSideEffects = false);
+
         void Reset();
 
         void RemoveBeforeReadHook(long offset);
