@@ -503,7 +503,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
             else
             {
-                messageElement.StardardId = message.Id;
+                messageElement.StandardId = message.Id;
             }
             messageElement.AcceptedNonMatchingFrame = nonMatchingFrame;
             messageElement.FilterIndex = (byte)filterIndex;
@@ -823,7 +823,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         [LeastSignificantByteFirst]
         private class MessageElement
         {
-            public uint StardardId
+            public uint StandardId
             {
                 // Standard length IDs are stored in bits 18-29 of the Identifier field
                 get => BitHelper.GetValue(Identifier, 18, 11);
