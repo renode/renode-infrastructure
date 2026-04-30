@@ -24,6 +24,10 @@ namespace Antmicro.Renode.UI
                 Logger.Log(LogLevel.Error, "Couldn't find the {0} executable", UIExecutableName);
                 return;
             }
+            if(RuntimeInfo.IsMacOS())
+            {
+                SignRenodeUI(path);
+            }
             process = new Process
             {
                 StartInfo = new ProcessStartInfo { FileName = path, ArgumentList = { "--renode-port=" + port.ToString() } },
@@ -45,6 +49,19 @@ namespace Antmicro.Renode.UI
         }
 
         public event Action WindowClosed;
+
+        private static void SignRenodeUI(string path)
+        {
+            using(var proc = new Process
+            {
+                StartInfo = new ProcessStartInfo { FileName = "codesign", ArgumentList = { "--sign", "-", "--force", path } },
+                EnableRaisingEvents = true
+            })
+            {
+                proc.Start();
+                proc.WaitForExit();
+            }
+        }
 
         private static bool TryUIPath(string prefix, out string path)
         {
