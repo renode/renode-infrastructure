@@ -53,41 +53,20 @@ namespace Antmicro.Renode.Peripherals.Timers
                     enableRequested = false;
                 }
 
-                Limit = autoReloadValue;
-
-                for(var i = 0; i < NumberOfCCChannels; ++i)
+                if(repetitionsLeft == 0)
                 {
-                    UpdateCaptureCompareTimer(i);
-                    if(!ccTimers[i].Enabled)
-                    {
-                        continue;
-                    }
+                    GenerateUpdateEvent();
 
-                    switch(outputCompareModes[i].Value)
-                    {
-                    case OutputCompareMode.PwmMode1:
-                        Connections[i].Set();
-                        break;
-                    case OutputCompareMode.PwmMode2:
-                        Connections[i].Unset();
-                        break;
-                    }
-                }
-
-                if(updateInterruptEnable.Value && repetitionsLeft == 0)
-                {
                     // 2 of central-aligned modes should raise IRQ only on overflow/underflow, hence it happens 2 times less often
                     var centerAlignedUnbalancedMode = (centerAlignedMode.Value == CenterAlignedMode.CenterAligned1) || (centerAlignedMode.Value == CenterAlignedMode.CenterAligned2);
-                    this.Log(LogLevel.Noisy, "IRQ pending");
-                    updateInterruptFlag = true;
-                    repetitionsLeft = 1u + (uint)repetitionCounter.Value * (centerAlignedUnbalancedMode ? 2u : 1u);
-                    UpdateInterrupts();
+                    repetitionsLeft = (uint)repetitionCounter.Value * (centerAlignedUnbalancedMode ? 2u : 1u);
                 }
-
-                if(repetitionsLeft > 0)
+                else
                 {
                     repetitionsLeft--;
                 }
+                
+                UpdateTRGO();
             };
 
             for(var i = 0; i < NumberOfCCChannels; ++i)
@@ -99,14 +78,16 @@ namespace Antmicro.Renode.Peripherals.Timers
                     switch(outputCompareModes[j].Value)
                     {
                     case OutputCompareMode.SetActiveOnMatch:
-                        Connections[j].Blink(); // high pulse
+                        Connections[j].Set();
                         break;
                     case OutputCompareMode.SetInactiveOnMatch:
                         Connections[j].Unset();
-                        Connections[j].Set(); // low pulse
                         break;
                     case OutputCompareMode.ToggleOnMatch:
                         Connections[j].Toggle();
+                        break;
+                    case OutputCompareMode.Frozen:
+                        // Special case: even if frozen, some master modes trigger TRGO on match
                         break;
                     case OutputCompareMode.PwmMode1:
                         Connections[j].Unset();
@@ -122,6 +103,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                         this.Log(LogLevel.Noisy, "cctimer{0}: Compare IRQ pending", j + 1);
                         UpdateInterrupts();
                     }
+
+                    if(j == 0)
+                    {
+                        PulseTRGOIfModeIs(MasterMode.ComparePulse);
+                    }
+                    UpdateTRGO();
                 };
             }
 
@@ -148,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(1, 1)
                     .WithTaggedFlag("CCUS", 2)
                     .WithTaggedFlag("CCDS", 3)
-                    .WithTag("MMS", 4, 2)
+                    .WithEnumField(4, 3, out masterMode, name: "MMS")
                     .WithTaggedFlag("TI1S", 7)
                     .WithTaggedFlag("OIS1", 8)
                     .WithTaggedFlag("OIS1N", 9)
@@ -158,17 +145,22 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithTaggedFlag("OIS3N", 13)
                     .WithTaggedFlag("OIS4", 14)
                     .WithReservedBits(15, 17)
+                    .WithWriteCallback((_, __) => UpdateTRGO())
                 },
                 {(long)Registers.SlaveModeControl, new DoubleWordRegister(this)
-                    .WithTag("SMS", 0, 3)
+                    .WithValueField(0, 3, out slaveModeLSB, name: "SMS[2:0]")
                     .WithTaggedFlag("OCCS", 3)
-                    .WithTag("TS", 4, 2)
+                    .WithValueField(4, 3, out triggerSourceLSB, name: "TS[2:0]")
                     .WithTaggedFlag("MSM", 7)
-                    .WithTag("ETF", 8, 3)
+                    .WithTag("ETF", 8, 4)
                     .WithTag("ETPS", 12, 2)
                     .WithTaggedFlag("ECE", 14)
                     .WithTaggedFlag("ETP", 15)
-                    .WithReservedBits(16, 16)
+                    .WithFlag(16, out slaveModeMSB, name: "SMS[3]")
+                    .WithReservedBits(17, 3)
+                    .WithValueField(20, 2, out triggerSourceMSB, name: "TS[4:3]")
+                    .WithReservedBits(22, 10)
+                    .WithWriteCallback((_, __) => UpdateSlaveSubscription())
                 },
                 {(long)Registers.DmaOrInterruptEnable, new DoubleWordRegister(this)
                     .WithFlag(0, out updateInterruptEnable, name: "Update interrupt enable (UIE)")
@@ -228,29 +220,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             return;
                         }
-                        if(Direction == Direction.Ascending)
-                        {
-                            Value = 0;
-                        }
-                        else if(Direction == Direction.Descending)
-                        {
-                            Value = autoReloadValue;
-                        }
-
-                        repetitionsLeft = (uint)repetitionCounter.Value;
-
-                        if(!updateRequestSource.Value && updateInterruptEnable.Value)
-                        {
-                            this.Log(LogLevel.Noisy, "IRQ pending");
-                            updateInterruptFlag = true;
-                        }
-                        for(var i = 0; i < NumberOfCCChannels; ++i)
-                        {
-                            if(ccTimers[i].Enabled)
-                            {
-                                ccTimers[i].Value = Value;
-                            }
-                        }
+                        ReinitializeCounter();
+                        GenerateUpdateEvent(!updateRequestSource.Value);
                     }, name: "Update generation (UG)")
                     .WithTag("Capture/compare 1 generation (CC1G)", 1, 1)
                     .WithTag("Capture/compare 2 generation (CC2G)", 2, 1)
@@ -404,6 +375,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
 
             registers = new DoubleWordRegisterCollection(this, registersMap);
+            itrReceiver.Parent = this;
             Reset();
         }
 
@@ -458,6 +430,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 Connections[i].Unset();
             }
             UpdateInterrupts();
+            UpdateSlaveSubscription();
         }
 
         [DefaultInterrupt]
@@ -469,22 +442,82 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO TriggerInterrupt { get; } = new GPIO();
 
+        public GPIO TRGO { get; } = new GPIO();
+ 
         public GPIO CommutationInterrupt { get; } = new GPIO();
-
+ 
         public GPIO CaptureCompareInterrupt { get; } = new GPIO();
+
+        public STM32_TimerTriggerMatrix TriggerMatrix
+        {
+            get => triggerMatrix;
+            set
+            {
+                triggerMatrix = value;
+                UpdateSlaveSubscription();
+            }
+        }
 
         public IReadOnlyDictionary<int, IGPIO> Connections => connections;
 
         public long Size => 0x400;
 
+        private bool IsChannelNeededForTRGO(int i)
+        {
+            if(masterMode.Value >= MasterMode.CompareOC1 && masterMode.Value <= MasterMode.CompareOC4)
+            {
+                return (int)masterMode.Value - (int)MasterMode.CompareOC1 == i;
+            }
+            if(masterMode.Value == MasterMode.ComparePulse)
+            {
+                return i == 0;
+            }
+            return false;
+        }
+
         private void UpdateCaptureCompareTimer(int i)
         {
-            ccTimers[i].Enabled = Enabled && IsInterruptOrOutputEnabled(i) && Value < ccTimers[i].Limit;
+            var channelNeeded = IsInterruptOrOutputEnabled(i) || IsChannelNeededForTRGO(i);
+            ccTimers[i].Enabled = Enabled && channelNeeded && Value < ccTimers[i].Limit;
             if(ccTimers[i].Enabled)
             {
                 ccTimers[i].Value = Value;
             }
             ccTimers[i].Direction = Direction;
+
+            if(Enabled && outputCompareModes[i] != null)
+            {
+                switch(outputCompareModes[i].Value)
+                {
+                case OutputCompareMode.PwmMode1:
+                    if(Value < ccTimers[i].Limit)
+                    {
+                        Connections[i].Set();
+                    }
+                    else
+                    {
+                        Connections[i].Unset();
+                    }
+                    break;
+                case OutputCompareMode.PwmMode2:
+                    if(Value < ccTimers[i].Limit)
+                    {
+                        Connections[i].Unset();
+                    }
+                    else
+                    {
+                        Connections[i].Set();
+                    }
+                    break;
+                case OutputCompareMode.ForceActive:
+                    Connections[i].Set();
+                    break;
+                case OutputCompareMode.ForceInactive:
+                    Connections[i].Unset();
+                    break;
+                }
+            }
+            UpdateTRGO();
         }
 
         private void UpdateCaptureCompareTimers()
@@ -540,6 +573,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 Connections[i].Set();
                 break;
             }
+            UpdateCaptureCompareTimer(i);
         }
 
         private void ClaimCaptureCompareInterrupt(int i, bool value)
@@ -567,12 +601,174 @@ namespace Antmicro.Renode.Peripherals.Timers
             TriggerInterrupt.Set(false);
             CommutationInterrupt.Set(false);
             CaptureCompareInterrupt.Set(ccIrq);
+            UpdateTRGO();
+        }
+
+        private void UpdateSlaveSubscription()
+        {
+            if(triggerMatrix == null)
+            {
+                return;
+            }
+
+            if(currentSubscribedItr != null)
+            {
+                currentSubscribedItr.Disconnect(new GPIOEndpoint(itrReceiver, 0));
+                currentSubscribedItr = null;
+            }
+
+            if(CurrentSlaveMode != SlaveMode.Disabled)
+            {
+                currentSubscribedItr = triggerMatrix.GetITR(CurrentTriggerSource);
+                if(currentSubscribedItr != null)
+                {
+                    this.Log(LogLevel.Noisy, "Subscribing to matrix line {0}", CurrentTriggerSource);
+                    currentSubscribedItr.Connect(itrReceiver, 0);
+                }
+                else
+                {
+                    this.Log(LogLevel.Warning, "No matrix mapping for ITR source {0}", CurrentTriggerSource);
+                }
+            }
+        }
+
+        private void OnITR(bool value)
+        {
+            this.Log(LogLevel.Noisy, "ITR signal received: {0}", value);
+            if(!value)
+            {
+                // We only support rising edge triggers for now
+                return;
+            }
+
+            switch(CurrentSlaveMode)
+            {
+            case SlaveMode.Reset:
+                this.Log(LogLevel.Noisy, "Slave reset received");
+                ReinitializeCounter();
+                GenerateUpdateEvent();
+                break;
+            case SlaveMode.Trigger:
+                if(!Enabled)
+                {
+                    this.Log(LogLevel.Info, "Slave trigger received: starting timer. TIM_CNT={0}", Value);
+                    enableRequested = true;
+                    Enabled = autoReloadValue > 0;
+                }
+                break;
+            case SlaveMode.CombinedResetTrigger:
+                ReinitializeCounter();
+                GenerateUpdateEvent();
+                if(!Enabled)
+                {
+                    enableRequested = true;
+                    Enabled = autoReloadValue > 0;
+                }
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Slave Mode {0} is not supported", CurrentSlaveMode);
+                break;
+            }
+        }
+
+        private void GenerateUpdateEvent(bool setInterruptFlag = true)
+        {
+            if(setInterruptFlag && updateInterruptEnable.Value)
+            {
+                this.Log(LogLevel.Noisy, "IRQ pending");
+                updateInterruptFlag = true;
+            }
+
+            PulseTRGOIfModeIs(MasterMode.Update);
+            UpdateInterrupts();
+
+            // Register update logic (shadow registers)
+            Limit = autoReloadValue;
+            for(var i = 0; i < NumberOfCCChannels; ++i)
+            {
+                UpdateCaptureCompareTimer(i);
+                if(!ccTimers[i].Enabled)
+                {
+                    continue;
+                }
+
+                switch(outputCompareModes[i].Value)
+                {
+                case OutputCompareMode.PwmMode1:
+                    Connections[i].Set();
+                    break;
+                case OutputCompareMode.PwmMode2:
+                    Connections[i].Unset();
+                    break;
+                }
+            }
+        }
+
+        private void ReinitializeCounter()
+        {
+            if(Direction == Direction.Ascending)
+            {
+                Value = 0;
+            }
+            else if(Direction == Direction.Descending)
+            {
+                Value = autoReloadValue;
+            }
+
+            var centerAlignedUnbalancedMode = (centerAlignedMode.Value == CenterAlignedMode.CenterAligned1) || (centerAlignedMode.Value == CenterAlignedMode.CenterAligned2);
+            repetitionsLeft = (uint)repetitionCounter.Value * (centerAlignedUnbalancedMode ? 2u : 1u);
+
+            for(var i = 0; i < NumberOfCCChannels; ++i)
+            {
+                if(ccTimers[i].Enabled)
+                {
+                    ccTimers[i].Value = Value;
+                }
+            }
+            PulseTRGOIfModeIs(MasterMode.Reset);
+        }
+
+        private void PulseTRGOIfModeIs(MasterMode mode)
+        {
+            if(masterMode.Value == mode)
+            {
+                TRGO.Blink();
+            }
+        }
+
+        private void UpdateTRGO()
+        {
+            switch(masterMode.Value)
+            {
+            case MasterMode.Enable:
+                TRGO.Set(Enabled);
+                break;
+            case MasterMode.CompareOC1:
+            case MasterMode.CompareOC2:
+            case MasterMode.CompareOC3:
+            case MasterMode.CompareOC4:
+                var channel = (int)masterMode.Value - (int)MasterMode.CompareOC1;
+                var channelState = ((GPIO)Connections[channel]).IsSet;
+                TRGO.Set(channelState);
+                break;
+            case MasterMode.Reset:
+            case MasterMode.Update:
+            case MasterMode.ComparePulse:
+                // Pulse-based modes are handled at the event site.
+                break;
+            default:
+                this.Log(LogLevel.Warning, "Master Mode {0} is not supported", masterMode.Value);
+                break;
+            }
         }
 
         private uint autoReloadValue;
         private uint repetitionsLeft;
         private bool updateInterruptFlag;
         private bool enableRequested;
+        private IGPIO currentSubscribedItr;
+        private STM32_TimerTriggerMatrix triggerMatrix;
+        private readonly ITRReceiver itrReceiver = new ITRReceiver();
         private readonly bool[] ccInterruptFlag = new bool[NumberOfCCChannels];
         private readonly bool[] ccInterruptEnable = new bool[NumberOfCCChannels];
         private readonly bool[] ccOutputEnable = new bool[NumberOfCCChannels];
@@ -583,7 +779,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IFlagRegisterField updateRequestSource;
         private readonly IFlagRegisterField updateInterruptEnable;
         private readonly IFlagRegisterField autoReloadPreloadEnable;
+        private readonly IEnumRegisterField<MasterMode> masterMode;
         private readonly IEnumRegisterField<CenterAlignedMode> centerAlignedMode;
+        private readonly IValueRegisterField slaveModeLSB;
+        private readonly IFlagRegisterField slaveModeMSB;
+        private readonly IValueRegisterField triggerSourceLSB;
+        private readonly IValueRegisterField triggerSourceMSB;
         private readonly IValueRegisterField repetitionCounter;
         private readonly DoubleWordRegisterCollection registers;
         private readonly IEnumRegisterField<OutputCompareMode>[] outputCompareModes = new IEnumRegisterField<OutputCompareMode>[NumberOfCCChannels];
@@ -591,6 +792,9 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IMachine machine;
         private readonly IBusController sysbus;
         private readonly Dictionary<int, IGPIO> connections;
+
+        private SlaveMode CurrentSlaveMode => (SlaveMode)(slaveModeLSB.Value | (slaveModeMSB.Value ? 1u << 3 : 0u));
+        private int CurrentTriggerSource => (int)(triggerSourceLSB.Value | (triggerSourceMSB.Value << 3));
 
         private const int NumberOfCCChannels = 4;
 
@@ -604,6 +808,31 @@ namespace Antmicro.Renode.Peripherals.Timers
             CenterAligned1 = 1,   // Up and down alternatively, compare interrupt flag set only when counting down
             CenterAligned2 = 2,   // Up and down alternatively, compare interrupt flag set only when counting up
             CenterAligned3 = 3,   // Up and down alternatively, compare interrupt flag set on both up/down counting
+        }
+
+        private enum MasterMode
+        {
+            Reset        = 0,
+            Enable       = 1,
+            Update       = 2,
+            ComparePulse = 3,
+            CompareOC1   = 4,
+            CompareOC2   = 5,
+            CompareOC3   = 6,
+            CompareOC4   = 7,
+        }
+
+        private enum SlaveMode
+        {
+            Disabled       = 0,
+            Encoder1       = 1,
+            Encoder2       = 2,
+            Encoder3       = 3,
+            Reset          = 4,
+            Gated          = 5,
+            Trigger        = 6,
+            ExternalClock1 = 7,
+            CombinedResetTrigger = 8,
         }
 
         private enum OutputCompareMode
@@ -654,6 +883,17 @@ namespace Antmicro.Renode.Peripherals.Timers
             DmaControl = 0x48,
             DmaAddressForFullTransfer = 0x4C,
             Option = 0x50
+        }
+        private class ITRReceiver : IGPIOReceiver
+        {
+            public void OnGPIO(int number, bool value)
+            {
+                Parent?.OnITR(value);
+            }
+
+            public void Reset() { }
+
+            public STM32_Timer Parent { get; set; }
         }
     }
 }

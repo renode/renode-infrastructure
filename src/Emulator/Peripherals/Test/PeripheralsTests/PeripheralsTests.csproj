@@ -58,6 +58,7 @@
     <Compile Include="Cadence_UARTTests.cs" />
     <Compile Include="EFR32_I2CControllerTests.cs" />
     <Compile Include="FT5336Test.cs" />
+    <Compile Include="STM32_TimerTests.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
