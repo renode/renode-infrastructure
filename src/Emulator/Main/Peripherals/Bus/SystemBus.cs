@@ -1275,7 +1275,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 AddMappingsForPeripheral(peripheral, newRegistration, context);
             }
 
-            if(peripheral is ArrayMemory)
+            if(peripheral is IExecutableIO)
             {
                 foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(context))
                 {

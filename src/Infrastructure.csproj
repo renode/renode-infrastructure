@@ -2024,6 +2024,7 @@
     <Compile Include="Emulator/Extensions/UserInterface/DeviceHelper.cs" />
     <Compile Include="Emulator/Extensions/UserInterface/Commands/SetAndRevertAfterCommand.cs" />
     <Compile Include="Emulator/Peripherals/Peripherals/CAN/STM32_FDCAN.cs" />
+    <Compile Include="Emulator/Main/Peripherals/IExecutableIO.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Emulator/Main/Peripherals/Bus/SystemBusGenerated.tt">

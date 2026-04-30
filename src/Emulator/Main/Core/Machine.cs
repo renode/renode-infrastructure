@@ -1038,7 +1038,7 @@ namespace Antmicro.Renode.Core
             // Register io_executable flags for all ArrayMemory peripherals
             foreach(var context in SystemBus.GetAllContextKeys())
             {
-                foreach(var registration in SystemBus.GetRegistrationsForPeripheralType<Peripherals.Memory.ArrayMemory>(context))
+                foreach(var registration in SystemBus.GetRegistrationsForPeripheralType<IExecutableIO>(context))
                 {
                     var range = registration.RegistrationPoint.Range;
                     var perCore = registration.RegistrationPoint.Initiator;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -16,7 +16,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Memory
 {
-    public class ArrayMemory : IMemory, ICanLoadFiles, IEndiannessAware
+    public class ArrayMemory : IExecutableIO, ICanLoadFiles, IEndiannessAware
     {
         public ArrayMemory(byte[] source)
         {
