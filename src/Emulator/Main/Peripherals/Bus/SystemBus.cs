@@ -1275,7 +1275,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 AddMappingsForPeripheral(peripheral, newRegistration, context);
             }
 
-            if(peripheral is ArrayMemory)
+            if(!(peripheral is IMapped))
             {
                 foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(context))
                 {
@@ -2069,6 +2069,16 @@ namespace Antmicro.Renode.Peripherals.Bus
                 });
                 // let's add new mappings
                 AddMappingsForPeripheral(peripheral, registrationPoint, context);
+                // For non-IMapped peripherals, mark the range as executable I/O so that
+                // instruction fetches go through I/O callbacks instead of causing cpu_abort.
+                if(!(peripheral is IMapped))
+                {
+                    foreach(var cpu in GetCPUsForContext<ICPUWithMappedMemory>(context))
+                    {
+                        var range = registrationPoint.Range;
+                        cpu.RegisterAccessFlags(range.StartAddress, range.Size, isIoMemory: true);
+                    }
+                }
                 // After adding new mappings, if the address range is locked, the mappings possibly have to be modified/unmapped on the CPU's side
                 // RelockRange to make this happen
                 if(IsAddressRangeLocked(registrationPoint.Range, context))
