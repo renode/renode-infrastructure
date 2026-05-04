@@ -40,6 +40,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             receiveBuffer = new CircularBuffer<byte>(bufferCapacity);
             IRQ = new GPIO();
             DMARecieve = new GPIO();
+            DMASend = new GPIO();
             registers = new DoubleWordRegisterCollection(this);
             SetupRegisters();
             Reset();
@@ -95,6 +96,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             IRQ.Unset();
             DMARecieve.Unset();
+            DMASend.Unset();
             lock(receiveBuffer)
             {
                 receiveBuffer.Clear();
@@ -113,6 +115,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         public GPIO IRQ { get; }
 
         public GPIO DMARecieve { get; }
+
+        public GPIO DMASend { get; }
 
         private uint HandleDataRead()
         {
@@ -134,6 +138,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private void HandleDataWrite(uint value)
         {
             IRQ.Unset();
+            DMASend.Set(false);
             lock(receiveBuffer)
             {
                 var peripheral = RegisteredPeripheral;
@@ -161,6 +166,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                     DMARecieve.Blink();
                 }
                 this.NoisyLog("Transmitted 0x{0:X}, received 0x{1:X}.", value, response);
+            }
+            if(txDmaEnable.Value)
+            {
+                // This function might be called from the DMA engine after setting DMASend so let's
+                // defer the next call to avoid infinite recursive call
+                Machine.LocalTimeSource.ExecuteInNearestSyncedState((___) => DMASend.Set(true));
             }
             Update();
         }
@@ -209,9 +220,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                     {
                         IRQ.Unset();
                     }
-                    else if(!masterMode.Value)
+                    else
                     {
-                        this.Log(LogLevel.Error, "Enabled SPI in slave mode, which is not supported.");
+                        if(!masterMode.Value)
+                        {
+                            this.Log(LogLevel.Error, "Enabled SPI in slave mode, which is not supported.");
+                        }
+                        DMASend.Set(txDmaEnable.Value);
                     }
                 }, name: "SpiEnable")
                 .WithFlag(7, name: "LSBFIRST") // Physical
@@ -227,7 +242,10 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             Registers.Control2.Define(registers)
                 .WithFlag(0, out rxDmaEnable, name: "RXDMAEN")
-                .WithFlag(1, name: "TXDMAEN")
+                .WithFlag(1, out txDmaEnable, writeCallback: (_, value) =>
+                {
+                    DMASend.Set(value);
+                }, name: "TXDMAEN")
                 .WithTaggedFlag("SSOE", 2)
                 .If(series == STM32Series.L5)
                     .Then(reg => reg
@@ -320,6 +338,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         }
 
         private IFlagRegisterField txBufferEmptyInterruptEnable, rxBufferNotEmptyInterruptEnable, rxDmaEnable;
+        private IFlagRegisterField txDmaEnable;
         private IFlagRegisterField masterMode;
         private IFlagRegisterField overrun;
         private IFlagRegisterField errorInterruptEnable;
