@@ -107,7 +107,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             var returnValue = 0u;
             for(var i = 0; i < channels.Length; i++)
             {
-                returnValue |= channels[i].IRQ.IsSet ? (3u << i * 4) : 0u;
+                returnValue |= channels[i].IRQ.IsSet ? (1u << i * 4) : 0u;
+                returnValue |= channels[i].TransferComplete ? (1u << (i * 4 + 1)) : 0u;
             }
             return returnValue;
         }
@@ -116,11 +117,15 @@ namespace Antmicro.Renode.Peripherals.DMA
         {
             for(var i = 0; i < channels.Length; i++)
             {
-                var ourBit1 = 4 * i;
-                var ourBit2 = ourBit1 + 1;
-                if((value & (1 << ourBit1)) != 0 || (value & (1 << ourBit2)) != 0)
+                var ourClearGlobal = 4 * i;
+                var ourClearTransferComplete = ourClearGlobal + 1;
+                if((value & (1 << ourClearGlobal)) != 0)
                 {
                     channels[i].ClearInterrupt();
+                }
+                if((value & (1 << ourClearTransferComplete)) != 0)
+                {
+                    channels[i].TransferComplete = false;
                 }
             }
         }
@@ -182,12 +187,11 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public void ClearInterrupt()
             {
-                IRQ.Unset();
+                TransferComplete = false;
             }
 
             public void Reset()
             {
-                IRQ.Unset();
                 peripheralIncrement = false;
                 peripheralAddress = 0u;
                 memoryAddress = 0u;
@@ -202,6 +206,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 direction = 0;
                 circularMode = false;
                 halfTransferInterrupt = false;
+
+                TransferComplete = false;
             }
 
             public void DoTransfer()
@@ -256,10 +262,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 numberOfData--;
                 if(numberOfData == 0)
                 {
-                    if(completeInterruptEnabled)
-                    {
-                        IRQ.Set();
-                    }
+                    TransferComplete = true;
                     if(circularMode)
                     {
                         numberOfData = initialNumberOfData;
@@ -278,6 +281,16 @@ namespace Antmicro.Renode.Peripherals.DMA
             }
 
             public GPIO IRQ { get; private set; }
+
+            public bool TransferComplete
+            {
+                get => transferComplete;
+                set
+                {
+                    transferComplete = value;
+                    UpdateInterrupts();
+                }
+            }
 
             private uint HandleConfigurationRead()
             {
@@ -347,12 +360,17 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return size < 3;
             }
 
+            private void UpdateInterrupts()
+            {
+                var transferCompleteInterrupt = TransferComplete && completeInterruptEnabled;
+
+                IRQ.Set(transferCompleteInterrupt);
+            }
+
             private Direction direction;
             private byte priority;
             private uint numberOfData;
             private uint initialNumberOfData;
-            private bool transferErrorInterruptEnabled;
-            private bool completeInterruptEnabled;
             private TransferType memoryTransferType;
             private uint memoryAddress;
             private uint peripheralAddress;
@@ -360,6 +378,11 @@ namespace Antmicro.Renode.Peripherals.DMA
             private bool circularMode;
             private bool halfTransferInterrupt;
             private bool enabled;
+
+            // Status & IRQs
+            private bool transferComplete;
+            private bool completeInterruptEnabled;
+            private bool transferErrorInterruptEnabled;
 
             private bool memoryIncrement;
             private TransferType peripheralTransferType;
