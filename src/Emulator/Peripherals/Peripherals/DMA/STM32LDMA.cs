@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 case Offset.Configuration:
                     return HandleConfigurationRead();
                 case Offset.NumberOfData:
-                    return (uint)numberOfData;
+                    return numberOfData;
                 case Offset.PeripheralAddress:
                     return peripheralAddress;
                 case Offset.MemoryAddress:
@@ -165,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     HandleConfigurationWrite(value);
                     break;
                 case Offset.NumberOfData:
-                    numberOfData = (int)value;
+                    numberOfData = value;
                     break;
                 case Offset.PeripheralAddress:
                     peripheralAddress = value;
@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     destinationTransferType = memoryTransferType;
                 }
 
-                var request = new Request(sourceAddress, destinationAddress, numberOfData * (int)sourceTransferType, sourceTransferType, destinationTransferType,
+                var request = new Request(sourceAddress, destinationAddress, (int)numberOfData * (int)sourceTransferType, sourceTransferType, destinationTransferType,
                                   incrementSourceAddress, incrementDestinationAddress);
                 parent.engine.IssueCopy(request);
                 if(completeInterruptEnabled)
@@ -321,7 +321,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private Direction direction;
             private byte priority;
-            private int numberOfData;
+            private uint numberOfData;
             private bool transferErrorInterruptEnabled;
             private bool completeInterruptEnabled;
             private TransferType memoryTransferType;
