@@ -362,7 +362,8 @@ namespace Antmicro.Renode.Backends.Display
         {
             if(swap)
             {
-                f = (a, b) => f(a, b).RedBlueSwapped;
+                var origF = f;
+                f = (a, b) => origF(a, b).RedBlueSwapped;
             }
             if(endianess == Endianess.BigEndian)
             {
@@ -375,7 +376,8 @@ namespace Antmicro.Renode.Backends.Display
         {
             if(swap)
             {
-                f = (a, b, c) => f(a, b, c).RedBlueSwapped;
+                var origF = f;
+                f = (a, b, c) => origF(a, b, c).RedBlueSwapped;
             }
             if(endianess == Endianess.BigEndian)
             {
@@ -388,7 +390,8 @@ namespace Antmicro.Renode.Backends.Display
         {
             if(swap)
             {
-                f = (a, b, c, d) => f(a, b, c, d).RedBlueSwapped;
+                var origF = f;
+                f = (a, b, c, d) => origF(a, b, c, d).RedBlueSwapped;
             }
             if(endianess == Endianess.BigEndian)
             {
@@ -431,7 +434,8 @@ namespace Antmicro.Renode.Backends.Display
         {
             if(swap)
             {
-                f = p => f(p.RedBlueSwapped);
+                var origF = f;
+                f = p => origF(p.RedBlueSwapped);
             }
             if(endianess == Endianess.BigEndian)
             {
@@ -454,7 +458,8 @@ namespace Antmicro.Renode.Backends.Display
         {
             if(swap)
             {
-                f = p => f(p.RedBlueSwapped);
+                var origF = f;
+                f = p => origF(p.RedBlueSwapped);
             }
             if(endianess == Endianess.BigEndian)
             {
@@ -479,7 +484,8 @@ namespace Antmicro.Renode.Backends.Display
         {
             if(swap)
             {
-                f = p => f(p.RedBlueSwapped);
+                var origF = f;
+                f = p => origF(p.RedBlueSwapped);
             }
             if(endianess == Endianess.BigEndian)
             {
