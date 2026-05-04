@@ -109,6 +109,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 returnValue |= channels[i].IRQ.IsSet ? (1u << i * 4) : 0u;
                 returnValue |= channels[i].TransferComplete ? (1u << (i * 4 + 1)) : 0u;
+                returnValue |= channels[i].HalfTransfer ? (1u << (i * 4 + 2)) : 0u;
             }
             return returnValue;
         }
@@ -119,6 +120,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 var ourClearGlobal = 4 * i;
                 var ourClearTransferComplete = ourClearGlobal + 1;
+                var ourClearHalfTransfer = ourClearTransferComplete + 1;
                 if((value & (1 << ourClearGlobal)) != 0)
                 {
                     channels[i].ClearInterrupt();
@@ -126,6 +128,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 if((value & (1 << ourClearTransferComplete)) != 0)
                 {
                     channels[i].TransferComplete = false;
+                }
+                if((value & (1 << ourClearHalfTransfer)) != 0)
+                {
+                    channels[i].HalfTransfer = false;
                 }
             }
         }
@@ -188,6 +194,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             public void ClearInterrupt()
             {
                 TransferComplete = false;
+                HalfTransfer = false;
             }
 
             public void Reset()
@@ -205,9 +212,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 priority = 0;
                 direction = 0;
                 circularMode = false;
-                halfTransferInterrupt = false;
+                halfTransferInterruptEnabled = false;
 
                 TransferComplete = false;
+                HalfTransfer = false;
             }
 
             public void DoTransfer()
@@ -268,6 +276,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                         numberOfData = initialNumberOfData;
                     }
                 }
+                else if(numberOfData == initialNumberOfData / 2)
+                {
+                    HalfTransfer = true;
+                }
             }
 
             public void OnGPIO(bool value)
@@ -292,12 +304,22 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            public bool HalfTransfer
+            {
+                get => halfTransfer;
+                set
+                {
+                    halfTransfer = value;
+                    UpdateInterrupts();
+                }
+            }
+
             private uint HandleConfigurationRead()
             {
                 var returnValue = 0u;
                 returnValue = enabled ? 1u : 0u;
                 returnValue |= completeInterruptEnabled ? (1u << 1) : 0u;
-                returnValue |= halfTransferInterrupt ? (1u << 2) : 0u;
+                returnValue |= halfTransferInterruptEnabled ? (1u << 2) : 0u;
                 returnValue |= transferErrorInterruptEnabled ? (1u << 3) : 0u;
                 returnValue |= ((uint)direction) << 4;
                 returnValue |= circularMode ? (1u << 5) : 0u;
@@ -311,11 +333,9 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private void HandleConfigurationWrite(uint value)
             {
-                bool previousHalfTransferInterrupt = halfTransferInterrupt;
-
                 enabled = (value & 1) != 0;
                 completeInterruptEnabled = (value & (1 << 1)) != 0;
-                halfTransferInterrupt = (value & (1 << 2)) != 0;
+                halfTransferInterruptEnabled = (value & (1 << 2)) != 0;
                 transferErrorInterruptEnabled = (value & (1 << 3)) != 0;
                 direction = (Direction)((value >> 4) & 1);
                 circularMode = (value & (1 << 5)) != 0;
@@ -327,10 +347,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 if((value & ~0x3FFF) != 0)
                 {
                     parent.Log(LogLevel.Warning, "Channel {0}: some unhandled bits were written to configuration register. Value is 0x{1:X}.", channelNo, value);
-                }
-                if(halfTransferInterrupt && !previousHalfTransferInterrupt)
-                {
-                    parent.Log(LogLevel.Warning, "Channel {0}: half transfer interrupt not supported.", channelNo);
                 }
             }
 
@@ -363,8 +379,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             private void UpdateInterrupts()
             {
                 var transferCompleteInterrupt = TransferComplete && completeInterruptEnabled;
+                var halfTransferInterrupt = HalfTransfer && halfTransferInterruptEnabled;
 
-                IRQ.Set(transferCompleteInterrupt);
+                IRQ.Set(transferCompleteInterrupt || halfTransferInterrupt);
             }
 
             private Direction direction;
@@ -376,13 +393,14 @@ namespace Antmicro.Renode.Peripherals.DMA
             private uint peripheralAddress;
             private bool peripheralIncrement;
             private bool circularMode;
-            private bool halfTransferInterrupt;
             private bool enabled;
 
             // Status & IRQs
             private bool transferComplete;
             private bool completeInterruptEnabled;
             private bool transferErrorInterruptEnabled;
+            private bool halfTransfer;
+            private bool halfTransferInterruptEnabled;
 
             private bool memoryIncrement;
             private TransferType peripheralTransferType;
