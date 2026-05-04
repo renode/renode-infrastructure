@@ -417,7 +417,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithFlag(1, out endOfSamplingFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "EOSMP")
                 .WithFlag(2, out endOfConversionFlag, FieldMode.Read | FieldMode.WriteOneToClear,  writeCallback: (_, val) =>
                     {
-                        if(val)
+                        if(val && sequenceInProgress)
                         {
                             // Clearing the End Of Conversion flag triggers next conversion
                             // This function call must be delayed to avoid deadlock on registers access
