@@ -166,6 +166,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     break;
                 case Offset.NumberOfData:
                     numberOfData = value;
+                    initialNumberOfData = numberOfData;
                     break;
                 case Offset.PeripheralAddress:
                     peripheralAddress = value;
@@ -196,6 +197,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 completeInterruptEnabled = false;
                 transferErrorInterruptEnabled = false;
                 numberOfData = 0;
+                initialNumberOfData = 0;
                 priority = 0;
                 direction = 0;
                 circularMode = false;
@@ -207,6 +209,17 @@ namespace Antmicro.Renode.Peripherals.DMA
                 uint sourceAddress, destinationAddress;
                 bool incrementSourceAddress, incrementDestinationAddress;
                 TransferType sourceTransferType, destinationTransferType;
+
+                if(numberOfData == 0)
+                {
+                    parent.Log(LogLevel.Debug, "Channel {0}: 0 bytes of data left, transfer stopped.", channelNo);
+                    return;
+                }
+                if(!enabled)
+                {
+                    parent.Log(LogLevel.Warning, "Channel {0}: Cannot transfer on disabled channel", channelNo);
+                    return;
+                }
 
                 if(direction == Direction.ReadFromMemory)
                 {
@@ -227,12 +240,30 @@ namespace Antmicro.Renode.Peripherals.DMA
                     destinationTransferType = memoryTransferType;
                 }
 
-                var request = new Request(sourceAddress, destinationAddress, (int)numberOfData * (int)sourceTransferType, sourceTransferType, destinationTransferType,
+                if(incrementSourceAddress)
+                {
+                    sourceAddress += (uint)sourceTransferType * (initialNumberOfData - numberOfData);
+                }
+                if(incrementDestinationAddress)
+                {
+                    destinationAddress += (uint)sourceTransferType * (initialNumberOfData - numberOfData);
+                }
+
+                var request = new Request(sourceAddress, destinationAddress, (int)sourceTransferType, sourceTransferType, destinationTransferType,
                                   incrementSourceAddress, incrementDestinationAddress);
                 parent.engine.IssueCopy(request);
-                if(completeInterruptEnabled)
+
+                numberOfData--;
+                if(numberOfData == 0)
                 {
-                    IRQ.Set();
+                    if(completeInterruptEnabled)
+                    {
+                        IRQ.Set();
+                    }
+                    if(circularMode)
+                    {
+                        numberOfData = initialNumberOfData;
+                    }
                 }
             }
 
@@ -251,6 +282,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private uint HandleConfigurationRead()
             {
                 var returnValue = 0u;
+                returnValue = enabled ? 1u : 0u;
                 returnValue |= completeInterruptEnabled ? (1u << 1) : 0u;
                 returnValue |= halfTransferInterrupt ? (1u << 2) : 0u;
                 returnValue |= transferErrorInterruptEnabled ? (1u << 3) : 0u;
@@ -268,6 +300,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 bool previousHalfTransferInterrupt = halfTransferInterrupt;
 
+                enabled = (value & 1) != 0;
                 completeInterruptEnabled = (value & (1 << 1)) != 0;
                 halfTransferInterrupt = (value & (1 << 2)) != 0;
                 transferErrorInterruptEnabled = (value & (1 << 3)) != 0;
@@ -285,11 +318,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 if(halfTransferInterrupt && !previousHalfTransferInterrupt)
                 {
                     parent.Log(LogLevel.Warning, "Channel {0}: half transfer interrupt not supported.", channelNo);
-                }
-
-                if((value & 1) != 0)
-                {
-                    DoTransfer();
                 }
             }
 
@@ -322,6 +350,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private Direction direction;
             private byte priority;
             private uint numberOfData;
+            private uint initialNumberOfData;
             private bool transferErrorInterruptEnabled;
             private bool completeInterruptEnabled;
             private TransferType memoryTransferType;
@@ -330,6 +359,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private bool peripheralIncrement;
             private bool circularMode;
             private bool halfTransferInterrupt;
+            private bool enabled;
 
             private bool memoryIncrement;
             private TransferType peripheralTransferType;
