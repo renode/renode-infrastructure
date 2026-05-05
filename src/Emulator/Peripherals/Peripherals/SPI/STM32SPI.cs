@@ -227,14 +227,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             Registers.Control2.Define(registers)
                 .WithFlag(0, out rxDmaEnable, name: "RXDMAEN")
-                .If(series == STM32Series.L5)
-                    .Then(reg => reg
-                            // Firmware may read/write this value. There is no special logic for TX DMA as transfers are handled by STM32LDMA model
-                            .WithFlag(1, name: "TXDMAEN")
-                    )
-                    .Else(reg => reg
-                            .WithTaggedFlag("TXDMAEN", 1)
-                    )
+                .WithFlag(1, name: "TXDMAEN")
                 .WithTaggedFlag("SSOE", 2)
                 .If(series == STM32Series.L5)
                     .Then(reg => reg
