@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class S32K3XX_PeriodicInterruptTimer : BasicDoubleWordPeripheral, IKnownSize
     {
-        public S32K3XX_PeriodicInterruptTimer(IMachine machine, ulong oscillatorFrequency, bool hasRealTimeInterrupt = false, bool hasLifetimeTimer = false, bool supportsTimersChaining = false) : base(machine)
+        public S32K3XX_PeriodicInterruptTimer(IMachine machine, ulong oscillatorFrequency, bool hasRealTimeInterrupt = false, bool hasLifetimeTimer = false) : base(machine)
         {
             clockChannels = new SortedList<Registers, ClockChannel>();
 
