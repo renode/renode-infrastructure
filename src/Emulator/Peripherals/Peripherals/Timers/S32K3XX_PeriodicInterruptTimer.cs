@@ -10,6 +10,7 @@ using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -22,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             IRQ = new GPIO();
 
-            DefineRegisters(oscillatorFrequency, hasRealTimeInterrupt, hasLifetimeTimer, supportsTimersChaining);
+            DefineRegisters(oscillatorFrequency, hasRealTimeInterrupt, hasLifetimeTimer);
             Reset();
         }
 
@@ -47,9 +48,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             IRQ.Set(interrupt);
         }
 
-#pragma warning disable IDE0060
-        private void DefineRegisters(ulong oscillatorFrequency, bool hasRealTimeInterrupt, bool hasLifetimeTimer, bool supportsTimersChaining)
-#pragma warning restore IDE0060
+        private void DefineRegisters(ulong oscillatorFrequency, bool hasRealTimeInterrupt, bool hasLifetimeTimer)
         {
             var moduleControl = Registers.ModuleControl.Define(this)
                 .WithReservedBits(3, 29)
@@ -81,6 +80,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithValueField(0, 32, FieldMode.Read, name: "LifetimerValue",
                         valueProviderCallback: _ =>
                         {
+                            if(machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu))
+                            {
+                                cpu.SyncTime();
+                            }
                             var channel0 = clockChannels[Registers.Control0];
                             var channel1 = clockChannels[Registers.Control1];
                             var lifetimerValue = ulong.MaxValue - ((channel1.Value << 32) | channel0.Value);
@@ -113,8 +116,11 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void DefineChannelRegisters(ulong oscillatorFrequency, Registers? chainedTo, Registers control, Registers flag, Registers load, Registers currentValue)
         {
             var clockChannel = new ClockChannel(machine.ClockSource, this, oscillatorFrequency, Enum.GetName(typeof(Registers), control));
-            clockChannel.OnInterrupt += UpdateInterrupts;
-
+            clockChannel.OnInterrupt += () =>
+            {
+                this.NoisyLog("Clock channel {0} limit reached", control);
+                UpdateInterrupts();
+            };
             var controlRegister = control.Define(this)
                 .WithReservedBits(3, 29)
                 .WithFlag(1, name: "InterruptEnable",
@@ -166,7 +172,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             currentValue.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, name: "CurrentValue",
-                    valueProviderCallback: _ => clockChannel.Value)
+                    valueProviderCallback: _ =>
+                    {
+                        if(machine.GetSystemBus(this).TryGetCurrentCPU(out var cpu))
+                        {
+                            cpu.SyncTime();
+                        }
+                        return clockChannel.Value;
+                    })
             ;
 
             clockChannels.Add(control, clockChannel);
@@ -178,7 +191,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             public ClockChannel(IClockSource clockSource, IPeripheral parent, ulong frequency, string name)
             {
-                underlyingTimer = new LimitTimer(clockSource, frequency, parent, name);
+                underlyingTimer = new LimitTimer(clockSource, frequency, parent, name, eventEnabled: true);
                 underlyingTimer.LimitReached += () =>
                 {
                     InterruptFlag = true;
@@ -219,11 +232,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            public bool InterruptEnable
-            {
-                get => underlyingTimer.EventEnabled;
-                set => underlyingTimer.EventEnabled = value;
-            }
+            public bool InterruptEnable { get; set; }
 
             public bool InterruptFlag { get; set; }
 
