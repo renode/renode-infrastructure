@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             receiveBuffer = new CircularBuffer<byte>(bufferCapacity);
             IRQ = new GPIO();
-            DMARecieve = new GPIO();
+            DMAReceive = new GPIO();
             DMASend = new GPIO();
             registers = new DoubleWordRegisterCollection(this);
             SetupRegisters();
@@ -95,7 +95,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public override void Reset()
         {
             IRQ.Unset();
-            DMARecieve.Unset();
+            DMAReceive.Unset();
             DMASend.Unset();
             lock(receiveBuffer)
             {
@@ -114,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public GPIO IRQ { get; }
 
-        public GPIO DMARecieve { get; }
+        public GPIO DMAReceive { get; }
 
         public GPIO DMASend { get; }
 
@@ -163,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     // This blink is used to signal the DMA that it should perform the peripheral -> memory transaction now
                     // Without this signal DMA will never move data from the receive buffer to memory
                     // See STM32DMA:OnGPIO
-                    DMARecieve.Blink();
+                    DMAReceive.Blink();
                 }
                 this.NoisyLog("Transmitted 0x{0:X}, received 0x{1:X}.", value, response);
             }
