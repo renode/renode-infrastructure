@@ -15,6 +15,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.CAN;
+using Antmicro.Renode.Testing;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
@@ -98,7 +99,16 @@ namespace Antmicro.Renode.Tools.Network
         {
             lock(sync)
             {
-                this.Log(LogLevel.Debug, "Received from {0}: {1}", sender.GetName(), message);
+                string senderName = null;
+                if(sender is CANTester)
+                {
+                    senderName = "CANTester";
+                }
+                else
+                {
+                    senderName = sender.GetName();
+                }
+                this.Log(LogLevel.Debug, "Received from {0}: {1}", senderName, message);
                 FrameReceived?.Invoke(this, sender, message);
 
                 byte[] frame = null;
@@ -122,6 +132,14 @@ namespace Antmicro.Renode.Tools.Network
                 var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
                 foreach(var iface in attached.Where(x => (x != sender || loopback)))
                 {
+                    if(iface is CANTester)
+                    {
+                        // CANTester does not belong to a machine so the event has to be handled from MasterTimeSource
+                        EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ExecuteInSyncedState(
+                            (_) => iface.OnFrameReceived(message), vts
+                        );
+                        continue;
+                    }
                     iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, vts,
                         frame != null ? () => FrameTransmitted?.Invoke(this, sender, iface, frame) : (Action)null);
                 }
