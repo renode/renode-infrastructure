@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -124,6 +124,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 AlternateFunctionOutputs[i].Reset();
                 ChangeOutputMode(i, OutputMode.ResetValue);
+                pins[i] = PinMode.ResetValue;
             }
         }
 
@@ -275,6 +276,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private enum PinMode
         {
+            ResetValue = Input,
             Input = 0,
             Output10Mhz = 1,
             Output2Mhz = 2,
