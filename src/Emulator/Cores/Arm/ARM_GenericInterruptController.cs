@@ -1279,12 +1279,24 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     )
                     .WithReservedBits(2, 2)
                     .WithFlag(1, name: "EnableGroup1NonSecureAlias",
-                        writeCallback: (_, val) => groups[GroupType.Group1NonSecure].Enabled = val,
-                        valueProviderCallback: _ => groups[GroupType.Group1NonSecure].Enabled
+                        writeCallback: (_, val) =>
+                        {
+                            if(AffinityRoutingEnabledNonSecure)
+                            {
+                                groups[GroupType.Group1NonSecure].Enabled = val;
+                            }
+                        },
+                        valueProviderCallback: _ => AffinityRoutingEnabledNonSecure && groups[GroupType.Group1NonSecure].Enabled
                     )
                     .WithFlag(0, name: "EnableGroup1NonSecureAlias",
-                        writeCallback: (_, val) => groups[GroupType.Group1NonSecure].Enabled = val,
-                        valueProviderCallback: _ => groups[GroupType.Group1NonSecure].Enabled
+                        writeCallback: (_, val) =>
+                        {
+                            if(!AffinityRoutingEnabledNonSecure)
+                            {
+                                groups[GroupType.Group1NonSecure].Enabled = val;
+                            }
+                        },
+                        valueProviderCallback: _ => !AffinityRoutingEnabledNonSecure && groups[GroupType.Group1NonSecure].Enabled
                     );
             }
 
