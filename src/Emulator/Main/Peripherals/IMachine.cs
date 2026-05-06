@@ -168,6 +168,8 @@ namespace Antmicro.Renode.Core
 
         Platform Platform { get; set; }
 
+        ulong Uid { get; }
+
         bool IsPaused { get; }
 
         TimeStamp ElapsedVirtualTime { get; }

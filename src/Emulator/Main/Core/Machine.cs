@@ -41,6 +41,7 @@ namespace Antmicro.Renode.Core
     {
         public Machine(bool createLocalTimeSource = false)
         {
+            machineUid = ++count;
             atomicState = new AtomicState(this);
 
             collectionSync = new object();
@@ -1305,6 +1306,8 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public ulong Uid => machineUid;
+
         public Platform Platform { get; set; }
 
         public bool IsPaused
@@ -1894,8 +1897,10 @@ namespace Antmicro.Renode.Core
 
         private readonly MultiTree<IPeripheral, IRegistrationPoint> registeredPeripherals;
         private readonly object disposedSync;
+        private readonly ulong machineUid;
 
         private const int InitialDirtyListLength = 1 << 16;
+        private static ulong count = 0;
 
         private sealed class PausedState : IDisposable
         {
