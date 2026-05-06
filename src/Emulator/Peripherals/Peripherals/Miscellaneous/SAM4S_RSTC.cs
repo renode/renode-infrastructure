@@ -18,8 +18,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class SAM4S_RSTC : BasicDoubleWordPeripheral, IGPIOReceiver, IKnownSize, IHasOwnLife
     {
-        public SAM4S_RSTC(IMachine machine) : base(machine)
+        public SAM4S_RSTC(IMachine machine, List<IPeripheral> ignored = null) : base(machine)
         {
+            ignoredPeripherals = ignored;
+
             NRST.Set();
             DefineRegisters();
         }
@@ -76,6 +78,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 if(!resetProcessor && Watchdog != null)
                 {
                     exclude.Add(Watchdog);
+                }
+
+                if(ignoredPeripherals != null)
+                {
+                    exclude.AddRange(ignoredPeripherals);
                 }
 
                 var currentVectorBase = cpu?.VectorTableOffset ?? 0x0;
@@ -344,6 +351,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private CortexM cpu;
         private bool cpuChecked;
+
+        private readonly IList<IPeripheral> ignoredPeripherals;
+
         private const int ResetPassword = 0xA5;
 
         public enum ResetType
