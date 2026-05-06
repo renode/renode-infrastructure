@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => true, name: "SRST")
                     .WithTaggedFlag("RXEN", 1)
                     .WithTaggedFlag("TXEN", 2)
-                    .WithTaggedFlag("ATEN", 3)
+                    .WithFlag(3, out ageTimerInterruptEnable, name:"ATEN")
                     .WithTaggedFlag("RTSEN", 4)
                     .WithTaggedFlag("WS", 5)
                     .WithTaggedFlag("STPB", 6)
@@ -127,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("AIRINT", 5)
                     .WithTaggedFlag("RXDS", 6)
                     .WithTaggedFlag("DTRD", 7)
-                    .WithTaggedFlag("AGTIM", 8)
+                    .WithFlag(8, valueProviderCallback: _ => ageTimerInterruptEnable.Value, name:"AGTIM")
                     .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => Count > (int)receiveTriggerLevel.Value, name: "RRDY")
                     .WithTaggedFlag("FRAMERR", 10)
                     .WithTaggedFlag("ESCF", 11)
@@ -243,8 +243,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
             var txReady = true;
             var rxReady = Count > 0;
+            // We don't implement the timer and trigger the interrupt immediately if there is anything in the RxQueue
+            var ageTimer = rxReady;
 
             var irq = (transmitEmptyInterruptEnable.Value && txFifoEmpty)
+                   || (ageTimerInterruptEnable.Value && ageTimer)
                    || (transmitterReadyInterruptEnable.Value && txReady)
                    || (receiverReadyInterruptEnable.Value && rxReady)
                    || (receiveDataReadyInterruptEnable.Value && rxReady)
@@ -258,6 +261,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly IFlagRegisterField receiverReadyInterruptEnable;
         private readonly IFlagRegisterField receiveDataReadyInterruptEnable;
         private readonly IFlagRegisterField transmitCompleteInterruptEnable;
+        private readonly IFlagRegisterField ageTimerInterruptEnable;
 
         private readonly IValueRegisterField receiveTriggerLevel;
 
