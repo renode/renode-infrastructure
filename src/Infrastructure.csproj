@@ -51,14 +51,8 @@
     <Reference Include="BitMiracle.LibJpeg.NET.dll">
       <HintPath>../../../lib/resources/libraries/BitMiracle.LibJpeg.NET.dll</HintPath>
     </Reference>
-    <Reference Include="Mono.CSharp">
-      <HintPath>../../../lib/resources/libraries/mcs.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.Dynamic">
       <HintPath>../../../lib/resources/libraries/Microsoft.Dynamic.dll</HintPath>
-    </Reference>
-    <Reference Include="Mono.Linq.Expressions">
-      <HintPath>../../../lib/resources/libraries/Mono.Linq.Expressions.dll</HintPath>
     </Reference>
     <Reference Include="Nini">
       <HintPath>../../../lib/resources/libraries/Nini.dll</HintPath>

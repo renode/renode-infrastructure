@@ -290,8 +290,6 @@ namespace Antmicro.Renode.Utilities
             "IronPython.Wpf.dll",
             "K4os.Compression.LZ4.dll",
             "libtftp.dll",
-            "LZ4.dll",
-            "mcs.dll",
             "Microsoft.Dynamic.dll",
             "Microsoft.Scripting.dll",
             "Microsoft.Scripting.Metadata.dll",
