@@ -74,10 +74,7 @@ namespace Antmicro.Renode.UI
 
             if(ui == null && options.RobotFrameworkRemoteServerPort == -1 && !options.Console && !options.ServerMode)
             {
-                if(options.Port == -1)
-                {
-                    options.Port = 1234;
-                }
+                options.Port = options.Port ?? 1234;
 
                 if(options.UI || !options.DisableXwt)
                 {
@@ -187,11 +184,11 @@ namespace Antmicro.Renode.UI
             }
             else if(options.Port >= 0)
             {
-                var socket = new SocketIOSource(options.Port);
+                var socket = new SocketIOSource(options.Port.Value);
                 ioSource = socket;
                 size = socket;
 
-                Logger.Log(LogLevel.Info, "Monitor available in telnet mode on port {0}", options.Port);
+                Logger.Log(LogLevel.Info, "Monitor available in telnet mode on port {0}", socket.Port.Value);
             }
             else if(options.ServerMode)
             {

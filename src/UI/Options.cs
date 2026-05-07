@@ -55,8 +55,8 @@ namespace Antmicro.Renode.UI
         [Name('p', "plain"), DefaultValue(false), Description("Remove steering codes (e.g., colours) from output.")]
         public bool Plain { get; set; }
 
-        [Name('P', "port"), DefaultValue(-1), Description("Instead of opening a window, listen for Monitor commands on the specified port.")]
-        public int Port { get; set; }
+        [Name('P', "port"), Description("Instead of opening a window, listen for Monitor commands on the specified port. Specify 0 to automatically assign an unused port. Specify -1 to disable both the port and the GUI monitor.")]
+        public int? Port { get; set; }
 
         [Name('e', "execute"), Description("Execute command on startup (executed after the optional script). May be used many times.")]
         public string[] Execute { get; set; }
