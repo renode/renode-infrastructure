@@ -44,6 +44,8 @@ namespace Antmicro.Renode.Utilities
 
         public Position Size => server.TerminalSize;
 
+        public int? Port => server.Port;
+
         public event System.Action<int> ByteRead
         {
             add { server.DataReceived += value; }
