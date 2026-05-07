@@ -100,7 +100,7 @@ namespace Antmicro.Renode.UI
         [Name("keep-temporary-files"), Description("Don't clean temporary files on exit")]
         public bool KeepTemporaryFiles { get; set; }
 
-        [Name("server-mode"), DefaultValue(false), Description("Insted of opening a window. Expose localhost:port/proxy endpoint (Works only in .NET build)")]
+        [Name("server-mode"), DefaultValue(false), Description("Insted of opening a window. Expose localhost:port/proxy endpoint")]
         public bool ServerMode { get; set; }
 
         [Name("server-mode-port"), DefaultValue(21234), Description("Set port for server mode")]
