@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
@@ -276,19 +277,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return new Range(0, UInt64.MaxValue);
             }
 
-            // There is no intrinsic based count trailing ones function availible in mono
-            // so hack it with a loop for now. This function is called infrequently so it does
-            // not matter much
-            var bits = BitHelper.GetBits(addressReg);
-            var grain = 0;
-            while(grain < 64)
-            {
-                if(!bits[grain])
-                {
-                    break;
-                }
-                grain++;
-            }
+            var grain = BitOperations.TrailingZeroCount(~addressReg);
 
             if(grain < napotGrain)
             {
