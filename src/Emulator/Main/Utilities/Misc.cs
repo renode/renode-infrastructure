@@ -417,8 +417,7 @@ namespace Antmicro.Renode.Utilities
         public static IEnumerable<T> Prefix<T>(IEnumerable<T> enumerable, Func<T, T, T> function)
         {
             var enumerator = enumerable.GetEnumerator();
-            // Using `out var` here causes a compiler crash in Mono 6.8.0.105+dfsg-3.3 from Debian
-            if(!enumerator.TryGetNext(out T prefix))
+            if(!enumerator.TryGetNext(out var prefix))
             {
                 yield break;
             }
