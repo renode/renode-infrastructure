@@ -437,8 +437,7 @@ namespace Antmicro.Renode.UserInterface
                     // Load dynamically compiled assembly to memory. It presents an advantage that next
                     // ad-hoc compiled assembly can reference types from this one without any extra steps.
                     // Therefore "EnsureTypeIsLoaded" call is no necessary as dependencies are already loaded.
-                    // Assembly.LoadFrom is used for a compatibility with Mono/.NET Framework,
-                    // but once we move fully to .NET, consider AssemblyLoadContext.LoadFromAssemblyPath.
+                    // XXX: Consider AssemblyLoadContext.LoadFromAssemblyPath.
                     Assembly.LoadFrom(compiledCode);
                     EmulationManager.Instance.CompiledFilesCache.StoreEntryWithSha(sha, compiledCode);
                 }
