@@ -265,7 +265,7 @@ namespace Antmicro.Renode.Utilities
         };
 
         // This list filters out assemblies that are known not to be interesting for TypeManager.
-        // It has to be manualy catered for, but it shaves about 400ms from the startup time on mono and 2s on NET.
+        // It has to be manualy catered for, but it shaves about 2s from the startup time.
         private static readonly string[] assemblyBlacklist = new []
         {
             "AntShell.dll",
