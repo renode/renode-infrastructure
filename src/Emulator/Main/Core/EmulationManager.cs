@@ -313,7 +313,6 @@ namespace Antmicro.Renode.Core
                 var entryAssembly = Assembly.GetEntryAssembly();
                 if(entryAssembly == null)
                 {
-                    // When running from NUnit in MonoDevelop entryAssembly is null, but we don't care
                     return string.Empty;
                 }
 
