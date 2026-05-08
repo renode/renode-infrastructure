@@ -109,16 +109,11 @@ namespace Antmicro.Renode.Peripherals.UART
                 }
                 if(peek)
                 {
-                    // Unpacking assignments are not avalible on mono
-                    var value = queue.Peek();
-                    character = value.Item1;
-                    frame = value.Item2;
+                    (character, frame) = queue.Peek();
                 }
                 else
                 {
-                    var value = queue.Dequeue();
-                    character = value.Item1;
-                    frame = value.Item2;
+                    (character, frame) = queue.Dequeue();
                 }
                 if(queue.Count == 0)
                 {
