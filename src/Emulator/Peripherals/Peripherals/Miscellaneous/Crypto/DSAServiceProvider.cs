@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -42,8 +42,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
             manager.TryReadDoubleWord((long)DSARegisters.MessageLenth, out var msgLength);
             manager.TryReadDoubleWord((long)DSARegisters.MessageExternalAddress, out var msgExternalAddress);
             var msgBytes = bus.ReadBytes(msgExternalAddress, (int)msgLength);
-            // We could use SHA384.HashData static method, but it's not available in Mono.
-            var hash = SHA384.Create().ComputeHash(msgBytes);
+            var hash = SHA384.HashData(msgBytes);
 
             var z = AthenaX5200_BigIntegerHelper.CreateBigInteger(hash, Math.Min(q.ToByteArray().Length, hash.Length));
 
