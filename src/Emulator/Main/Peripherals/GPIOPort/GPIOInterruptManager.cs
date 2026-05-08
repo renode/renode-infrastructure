@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -70,9 +70,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     continue;
                 }
 
-                // Using underlyingState[i] should be possible, but it won't compile on mono
-                // Using the underlying array of the the segment can be used as as alternative
-                var currentState = underlyingState.Array[underlyingState.Offset + i];
+                var currentState = underlyingState[i];
 
                 var isEdge = currentState != previousState[i];
                 switch(InterruptType[i])
