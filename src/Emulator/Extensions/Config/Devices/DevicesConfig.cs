@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -22,11 +22,6 @@ using Antmicro.Renode.Utilities;
 using Dynamitey;
 
 using Microsoft.CSharp.RuntimeBinder;
-
-//HACK!Type.IsPrimitive/IsEnum is used in some test due to the bug in mono 3.2.0.
-//It doesn't allow to compare dynamic containing a primitive with null.
-//This is fixed at least in 3.4.1. Remove this test when 3.2.0 gets obsolete.
-//Oh, and it crashes for nullables too. Doh.
 
 namespace Antmicro.Renode.Config.Devices
 {
@@ -218,11 +213,7 @@ namespace Antmicro.Renode.Config.Devices
                 instance = null;
                 return false;
             }
-            // We have to use reflection-based approach because of a bug in Mono 5.2:
-            // https://bugzilla.xamarin.com/show_bug.cgi?id=58455
-            //
-            //instance = Dynamic.InvokeGet(InvokeContext.CreateStatic(type), desiredProperty.Name);
-            instance = desiredProperty.GetGetMethod().Invoke(null, Type.EmptyTypes);
+            instance = Dynamic.InvokeGet(InvokeContext.CreateStatic(type), desiredProperty.Name);
             return true;
         }
 
@@ -463,8 +454,7 @@ namespace Antmicro.Renode.Config.Devices
             foreach(var item in value)
             {
                 var obj = GenerateObject(item, innerType);
-                //HACK: The reason of the following line is described at the top of this class.
-                if(!innerType.IsPrimitive && !innerType.IsEnum && Nullable.GetUnderlyingType(innerType) == null && obj == null)
+                if(Nullable.GetUnderlyingType(innerType) == null && obj == null)
                 {
                     return null;
                 }
@@ -641,8 +631,7 @@ namespace Antmicro.Renode.Config.Devices
                     else
                     {
                         var temp = GenerateObject(node[ctorParam.Name], ctorParam.ParameterType);
-                        //HACK: The reason of the following line is described at the top of this class.
-                        if(ctorParam.ParameterType.IsPrimitive || ctorParam.ParameterType.IsEnum || Nullable.GetUnderlyingType(ctorParam.ParameterType) != null || temp != null)
+                        if(Nullable.GetUnderlyingType(ctorParam.ParameterType) != null || temp != null)
                         {
                             sortedParams.Add(ctorParam.Name, temp);
                         }
