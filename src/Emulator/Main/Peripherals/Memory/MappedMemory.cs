@@ -816,7 +816,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 {
                     guid = Guid.NewGuid(); // generate a Guid to be used in a unique filename for this segment
                     // NOTE: It would be preferable to use shared memory objects here instead of files, but
-                    // this is currently not supported for Linux on both Mono (v. 6.12.0.200) and dotnet (8.0.403)
+                    // this is currently not supported for Linux on dotnet (8.0.403)
                     mmf = MemoryMappedFile.CreateFromFile(MMFPath, FileMode.CreateNew, null, bytes);
                     mmva = mmf.CreateViewAccessor();
                     byte* ptr = null;
