@@ -872,14 +872,7 @@ namespace Antmicro.Renode.UserInterface
                         {
                             continue;
                         }
-                        try
-                        {
-                            suggestions.AddRange(SuggestFiles(allButLast, pathEntry, directory, file));
-                        }
-                        catch(Exception)
-                        {
-                            Logger.LogAs(this, LogLevel.Debug, "Bug in mono on Directory.GetFiles!");
-                        }
+                        suggestions.AddRange(SuggestFiles(allButLast, pathEntry, directory, file));
                     }
                 }
             }
