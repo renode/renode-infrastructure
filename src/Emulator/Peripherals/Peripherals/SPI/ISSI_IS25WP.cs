@@ -252,9 +252,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 throw new Exception("unreachable");
             }
 
-            // NOTE: Explicit declaration is required by mono compiler
-            byte data = default(byte);
-            if(currentRegisterValue?.TryDequeue(out data) ?? false)
+            if(currentRegisterValue?.TryDequeue(out var data) ?? false)
             {
                 return data;
             }
