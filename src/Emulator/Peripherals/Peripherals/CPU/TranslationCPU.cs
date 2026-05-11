@@ -444,7 +444,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             TryTranslateAddress(addr, MpuAccess.InstructionFetch, out addr);
 
             var result = Assembler.AssembleBlock(addr, instructions, triple, alternateDialect);
-            Bus.WriteBytes(result, addr, true, context: this);
+            Bus.WriteBytes(result, addr, context: this);
             return (uint)result.Length;
         }
 
@@ -689,7 +689,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             // We don't care if translation fails here (the address is unchanged in this case)
             TryTranslateAddress(addr, MpuAccess.InstructionFetch, out addr);
 
-            var opcodes = Bus.ReadBytes(addr, (int)blockSize, true, context: this);
+            var opcodes = Bus.ReadBytes(addr, (int)blockSize, context: this);
             Disassembler.DisassembleBlock(addr, opcodes, triple, alternateDialect, out var result);
             return result;
         }
