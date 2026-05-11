@@ -139,6 +139,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         public void FeedVoltageSampleToChannel(int channel, decimal valueInmV, uint repeat)
         {
             ValidateChannel(channel);
+            WarnOnTooBigValue((double)valueInmV);
+
             var sample = new ScalarSample(valueInmV);
             for(var i = 0; i < repeat; i++)
             {
@@ -148,6 +150,8 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         public void SetDefaultValue(decimal valueInmV, int? channel = null)
         {
+            WarnOnTooBigValue((double)valueInmV);
+
             if(channel != null)
             {
                 ValidateChannel(channel.Value);
@@ -207,6 +211,24 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(channel >= ChannelCount || channel < 0)
             {
                 throw new RecoverableException($"Invalid argument value: {channel}. This peripheral implements only channels in range 0-{ChannelCount - 1}");
+            }
+        }
+
+        private void WarnOnTooBigValue(double mv)
+        {
+            var maxValue = (1 << data.Width) - 1;
+
+            if(MillivoltsToSample(mv, Resolution.Min) > maxValue)
+            {
+                this.Log(LogLevel.Warning, "{0}mV is too big in any ADC configuration", mv);
+            }
+            else if(MillivoltsToSample(mv) > maxValue)
+            {
+                this.Log(LogLevel.Warning, "{0}mV is too big for current ADC resolution", mv);
+            }
+            else if(MillivoltsToSample(mv, Resolution.Max) > maxValue)
+            {
+                this.Log(LogLevel.Debug, "{0}mV will be too big for some ADC resolution other than the current one", mv);
             }
         }
 
@@ -319,7 +341,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                         else
                         {
                             data.Value = (ulong)(1 << data.Width) - 1;
-                            this.Log(LogLevel.Warning, "Sample value {0} is too big for ADC data, forcing it to {1}", sample, data.Value);
+                            this.Log(LogLevel.Warning, "Sample value {0} is too big for ADC data register, clamping it to {1}",
+                                     sample, data.Value);
                         }
                     }
                     if(dmaEnabled.Value && !adcOverrunFlag.Value)
@@ -391,8 +414,13 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private uint MillivoltsToSample(double sampleInMillivolts)
         {
+            return MillivoltsToSample(sampleInMillivolts, resolution.Value);
+        }
+
+        private uint MillivoltsToSample(double sampleInMillivolts, Resolution sampleResolution)
+        {
             ushort resolutionInBits;
-            switch(resolution.Value)
+            switch(sampleResolution)
             {
             case Resolution.Bits6:
                 resolutionInBits = 6;
@@ -871,9 +899,11 @@ namespace Antmicro.Renode.Peripherals.Analog
         private enum Resolution
         {
             Bits12 = 0b00,
+            Max    = 0b00, // Keep alias in second place to display Bits12 name when dumping Resolution value
             Bits10 = 0b01,
             Bits8  = 0b10,
             Bits6  = 0b11,
+            Min    = 0b11, // Keep alias in second place to display Bits6 name when dumping Resolution value
         }
 
         private enum ScanDirection
