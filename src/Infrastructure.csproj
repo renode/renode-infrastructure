@@ -3,7 +3,7 @@
     <TargetFrameworks Condition="$(OS) != 'Windows_NT'">net6.0</TargetFrameworks>
     <TargetFrameworks Condition="$(OS) == 'Windows_NT'">net6.0-windows10.0.17763.0</TargetFrameworks>
     <UseWPF Condition=" $(OS) == 'Windows_NT' And $(GUI_DISABLED) != 'true' ">true</UseWPF>
-    <LangVersion>7.2</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <PropertiesLocation>../../../output/properties.csproj</PropertiesLocation>
     <AssemblyName>Infrastructure</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
