@@ -378,10 +378,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             var sample = sampleProvider[channelNumber].Sample;
             sampleProvider[channelNumber].TryDequeueNewSample();
-            return MilivoltsToSample((double)sample.Value);
+            return MillivoltsToSample((double)sample.Value);
         }
 
-        private uint MilivoltsToSample(double sampleInMilivolts)
+        private uint MillivoltsToSample(double sampleInMillivolts)
         {
             ushort resolutionInBits;
             switch(resolution.Value)
@@ -402,7 +402,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 throw new UnreachableException();
             }
 
-            uint referencedValue = (uint)Math.Round((sampleInMilivolts / (referenceVoltage * 1000)) * ((1 << resolutionInBits) - 1));
+            uint referencedValue = (uint)Math.Round((sampleInMillivolts / (referenceVoltage * 1000)) * ((1 << resolutionInBits) - 1));
             if(align.Value == Align.Left)
             {
                 referencedValue = referencedValue << (16 - resolutionInBits);
