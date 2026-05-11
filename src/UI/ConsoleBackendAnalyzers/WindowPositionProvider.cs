@@ -1,13 +1,13 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-#if PLATFORM_WINDOWS
-using System.Windows;
-#endif
+using System.Reflection;
+
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
 
 using Xwt;
@@ -39,11 +39,16 @@ namespace Antmicro.Renode.UI
 
         private WindowPositionProvider()
         {
-#if PLATFORM_WINDOWS
-            nextPosition = new Point(SystemParameters.BorderWidth, SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight);
-#else
-            nextPosition = new Point(0, 0);
-#endif
+            if(RuntimeInfo.IsWindows())
+            {
+                // We can't reference WPF directly because Renode is built as a non-Windows target (and WPF is a Windows-only target dependency), but let's use dynamic import to get what we need for `Copy`
+                var assembly = Assembly.Load("PresentationFramework");
+                var systemParameters = assembly.GetType("System.Windows.SystemParameters");
+                borderWidth = (double)systemParameters.GetProperty("BorderWidth").GetValue(null);
+                borderTotalHeight = (double)systemParameters.GetProperty("WindowCaptionHeight").GetValue(null)
+                    + (double)systemParameters.GetProperty("ResizeFrameHorizontalBorderHeight").GetValue(null);
+            }
+            nextPosition = new Point(borderWidth, borderTotalHeight);
             nextPosition.X += ConfigurationManager.Instance.Get("termsharp", "window-initial-offset-x", 0);
             nextPosition.Y += ConfigurationManager.Instance.Get("termsharp", "window-initial-offset-y", 0);
 
@@ -60,12 +65,8 @@ namespace Antmicro.Renode.UI
                 var currentScreen = Desktop.GetScreenAtLocation(position) ?? Desktop.PrimaryScreen;
                 if(!currentScreen.VisibleBounds.Contains(position))
                 {
-                    position.X = currentScreen.VisibleBounds.X;
-                    position.Y = currentScreen.VisibleBounds.Y;
-#if PLATFORM_WINDOWS
-                    position.X += SystemParameters.BorderWidth;
-                    position.Y += SystemParameters.WindowCaptionHeight + SystemParameters.ResizeFrameHorizontalBorderHeight;
-#endif
+                    position.X = currentScreen.VisibleBounds.X + borderWidth;
+                    position.Y = currentScreen.VisibleBounds.Y + borderTotalHeight;
                 }
             }
             return position;
@@ -75,5 +76,8 @@ namespace Antmicro.Renode.UI
 
         private readonly object innerLock;
         private readonly Point offset;
+
+        private readonly double borderWidth;
+        private readonly double borderTotalHeight;
     }
 }

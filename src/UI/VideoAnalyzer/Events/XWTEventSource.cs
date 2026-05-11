@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2021 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,7 +11,9 @@ using System;
 using System.Runtime.InteropServices;
 #pragma warning restore IDE0005
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Extensions.Analyzers.Video.Handlers;
+using Antmicro.Renode.Peripherals.Input;
 using Antmicro.Renode.Logging;
 
 using Xwt;
@@ -51,20 +53,55 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 
         public int Y { get { return lastY ?? 0; } }
 
+        [DllImport("user32.dll")]
+        private static extern uint MapVirtualKeyEx(uint uCode, uint uMapType, IntPtr dwhkl);
+
+        [DllImport("user32.dll")]
+        private static extern uint MapVirtualKeyW(uint uCode, uint uMapType);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetKeyboardLayout(uint idThread);
+
+        [DllImport("user32.dll")]
+        private static extern short VkKeyScan(char ch);
+
+        [DllImport("user32.dll")]
+        private static extern short VkKeyScanEx(char ch, IntPtr dwhkl);
+
+        private KeyScanCode? DecodeKeyGtk(KeyEventArgs e)
+        {
+#if GUI_DISABLED
+            return null;
+#else
+            var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
+
+            return X11ToKeyScanCodeConverter.Instance.GetScanCode((int)entryKey);
+#endif
+        }
+
+        private KeyScanCode? DecodeKeyWindows(KeyEventArgs e)
+        {
+            var keyboardLayout = GetKeyboardLayout(0);
+            var vks = VkKeyScanEx((char)e.Key, keyboardLayout);
+            var vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
+            return WPFToKeyScanCodeConverter.Instance.GetScanCode((int)vsc, e.Key);
+        }
+
+        private KeyScanCode? DecodeKey(KeyEventArgs e)
+        {
+            if(RuntimeInfo.IsWindows())
+            {
+                return DecodeKeyWindows(e);
+            }
+            return DecodeKeyGtk(e);
+        }
+
         private void HandleKeyReleased(object sender, KeyEventArgs e)
         {
 #if !GUI_DISABLED
             e.Handled = true;
-#if PLATFORM_WINDOWS
-            var keyboardLayout = GetKeyboardLayout(0);
-            var vks = VkKeyScanEx((char)e.Key, keyboardLayout);
-            var vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
-            var key = WPFToKeyScanCodeConverter.Instance.GetScanCode((int)vsc, e.Key);
-#else
-            var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
-            var key = X11ToKeyScanCodeConverter.Instance.GetScanCode((int)entryKey);
-#endif // !PLATFORM_WINDOWS
+            var key = DecodeKey(e);
             if(key != null)
             {
                 handler.KeyReleased(key.Value);
@@ -78,16 +115,8 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
         {
 #if !GUI_DISABLED
             e.Handled = true;
-#if PLATFORM_WINDOWS
-            var keyboardLayout = GetKeyboardLayout(0);
-            var vks = VkKeyScanEx((char)e.Key, keyboardLayout);
-            var vsc = MapVirtualKeyEx((uint)vks & 0xff, MAPVK_VK_TO_VSC, keyboardLayout);
-            var key = WPFToKeyScanCodeConverter.Instance.GetScanCode((int)vsc, e.Key);
-#else
-            var entryKey = Gdk.Keymap.Default.GetEntriesForKeyval((uint)e.Key)[0].Keycode;
 
-            var key = X11ToKeyScanCodeConverter.Instance.GetScanCode((int)entryKey);
-#endif // !PLATFORM_WINDOWS
+            var key = DecodeKey(e);
             if(key != null)
             {
                 handler.KeyPressed(key.Value);
@@ -136,23 +165,10 @@ namespace Antmicro.Renode.Extensions.Analyzers.Video.Events
 
         private readonly Widget source;
 
-#if PLATFORM_WINDOWS
-        [DllImport("user32.dll")]
-        private static extern uint MapVirtualKeyEx(uint uCode, uint uMapType, IntPtr dwhkl);
-        [DllImport("user32.dll")]
-        private static extern uint MapVirtualKeyW(uint uCode, uint uMapType);
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetKeyboardLayout(uint idThread);
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern short VkKeyScan(char ch);
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern short VkKeyScanEx(char ch, IntPtr dwhkl);
-
         private const uint MAPVK_VK_TO_VSC = 0x00;
         private const uint MAPVK_VSC_TO_VK = 0x01;
         private const uint MAPVK_VK_TO_CHAR = 0x02;
         private const uint MAPVK_VSC_TO_VK_EX = 0x03;
         private const uint MAPVK_VK_TO_VSC_EX = 0x04;
-#endif
     }
 }
