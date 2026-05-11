@@ -312,7 +312,15 @@ namespace Antmicro.Renode.Peripherals.Analog
                     uint sample = GetSampleFromChannel(currentChannel);
                     if(!adcOverrunFlag.Value || overrunMode.Value)
                     {
-                        data.Value = sample;
+                        if(sample < (1 << data.Width))
+                        {
+                            data.Value = sample;
+                        }
+                        else
+                        {
+                            data.Value = (ulong)(1 << data.Width) - 1;
+                            this.Log(LogLevel.Warning, "Sample value {0} is too big for ADC data, forcing it to {1}", sample, data.Value);
+                        }
                     }
                     if(dmaEnabled.Value && !adcOverrunFlag.Value)
                     {
