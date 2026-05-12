@@ -157,7 +157,9 @@ namespace Antmicro.Renode.Peripherals.CAN
             Registers.EndianRegister.Define(this, 0x87654321, name: "FDCAN_ENDN")
                 .WithValueField(0, 32, mode: FieldMode.Read, name: "ETV");
             Registers.DataBitTimingAndPrescalerRegister.Define(this, 0x00000A33, name: "FDCAN_DBTP")
-                .WithTag("FDCAN_DBTP", 0, 32);
+                // This register contains fields for controlling the fast data bit rate in FDCAN mode.
+                // These are not meaningful in renode so we just save them to avoid warnings
+                .WithValueField(0, 32, name: "FDCAN_DBTP");
             Registers.TestRegister.Define(this, name: "FDCAN_TEST")
                 .WithReservedBits(8, 24)
                 .WithTaggedFlag("RX", 7)
@@ -188,7 +190,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                     name: "CCE")
                 .WithFlag(0, out initFlag, name: "INIT", changeCallback: (_, val) => InitBitChangedCallback(val));
             Registers.NominalBitTimingAndPrescalerRegister.Define(this, 0x06000A03, name: "FDCAN_NBTP")
-                .WithTag("NSJW", 25, 7) // Nominal sync jump width, not simulated in renode
+                .WithValueField(25, 7, name: "NSJW") // Nominal sync jump width, not simulated in renode
                 .WithReservedBits(7, 1)
                 .WithConditionallyWritableValueField(16, 9, out bitRatePrescaler, ConfigChangeEnabled, name: "NBRP")
                 .WithConditionallyWritableValueField(8, 8, out timeSegmentBeforeSamplePoint, ConfigChangeEnabled, name: "NTSEG")
