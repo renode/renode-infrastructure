@@ -72,6 +72,7 @@ namespace Antmicro.Renode.Core
             }
 
             machineCreatedAt = new DateTime(CustomDateTime.Now.Ticks, DateTimeKind.Local);
+            UniqueObjectId = IdentifiableObject.AssignUniqueObjectId();
         }
 
         public void Dispose()
@@ -1354,6 +1355,8 @@ namespace Antmicro.Renode.Core
         public bool InternalPause { get; private set; }
 
         public bool IgnorePeripheralRegistrationConditions { get; set; }
+
+        public int UniqueObjectId { get; }
 
         [field: Transient]
         public event Action<IMachine> MachineReset;

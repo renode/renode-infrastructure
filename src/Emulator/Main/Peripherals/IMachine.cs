@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2023 Western Digital Corporation
 //
 // This file is licensed under the MIT License.
@@ -20,7 +20,7 @@ using Antmicro.Renode.Utilities.GDB;
 
 namespace Antmicro.Renode.Core
 {
-    public interface IMachine : IEmulationElement
+    public interface IMachine : IEmulationElement, IIdentifiable
     {
         void AddUserStateHook(Func<string, bool> predicate, Action<string> hook);
 
