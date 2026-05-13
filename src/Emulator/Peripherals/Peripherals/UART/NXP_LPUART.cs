@@ -13,6 +13,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
@@ -31,6 +32,8 @@ namespace Antmicro.Renode.Peripherals.UART
             TransmitDMA = new GPIO();
             ReceiveDMA = new GPIO();
             txQueue = new Queue<byte>();
+            intermediateRxQueue = new Queue<(byte, UARTFrame)>();
+
             if(!Misc.IsPowerOfTwo(fifoSize))
             {
                 throw new ConstructionException($"The `{nameof(fifoSize)}` argument must be a power of 2, given: {fifoSize}.");
@@ -394,6 +397,121 @@ namespace Antmicro.Renode.Peripherals.UART
         /// </remark>
         public override void WriteChar(byte data, UARTFrame frame)
         {
+            if(charReceiveDelay == 0)
+            {
+                // No delay - enqueue immediatelly
+                RealWriteChar(data, frame);
+            }
+            else
+            {
+                lock(intermediateRxQueue)
+                {
+                    // There is a delay - push the data onto a separate queue that will be
+                    // drained from a managed thread
+                    intermediateRxQueue.Enqueue((data, frame));
+                    if(intermediateRxQueue.Count == 1)
+                    {
+                        // Restart here to ensure that the next character will be delivered at least
+                        // after `CharacterReceiveDelay`. We only need to restart after pushing to an empty
+                        // queue
+                        rxThread.Restart();
+                    }
+                }
+            }
+        }
+
+        public void ReceiveLINBreak()
+        {
+            linBreakDetect.Value |= linBreakDetection.Value;
+            UpdateGPIOOutputs();
+        }
+
+        public override Bits StopBits => stopBitNumberSelect.Value ? Bits.Two : Bits.One;
+
+        public override Parity ParityBit => parityEnabled.Value ? Parity.None : parityType.Value ? Parity.Odd : Parity.Even;
+
+        public override uint BaudRate => (baudRateModuloDivisor.Value == 0)
+            ? 0
+            : (uint)(frequency / ((oversamplingRatio.Value == 0 ? 16 : (uint)(oversamplingRatio.Value + 1)) * (uint)baudRateModuloDivisor.Value));
+
+        public BufferState BufferState { get; private set; }
+
+        public long Size => 0x800;
+
+        public GPIO IRQ { get; }
+
+        public GPIO SeparateRxIRQ { get; }
+
+        public GPIO ReceiveDMA { get; }
+
+        public GPIO TransmitDMA { get; }
+
+        public bool InjectFramingError { get; set; }
+
+        public bool InjectNoiseError { get; set; }
+
+        public bool InjectParityError { get; set; }
+
+        public uint CharacterReceiveDelayMicroseconds
+        {
+            get
+            {
+                lock(intermediateRxQueue)
+                {
+                    return charReceiveDelay;
+                }
+            }
+
+            set
+            {
+                lock(intermediateRxQueue)
+                {
+                    if(charReceiveDelay != value)
+                    {
+                        charReceiveDelay = value;
+                        ConfigureRxThread();
+                    }
+                }
+            }
+        }
+
+        public event Action BroadcastLINBreak;
+
+        public event Action<BufferState> BufferStateChanged;
+
+        protected override void CharWritten()
+        {
+            UpdateGPIOOutputs();
+        }
+
+        protected override void QueueEmptied()
+        {
+            UpdateGPIOOutputs();
+        }
+
+        protected void TransmitData(byte data)
+        {
+            if(!loopMode.Value)
+            {
+                TransmitCharacter(data);
+            }
+            else if(receiverSource.Value)
+            {
+                if(!transmissionPinDirectionOutNotIn.Value)
+                {
+                    this.Log(LogLevel.Warning, "Data not transmitted, uart operates in Single-Wire mode and txPin set to input. (value: 0x{0:X})", data);
+                    return;
+                }
+                TransmitCharacter(data);
+            }
+            else
+            {
+                WriteChar(data);
+            }
+        }
+
+        private void RealWriteChar(byte data, UARTFrame frame)
+        {
             lock(locker)
             {
                 if(frame != null && frame.BaudRate != this.BaudRate)
@@ -473,73 +591,6 @@ namespace Antmicro.Renode.Peripherals.UART
                 UpdateBufferState();
                 UpdateErrorFlags();
                 UpdateGPIOOutputs();
-            }
-        }
-
-        public void ReceiveLINBreak()
-        {
-            linBreakDetect.Value |= linBreakDetection.Value;
-            UpdateGPIOOutputs();
-        }
-
-        public override Bits StopBits => stopBitNumberSelect.Value ? Bits.Two : Bits.One;
-
-        public override Parity ParityBit => parityEnabled.Value ? Parity.None : parityType.Value ? Parity.Odd : Parity.Even;
-
-        public override uint BaudRate => (baudRateModuloDivisor.Value == 0)
-            ? 0
-            : (uint)(frequency / ((oversamplingRatio.Value == 0 ? 16 : (uint)(oversamplingRatio.Value + 1)) * (uint)baudRateModuloDivisor.Value));
-
-        public BufferState BufferState { get; private set; }
-
-        public long Size => 0x800;
-
-        public GPIO IRQ { get; }
-
-        public GPIO SeparateRxIRQ { get; }
-
-        public GPIO ReceiveDMA { get; }
-
-        public GPIO TransmitDMA { get; }
-
-        public bool InjectFramingError { get; set; }
-
-        public bool InjectNoiseError { get; set; }
-
-        public bool InjectParityError { get; set; }
-
-        public event Action BroadcastLINBreak;
-
-        public event Action<BufferState> BufferStateChanged;
-
-        protected override void CharWritten()
-        {
-            UpdateGPIOOutputs();
-        }
-
-        protected override void QueueEmptied()
-        {
-            UpdateGPIOOutputs();
-        }
-
-        protected void TransmitData(byte data)
-        {
-            if(!loopMode.Value)
-            {
-                TransmitCharacter(data);
-            }
-            else if(receiverSource.Value)
-            {
-                if(!transmissionPinDirectionOutNotIn.Value)
-                {
-                    this.Log(LogLevel.Warning, "Data not transmitted, uart operates in Single-Wire mode and txPin set to input. (value: 0x{0:X})", data);
-                    return;
-                }
-                TransmitCharacter(data);
-            }
-            else
-            {
-                WriteChar(data);
             }
         }
 
@@ -742,6 +793,37 @@ namespace Antmicro.Renode.Peripherals.UART
             BufferState = BufferState.Ready;
         }
 
+        private void ConfigureRxThread()
+        {
+            lock(intermediateRxQueue)
+            {
+                if(charReceiveDelay != 0)
+                {
+                    rxThread?.Dispose();
+                    rxThread = Machine.ObtainManagedThread(() =>
+                    {
+                        if(receiverEnabled.Value && intermediateRxQueue.TryDequeue(out var entry))
+                        {
+                            var (data, frame) = entry;
+                            RealWriteChar(data, frame);
+                        }
+                    }, TimeInterval.FromMicroseconds(charReceiveDelay));
+                }
+                else
+                {
+                    // Drain the intermediate FIFO into the real RX FIFO after disabling the delay
+                    // to ensure that data doesn't get lost acidentally.
+                    while(intermediateRxQueue.TryDequeue(out var entry))
+                    {
+                        var (data, frame) = entry;
+                        RealWriteChar(data, frame);
+                    }
+                    rxThread?.Dispose();
+                    rxThread = null;
+                }
+            }
+        }
+
         private bool TransmitDmaState => transmitterDMAEnabled.Value && transmitDataRegisterEmpty.Value;
 
         private bool ReceiveDmaState => receiverDMAEnabled.Value && BufferState == BufferState.Full;
@@ -762,8 +844,12 @@ namespace Antmicro.Renode.Peripherals.UART
         private int rxMaxBytes = 1;
         private int txMaxBytes = 1;
 
+        private IManagedThread rxThread;
+        private uint charReceiveDelay;
+
         private readonly object locker;
         private readonly Queue<byte> txQueue;
+        private readonly Queue<(byte, UARTFrame)> intermediateRxQueue;
         private readonly DoubleWordRegisterCollection registers;
         private readonly IFlagRegisterField reset;
         private readonly IFlagRegisterField stopBitNumberSelect;
