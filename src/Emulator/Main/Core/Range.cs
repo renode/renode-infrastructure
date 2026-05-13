@@ -293,7 +293,7 @@ namespace Antmicro.Renode.Core
             return ranges.Any(existingRange => existingRange.Contains(point));
         }
 
-        public IEnumerator GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
             return ranges.GetEnumerator();
         }
@@ -303,7 +303,7 @@ namespace Antmicro.Renode.Core
             return ranges.SubtractAll(range);
         }
 
-        IEnumerator<Range> IEnumerable<Range>.GetEnumerator()
+        public IEnumerator<Range> GetEnumerator()
         {
             return ((IEnumerable<Range>)ranges).GetEnumerator();
         }
