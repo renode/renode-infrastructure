@@ -231,7 +231,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
                 if(!enabled)
                 {
-                    parent.Log(LogLevel.Warning, "Channel {0}: Cannot transfer on disabled channel", channelNo);
+                    /* This log is a debug log because there is a legitimate case where this could
+                     * happen: some models defer there signal to the DMA (OnGPIO -> DoTransfer) to
+                     * avoid recursive calls. This deferred signal may arrive when the software is
+                     * reconfiguring the channel for a next transfer. During the configuration, the
+                     * channel is disabled and the numberOfData may have already been set.
+                     */
+                    parent.Log(LogLevel.Debug, "Channel {0}: Cannot transfer on disabled channel", channelNo);
                     return;
                 }
 
