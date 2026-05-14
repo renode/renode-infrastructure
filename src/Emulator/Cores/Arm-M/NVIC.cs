@@ -355,6 +355,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     cpu.FpuEnabled = false;
                 }
                 break;
+            case Registers.NonsecureAccessControl:
+                if(!IsPrivilegedMode() || !isSecure)
+                {
+                    this.Log(LogLevel.Warning, "Writing to NonsecureAccessControl requires privileged and secure access.");
+                    break;
+                }
+                cpu.NSACR = value;
+                break;
             case Registers.SoftwareTriggerInterrupt:
                 // This register is implemented only in ARMv7m and ARMv8m
                 if(cpu.Model == "cortex-m3" || cpu.Model == "cortex-m4" || cpu.Model == "cortex-m4f" || cpu.Model == "cortex-m7")
@@ -474,6 +482,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return cpuId;
             case Registers.CoprocessorAccessControl:
                 return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.CPACR, () => cpu.CPACR_NS);
+            case Registers.NonsecureAccessControl:
+                // This register is RAZ/WI in Non-secure state
+                if(!isSecure)
+                {
+                    return 0;
+                }
+                return cpu.NSACR;
             case Registers.FPContextControl:
                 if(!IsPrivilegedMode())
                 {
@@ -2102,7 +2117,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             ConfigurableFaultStatus = 0xD28, // CFSR
             HardFaultStatus = 0xD2C, // HFSR
             DebugFaultStatus = 0xD30, // DFSR
-            // FPU registers 0xD88 .. F3C
             MemoryFaultAddress = 0xD34, // MMFAR
             BusFaultAddress = 0xD38, // BFAR
             AuxiliaryFaultStatus = 0xD3C, // AFSR
@@ -2124,7 +2138,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             CacheType = 0xD7C, // CTR
             CacheSizeID = 0xD80, // CCSIDR
             CacheSizeSelection = 0xD84, // CSSELR
+            // FPU registers 0xD88 .. F3C
             CoprocessorAccessControl = 0xD88, // CPACR
+            NonsecureAccessControl  = 0xD8C, // NSACR
             MPUType = 0xD90, // MPU_TYPE
             MPUControl = 0xD94, // MPU_CTRL
             MPURegionNumber = 0xD98, // MPU_RNR

@@ -231,6 +231,20 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Register]
+        public RegisterValue NSACR
+        {
+            get
+            {
+                return GetRegisterValue32((int)CortexMRegisters.NSACR);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)CortexMRegisters.NSACR, value);
+            }
+        }
+
+        [Register]
         public RegisterValue FPSCR
         {
             get
@@ -375,6 +389,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             { CortexMRegisters.PRIMASK,  new CPURegister(28, 32, isGeneral: false, isReadonly: false, aliases: new [] { "PRIMASK" }) },
             { CortexMRegisters.FAULTMASK,  new CPURegister(30, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FAULTMASK" }) },
             { CortexMRegisters.VPR,  new CPURegister(31, 32, isGeneral: false, isReadonly: false, aliases: new [] { "VPR" }) },
+            { CortexMRegisters.NSACR,  new CPURegister(32, 32, isGeneral: false, isReadonly: false, aliases: new [] { "NSACR" }) },
             { CortexMRegisters.D0,  new CPURegister(42, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D0" }) },
             { CortexMRegisters.D1,  new CPURegister(43, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D1" }) },
             { CortexMRegisters.D2,  new CPURegister(44, 64, isGeneral: false, isReadonly: false, aliases: new [] { "D2" }) },
@@ -461,6 +476,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         PRIMASK = 28,
         FAULTMASK = 30,
         VPR = 31,
+        NSACR = 32,
         FPSCR = 74,
         R0 = 0,
         R1 = 1,
