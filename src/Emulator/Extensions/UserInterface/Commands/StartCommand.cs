@@ -37,6 +37,11 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Run(ICommandInteraction writer)
         {
+            if(EmulationManager.Instance.CurrentEmulation.IsStarted)
+            {
+                writer.WriteLine("Emulation is already started. Ignoring command");
+                return;
+            }
             writer.WriteLine("Starting emulation...");
             EmulationManager.Instance.CurrentEmulation.StartAll();
         }
