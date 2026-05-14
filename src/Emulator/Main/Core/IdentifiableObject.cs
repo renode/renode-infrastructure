@@ -10,9 +10,14 @@ namespace Antmicro.Renode.Core
 {
     public class IdentifiableObject : IIdentifiable
     {
+        public static int AssignUniqueObjectId()
+        {
+            return Interlocked.Increment(ref IdCounter);
+        }
+
         public IdentifiableObject()
         {
-            uniqueObjectId = Interlocked.Increment(ref IdCounter);
+            uniqueObjectId = AssignUniqueObjectId();
         }
 
         public override string ToString()
