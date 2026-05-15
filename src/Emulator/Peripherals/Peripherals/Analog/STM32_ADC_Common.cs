@@ -18,7 +18,6 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.DMA;
 using Antmicro.Renode.Peripherals.Sensor;
-using Antmicro.Renode.Peripherals.Sensors;
 using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
@@ -126,46 +125,21 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             samplingThread = machine.ObtainManagedThread(StartSampling, externalEventFrequency);
             channelSelected = new bool[ADCChannelCount];
-            sampleProvider = new SensorSamplesFifo<ScalarSample>[ADCChannelCount];
-            for(var channel = 0; channel < ADCChannelCount; channel++)
-            {
-                sampleProvider[channel] = new SensorSamplesFifo<ScalarSample>();
-            }
             Reset();
-        }
 
-        public void FeedVoltageSampleToChannel(int channel, string path)
-        {
-            this.AssertChannel(channel);
-            sampleProvider[channel].FeedSamplesFromFile(path);
-        }
-
-        public void FeedVoltageSampleToChannel(int channel, decimal valueInmV, uint repeat)
-        {
-            this.AssertChannel(channel);
-            WarnOnTooBigValue((double)valueInmV);
-
-            var sample = new ScalarSample(valueInmV);
-            for(var i = 0; i < repeat; i++)
+            machine.PeripheralsChanged += (machine, ev) =>
             {
-                sampleProvider[channel].FeedSample(sample);
-            }
-        }
-
-        public void SetDefaultValue(decimal valueInmV, int? channel = null)
-        {
-            WarnOnTooBigValue((double)valueInmV);
-
-            if(channel != null)
-            {
-                this.AssertChannel(channel.Value);
-                sampleProvider[channel.Value].DefaultSample.Value = valueInmV;
-                return;
-            }
-            for(var i = 0; i < ADCChannelCount; i++)
-            {
-                sampleProvider[i].DefaultSample.Value = valueInmV;
-            }
+                /* We need to create default children as soon as this ADC peripheral exists.
+                 * However, the channel name must be unique at the machine level so the ADC name is
+                 * prefixed. The creation driver first register the ADC device and then sets its
+                 * local name. So the default children are created on the
+                 * PeripheralChangeType.NamedChanged event instead of PeripheralChangeType.Addition.
+                 */
+                if(ev.Peripheral == this && ev.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.NameChanged)
+                {
+                    RegisterDefaultChildren(machine);
+                }
+            };
         }
 
         public void SetADCValue(int channel, uint valueMicroVolts)
@@ -885,6 +859,19 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
+        private void RegisterDefaultChildren(IMachine machine)
+        {
+            var adcName = "";
+            machine.TryGetLocalName(this, out adcName);
+
+            for(var i = 0; i < ADCChannelCount; i++)
+            {
+                IRESDSampleSource<VoltageSample> channelSource = new ADCDefaultChannelSource();
+                ((IADC)this).Register(channelSource, new NumberRegistrationPoint<int>(i));
+                machine.SetLocalName(channelSource, $"{adcName}-channel{i}");
+            }
+        }
+
         private IEnumRegisterField<Align> align;
         // While watchdogs 2 and 3 use bitfields for selecting channels to watch
         private IFlagRegisterField[] analogWatchdog2SelectedChannels;
@@ -937,7 +924,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly uint externalEventFrequency;
         private readonly double referenceVoltage;
         private readonly IManagedThread samplingThread;
-        private readonly SensorSamplesFifo<ScalarSample>[] sampleProvider;
         private readonly DoubleWordRegisterCollection registers;
         private readonly IMachine machine;
 
