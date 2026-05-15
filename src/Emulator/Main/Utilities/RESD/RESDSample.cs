@@ -8,6 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
+using Antmicro.Renode.Exceptions;
+
 namespace Antmicro.Renode.Utilities.RESD
 {
     public abstract class RESDSample : IAutoLoadType
@@ -139,6 +141,27 @@ namespace Antmicro.Renode.Utilities.RESD
     [SampleType(SampleType.Voltage)]
     public class VoltageSample : RESDSample
     {
+        public VoltageSample()
+        {
+        }
+
+        public VoltageSample(uint microVolts)
+        {
+            this.voltage = microVolts;
+        }
+
+        public VoltageSample(decimal volts)
+        {
+            try
+            {
+                this.voltage = (uint)(volts * 1e6m);
+            }
+            catch(OverflowException)
+            {
+                throw new RecoverableException($"{volts} is too big to be converted to µV");
+            }
+        }
+
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             return reader.TryReadUInt32(out voltage);
