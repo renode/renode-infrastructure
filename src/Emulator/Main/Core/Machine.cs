@@ -2157,6 +2157,11 @@ namespace Antmicro.Renode.Core
                 machine.ClockSource.ExchangeClockEntryWith(action, x => x.With(enabled: false));
             }
 
+            public void Restart()
+            {
+                machine.ClockSource.ExchangeClockEntryWith(action, x => x.With(enabled: true, value: x.Direction == Direction.Ascending ? 0 : x.Period));
+            }
+
             public uint Frequency
             {
                 get => (uint)machine.ClockSource.GetClockEntry(action).Frequency;

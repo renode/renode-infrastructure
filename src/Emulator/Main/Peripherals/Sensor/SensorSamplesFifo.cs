@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -232,6 +232,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 foreach(var t in threads)
                 {
                     t.Stop();
+                }
+            }
+
+            public void Restart()
+            {
+                foreach(var t in threads)
+                {
+                    t.Restart();
                 }
             }
 

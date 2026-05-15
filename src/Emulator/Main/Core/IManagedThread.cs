@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,6 +9,8 @@ namespace Antmicro.Renode.Core
 {
     public interface IManagedThread : ISimpleManagedThread
     {
+        void Restart();
+
         uint Frequency { get; set; }
     }
 }
