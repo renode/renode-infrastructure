@@ -10,21 +10,14 @@ using System.Runtime.InteropServices;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
-#if PLATFORM_LINUX
 using Gst;
-#endif
 
 namespace Antmicro.Renode.Peripherals.Video
 {
     public static class GStreamerWrapper
     {
-#if PLATFORM_LINUX
         public static Pipeline CreatePipeline(string pipelineStr)
-#else
-        public static object CreatePipeline(string pipelineStr)
-#endif
         {
-#if PLATFORM_LINUX
             try
             {
                 EnsureInitialized();
@@ -35,12 +28,8 @@ namespace Antmicro.Renode.Peripherals.Video
                 Logger.Warning("Unable to load shared library for GStreamer");
                 return null;
             }
-#else
-            return null;
-#endif
         }
 
-#if PLATFORM_LINUX
         public static void SetBufferDimensions(Gst.Buffer buffer, uint width, uint height, uint pitch)
         {
             try
@@ -56,7 +45,6 @@ namespace Antmicro.Renode.Peripherals.Video
                 Logger.Warning("Unable to load shared library for GStreamer");
             }
         }
-#endif
 
         public static string H264Encoder
         {
@@ -76,10 +64,8 @@ namespace Antmicro.Renode.Peripherals.Video
             }
         }
 
-#if PLATFORM_LINUX
         [DllImport("libgstvideo-1.0.so.0", EntryPoint = "gst_buffer_add_video_meta_full")]
         private static extern UIntPtr BufferAddVideoMetaFull(Gst.Internal.BufferHandle buffer, VideoFrameFlags flags, VideoFormat format, uint width, uint height, uint nPlanes, UIntPtr[] offset, ref uint stride);
-#endif
 
         private static void EnsureInitialized()
         {
@@ -104,7 +90,6 @@ namespace Antmicro.Renode.Peripherals.Video
 
         private static void Initialize()
         {
-#if PLATFORM_LINUX
             Module.Initialize();
             GstApp.Module.Initialize();
             var a = Array.Empty<string>();
@@ -112,12 +97,10 @@ namespace Antmicro.Renode.Peripherals.Video
 
             h264Encoder = FindEncoder("H.264", H264EncoderPriority);
             h265Encoder = FindEncoder("H.265", H265EncoderPriority);
-#endif
         }
 
         private static string FindEncoder(string codec, string[] priority)
         {
-#if PLATFORM_LINUX
             foreach(var type in priority)
             {
                 using(var factory = ElementFactory.Find(type.Split(' ')[0]))
@@ -128,7 +111,6 @@ namespace Antmicro.Renode.Peripherals.Video
                     }
                 }
             }
-#endif
             Logger.Warning($"{codec} encoder was requested but none of {Misc.PrettyPrintCollection(priority)} were available");
             return null;
         }

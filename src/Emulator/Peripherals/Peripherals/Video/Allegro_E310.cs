@@ -475,12 +475,10 @@ namespace Antmicro.Renode.Peripherals.Video
 
             public void Dispose()
             {
-#if PLATFORM_LINUX
-                appSrc?.Dispose();
-                appSink?.Dispose();
-                pipeline?.SetState(Gst.State.Null);
-                pipeline?.Dispose();
-#endif
+                if(RuntimeInfo.IsLinux())
+                {
+                    DisposeLinux();
+                }
             }
 
             public uint FrameIndex { get; private set; }
@@ -506,8 +504,25 @@ namespace Antmicro.Renode.Peripherals.Video
             public readonly int SourceBitDepth;
             public readonly Profile Profile;
 
-#if PLATFORM_LINUX
+            private void DisposeLinux()
+            {
+                appSrc?.Dispose();
+                appSink?.Dispose();
+                pipeline?.SetState(Gst.State.Null);
+                pipeline?.Dispose();
+            }
+
             private void InitializePipeline()
+            {
+                if(!RuntimeInfo.IsLinux())
+                {
+                    owner.ErrorLog("[ch{0}] Skipping GStreamer initialization due to unsupported platform or runtime", Uid);
+                    return;
+                }
+                InitializePipelineLinux();
+            }
+
+            private void InitializePipelineLinux()
             {
                 try
                 {
@@ -551,6 +566,15 @@ namespace Antmicro.Renode.Peripherals.Video
             }
 
             private EncodeResult EncodeFrame(byte[] rawData, uint bufferPitch)
+            {
+                if(!RuntimeInfo.IsLinux())
+                {
+                    return FakeEncodeResult;
+                }
+                return EncodeFrameLinux(rawData, bufferPitch);
+            }
+
+            private EncodeResult EncodeFrameLinux(byte[] rawData, uint bufferPitch)
             {
                 if(pipeline == null)
                 {
@@ -606,17 +630,6 @@ namespace Antmicro.Renode.Peripherals.Video
             private Gst.Pipeline pipeline;
             private GstApp.AppSrc appSrc;
             private GstApp.AppSink appSink;
-#else
-            private void InitializePipeline()
-            {
-                owner.ErrorLog("[ch{0}] Skipping GStreamer initialization due to unsupported platform or runtime", Uid);
-            }
-
-            private EncodeResult EncodeFrame(byte[] rawData, uint bufferPitch)
-            {
-                return FakeEncodeResult;
-            }
-#endif
 
             private readonly Allegro_E310 owner;
             private readonly Queue<PutStreamBufferMsg> streamBuffers = new Queue<PutStreamBufferMsg>();
