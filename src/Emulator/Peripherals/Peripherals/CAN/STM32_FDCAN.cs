@@ -50,6 +50,19 @@ namespace Antmicro.Renode.Peripherals.CAN
             Reset();
         }
 
+        public void DumpStandardFilters()
+        {
+            var filterLength = Packet.CalculateLength<StandardFilterElement>();
+            this.InfoLog("Number of standard filters {0}", numberOfStandardFilters.Value);
+            this.InfoLog("-----------------------------");
+            for(var filterIndex = 0; filterIndex < (int)numberOfStandardFilters.Value; filterIndex++)
+            {
+                var filter = Packet.Decode<StandardFilterElement>(messageRam.ReadBytes((long)MessageRAMOffsets.StandardFilters + filterIndex * filterLength, filterLength));
+                this.InfoLog("{0}", filter);
+            }
+            this.InfoLog("-----------------------------");
+        }
+
         public override void Reset()
         {
             base.Reset();
@@ -1008,6 +1021,11 @@ namespace Antmicro.Renode.Peripherals.CAN
                 default:
                     throw new UnreachableException($"Unexpected StandardFilterType variant {this.FilterType}");
                 }
+            }
+
+            public override string ToString()
+            {
+                return $"StandardFilter: type: {FilterType}, config: {Config}, filter1: {FilterId1}, filter2: {FilterId2}";
             }
 
 #pragma warning disable CS0649 // Fields are assigned via `Packet.Decode()`
