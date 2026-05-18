@@ -1029,7 +1029,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
 
 #pragma warning disable CS0649 // Fields are assigned via `Packet.Decode()`
-            [PacketField, Offset(doubleWords: 0, bits:  29), Width(bits: 2)]
+            [PacketField, Offset(doubleWords: 0, bits:  30), Width(bits: 2)]
             public StandardFilterType FilterType;
             [PacketField, Offset(doubleWords: 0, bits: 27), Width(bits:3)]
             public FilterElementConfig Config;
