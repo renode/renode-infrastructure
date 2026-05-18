@@ -485,8 +485,8 @@ namespace Antmicro.Renode.UserInterface
             {
                 return genericArguments.Select(x => TypePrettyName(x) + "?").First();
             }
-            var typeDefeninition = type.Name;
-            var unmangledName = typeDefeninition.Substring(0, typeDefeninition.IndexOf("`", StringComparison.Ordinal));
+            var backtickIndex = type.Name.IndexOf("`", StringComparison.Ordinal);
+            var unmangledName = backtickIndex > 0 ? type.Name.Substring(0, backtickIndex) : type.Name;
             return unmangledName + "<" + String.Join(",", genericArguments.Select(TypePrettyName)) + ">";
         }
 
