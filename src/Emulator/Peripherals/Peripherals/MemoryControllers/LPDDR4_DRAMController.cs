@@ -33,35 +33,35 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             Registers.TRP.Define(this, 0x3)
                 .WithValueField(0, 3, out TRP, name: "TRP")
-                .WithReservedBits(1, 31);
+                .WithReservedBits(3, 29);
 
             Registers.TRCD.Define(this, 0x2)
                 .WithValueField(0, 3, out TRCD, name: "TRCD")
-                .WithReservedBits(4, 31);
+                .WithReservedBits(3, 29);
 
             Registers.TWR.Define(this, 0x2)
                 .WithValueField(0, 3, out TWR, name: "TWR")
-                .WithReservedBits(4, 31);
+                .WithReservedBits(3, 29);
 
             Registers.TWTR.Define(this, 0x4)
                 .WithValueField(0, 4, out TWTR, name: "TWTR")
-                .WithReservedBits(5, 31);
+                .WithReservedBits(4, 28);
 
             Registers.TREFI.Define(this, 0x125)
                 .WithValueField(0, 10, out TREFI, name: "TREFI")
-                .WithReservedBits(11, 31);
+                .WithReservedBits(10, 22);
 
             Registers.TRFC.Define(this, 0xe)
                 .WithValueField(0, 6, out TRFC, name: "TRFC")
-                .WithReservedBits(7, 31);
+                .WithReservedBits(6, 26);
 
             Registers.TFAW.Define(this, 0x4)
                 .WithValueField(0, 4, out TFAW, name: "TFAW")
-                .WithReservedBits(5, 31);
+                .WithReservedBits(4, 28);
 
             Registers.TCCD.Define(this, 0x10)
                 .WithValueField(0, 6, out TCCD, name: "TCCD")
-                .WithReservedBits(7, 31);
+                .WithReservedBits(6, 26);
 
             Registers.TCCD_WR.Define(this, 0x0)
                 .WithFlag(0, out TCCD_WR, name: "TCCD_WR")
@@ -73,15 +73,15 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 
             Registers.TRRD.Define(this, 0x2)
                 .WithValueField(0, 3, out TRRD, name: "TRRD")
-                .WithReservedBits(4, 31);
+                .WithReservedBits(3, 29);
 
             Registers.TRC.Define(this, 0x6)
                 .WithValueField(0, 4, out TRC, name: "TRC")
-                .WithReservedBits(5, 31);
+                .WithReservedBits(4, 28);
 
             Registers.TRAS.Define(this, 0x4)
                 .WithValueField(0, 4, out TRAS, name: "TRAS")
-                .WithReservedBits(5, 31);
+                .WithReservedBits(4, 28);
 
             Registers.PHY_INIT_REQ.Define(this, 0x0)
                 .WithFlag(0, out PHY_INIT_REQ, name: "PHY_INIT_REQ")
