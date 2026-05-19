@@ -283,7 +283,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private uint GetArgumentField(ulong baseAddress, ulong field)
         {
             var address = baseAddress + field * 4;
-            address = cpu.TranslateAddress(address, MpuAccess.Read);
+            // TODO: Add address translation to semihosting handler
             return cpu.Bus.ReadDoubleWord(address, cpu);
         }
 
