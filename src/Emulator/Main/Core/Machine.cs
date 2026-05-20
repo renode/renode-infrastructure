@@ -1765,10 +1765,25 @@ namespace Antmicro.Renode.Core
                 .Where(pair => pair.Key.Architecture == cpu.Architecture)
                 .ToArray();
 
-            var firstUnread = sameArchitectureCPUs.Select(pair => pair.Value).Min();
+            // Halted CPUs only need to invalidate latest dirty address. Prune all previous stale address entries
+            // to prevent the unbounded growth in this list if the CPU is halted indefinitely.
+            var currentCount = invalidatedAddressesByCpu[cpu].Count;
+            foreach(var pair in sameArchitectureCPUs)
+            {
+                if((pair.Key == cpu || pair.Key.IsHalted) && pair.Value < currentCount)
+                {
+                    firstUnbroadcastedDirtyAddressIndex[pair.Key] = currentCount;
+                }
+            }
+
+            var firstUnread = sameArchitectureCPUs
+                .Select(pair => firstUnbroadcastedDirtyAddressIndex[pair.Key])
+                .Min();
             if(firstUnread == 0)
             {
-                var laggingCPUNames = sameArchitectureCPUs.Where(pair => pair.Value == 0).Select(pair => pair.Key.GetName());
+                var laggingCPUNames = sameArchitectureCPUs
+                    .Where(pair => firstUnbroadcastedDirtyAddressIndex[pair.Key] == 0)
+                    .Select(pair => pair.Key.GetName());
                 cpu.DebugLog(
                     "Attempted reduction of {0} dirty addresses list failed, current count: {1}, CPUs that didn't fetch any: {2}",
                     cpu.Architecture, invalidatedAddressesByCpu[cpu].Count, string.Join(", ", laggingCPUNames));
