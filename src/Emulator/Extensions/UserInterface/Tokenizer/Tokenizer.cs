@@ -59,10 +59,10 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             tokenizer.AddToken(new Regex(@"^(([0-9]+:)?[0-9]+:)[0-9]+(\.[0-9]+)?"), x => new TimeIntervalToken(x));
 
             // float number
-            tokenizer.AddToken(new Regex(@"^[+-]?((\d+\.(\d*)?))"), x => new FloatToken(x));
+            tokenizer.AddToken(new Regex(@"^[+-]?((\d+\.(\d*)?(e[+-]?\d+)?))"), x => new FloatToken(x));
 
             // integer
-            tokenizer.AddToken(new Regex(@"^[+-]?\d+"), x => new DecimalIntegerToken(x));
+            tokenizer.AddToken(new Regex(@"^[+-]?\d+(e[+-]?\d+)?"), x => new DecimalIntegerToken(x));
 
             // boolean ignore case
             tokenizer.AddToken(new Regex(@"^(true|false|True|False)"), x => new BooleanToken(x));

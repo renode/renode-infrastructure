@@ -190,17 +190,19 @@ namespace Antmicro.Renode.MonitorTests
         [Test]
         public void IntegerTest()
         {
-            var result = tokenizer.Tokenize("123465 -213245 +132432");
-            AssertTokenizationTypes(result, typeof(DecimalIntegerToken), typeof(DecimalIntegerToken), typeof(DecimalIntegerToken));
-            AssertTokenizationValues(result, 123465, -213245, 132432);
+            var result = tokenizer.Tokenize("123465 -213245 +132432 1e5 -3e2 1e+3");
+            AssertTokenizationTypes(result, typeof(DecimalIntegerToken), typeof(DecimalIntegerToken), typeof(DecimalIntegerToken),
+                                    typeof(DecimalIntegerToken), typeof(DecimalIntegerToken), typeof(DecimalIntegerToken));
+            AssertTokenizationValues(result, 123465, -213245, 132432, 100000, -300, 1000);
         }
 
         [Test]
         public void FloatTest()
         {
-            var result = tokenizer.Tokenize("145.5 -0.43 +45.");
-            AssertTokenizationTypes(result, typeof(FloatToken), typeof(FloatToken), typeof(FloatToken));
-            AssertTokenizationValues(result, 145.5f, -0.43f, 45.0f);
+            var result = tokenizer.Tokenize("145.5 -0.43 +45. 1.5e2 1.5e-2 -4.2e+3");
+            AssertTokenizationTypes(result, typeof(FloatToken), typeof(FloatToken), typeof(FloatToken),
+                                    typeof(FloatToken), typeof(FloatToken), typeof(FloatToken));
+            AssertTokenizationValues(result, 145.5f, -0.43f, 45.0f, 150.0f, 0.015f, -4200f);
         }
 
         [Test]

@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Globalization;
 
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
@@ -12,7 +13,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
     {
         public DecimalIntegerToken(string value) : base(value)
         {
-            Value = long.Parse(value);
+            Value = long.Parse(value, NumberStyles.Integer | NumberStyles.AllowExponent);
         }
 
         public override object GetObjectValue()
