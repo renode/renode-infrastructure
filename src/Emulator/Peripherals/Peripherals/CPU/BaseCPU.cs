@@ -283,6 +283,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                             EmulationState = EmulationCPUState.Running;
                         }
 
+                        OnIsHaltedCleared();
+
                         if(wasRunningWhenHalted)
                         {
                             Resume();
@@ -514,6 +516,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected virtual void OnLeavingResetState()
         {
             // Intentionally left blank.
+        }
+
+        protected virtual void OnIsHaltedCleared()
+        {
         }
 
         protected override void OnResume()

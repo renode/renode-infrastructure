@@ -768,6 +768,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        protected override void OnIsHaltedCleared()
+        {
+            ClearTranslationCache();
+        }
+
         public void InitStoreTable(bool afterDeserialization = false)
         {
             TlibStoreTableInit(StoreTablePointer, (byte)StoreTableBits, afterDeserialization ? 1 : 0);
