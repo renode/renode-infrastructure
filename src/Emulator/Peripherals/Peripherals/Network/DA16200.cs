@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -84,6 +84,11 @@ namespace Antmicro.Renode.Peripherals.Network
             var dataPrefix = Encoding.ASCII.GetBytes($"+{commandName}:{connection.ID},{source.Address},{source.Port},{data.Length},");
             var response = dataPrefix.Concat(data).ToArray();
             ExecuteWithDelay(() => SendBytes(response), DataResponseDelayMilliseconds);
+        }
+
+        public void InjectData(byte[] data, String sourceAddress, ushort sourcePort, ushort destinationPort)
+        {
+            ReceiveData(data, new NetworkAddress(sourceAddress, sourcePort), NodeAddress.WithPort(destinationPort));
         }
 
         public ulong DataResponseDelayMilliseconds { get; set; } = 50;
