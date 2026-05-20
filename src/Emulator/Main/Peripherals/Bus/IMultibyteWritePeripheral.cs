@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Linq;
 
 using Antmicro.Renode.Exceptions;
 
@@ -53,6 +54,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         public static void FillWithConstantByte(this IMultibyteWritePeripheral peripheral, byte value, long? size = null)
         {
             peripheral.FillWithRepeatingData(new byte[] { value }, size);
+        }
+
+        public static void WriteString(this IMultibyteWritePeripheral peripheral, long offset, string value)
+        {
+            peripheral.WriteBytes(offset, new System.Text.ASCIIEncoding().GetBytes(value).Concat(new[] { (byte)'\0' }).ToArray(), startingIndex: 0, value.Length);
         }
     }
 }

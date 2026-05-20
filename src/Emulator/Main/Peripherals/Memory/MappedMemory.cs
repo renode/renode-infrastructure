@@ -216,11 +216,6 @@ namespace Antmicro.Renode.Peripherals.Memory
             this.LoadFileChunks(chunks, cpu);
         }
 
-        public void WriteString(long offset, string value)
-        {
-            WriteBytes(offset, new System.Text.ASCIIEncoding().GetBytes(value).Concat(new[] { (byte)'\0' }).ToArray());
-        }
-
         public void WriteBytes(long offset, byte[] array, int startingIndex, int count, IPeripheral context = null)
         {
             if(offset < 0 || offset > size - count)
