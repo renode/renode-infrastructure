@@ -275,7 +275,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="position">Offset in the register.</param>
         /// <param name="width">Width of field.</param>
         /// <param name="allowedValue">Value allowed to be written.<\param>
-        public void Tag(string name, int position, int width, ulong? allowedValue = null)
+        public void Tag(string name, int position, int width, ulong? allowedValue = null, bool isFlag = false)
         {
             ThrowIfRangeIllegal(position, width, name);
 
@@ -289,8 +289,15 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 Name = name,
                 Position = position,
                 Width = width,
-                AllowedValue = allowedValue
+                AllowedValue = allowedValue,
+                ResetValue = BitHelper.GetValue(this.resetValue, position, width),
+                IsFlag = isFlag,
             });
+        }
+
+        public void TaggedFlag(string name, int position)
+        {
+            Tag(name, position, 1, isFlag: true);
         }
 
         /// <summary>
@@ -476,7 +483,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                         Name = tag.Name ?? "",
                         Position = tag.Position,
                         Width = tag.Width,
-                        Value = $"0x{BitHelper.GetValue(this.resetValue, tag.Position, tag.Width):X}",
+                        Value = tag.DumpValue,
                         ValueIsReliable = true
                     });
             }

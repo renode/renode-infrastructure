@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,9 +14,13 @@ namespace Antmicro.Renode.Core.Structure.Registers
     /// </summary>
     public struct Tag
     {
+        public string DumpValue => IsFlag ? $"{ResetValue != 0}" : $"0x{ResetValue:X}";
+
         public String Name;
         public int Position;
         public int Width;
         public ulong? AllowedValue;
+        public ulong ResetValue;
+        public bool IsFlag;
     }
 }

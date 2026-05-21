@@ -167,7 +167,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <returns>This register with a defined tag field.</returns>
         public static T WithTaggedFlag<T>(this T register, string name, int position) where T : PeripheralRegister
         {
-            register.Tag(name, position, 1);
+            register.TaggedFlag(name, position);
             return register;
         }
 
