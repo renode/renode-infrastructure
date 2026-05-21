@@ -476,7 +476,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                         Name = tag.Name ?? "",
                         Position = tag.Position,
                         Width = tag.Width,
-                        Value = $"0x{BitHelper.GetMaskedValue(this.resetValue, tag.Position, tag.Width):X}",
+                        Value = $"0x{BitHelper.GetValue(this.resetValue, tag.Position, tag.Width):X}",
                         ValueIsReliable = true
                     });
             }
