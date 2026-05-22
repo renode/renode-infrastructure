@@ -216,6 +216,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 TransferComplete = false;
                 HalfTransfer = false;
+                enabled = false;
             }
 
             public void DoTransfer()
