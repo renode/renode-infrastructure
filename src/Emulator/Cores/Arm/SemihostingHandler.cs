@@ -9,15 +9,22 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.UART;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public class SemihostingHandler : IDisposable
+    public class SemihostingHandler : IDisposable, IPeripheral, IRegisterablePeripheral<SemihostingUart, NumberRegistrationPoint<SemihostingHandler.Stdio>>, IRegisterablePeripheral<SemihostingUart, NullRegistrationPoint>
     {
-        public SemihostingHandler(Arm cpu)
+        public SemihostingHandler(IMachine machine)
+        {
+            this.machine = machine;
+        }
+
+        public void AttachCpu(Arm cpu)
         {
             this.cpu = cpu;
         }
@@ -27,20 +34,64 @@ namespace Antmicro.Renode.Peripherals.CPU
             ClearDescriptors();
         }
 
-        public uint DoSemihosting(uint operation, uint argumentsAddress)
+        public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)
         {
-            switch((Operation)operation)
+            /* If registration point was not given assume given uart peripheral will process all console streams */
+            Register(peripheral, new NumberRegistrationPoint<Stdio>(Stdio.InputOutputError));
+        }
+
+        public void Register(SemihostingUart peripheral, NumberRegistrationPoint<Stdio> registrationPoint)
+        {
+            if(registrationPoint.Address.HasFlag(Stdio.InputOutput))
+            {
+                if(stdInOut != null)
+                {
+                    throw new RegistrationException("Uart for semihosting input/output stream is already registered.");
+                }
+                stdInOut = peripheral;
+            }
+
+            if(registrationPoint.Address.HasFlag(Stdio.Error))
+            {
+                if(stdErr != null)
+                {
+                    throw new RegistrationException("Uart for semihosting error stream is already registered.");
+                }
+                stdErr = peripheral;
+            }
+
+            machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
+        }
+
+        public void Unregister(SemihostingUart peripheral)
+        {
+            if(peripheral == stdInOut)
+            {
+                stdInOut = null;
+            }
+
+            if(peripheral == stdErr)
+            {
+                stdErr = null;
+            }
+            machine.UnregisterAsAChildOf(this, peripheral);
+        }
+
+        public uint DoSemihosting(uint operationNumber, uint argumentsAddress)
+        {
+            var operation = (Operation)operationNumber;
+            switch(operation)
             {
             case Operation.SYS_OPEN:
             {
                 var pathPointer = GetArgumentField(argumentsAddress, 0);
                 var mode = GetArgumentField(argumentsAddress, 1);
                 var pathLength = (int)GetArgumentField(argumentsAddress, 2);
-                LogReceived("SYS_OPEN", $"args: 0x{pathPointer:X} / {mode} / {pathLength}");
+                LogReceived("SYS_OPEN", "args: 0x{0:X} / {1} / {2}", pathPointer, mode, pathLength);
 
                 if(pathLength <= 0)
                 {
-                    cpu.Log(LogLevel.Warning, "Semihosting: SYS_OPEN: Invalid path length: {0}; it has to be a positive number.", pathLength);
+                    this.Log(LogLevel.Warning, "SYS_OPEN: Invalid path length: {0}; it has to be a positive number.", pathLength);
                     return unchecked((uint)-1);
                 }
 
@@ -48,7 +99,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var byteAfterPath = cpu.Bus.ReadByte((ulong)(pathPointer + pathLength), cpu);
                 if(byteAfterPath != 0)
                 {
-                    cpu.Log(LogLevel.Warning, "Semihosting: SYS_OPEN: No null character after the path. Found: '{0}'", (char)byteAfterPath);
+                    this.Log(LogLevel.Warning, "SYS_OPEN: No null character after the path. Found: '{0}'", (char)byteAfterPath);
                     return unchecked((uint)-1);
                 }
 
@@ -59,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             case Operation.SYS_CLOSE:
             {
                 var handle = GetArgumentField(argumentsAddress, 0);
-                LogReceived("SYS_CLOSE", $"args: {handle}");
+                LogReceived("SYS_CLOSE", "args: {0}", handle);
                 if(RemoveDescriptor("SYS_CLOSE", handle))
                 {
                     return 0;
@@ -74,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var handle = GetArgumentField(argumentsAddress, 0);
                 var sourcePointer = GetArgumentField(argumentsAddress, 1);
                 var length = GetArgumentField(argumentsAddress, 2);
-                LogReceived("SYS_WRITE", $"args: {handle} / 0x{sourcePointer:X} / {length}");
+                LogReceived("SYS_WRITE", "args: {0} / 0x{1:X} / {2}", handle, sourcePointer, length);
 
                 if(TryGetSemihostingDescriptor("SYS_WRITE", handle, out var descriptor))
                 {
@@ -92,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var handle = GetArgumentField(argumentsAddress, 0);
                 var destinationPointer = GetArgumentField(argumentsAddress, 1);
                 var length = GetArgumentField(argumentsAddress, 2);
-                LogReceived("SYS_READ", $"args: {handle} / 0x{destinationPointer:X} / {length}");
+                LogReceived("SYS_READ", "args: {0} / 0x{1:X} / {2}", handle, destinationPointer, length);
 
                 if(TryGetSemihostingDescriptor("SYS_READ", handle, out var descriptor))
                 {
@@ -109,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             case Operation.SYS_ISTTY:
             {
                 var handle = GetArgumentField(argumentsAddress, 0);
-                LogReceived("SYS_ISTTY", $"args: {handle}");
+                LogReceived("SYS_ISTTY", "args: {0}", handle);
 
                 if(TryGetSemihostingDescriptor("SYS_ISTTY", handle, out var descriptor))
                 {
@@ -124,7 +175,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 var handle = GetArgumentField(argumentsAddress, 0);
                 var offset = GetArgumentField(argumentsAddress, 1);
-                LogReceived("SYS_SEEK", $"args: {handle} / {offset}");
+                LogReceived("SYS_SEEK", "args: {0} / {1}", handle, offset);
 
                 if(TryGetSemihostingDescriptor("SYS_SEEK", handle, out var descriptor))
                 {
@@ -138,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             case Operation.SYS_FLEN:
             {
                 var handle = GetArgumentField(argumentsAddress, 0);
-                LogReceived("SYS_FLEN", $"args: {handle}");
+                LogReceived("SYS_FLEN", "args: {0}", handle);
 
                 if(TryGetSemihostingDescriptor("SYS_FLEN", handle, out var descriptor))
                 {
@@ -169,24 +220,24 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return unchecked((uint)-1);
                 }
 
-                if(!TryGetSemihostingUart("SYS_READC", out var uart))
+                if(!TryGetConsole("SYS_READC", out var console))
                 {
                     semihostingErrno = Errno.EINVAL;
                     return unchecked((uint)-1);
                 }
-                return uart.SemihostingReadByte();
+                return console.SemihostingReadByte();
             }
             case Operation.SYS_WRITEC:
             {
                 var character = (byte)GetArgumentField(argumentsAddress, 0);
-                LogReceived("SYS_WRITEC", $"args: {character}");
+                LogReceived("SYS_WRITEC", "args: {0}", character);
 
-                if(!TryGetSemihostingUart("SYS_WRITEC", out var uart))
+                if(!TryGetConsole("SYS_WRITEC", out var console))
                 {
                     semihostingErrno = Errno.EINVAL;
                     return unchecked((uint)-1);
                 }
-                uart.SemihostingWriteByte(character);
+                console.SemihostingWriteByte(character);
 
                 // Return value: "None. Return register is corrupted", so we decide to set it to 0
                 return 0;
@@ -194,9 +245,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             case Operation.SYS_WRITE0:
             {
                 var sourcePointer = cpu.TranslateAddress(argumentsAddress, MpuAccess.Read);
-                LogReceived("SYS_WRITE0", $"args: 0x{sourcePointer:X}");
+                LogReceived("SYS_WRITE0", "args: 0x{0:X}", sourcePointer);
 
-                if(!TryGetSemihostingUart("SYS_WRITE0", out var uart))
+                if(!TryGetConsole("SYS_WRITE0", out var console))
                 {
                     semihostingErrno = Errno.EINVAL;
                     return unchecked((uint)-1);
@@ -205,14 +256,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // SYS_WRITE0 writes characters up to the null character.
                 for(byte sourceByte; (sourceByte = cpu.Bus.ReadByte(sourcePointer, cpu)) != '\0'; sourcePointer++)
                 {
-                    uart.SemihostingWriteByte(sourceByte);
+                    console.SemihostingWriteByte(sourceByte);
                 }
                 // Return value: "None. Return register is corrupted", so we decide to set it to 0
                 return 0;
             }
             default:
             {
-                cpu.Log(LogLevel.Warning, "Semihosting: Unhandled 0x{0:X} operation ({1})", operation, (Operation)operation);
+                this.Log(LogLevel.Warning, "Unhandled 0x{0:X} operation ({1})", (uint)operation, operation);
                 return unchecked((uint)-1);
             }
             }
@@ -220,7 +271,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void LogFailure(string operationName, string reason)
         {
-            cpu.Log(LogLevel.Warning, "Semihosting: {0} failed; {1}", operationName, reason);
+            this.Log(LogLevel.Warning, "{0} failed; {1}", operationName, reason);
         }
 
         public void Reset()
@@ -229,46 +280,27 @@ namespace Antmicro.Renode.Peripherals.CPU
             semihostingErrno = Errno.NoError;
         }
 
-        public SemihostingUart SemihostingUart
-        {
-            get
-            {
-                if(cpu.SemihostingUart == null)
-                {
-                    throw new SemihostingException("Cannot open Semihosting console; set SemihostingUart first.");
-                }
-                return cpu.SemihostingUart;
-            }
-        }
-
         public string SemihostingDirectory
         {
             get => this.fullSemihostingDirectory;
             set
             {
-                cpu.Log(LogLevel.Debug, "Trying to set SemihostingDirectory to: {0}", value);
+                this.Log(LogLevel.Debug, "Trying to set SemihostingDirectory to: {0}", value);
                 try
                 {
-                    if(!String.IsNullOrEmpty(value))
-                    {
-                        var fullDirectoryPath = Path.GetFullPath(value);
-                        if(Directory.Exists(fullDirectoryPath))
-                        {
-                            // Make sure that the path ends with directory separator for the check later
-                            fullDirectoryPath = fullDirectoryPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-                            cpu.Log(LogLevel.Noisy, "Full SemihostingDirectory: {0}", fullDirectoryPath);
-                            fullSemihostingDirectory = fullDirectoryPath;
-                            return;
-                        }
-                        else
-                        {
-                            throw new ConstructionException($"It's not a directory.");
-                        }
-                    }
-                    else
+                    if(String.IsNullOrEmpty(value))
                     {
                         throw new ConstructionException("String is empty.");
                     }
+                    var fullDirectoryPath = Path.GetFullPath(value);
+                    if(!Directory.Exists(fullDirectoryPath))
+                    {
+                        throw new ConstructionException("It's not a directory.");
+                    }
+                    // Make sure that the path ends with directory separator for the check later
+                    fullDirectoryPath = fullDirectoryPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                    this.Log(LogLevel.Noisy, "Full SemihostingDirectory: {0}", fullDirectoryPath);
+                    fullSemihostingDirectory = fullDirectoryPath;
                 }
                 catch(Exception e)
                 {
@@ -287,22 +319,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             return cpu.Bus.ReadDoubleWord(address, cpu);
         }
 
-        private void LogReceived(string operationName, string message = "")
+        private void LogReceived(string operationName, string message = null, params object[] args)
         {
-            cpu.Log(LogLevel.Debug, "Semihosting: {0} received; {1}", operationName, message);
+            this.Log(LogLevel.Debug, $"{operationName} received; " + message, args);
         }
 
-        private bool TryGetSemihostingUart(string operationName, out SemihostingUart semihostingUart)
+        private bool TryGetConsole(string operationName, out SemihostingUart console)
         {
-            if(cpu.SemihostingUart != null)
+            if(stdInOut != null)
             {
-                semihostingUart = cpu.SemihostingUart;
+                console = stdInOut;
                 return true;
             }
             else
             {
-                LogFailure(operationName, "Cannot open Semihosting console; set SemihostingUart first.");
-                semihostingUart = null;
+                LogFailure(operationName, "Cannot open Semihosting console; set SemihostingUart for input/output first.");
+                console = null;
                 return false;
             }
         }
@@ -353,7 +385,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             semihostingDescriptors.Add(descriptorNumber, descriptor);
 
-            LogReceived(operationName, $"'{path}' opened as {descriptorNumber}");
+            this.Log(LogLevel.Debug, "{0}: '{1}' opened as {2}", operationName, path, descriptorNumber);
             return descriptorNumber;
         }
 
@@ -384,12 +416,48 @@ namespace Antmicro.Renode.Peripherals.CPU
             highestFileDescriptor = 0;
         }
 
-        private string fullSemihostingDirectory;
+        private SemihostingUart StdInOut
+        {
+            get
+            {
+                if(stdInOut == null)
+                {
+                    throw new SemihostingException("Cannot open Semihosting console; set standard input/output stream first.");
+                }
+                return stdInOut;
+            }
+        }
+
+        private SemihostingUart StdErr
+        {
+            get
+            {
+                if(stdErr == null)
+                {
+                    throw new SemihostingException("Cannot open Semihosting error console; set standard error stream first.");
+                }
+                return stdErr;
+            }
+        }
+
+        private Arm cpu;
         private Errno semihostingErrno = Errno.NoError;
+        private SemihostingUart stdInOut;
+        private SemihostingUart stdErr;
+        private string fullSemihostingDirectory;
         private uint highestFileDescriptor = 0;
-        private readonly Arm cpu;
+        private readonly IMachine machine;
         private readonly PriorityQueue<uint, uint> freeDescriptors = new PriorityQueue<uint, uint>();
         private readonly Dictionary<uint, SemihostingDescriptor> semihostingDescriptors = new Dictionary<uint, SemihostingDescriptor>();
+
+        [Flags]
+        public enum Stdio
+        {
+            None = 0,
+            InputOutput = 1,
+            Error = 1 << 1,
+            InputOutputError = InputOutput | Error,
+        }
 
         private class SemihostingDescriptor
         {
@@ -403,7 +471,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 if(path == SemihostingHandler.ConsolePath)
                 {
-                    backingStream = new UartStream(handler.SemihostingUart, mode);
+                    backingStream = OpenUartWithISOCMode(mode);
                     isConsole = true;
                 }
                 else if(path == SemihostingHandler.FeaturesPath)
@@ -613,6 +681,48 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return File.Open(path, fileMode, fileAccess);
             }
 
+            private UartStream OpenUartWithISOCMode(ISOCMode mode)
+            {
+                SemihostingUart uart;
+                var canRead = false;
+                var canWrite = false;
+                switch(mode)
+                {
+                case ISOCMode.Read:
+                case ISOCMode.ReadBinary:
+                    canRead = true;
+                    uart = handler.StdInOut;
+                    break;
+                case ISOCMode.ReadWrite:
+                case ISOCMode.ReadWriteBinary:
+                    uart = handler.StdInOut;
+                    canRead = true;
+                    canWrite = true;
+                    break;
+                case ISOCMode.Write:
+                case ISOCMode.WriteBinary:
+                    uart = handler.StdInOut;
+                    canWrite = true;
+                    break;
+                case ISOCMode.WriteRead:
+                case ISOCMode.WriteReadBinary:
+                    uart = handler.StdInOut;
+                    canRead = true;
+                    canWrite = true;
+                    break;
+                case ISOCMode.Append:
+                case ISOCMode.AppendBinary:
+                case ISOCMode.AppendRead:
+                case ISOCMode.AppendReadBinary:
+                    uart = handler.StdErr;
+                    canWrite = true;
+                    break;
+                default:
+                    throw new SemihostingException($"Invalid mode for Semihosting console: {mode}");
+                }
+                return new UartStream(uart, canRead, canWrite);
+            }
+
             private readonly bool isConsole;
             private readonly Stream backingStream;
             private readonly SemihostingHandler handler;
@@ -620,30 +730,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private class UartStream : Stream
         {
-            public UartStream(SemihostingUart uart, ISOCMode mode)
+            public UartStream(SemihostingUart uart, bool canRead, bool canWrite)
             {
                 this.uart = uart;
-                switch(mode)
-                {
-                case ISOCMode.Read:
-                case ISOCMode.ReadBinary:
-                case ISOCMode.ReadWrite:
-                case ISOCMode.ReadWriteBinary:
-                    canRead = true;
-                    break;
-                case ISOCMode.Write:
-                case ISOCMode.WriteBinary:
-                case ISOCMode.WriteRead:
-                case ISOCMode.WriteReadBinary:
-                case ISOCMode.Append:
-                case ISOCMode.AppendBinary:
-                case ISOCMode.AppendRead:
-                case ISOCMode.AppendReadBinary:
-                    canWrite = true;
-                    break;
-                default:
-                    throw new SemihostingException($"Invalid mode for Semihosting console: {mode}");
-                }
+                this.canRead = canRead;
+                this.canWrite = canWrite;
             }
 
             public override int Read(byte[] buffer, int offset, int count)

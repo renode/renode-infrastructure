@@ -15,8 +15,6 @@ using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
-using Antmicro.Renode.Peripherals.UART;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Binding;
 
@@ -25,12 +23,11 @@ using Endianess = ELFSharp.ELF.Endianess;
 namespace Antmicro.Renode.Peripherals.CPU
 {
     [GPIO(NumberOfInputs = 2)]
-    public abstract partial class Arm : TranslationCPU, ICPUWithHooks, IRegisterablePeripheral<SemihostingUart, NullRegistrationPoint>, IRegisterablePeripheral<ArmPerformanceMonitoringUnit, NullRegistrationPoint>
+    public abstract partial class Arm : TranslationCPU, ICPUWithHooks, IRegisterablePeripheral<SemihostingHandler, NullRegistrationPoint>, IRegisterablePeripheral<ArmPerformanceMonitoringUnit, NullRegistrationPoint>
     {
         public Arm(string cpuType, IMachine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null, ArmSignalsUnit signalsUnit = null)
             : base(cpuId, cpuType, machine, endianness)
         {
-            semihostingHandler = new SemihostingHandler(this);
             if(numberOfMPURegions.HasValue)
             {
                 this.NumberOfMPURegions = numberOfMPURegions.Value;
@@ -88,13 +85,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override void Dispose()
         {
-            semihostingHandler.Dispose();
+            semihostingHandler?.Dispose();
             base.Dispose();
         }
 
         public override void Reset()
         {
-            semihostingHandler.Reset();
+            semihostingHandler?.Reset();
             base.Reset();
             foreach(var config in defaultTCMConfiguration)
             {
@@ -133,19 +130,20 @@ namespace Antmicro.Renode.Peripherals.CPU
             return itState;
         }
 
-        public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)
+        public void Register(SemihostingHandler peripheral, NullRegistrationPoint registrationPoint)
         {
-            if(SemihostingUart != null)
+            if(semihostingHandler != null)
             {
-                throw new RegistrationException("A semihosting uart is already registered.");
+                throw new RegistrationException("A semihosting handler is already registered.");
             }
-            SemihostingUart = peripheral;
+            semihostingHandler = peripheral;
+            semihostingHandler.AttachCpu(this);
             machine.RegisterAsAChildOf(this, peripheral, registrationPoint);
         }
 
-        public void Unregister(SemihostingUart peripheral)
+        public void Unregister(SemihostingHandler peripheral)
         {
-            SemihostingUart = null;
+            semihostingHandler = null;
             machine.UnregisterAsAChildOf(this, peripheral);
         }
 
@@ -267,15 +265,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         public bool ImplementsPMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Physical_PMSA;
 
         public bool ImplementsVMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Virtual_VMSA;
-
-        [HideInMonitor]
-        public SemihostingUart SemihostingUart { get; private set; }
-
-        public string SemihostingDirectory
-        {
-            get => semihostingHandler.SemihostingDirectory;
-            set => semihostingHandler.SemihostingDirectory = value;
-        }
 
         public override Endianess DisassemblyHexFormatting => Endianess.LittleEndian;
 
@@ -400,7 +389,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private uint DoSemihosting()
         {
-            return semihostingHandler.DoSemihosting(operation: (uint)R[0], argumentsAddress: (uint)R[1]);
+            if(semihostingHandler != null)
+            {
+                this.Log(LogLevel.Warning, "Semihosting handler is not registered; R0=0x{0:X} R1=0x{1:X}", (uint)R[0], (uint)R[1]);
+                return unchecked((uint)-1);
+            }
+            using(ObtainGenericPauseGuard())
+            {
+                return semihostingHandler.DoSemihosting(operationNumber: (uint)R[0], argumentsAddress: (uint)R[1]);
+            }
         }
 
         [Export]
@@ -478,6 +475,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             performanceMonitoringUnit?.OnOverflowAction(counter);
         }
 
+        private SemihostingHandler semihostingHandler;
+
         private ArmPerformanceMonitoringUnit performanceMonitoringUnit;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
@@ -540,7 +539,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             "STREX instruction"
         };
 
-        private readonly SemihostingHandler semihostingHandler;
         private readonly List<TCMConfiguration> defaultTCMConfiguration = new List<TCMConfiguration>();
         private readonly ArmSignalsUnit signalsUnit;
 
