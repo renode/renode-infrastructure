@@ -170,6 +170,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             return TlibGetArmFeature((int)feature) > 0;
         }
 
+        public bool IsSemihostingEnabled { get; set; } = true;
+
         public virtual uint ExceptionVectorAddress
         {
             get => TlibGetExceptionVectorAddress();
@@ -389,7 +391,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private uint DoSemihosting()
         {
-            if(semihostingHandler != null)
+            if(!IsSemihostingEnabled)
+            {
+                if(!warnedAboutSemihosting)
+                {
+                    this.Log(LogLevel.Warning, "Intercepted semihosting call, but semihosting is disabled");
+                    warnedAboutSemihosting = true;
+                }
+                return unchecked((uint)-1);
+            }
+            if(semihostingHandler == null)
             {
                 this.Log(LogLevel.Warning, "Semihosting handler is not registered; R0=0x{0:X} R1=0x{1:X}", (uint)R[0], (uint)R[1]);
                 return unchecked((uint)-1);
@@ -478,6 +489,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private SemihostingHandler semihostingHandler;
 
         private ArmPerformanceMonitoringUnit performanceMonitoringUnit;
+        private bool warnedAboutSemihosting = false;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649
