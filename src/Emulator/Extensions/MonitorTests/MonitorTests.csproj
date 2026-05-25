@@ -3,10 +3,8 @@
     <TargetFrameworks>net6.0</TargetFrameworks>
     <RollForward>Major</RollForward>
     <AssemblyName>MonitorTests</AssemblyName>
-    <PropertiesLocation>..\..\..\..\..\..\output\properties.csproj</PropertiesLocation>
     <LangVersion>12.0</LangVersion>
   </PropertyGroup>
-  <Import Project="$(PropertiesLocation)" />
   <ItemGroup>
     <PackageReference Include="NUnit" Version="3.13.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />

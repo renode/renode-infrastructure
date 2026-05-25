@@ -4,10 +4,8 @@
     <RollForward>Major</RollForward>
     <RuntimeIdentifier Condition="$(PORTABLE) == 'true'">linux-x64</RuntimeIdentifier>
     <AssemblyName>UnitTests</AssemblyName>
-    <PropertiesLocation>..\..\..\..\..\..\..\output\properties.csproj</PropertiesLocation>
     <LangVersion>12.0</LangVersion>
   </PropertyGroup>
-  <Import Project="$(PropertiesLocation)" />
   <ItemGroup>
     <!-- Do not compile. It is included as an embedded resource to test AdHocCompiler. -->
     <Compile Remove="Mocks\MockExtension.cs" />
