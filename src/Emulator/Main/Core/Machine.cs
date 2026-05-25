@@ -31,8 +31,6 @@ using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 using Antmicro.Renode.Utilities.GDB;
 
-using Microsoft.CSharp.RuntimeBinder;
-
 using Monitor = System.Threading.Monitor;
 
 namespace Antmicro.Renode.Core
@@ -635,9 +633,8 @@ namespace Antmicro.Renode.Core
                 return false;
             }
 
-            try
+            if(icpu is TranslationCPU cpu)
             {
-                var cpu = (dynamic)icpu;
                 if(!cpu.RequestTranslationBlockRestart(quiet))
                 {
                     if(!quiet)
@@ -647,7 +644,7 @@ namespace Antmicro.Renode.Core
                     return false;
                 }
             }
-            catch(RuntimeBinderException)
+            else
             {
                 Logger.LogAs(icpu, LogLevel.Warning, "Translation block restarting is not supported by '{0}'", icpu.GetType().FullName);
                 return false;
