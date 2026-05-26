@@ -269,6 +269,37 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 return (uint)semihostingErrno;
             }
+            case Operation.SYS_EXIT:
+            {
+                exitReason = (int)cpu.TranslateAddress(argumentsAddress, MpuAccess.Read);
+
+                LogReceived("SYS_EXIT", "args: 0x{0:X}", exitReason);
+
+                this.Log(LogLevel.Info, "Program exited with reason {0}(0x{1:X})", (ExitReasonCode)exitReason, exitReason);
+
+                if(HaltOnExit)
+                {
+                    cpu.IsHalted = true;
+                }
+                // Program doesn't expect return from this call, but in case we decide to continue the execution, registers should be left as they were.
+                return (uint)operation;
+            }
+            case Operation.SYS_EXIT_EXTENDED:
+            {
+                exitReason = (int)GetArgumentField(argumentsAddress, 0);
+                exitCode = (int)GetArgumentField(argumentsAddress, 1);
+
+                LogReceived("SYS_EXIT_EXTENDED", "args: 0x{0:X} / {1}", exitReason, exitCode);
+
+                this.Log(LogLevel.Info, "Program exited with reason {0}(0x{1:X}) and return code {2}", (ExitReasonCode)exitReason, exitReason, exitCode);
+
+                if(HaltOnExit)
+                {
+                    cpu.IsHalted = true;
+                }
+                // Program doesn't expect return from this call, but in case we decide to continue the execution, registers should be left as they were.
+                return (uint)operation;
+            }
             // SYS_READC, SYS_WRITEC and SYS_WRITE0 don't use descriptors. They always use the "debug channel".
             case Operation.SYS_READC:
             {
@@ -320,6 +351,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // Return value: "None. Return register is corrupted", so we decide to set it to 0
                 return 0;
             }
+            case Operation.angel_SWIreason_EnterSVC:
+            case Operation.angelSWI_Reason_SyncCacheRange:
+            {
+                this.Log(LogLevel.Warning, "{0} is a reserved operation, usage of which got deprecated by ARM", operation);
+                return unchecked((uint)-1);
+            }
             default:
             {
                 this.Log(LogLevel.Warning, "Unhandled 0x{0:X} operation ({1})", (uint)operation, operation);
@@ -337,6 +374,51 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             Dispose();
             semihostingErrno = Errno.NoError;
+            exitReason = null;
+            exitCode = null;
+        }
+
+        public bool Exited
+        {
+            get
+            {
+                return exitReason != null;
+            }
+        }
+
+        public bool ExitedWithCode
+        {
+            get
+            {
+                return exitCode != null;
+            }
+        }
+
+        public int? ExitReason
+        {
+            get
+            {
+                if(exitReason == null)
+                {
+                    this.Log(LogLevel.Warning, "Program didn't exit yet");
+                }
+                return exitReason;
+            }
+        }
+
+        public int? ExitCode
+        {
+            get
+            {
+                if(exitCode == null)
+                {
+                    if(ExitReason != null)
+                    {
+                        this.Log(LogLevel.Warning, "Program exited but didn't specify an exit code");
+                    }
+                }
+                return exitCode;
+            }
         }
 
         public string SemihostingDirectory
@@ -367,6 +449,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
         }
+
+        public bool HaltOnExit { get; set; } = true;
 
         public string TemporaryFilesDirectory { get; set; }
 
@@ -552,6 +636,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private SemihostingUart stdErr;
         private string fullSemihostingDirectory;
         private uint highestFileDescriptor = 0;
+        private int? exitReason = null;
+        private int? exitCode = null;
         private readonly IMachine machine;
         private readonly PriorityQueue<uint, uint> freeDescriptors = new PriorityQueue<uint, uint>();
         private readonly Dictionary<uint, SemihostingDescriptor> semihostingDescriptors = new Dictionary<uint, SemihostingDescriptor>();
@@ -593,9 +679,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                         0x53, 0x48, 0x46, 0x42,
 
                         // Feature byte 0:
-                        //  bit 0: SH_EXT_EXIT_EXTENDED (not supported)
+                        //  bit 0: SH_EXT_EXIT_EXTENDED (supported)
                         //  bit 1: SH_EXT_STDOUT_STDERR (supported)
-                        0x2},
+                        0x3},
                         writable: false);
                     isConsole = false;
                 }
@@ -938,7 +1024,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             SYS_GET_CMDLINE = 0x15,
             SYS_HEAPINFO = 0x16,
             angel_SWIreason_EnterSVC = 0x17,
-            angel_SWIreason_ReportException = 0x18,
+            SYS_EXIT = 0x18, // angel_SWIreason_ReportException
+            angelSWI_Reason_SyncCacheRange = 0x19,
+            SYS_EXIT_EXTENDED = 0x20,
             SYS_ELAPSED = 0x30,
             SYS_TICKFREQ = 0x31,
         }
@@ -972,6 +1060,28 @@ namespace Antmicro.Renode.Peripherals.CPU
             AppendBinary,
             AppendRead,
             AppendReadBinary,
+        }
+
+        private enum ExitReasonCode
+        {
+            ADP_Stopped_BranchThroughZero = 0x20000,
+            ADP_Stopped_UndefinedInstr = 0x20001,
+            ADP_Stopped_SoftwareInterrupt = 0x20002,
+            ADP_Stopped_PrefetchAbort = 0x20003,
+            ADP_Stopped_DataAbort = 0x20004,
+            ADP_Stopped_AddressException = 0x20005,
+            ADP_Stopped_IRQ = 0x20006,
+            ADP_Stopped_FIQ = 0x20007,
+            ADP_Stopped_BreakPoint = 0x20020,
+            ADP_Stopped_WatchPoint = 0x20021,
+            ADP_Stopped_StepComplete = 0x20022,
+            ADP_Stopped_RunTimeErrorUnknown = 0x20023,
+            ADP_Stopped_InternalError = 0x20024,
+            ADP_Stopped_UserInterruption = 0x20025,
+            ADP_Stopped_ApplicationExit = 0x20026,
+            ADP_Stopped_StackOverflow = 0x20027,
+            ADP_Stopped_DivisionByZero = 0x20028,
+            ADP_Stopped_OSSpecific = 0x20029,
         }
     }
 }
