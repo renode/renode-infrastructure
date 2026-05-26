@@ -269,6 +269,31 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 return (uint)semihostingErrno;
             }
+            case Operation.SYS_GET_CMDLINE:
+            {
+                var bufferPointer = GetArgumentField(argumentsAddress, 0);
+                var bufferLength = GetArgumentField(argumentsAddress, 1);
+
+                LogReceived("SYS_GET_CMDLINE", "args: 0x{0:X} / {1}", bufferPointer, bufferLength);
+
+                if(ProgramArguments == null)
+                {
+                    cpu.Bus.WriteDoubleWord(argumentsAddress + 4, 0, context: cpu); /* write 0 to signify there are no arguments */
+                    return 0;
+                }
+
+                var argumentBytes = Encoding.UTF8.GetBytes(ProgramArguments + '\0');
+                if(argumentBytes.Length > bufferLength)
+                {
+                    semihostingErrno = Errno.EOVERFLOW;
+                    return unchecked((uint)-1);
+                }
+
+                cpu.Bus.WriteBytes(argumentBytes, bufferPointer, argumentBytes.Length, context: cpu);
+                cpu.Bus.WriteDoubleWord(argumentsAddress + 4, (uint)argumentBytes.Length, context: cpu); /* write back the length of arguments string */
+
+                return 0;
+            }
             case Operation.SYS_EXIT:
             {
                 exitReason = (int)cpu.TranslateAddress(argumentsAddress, MpuAccess.Read);
@@ -451,6 +476,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public bool HaltOnExit { get; set; } = true;
+
+        public string ProgramArguments { get; set; }
 
         public string TemporaryFilesDirectory { get; set; }
 
