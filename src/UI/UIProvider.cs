@@ -33,7 +33,24 @@ namespace Antmicro.Renode.UI
                 StartInfo = new ProcessStartInfo { FileName = path, ArgumentList = { "--renode-port=" + port.ToString() } },
                 EnableRaisingEvents = true
             };
-            process.Exited += (_, __) => WindowClosed?.Invoke();
+            process.Exited += (_, __) =>
+            {
+                if(process.ExitCode != 0)
+                {
+                    // No advice for macOS since it should have Safari pre-installed
+                    var advice = "";
+                    if(RuntimeInfo.IsWindows())
+                    {
+                        advice = "Make sure you have WebView2 installed";
+                    }
+                    else if(RuntimeInfo.IsLinux())
+                    {
+                        advice = "Make sure you have libwebkit2gtk-4.0-37 or libwebkit2gtk-4.1-0 installed";
+                    }
+                    ShowXwtError("Failed to launch renode-ui", advice);
+                }
+                WindowClosed?.Invoke();
+            };
             process.Start();
         }
 
@@ -88,6 +105,15 @@ namespace Antmicro.Renode.UI
                 return true;
             }
             return false;
+        }
+
+        private static void ShowXwtError(string primary, string secondary)
+        {
+            // Try to quickly spin up Xwt to show the message
+            using(XwtProvider.Create(null))
+            {
+                Xwt.MessageDialog.ShowError(primary, secondary);
+            }
         }
 
         private Process process;
