@@ -1931,6 +1931,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 get => systickEnabled;
                 set
                 {
+                    if(systickEnabled == value)
+                    {
+                        // Nothing to do
+                        return;
+                    }
                     systickEnabled = value;
                     if(value && Reload == 0)
                     {
