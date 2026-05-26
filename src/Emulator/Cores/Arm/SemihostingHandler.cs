@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void Dispose()
         {
             ClearDescriptors();
+            RemoveTemporaryFilesDirectory();
         }
 
         public void Register(SemihostingUart peripheral, NullRegistrationPoint registrationPoint)
@@ -200,6 +201,64 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 return unchecked((uint)-1);
             }
+            case Operation.SYS_TMPNAM:
+            {
+                var bufferPointer = GetArgumentField(argumentsAddress, 0);
+                var tempId = (int)GetArgumentField(argumentsAddress, 1);
+                var bufferLength = GetArgumentField(argumentsAddress, 2);
+
+                LogReceived("SYS_TMPNAM", "args: 0x{0:X} / {1} / {2}", bufferPointer, tempId, bufferLength);
+
+                if(tempId < 0 || MaxNumberOfTemporaryFiles <= tempId)
+                {
+                    this.Log(LogLevel.Warning, "SYS_TMPNAM: File id: {0} out of (0,{1}) range", tempId, MaxNumberOfTemporaryFiles);
+                    semihostingErrno = Errno.EINVAL;
+                    return unchecked((uint)-1);
+                }
+
+                if(TemporaryFilesDirectory == null)
+                {
+                    if(!GenerateTemporaryFilesDirectory())
+                    {
+                        semihostingErrno = Errno.EINVAL;
+                        return unchecked((uint)-1);
+                    }
+                }
+
+                if(!TryAccessPath(TemporaryFilesDirectory, out var fullDirectoryPath, out var errorMessage))
+                {
+                    this.Log(LogLevel.Warning, "SYS_TMPNAM: Can't access temporary files directory: {0}", errorMessage);
+                    semihostingErrno = Errno.EACCES;
+                    return unchecked((uint)-1);
+                }
+
+                if(!Directory.Exists(fullDirectoryPath))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(fullDirectoryPath);
+                        this.Log(LogLevel.Info, "SYS_TMPNAM: Created temporary files directory at: {0}", fullDirectoryPath);
+                    }
+                    catch(Exception e)
+                    {
+                        this.Log(LogLevel.Warning, "SYS_TMPNAM: Can't create temporary files directory {0}", e.Message);
+                        semihostingErrno = Errno.EINVAL;
+                        return unchecked((uint)-1);
+                    }
+                }
+
+                var filePath = Path.Join(TemporaryFilesDirectory, tempId.ToString());
+                var filenameBytes = Encoding.UTF8.GetBytes(filePath);
+                if(filenameBytes.Length > bufferLength)
+                {
+                    this.Log(LogLevel.Warning, "SYS_TMPNAM: Path length is too long.");
+                    semihostingErrno = Errno.EOVERFLOW;
+                    return unchecked((uint)-1);
+                }
+                cpu.Bus.WriteBytes(filenameBytes, bufferPointer, filenameBytes.Length, context: cpu);
+
+                return 0;
+            }
             case Operation.SYS_ERRNO:
             {
                 LogReceived("SYS_ERRNO");
@@ -276,7 +335,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void Reset()
         {
-            ClearDescriptors();
+            Dispose();
             semihostingErrno = Errno.NoError;
         }
 
@@ -309,6 +368,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public string TemporaryFilesDirectory { get; set; }
+
+        public const uint MaxNumberOfTemporaryFiles = 256;
         public const string ConsolePath = ":tt";
         public const string FeaturesPath = ":semihosting-features";
 
@@ -322,6 +384,25 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void LogReceived(string operationName, string message = null, params object[] args)
         {
             this.Log(LogLevel.Debug, $"{operationName} received; " + message, args);
+        }
+
+        private bool GenerateTemporaryFilesDirectory()
+        {
+            string directoryPath;
+            string fullDirectoryPath;
+            do
+            {
+                directoryPath = $"temp-{Guid.NewGuid()}";
+                if(!TryAccessPath(directoryPath, out fullDirectoryPath, out var errorMessage))
+                {
+                    this.Log(LogLevel.Error, "Temporary files directory generation failed: {0}", errorMessage);
+                    return false;
+                }
+            }
+            while(File.Exists(fullDirectoryPath));
+            this.Log(LogLevel.Debug, "Generated temporary files directory: {0}", directoryPath);
+            TemporaryFilesDirectory = directoryPath; /* We're setting TemporaryFilesDirectory to path relative to WorkingDirectory */
+            return true;
         }
 
         private bool TryGetConsole(string operationName, out SemihostingUart console)
@@ -350,6 +431,31 @@ namespace Antmicro.Renode.Peripherals.CPU
                 LogFailure(operationName, "Incorrect handle");
                 semihostingErrno = Errno.EBADF;
                 return false;
+            }
+        }
+
+        private void RemoveTemporaryFilesDirectory()
+        {
+            if(TemporaryFilesDirectory == null)
+            {
+                return;
+            }
+
+            try
+            {
+                if(!TryAccessPath(TemporaryFilesDirectory, out var fullPath, out var errorMessage))
+                {
+                    throw new SemihostingException(errorMessage);
+                }
+
+                if(Directory.Exists(fullPath))
+                {
+                    Directory.Delete(fullPath);
+                }
+            }
+            catch(Exception e)
+            {
+                this.Log(LogLevel.Error, "Temporary files directory disposal failed: {0}", e.Message);
             }
         }
 
