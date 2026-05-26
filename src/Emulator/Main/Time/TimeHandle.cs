@@ -193,8 +193,9 @@ namespace Antmicro.Renode.Time
         /// Used by the slave to requests a new time interval from the source.
         /// This method blocks current thread until the time interval is granted.
         /// </summary>
+        /// <param name="blockWhileDisabled">Controls wheter this method should return immediately when the handle is disabled or wait for it to reenable.</param>
         /// <remarks>
-        /// This method will return immediately when the handle is disabled or detached.
+        /// This method will return immediately when the handle is disabled (unless <paramref name="blockWhileDisabled"/> is set to true) or detached.
         /// It is illegal to call this method twice in a row if the first call was successful (returned true). It must always be followed by calling <see cref="ReportBackAndContinue"> or <see cref="ReportBackAndBreak">.
         /// </remarks>
         /// <returns>
@@ -202,7 +203,7 @@ namespace Antmicro.Renode.Time
         /// If it returned true, <paramref name="interval"> contains the amount of virtual time to be used by the sink. It is the sum of time interval granted by the source (using <see cref="GrantInterval">) and a time left reported previously by <see cref="ReportBackAndContinue"> or <see cref="ReportBackAndBreak">.
         /// If it returned false, the time interval is not granted and it is illegal to report anything back using <see cref="ReportBackAndContinue"> or <see cref="ReportBackAndBreak">.
         /// </returns>
-        public bool RequestTimeInterval(out TimeInterval interval)
+        public bool RequestTimeInterval(out TimeInterval interval, bool blockWhileDisabled = false)
         {
             this.Trace();
             lock(innerLock)
@@ -210,6 +211,10 @@ namespace Antmicro.Renode.Time
                 DebugHelper.Assert(!sinkSideInProgress, "Requested a new time interval, but the previous one is still processed.");
 
                 var result = true;
+                if(blockWhileDisabled)
+                {
+                    innerLock.WaitWhile(() => !DetachRequested && !Enabled && !interrupt, "Waiting for the handle to become active");
+                }
                 if(!Enabled || interrupt)
                 {
                     result = false;

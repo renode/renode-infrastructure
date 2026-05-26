@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -553,6 +553,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             started = false;
             Pause(new HaltArguments(HaltReason.Abort, this), checkPauseGuard: false);
             singleStepSynchronizer.Enabled = false;
+            // Interrupt any blocking operations on the CPU's TimeHandle to
+            // prevent deadlocks when joining the CPU thread.
+            var success = false;
+            timeHandle?.Interrupt(ref success);
             cpuThreadCopy?.Join();
             EmulationManager.Instance.CurrentEmulation.SingleStepBlockingChanged -= UpdateHaltedState;
         }
@@ -716,7 +720,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected CpuResult CpuThreadBodyInner(bool singleStep, bool skipThisRound = false)
         {
-            if(!TimeHandle.RequestTimeInterval(out var interval))
+            // If the TimeHandle of this CPU is disabled the CPU thread will spin on this function
+            // untill the handle becomes active again. To reduce the strain on the host CPU block
+            // inside RequestTimeInterval and wait for the handle to become active before proceeding further.
+            if(!TimeHandle.RequestTimeInterval(out var interval, blockWhileDisabled: true))
             {
                 this.Trace();
                 return CpuResult.NothingExecuted;
