@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -249,7 +249,7 @@ namespace Antmicro.Renode.Time
                             innerLock.WaitWhile(() => waitsToBeUnblocked && SourceSideActive && !interrupt, "Waiting to be unblocked");
                             if(!SourceSideActive || interrupt)
                             {
-                                DebugHelper.Assert(waitsToBeUnblocked, "Expected only one condition to change");
+                                DebugHelper.Assert(waitsToBeUnblocked || interrupt, "Expected only one condition to change unless interrupted");
 
                                 Unlatch();
                                 waitsToBeUnblocked = false;
