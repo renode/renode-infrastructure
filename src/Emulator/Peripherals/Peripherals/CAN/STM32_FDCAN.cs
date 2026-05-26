@@ -6,6 +6,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
@@ -17,6 +18,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
@@ -46,7 +48,25 @@ namespace Antmicro.Renode.Peripherals.CAN
             rxFIFOFull = new IFlagRegisterField[2];
             rxFIFOGetIndex = new IValueRegisterField[2];
             rxFIFOPutIndex = new IValueRegisterField[2];
+            rxFIFOBuffers = new Queue<Action>[2];
+            rxFIFOBuffers[0] = new Queue<Action>();
+            rxFIFOBuffers[1] = new Queue<Action>();
             DefineRegisters();
+
+            rxDequeueThread = machine.ObtainManagedThread(() =>
+            {
+                for(var i = 0; i < rxFIFOBuffers.Count(); i++)
+                {
+                    lock(rxFIFOBuffers[i])
+                    {
+                        if(!rxFIFOFull[i].Value && rxFIFOBuffers[i].TryDequeue(out var action))
+                        {
+                            action.Invoke();
+                        }
+                    }
+                }
+            }, TimeInterval.FromMicroseconds(20), "FDCAN rxDequeueThread", this, () => rxFIFOBuffers.All((buf) => buf.Count() == 0));
+
             Reset();
         }
 
@@ -67,6 +87,10 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             base.Reset();
             timestampCounter.Reset();
+            foreach(var buffer in rxFIFOBuffers)
+            {
+                buffer.Clear();
+            }
             UpdateTimerConfiguration();
             UpdateInterrupts();
             lastHighPrioBufferIndex.Value = 2;
@@ -101,10 +125,10 @@ namespace Antmicro.Renode.Peripherals.CAN
                 switch(nonMatchingFramesMode)
                 {
                 case AcceptMode.AcceptInRxFIFO0:
-                    TryStoreReceivedMessage(message, 0, filterIndex, out var _, nonMatchingFrame: true);
+                    StoreReceivedMessage(message, 0, filterIndex, nonMatchingFrame: true);
                     break;
                 case AcceptMode.AcceptInRxFIFO1:
-                    TryStoreReceivedMessage(message, 1, filterIndex, out var __, nonMatchingFrame: true);
+                    StoreReceivedMessage(message, 1, filterIndex, nonMatchingFrame: true);
                     break;
                 default:
                     this.DebugLog("Frame not matching any filter and non-matching frames are configured to be dropped");
@@ -113,8 +137,6 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
             else
             {
-                MessageStorageIndicator? highPriorityStored = null;
-                uint storedIndex = 0;
                 var config = message.ExtendedFormat ? ((ExtendedFilterElement)filter).Config : ((StandardFilterElement)filter).Config;
                 switch(config)
                 {
@@ -122,35 +144,30 @@ namespace Antmicro.Renode.Peripherals.CAN
                     this.DebugLog("Frame matched a rejecting rule ({0}), dropping", filter);
                     return;
                 case FilterElementConfig.StoreInRxFIFO0:
-                    TryStoreReceivedMessage(message, 0, filterIndex, out storedIndex);
+                    StoreReceivedMessage(message, 0, filterIndex);
                     break;
                 case FilterElementConfig.StoreInRxFIFO1:
-                    TryStoreReceivedMessage(message, 1, filterIndex, out storedIndex);
+                    StoreReceivedMessage(message, 1, filterIndex);
                     break;
                 case FilterElementConfig.SetPriority:
                     this.DebugLog("Received frame matches set priority only rule, setting fields and dropping");
-                    highPriorityStored = MessageStorageIndicator.NoFIFOSelected;
-                    break;
-                case FilterElementConfig.SetPriorityAndStoreInRxFIFO0:
-                    this.DebugLog("Received high-priority frame");
-                    highPriorityStored = TryStoreReceivedMessage(message, 0, filterIndex, out storedIndex) ? MessageStorageIndicator.MessageStoredInFIFO0 : MessageStorageIndicator.FIFOOverrun;
-                    break;
-                case FilterElementConfig.SetPriorityAndStoreInRxFIFO1:
-                    this.DebugLog("Received high-priority frame");
-                    highPriorityStored = TryStoreReceivedMessage(message, 1, filterIndex, out storedIndex) ? MessageStorageIndicator.MessageStoredInFIFO1 : MessageStorageIndicator.FIFOOverrun;
-                    break;
-                default:
-                    throw new UnreachableException($"Unexpected FilterElementConfig variant {config}");
-                }
-                if(highPriorityStored != null)
-                {
                     // High priority frame received, update HPMS register
                     lastHighPrioFilterList.Value = false;
                     lastHighPrioFilterIndex.Value = (ulong)filterIndex;
-                    lastHighPrioMessageStorage.Value = highPriorityStored.Value;
-                    lastHighPrioBufferIndex.Value = storedIndex;
+                    lastHighPrioMessageStorage.Value = MessageStorageIndicator.NoFIFOSelected;
                     interruptStatusFlags[(long)Interrupts.HighPriorityMessage].Value = true;
                     UpdateInterrupts();
+                    break;
+                case FilterElementConfig.SetPriorityAndStoreInRxFIFO0:
+                    this.DebugLog("Received high-priority frame");
+                    StoreReceivedMessage(message, 0, filterIndex, highPriority: true);
+                    break;
+                case FilterElementConfig.SetPriorityAndStoreInRxFIFO1:
+                    this.DebugLog("Received high-priority frame");
+                    StoreReceivedMessage(message, 1, filterIndex, highPriority: true);
+                    break;
+                default:
+                    throw new UnreachableException($"Unexpected FilterElementConfig variant {config}");
                 }
             }
         }
@@ -485,7 +502,34 @@ namespace Antmicro.Renode.Peripherals.CAN
             return false;
         }
 
-        private bool TryStoreReceivedMessage(CANMessageFrame message, int rxFifo, int filterIndex, out uint storedIndex, bool nonMatchingFrame = false)
+        private void StoreReceivedMessage(CANMessageFrame message, int rxFifo, int filterIndex, bool nonMatchingFrame = false, bool highPriority = false)
+        {
+            lock(rxFIFOBuffers[rxFifo])
+            {
+                if(rxFIFOFull[rxFifo].Value || rxFIFOBuffers[rxFifo].Any())
+                {
+                    // The FIFO is full, so we buffer the function call to be executed later by the managed dequeuer thread
+                    rxFIFOBuffers[rxFifo].Enqueue(() =>
+                    {
+                        if(!TryStoreReceivedMessageInner(message, rxFifo, filterIndex, nonMatchingFrame, highPriority))
+                        {
+                            throw new InvalidOperationException("Somehow failed to store message in a FIFO with space!");
+                        }
+                    });
+                    rxDequeueThread.Start();
+                }
+                else
+                {
+                    // If the fifo is not full, we store the message immediatly
+                    if(!TryStoreReceivedMessageInner(message, rxFifo, filterIndex, nonMatchingFrame, highPriority))
+                    {
+                        throw new InvalidOperationException("Somehow failed to store message in a FIFO with space!");
+                    }
+                }
+            }
+        }
+
+        private bool TryStoreReceivedMessageInner(CANMessageFrame message, int rxFifo, int filterIndex, bool nonMatchingFrame = false, bool highPriority = false)
         {
             DebugHelper.Assert(rxFifo == 0 || rxFifo == 1);
             // Handle overflow condition
@@ -501,13 +545,12 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     // FIFO is full, and overwrite is not set. Drop frame and set apropriate flags
                     interruptStatusFlags[rxFifo == 0 ? (long)Interrupts.RxFIFO0MessageLost : (long)Interrupts.RxFIFO1MessageLost].Value = true;
-                    storedIndex = 0;
                     UpdateInterrupts();
                     return false;
                 }
             }
 
-            storedIndex = (uint)rxFIFOPutIndex[rxFifo].Value;
+            var storedIndex = (uint)rxFIFOPutIndex[rxFifo].Value;
 
             var messageElement = new RxMessageElement();
             messageElement.ExtendedId = message.ExtendedFormat;
@@ -541,6 +584,15 @@ namespace Antmicro.Renode.Peripherals.CAN
                 interruptStatusFlags[rxFifo == 0 ? (long)Interrupts.RxFIFO0Full : (long)Interrupts.RxFIFO1Full].Value = true;
             }
             interruptStatusFlags[rxFifo == 0 ? (long)Interrupts.RxFIFO0NewMessage : (long)Interrupts.RxFIFO1NewMessage].Value = true;
+            if(highPriority)
+            {
+                // High priority frame received, update HPMS register
+                lastHighPrioFilterList.Value = false;
+                lastHighPrioFilterIndex.Value = (ulong)filterIndex;
+                lastHighPrioMessageStorage.Value = rxFifo == 0 ? MessageStorageIndicator.MessageStoredInFIFO0 : MessageStorageIndicator.MessageStoredInFIFO1;
+                lastHighPrioBufferIndex.Value = storedIndex;
+                interruptStatusFlags[(long)Interrupts.HighPriorityMessage].Value = true;
+            }
             UpdateInterrupts();
             return true;
         }
@@ -794,6 +846,8 @@ namespace Antmicro.Renode.Peripherals.CAN
         private readonly IFlagRegisterField[] rxFIFOFull;
         private readonly IValueRegisterField[] rxFIFOPutIndex;
         private readonly IValueRegisterField[] rxFIFOGetIndex;
+        private readonly Queue<Action>[] rxFIFOBuffers;
+        private readonly IManagedThread rxDequeueThread;
         private readonly ArrayMemory messageRam;
         private readonly LimitTimer timestampCounter;
         private readonly LimitTimer timeoutCounter;
