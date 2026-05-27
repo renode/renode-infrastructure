@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,6 +25,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         public BusControllerProxy(IBusController parentController)
         {
             ParentController = parentController;
+        }
+
+        public void UnmapMemory(Range range, ICPU context = null)
+        {
+            ParentController.UnmapMemory(range, context);
         }
 
         public void Reset()

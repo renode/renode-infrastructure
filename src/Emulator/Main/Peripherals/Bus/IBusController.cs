@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -131,6 +131,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         string DecorateWithCPUNameAndPC(string str);
 
         void MapMemory(IMappedSegment segment, IBusPeripheral owner, bool relative = true, ICPUWithMappedMemory context = null);
+
+        void UnmapMemory(Range range, ICPU context = null);
 
         IBusRegistered<MappedMemory> FindMemory(ulong address, ICPU context = null);
 
