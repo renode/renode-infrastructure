@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -72,6 +72,11 @@ namespace Antmicro.Renode.Core
             byte[] buffer = new byte[8];
             NextBytes(buffer);
             return BitConverter.ToUInt64(buffer, 0);
+        }
+
+        public void GetItems<T>(ReadOnlySpan<T> choices, Span<T> destination)
+        {
+            GetOrCreateGenerator().GetItems(choices, destination);
         }
 
         private static int baseSeed = new Random().Next();
