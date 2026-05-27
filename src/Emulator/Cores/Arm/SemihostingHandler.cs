@@ -259,6 +259,66 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 return 0;
             }
+            case Operation.SYS_REMOVE:
+            {
+                var pathPointer = GetArgumentField(argumentsAddress, 0);
+                var pathLength = (int)GetArgumentField(argumentsAddress, 1);
+                LogReceived("SYS_REMOVE", "args: 0x{0:X} / {1}", pathPointer, pathLength);
+
+                if(pathLength <= 0)
+                {
+                    this.Log(LogLevel.Warning, "SYS_REMOVE: Invalid path length: {0}; it has to be a positive number.", pathLength);
+                    return unchecked((uint)-1);
+                }
+
+                // Check presence of the required null character
+                var byteAfterPath = cpu.Bus.ReadByte((ulong)(pathPointer + pathLength), cpu);
+                if(byteAfterPath != 0)
+                {
+                    this.Log(LogLevel.Warning, "SYS_REMOVE: No null character after the path. Found: '{0}'", (char)byteAfterPath);
+                    return unchecked((uint)-1);
+                }
+
+                var pathBytes = cpu.Bus.ReadBytes(pathPointer, pathLength, cpu);
+                var path = Encoding.UTF8.GetString(pathBytes, 0, pathLength);
+
+                if(!TryAccessPath(path, out var fullPath, out var errorMessage))
+                {
+                    this.Log(LogLevel.Warning, "SYS_REMOVE: {0}", errorMessage);
+                    semihostingErrno = Errno.EACCES;
+                    return unchecked((uint)-1);
+                }
+
+                if(!File.Exists(fullPath))
+                {
+                    semihostingErrno = Errno.ENOENT;
+                    return unchecked((uint)-1);
+                }
+
+                try
+                {
+                    File.Delete(fullPath);
+                    return 0;
+                }
+                catch(PathTooLongException)
+                {
+                    semihostingErrno = Errno.ENAMETOOLONG;
+                }
+                catch(IOException)
+                {
+                    semihostingErrno = Errno.EIO;
+                }
+                catch(UnauthorizedAccessException)
+                {
+                    semihostingErrno = Errno.EACCES;
+                }
+                catch(Exception e)
+                {
+                    this.Log(LogLevel.Warning, "Unhandled {0}: {1}", e.GetType().Name, e.Message);
+                    semihostingErrno = Errno.EINVAL;
+                }
+                return unchecked((uint)-1);
+            }
             case Operation.SYS_ERRNO:
             {
                 LogReceived("SYS_ERRNO");
@@ -545,6 +605,27 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        private bool TryAccessPath(string filePath, out string fullPath, out string errorMessage)
+        {
+            errorMessage = "";
+            fullPath = "";
+
+            if(String.IsNullOrEmpty(SemihostingDirectory))
+            {
+                errorMessage = $"'{filePath}' can't be accessed; SemihostingDirectory isn't set";
+                return false;
+            }
+
+            fullPath = Path.GetFullPath(filePath, SemihostingDirectory);
+            if(fullPath.StartsWith(SemihostingDirectory))
+            {
+                return true;
+            }
+
+            errorMessage = $"'{fullPath}' can't be accessed; it's outside the SemihostingDirectory ({SemihostingDirectory})";
+            return false;
+        }
+
         private void RemoveTemporaryFilesDirectory()
         {
             if(TemporaryFilesDirectory == null)
@@ -714,11 +795,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 else
                 {
-                    if(IsPathValid(path, out var errorMessage))
+                    if(handler.TryAccessPath(path, out var fullPath, out var errorMessage))
                     {
                         try
                         {
-                            var fullPath = Path.GetFullPath(Path.Combine(handler.SemihostingDirectory, path));
                             backingStream = OpenFileWithISOCMode(fullPath, mode);
                         }
                         catch(Exception e)
@@ -835,27 +915,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             public bool IsConsole => isConsole;
-
-            private bool IsPathValid(string filePath, out string errorMessage)
-            {
-                errorMessage = "";
-                var fullPath = "";
-
-                if(String.IsNullOrEmpty(handler.SemihostingDirectory))
-                {
-                    errorMessage = $"'{filePath}' can't be opened; SemihostingDirectory isn't set";
-                    return false;
-                }
-
-                fullPath = Path.GetFullPath(filePath, handler.SemihostingDirectory);
-                if(fullPath.StartsWith(handler.SemihostingDirectory))
-                {
-                    return true;
-                }
-
-                errorMessage = $"'{fullPath}' can't be opened; it's outside the SemihostingDirectory ({handler.SemihostingDirectory})";
-                return false;
-            }
 
             private FileStream OpenFileWithISOCMode(string path, ISOCMode mode)
             {
@@ -1062,9 +1121,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         private enum Errno : uint
         {
             NoError = 0,
+            ENOENT = 2, // No such file or directory
+            EIO = 5,  // I/O error
             EBADF = 9, // Bad file number
+            EACCES = 13, // Permission denied
             EINVAL = 22, // Invalid Argument
-            EOVERFLOW = 75
+            EOVERFLOW = 75, // Value too large for defined data type
+            ENAMETOOLONG = 91 // File or path name too long
         }
 
         /*
