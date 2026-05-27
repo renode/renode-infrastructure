@@ -81,6 +81,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         public uint DoSemihosting(uint operationNumber, uint argumentsAddress)
         {
             var operation = (Operation)operationNumber;
+            if(operation != Operation.SYS_ISERROR)
+            {
+                lastOperation = operation;
+            }
             switch(operation)
             {
             case Operation.SYS_OPEN:
@@ -157,6 +161,19 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 // Return value: "the number of bytes not filled in the buffer".
                 return length;
+            }
+            case Operation.SYS_ISERROR:
+            {
+                var returnCode = (int)GetArgumentField(argumentsAddress, 0);
+                LogReceived("SYS_ISERROR", "args: {0}", returnCode);
+
+                if(IsReturnError(lastOperation, returnCode))
+                {
+                    lastOperation = operation;
+                    return unchecked((uint)-1);
+                }
+                lastOperation = operation;
+                return 0;
             }
             case Operation.SYS_ISTTY:
             {
@@ -576,6 +593,52 @@ namespace Antmicro.Renode.Peripherals.CPU
             return true;
         }
 
+        private bool IsReturnError(Operation operation, int returnCode)
+        {
+            switch(operation)
+            {
+            // Cases that don't produce error
+            case Operation.SYS_ISERROR:
+            case Operation.SYS_ERRNO:
+            case Operation.SYS_EXIT:
+            case Operation.SYS_EXIT_EXTENDED:
+                return false;
+
+            // Cases where values other than 0 or 1 represent error
+            case Operation.SYS_ISTTY:
+                return returnCode != 1 && returnCode != 0;
+
+            // Cases where values other than 0 represent error
+            case Operation.SYS_WRITE:
+            case Operation.SYS_REMOVE:
+            case Operation.SYS_RENAME:
+                return returnCode != 0;
+
+            // Cases where negative values represent error (unimplemented instructions included)
+            case Operation.SYS_OPEN:
+            case Operation.SYS_CLOSE:
+            case Operation.SYS_WRITEC: // Return register is corrupted, but we still decide to differentiate successful and failed call
+            case Operation.SYS_WRITE0: // Same as SYS_WRITEC
+            case Operation.SYS_READ: // Can't fail according to specification but there are cases where we decide to fail it
+            case Operation.SYS_READC: // Same as SYS_WRITEC
+            case Operation.SYS_SEEK:
+            case Operation.SYS_FLEN:
+            case Operation.SYS_TMPNAM:
+            case Operation.SYS_CLOCK:
+            case Operation.SYS_GET_CMDLINE:
+            case Operation.SYS_ELAPSED:
+            case Operation.SYS_TICKFREQ:
+            default:
+                /*
+                 * TODO: Add check for the following when they get implemented
+                 * SYS_HEAPINFO
+                 * SYS_SYSTEM
+                 * SYS_TIME
+                 */
+                return returnCode < 0;
+            }
+        }
+
         private bool TryGetConsole(string operationName, out SemihostingUart console)
         {
             if(stdInOut != null)
@@ -746,6 +809,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private uint highestFileDescriptor = 0;
         private int? exitReason = null;
         private int? exitCode = null;
+        private Operation lastOperation;
         private readonly IMachine machine;
         private readonly PriorityQueue<uint, uint> freeDescriptors = new PriorityQueue<uint, uint>();
         private readonly Dictionary<uint, SemihostingDescriptor> semihostingDescriptors = new Dictionary<uint, SemihostingDescriptor>();
