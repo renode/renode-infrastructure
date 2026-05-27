@@ -6,12 +6,14 @@
 //
 
 using System;
+using System.Numerics;
 
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
     public interface IUARTWithFrameInfo<T> : IUART<T>
+        where T : IBinaryInteger<T>
     {
         void WriteChar(T value, UARTFrame frame);
     }
@@ -22,22 +24,22 @@ namespace Antmicro.Renode.Peripherals.UART
     {
         public static UARTFrame CreateFromSenderAndMessage<I, T>(I sender, T message, bool noise = false)
             where I : class, IUART<T>
+            where T : IBinaryInteger<T>
         {
             return new UARTFrame(CalculateParityBit(message, sender.ParityBit), sender.StopBits, sender.BaudRate, noise);
         }
 
         public static ParityBitValue CalculateParityBit<T>(T msg, Parity parity)
+            where T : IBinaryInteger<T>
         {
-            // `as` casts do not work for value types, so a throwing cast is nessesary
-            var value = checked(Convert.ToUInt32(msg));
             switch(parity)
             {
             case Parity.None:
                 return ParityBitValue.None;
             case Parity.Even:
-                return BitHelper.CalculateParity(value) ? ParityBitValue.One : ParityBitValue.Zero;
+                return BitHelper.CalculateParity(msg) ? ParityBitValue.One : ParityBitValue.Zero;
             case Parity.Odd:
-                return BitHelper.CalculateParity(value) ? ParityBitValue.Zero : ParityBitValue.One;
+                return BitHelper.CalculateParity(msg) ? ParityBitValue.Zero : ParityBitValue.One;
             case Parity.Forced1:
                 return ParityBitValue.One;
             case Parity.Forced0:

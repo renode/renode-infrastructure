@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
@@ -36,12 +37,14 @@ namespace Antmicro.Renode.Peripherals.UART
     }
 
     public sealed class UARTHub<T> : UARTHubBase<IUART<T>, T>
+        where T : IBinaryInteger<T>
     {
         public UARTHub(bool loopback) : base(loopback) { }
     }
 
     public class UARTHubBase<I, T> : IExternal, IHasOwnLife, IConnectable<I>
         where I : class, IUART<T>
+        where T : IBinaryInteger<T>
     {
         public UARTHubBase(bool loopback)
         {
