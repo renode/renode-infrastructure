@@ -25,9 +25,11 @@ namespace Antmicro.Renode.Peripherals.UART
                     {
                         if(!TryGetCharacter(out var character))
                         {
-                            this.Log(LogLevel.Warning, "Trying to read data from empty receive fifo");
+                            this.Log(LogLevel.Debug, "Trying to read data from empty receive fifo");
+                            lastReadHadCharacter = false;
                             return 0x0;
                         }
+                        lastReadHadCharacter = true;
                         UpdateInterrupts();
                         return character;
                     }, name: "RX_DATA")
@@ -37,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("FRMERR", 12)
                     .WithTaggedFlag("OVRRUN", 13)
                     .WithTaggedFlag("ERR", 14)
-                    .WithFlag(15, FieldMode.Read, valueProviderCallback: _ => Count > 0, name: "CHARRDY")
+                    .WithFlag(15, FieldMode.Read, valueProviderCallback: _ => lastReadHadCharacter, name: "CHARRDY")
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.Transmit, new DoubleWordRegister(this)
@@ -125,9 +127,9 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(0, 4)
                     .WithTaggedFlag("AWAKE", 4)
                     .WithTaggedFlag("AIRINT", 5)
-                    .WithTaggedFlag("RXDS", 6)
+                    .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => true, name: "RXDS")
                     .WithTaggedFlag("DTRD", 7)
-                    .WithFlag(8, valueProviderCallback: _ => ageTimerInterruptEnable.Value, name:"AGTIM")
+                    .WithFlag(8, FieldMode.Read, valueProviderCallback: _ => ageTimerInterruptEnable.Value && Count > 0, name:"AGTIM")
                     .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => Count > (int)receiveTriggerLevel.Value, name: "RRDY")
                     .WithTaggedFlag("FRAMERR", 10)
                     .WithTaggedFlag("ESCF", 11)
@@ -145,7 +147,10 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTaggedFlag("RTSF", 4)
                     .WithTaggedFlag("DCDIN", 5)
                     .WithTaggedFlag("DCDDELT", 6)
-                    .WithTaggedFlag("WAKE", 7)
+                    // Set on every qualified start bit (i.e. on each received character)
+                    // and cleared by writing 1. Drivers can use this to confirm real RX
+                    // line activity independent of the FIFO level.
+                    .WithFlag(7, out wakeFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "WAKE")
                     .WithTaggedFlag("IRINT", 8)
                     .WithTaggedFlag("RIIN", 9)
                     .WithTaggedFlag("RIDELT", 10)
@@ -228,6 +233,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
+            // A received character implies a qualified start bit, which latches WAKE.
+            wakeFlag.Value = true;
             UpdateInterrupts();
         }
 
@@ -243,7 +250,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
             var txReady = true;
             var rxReady = Count > 0;
-            // We don't implement the timer and trigger the interrupt immediately if there is anything in the RxQueue
+            // We don't implement the age timer and trigger immediately if any data sits in the RxQueue
             var ageTimer = rxReady;
 
             var irq = (transmitEmptyInterruptEnable.Value && txFifoEmpty)
@@ -256,6 +263,9 @@ namespace Antmicro.Renode.Peripherals.UART
             IRQ.Set(irq);
         }
 
+        private bool lastReadHadCharacter;
+
+        private readonly IFlagRegisterField wakeFlag;
         private readonly IFlagRegisterField transmitEmptyInterruptEnable;
         private readonly IFlagRegisterField transmitterReadyInterruptEnable;
         private readonly IFlagRegisterField receiverReadyInterruptEnable;
