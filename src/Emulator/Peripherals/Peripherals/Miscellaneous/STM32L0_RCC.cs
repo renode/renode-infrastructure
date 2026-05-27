@@ -244,7 +244,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     {
                         if(pllOn.Value && previous != value)
                         {
-                            this.Log(LogLevel.Error, "PLLDIV modified while PLL is enabled");
+                            this.Log(LogLevel.Error, "PLLSRC modified while PLL is enabled");
                         }
                     })
                 .WithReservedBits(17, 1)
