@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
 
                 var pathBytes = cpu.Bus.ReadBytes(pathPointer, pathLength, cpu);
-                var path = Encoding.ASCII.GetString(pathBytes, 0, pathLength);
+                var path = Encoding.UTF8.GetString(pathBytes, 0, pathLength);
                 return AddDescriptor("SYS_OPEN", path, mode);
             }
             case Operation.SYS_CLOSE:
