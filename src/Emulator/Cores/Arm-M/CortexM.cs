@@ -118,6 +118,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             tlibSetSleepOnExceptionExit(value ? 1 : 0);
         }
 
+        public void DoLazyFloatingPointStatePreservation(bool createContext = true)
+        {
+            tlibDoLazyFloatingPointStatePreservation(createContext ? 1u : 0u);
+        }
+
         public uint GetFaultmask(bool secure)
         {
             return tlibGetFaultmask(secure ? 1u : 0u);
@@ -1230,6 +1235,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Func<uint, uint> tlibGetPrimask;
+
+        [Import]
+        private readonly Action<uint> tlibDoLazyFloatingPointStatePreservation;
 
         [Import]
         private readonly Func<uint, uint> tlibGetFaultmask;
