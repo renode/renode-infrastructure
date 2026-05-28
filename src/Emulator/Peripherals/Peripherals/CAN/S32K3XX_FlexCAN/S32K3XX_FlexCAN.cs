@@ -483,7 +483,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithFlag(17, out selfReceptionDisable, name: "Self-Reception Disable (MCR.SRXDIS)",
                     changeCallback: GetFreezeModeOnlyWritableChangeCallback(selfReceptionDisable, "MCR.SRXDIS"))
                 .WithReservedBits(18, 2)
-                .WithFlag(20, out lowPowerModeAcknowledge, FieldMode.WriteOneToClear | FieldMode.Read, name: "Low-Power Mode Acknowledge (MCR.LPMACK)")
+                .WithFlag(20, FieldMode.Read, valueProviderCallback: _ => moduleDisable.Value, name: "Low-Power Mode Acknowledge (MCR.LPMACK)")
                 .WithTaggedFlag("Warning Interrupt Enable (MCR.WRNEN)", 21)
                 .WithReservedBits(22, 1)
                 .WithTaggedFlag("Supervisor Mode (MCR.SUPV)", 23)
@@ -494,8 +494,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithFlag(28, out halt, name: "Halt FlexCAN (MCR.HALT)")
                 .WithFlag(29, out legacyFifoEnable, name: "Legacy RX FIFO Enable (MCR.RFEN)")
                 .WithFlag(30, out freezeEnable, name: "Freeze Enable (MCR.FRZ)")
-                .WithFlag(31, out moduleDisable, name: "Module Disable (MCR.MDIS)",
-                    changeCallback: (_, value) => lowPowerModeAcknowledge.Value |= value)
+                .WithFlag(31, out moduleDisable, name: "Module Disable (MCR.MDIS)")
                 .WithChangeCallback((_, __) => RunArbitrationProcess())
             ;
 
@@ -932,7 +931,6 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IValueRegisterField transmissionArbitrationStartDelay;
         private IValueRegisterField numberOfLegacyRxFifoFilters;
         private IFlagRegisterField individualMaskingAndQueue;
-        private IFlagRegisterField lowPowerModeAcknowledge;
         private IFlagRegisterField messageBuffersReceptionPriority;
         private IFlagRegisterField lowestBufferTransmittedFirst;
 
