@@ -77,7 +77,6 @@ namespace Antmicro.Renode.Utilities
             // check if the file exists, since File.Create would override the file
             if(File.Exists(path))
             {
-                path = null;
                 return false;
             }
 
@@ -90,7 +89,6 @@ namespace Antmicro.Renode.Utilities
             }
             catch(Exception)
             {
-                path = null;
                 return false;
             }
 
@@ -112,7 +110,6 @@ namespace Antmicro.Renode.Utilities
             }
             catch(Exception)
             {
-                path = null;
                 return false;
             }
 
