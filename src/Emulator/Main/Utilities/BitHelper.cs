@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 using Antmicro.Renode.Debugging;
@@ -302,14 +303,10 @@ namespace Antmicro.Renode.Utilities
             reg ^= (newValue & mask);
         }
 
-        public static bool CalculateParity(uint word)
+        public static bool CalculateParity<T>(T value)
+            where T : IBinaryInteger<T>
         {
-            word ^= word >> 16;
-            word ^= word >> 8;
-            word ^= word >> 4;
-            word ^= word >> 2;
-            word ^= word >> 1;
-            return (word & 0x1) == 0x1;
+            return (T.PopCount(value) & T.One) == T.One;
         }
 
         public static void ClearBits(ref byte reg, params byte[] bits)
