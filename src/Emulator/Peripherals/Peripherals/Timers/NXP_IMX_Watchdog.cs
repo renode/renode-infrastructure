@@ -68,8 +68,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         if(!newVal)
                         {
                             softwareResetSignal.Value = true;
-                            this.InfoLog("SRS cleared, triggering software system reset");
-                            machine.RequestReset();
+                            AssertWdogB("SRS cleared, triggering software system reset");
                         }
                     })
                 .WithFlag(5, out wdogBAssertion, name: "WDA", changeCallback: (_, newVal) => { if(!newVal) AssertWdogB("WDA bit cleared by software"); })
@@ -188,11 +187,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             this.InfoLog("Watchdog timed out, requesting machine reset");
             interruptStatus.Value = true;
             UpdateInterrupt();
-            if(wdogBAssertOnTimeout.Value)
-            {
-                AssertWdogB("Watchdog timeout with WDT set");
-            }
-            machine.RequestReset();
+            AssertWdogB("Watchdog timeout");
         }
 
         private void OnPowerDownTimerElapsed()
