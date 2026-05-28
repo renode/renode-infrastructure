@@ -87,19 +87,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private void HandleWdogAssertion(string name, IFlagRegisterField status, WdogSource source, IValueRegisterField mask = null)
-        {
-            this.InfoLog("{0} asserted", name);
-            status.Value = true;
-            if(mask != null && mask.Value == MaskedCode)
-            {
-                this.NoisyLog("{0} reset masked (mask=0x{1:X}), machine reset suppressed", name, mask.Value);
-                return;
-            }
-            pendingWdogSource = source;
-            machine.RequestReset();
-        }
-
         public long Size => 0x2000;
 
         // Domain-control tail at bits [31:24] shared by every SRC register. Behaviour is not modeled.
@@ -113,6 +100,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(28, 2)
                 .WithTaggedFlag("LOCK", 30)
                 .WithTaggedFlag("DOM_EN", 31);
+        }
+
+        private void HandleWdogAssertion(string name, IFlagRegisterField status, WdogSource source, IValueRegisterField mask = null)
+        {
+            this.InfoLog("{0} asserted", name);
+            status.Value = true;
+            if(mask != null && mask.Value == MaskedCode)
+            {
+                this.NoisyLog("{0} reset masked (mask=0x{1:X}), machine reset suppressed", name, mask.Value);
+                return;
+            }
+            pendingWdogSource = source;
+            machine.RequestReset();
         }
 
         private void DefineRegisters()
