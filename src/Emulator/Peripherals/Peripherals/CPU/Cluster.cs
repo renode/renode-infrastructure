@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     /// <see cref="Cluster"/> could be a generic class to accept any types derived from <see cref="ICPU"/>,
     /// but we wouldn't be able to use it in the platform description file (REPL), so it has a concrete type.
     /// </summary>
-    public class Cluster : IRegisterablePeripheral<ICluster<TranslationCPU>, NullRegistrationPoint>, IRegisterablePeripheral<TranslationCPU, NullRegistrationPoint>, ICluster<TranslationCPU>, IHaltable
+    public class Cluster : IRegisterablePeripheral<ICluster<TranslationCPU>, NullRegistrationPoint>, IRegisterablePeripheral<TranslationCPU, NullRegistrationPoint>, ICluster<TranslationCPU>
     {
         public Cluster(IMachine machine)
         {
@@ -92,29 +92,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return Clustered.GetEnumerator();
         }
 
-        public bool IsHalted
-        {
-            set
-            {
-                if(Interlocked.Exchange(ref isHaltedWarningPrinted, 1) == 0)
-                {
-                    this.WarningLog("Cluster.IsHalted is deprecated and will be removed in a future release of Renode.\n" +
-                        "Use '{0} ForEach IsHalted' instead", this.GetName().Split('.')[1]);
-                }
-
-                foreach(var cpu in this.Clustered)
-                {
-                    cpu.IsHalted = value;
-                }
-            }
-        }
-
         public IEnumerable<ICluster<TranslationCPU>> Clusters => clusters;
 
         public IEnumerable<TranslationCPU> Clustered => cpus.Concat(clusters.SelectMany(cluster => cluster.Clustered));
 
         public int SetPcWarningPrinted;
-        private int isHaltedWarningPrinted;
 
         private readonly List<ICluster<TranslationCPU>> clusters = new List<ICluster<TranslationCPU>>();
         private readonly List<TranslationCPU> cpus = new List<TranslationCPU>();
