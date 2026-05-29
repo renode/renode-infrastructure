@@ -20,7 +20,7 @@ using Antmicro.Renode.Utilities.GDB;
 
 namespace Antmicro.Renode.Core
 {
-    public interface IMachine : IEmulationElement, IIdentifiable
+    public interface IMachine : IEmulationElement, IIdentifiable, IHaltable
     {
         void AddUserStateHook(Func<string, bool> predicate, Action<string> hook);
 

@@ -65,6 +65,7 @@ namespace Antmicro.Renode.Core
             invalidatedAddressesByArchitecture = new Dictionary<string, List<long>>();
             invalidatedAddressesLock = new object();
             firstUnbroadcastedDirtyAddressIndex = new Dictionary<ICPU, int>();
+            beforeHaltState = new Dictionary<IHaltable, bool>();
 
             if(createLocalTimeSource)
             {
@@ -667,7 +668,10 @@ namespace Antmicro.Renode.Core
 
         public void HandleTimeProgress(TimeInterval diff)
         {
-            clockSource.Advance(diff);
+            if(!IsHalted)
+            {
+                clockSource.Advance(diff);
+            }
         }
 
         public void RequestReset()
@@ -799,6 +803,8 @@ namespace Antmicro.Renode.Core
             {
                 using(ObtainPausedState(true))
                 {
+                    // A machine being halted through reset breaks platforms relying on halting cores in init scripts
+                    IsHalted = false;
                     foreach(var resetable in registeredPeripherals.Distinct().ToList())
                     {
                         if(resetable == this)
@@ -1358,6 +1364,53 @@ namespace Antmicro.Renode.Core
 
         public int UniqueObjectId { get; }
 
+        public bool IsHalted
+        {
+            get => isHalted;
+            set
+            {
+                if(value == isHalted)
+                {
+                    return;
+                }
+                lock(pausingSync)
+                {
+                    using(ObtainPausedState(true))
+                    {
+                        if(value)
+                        {
+                            // Moving to halted state.
+                            foreach(var haltable in GetPeripheralsOfType<IHaltable>())
+                            {
+                                // Save state before machine halt to restore on machine resume
+                                beforeHaltState.Add(haltable, haltable.IsHalted);
+                                haltable.IsHalted = true;
+                            }
+                        }
+                        else
+                        {
+                            // Resuming
+                            foreach(var haltable in GetPeripheralsOfType<IHaltable>())
+                            {
+                                if(beforeHaltState.TryGetValue(haltable, out var state))
+                                {
+                                    haltable.IsHalted = state;
+                                }
+                                else
+                                {
+                                    // In case a peripheral was added in the halted state, just leave it in its current state
+                                    var hasLocalName = TryGetLocalName(haltable as IPeripheral, out var localName);
+                                    this.WarningLog("Peripheral {0} without a stored IsHalted state encountered on unhalting machine", hasLocalName ? localName : "");
+                                }
+                            }
+                            beforeHaltState.Clear();
+                        }
+                        isHalted = value;
+                    }
+                }
+            }
+        }
+
         [field: Transient]
         public event Action<IMachine> MachineReset;
 
@@ -1860,6 +1913,7 @@ namespace Antmicro.Renode.Core
         private TimeSourceBase localTimeSource;
         private Player player;
         private Recorder recorder;
+        private bool isHalted;
         private readonly PausedState pausedState;
 
         private readonly AtomicState atomicState;
@@ -1875,6 +1929,7 @@ namespace Antmicro.Renode.Core
         private readonly Dictionary<ICPU, List<long>> invalidatedAddressesByCpu;
 
         private readonly Dictionary<ICPU, int> firstUnbroadcastedDirtyAddressIndex;
+        private readonly Dictionary<IHaltable, bool> beforeHaltState;
 
         /*
          *  Variables used for memory invalidation
