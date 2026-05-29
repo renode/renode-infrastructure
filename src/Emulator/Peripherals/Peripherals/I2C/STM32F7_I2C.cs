@@ -362,6 +362,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             else
             {
                 transmitInterruptStatus = true;
+                WriteToSlave();
             }
             Update();
         }
@@ -414,17 +415,22 @@ namespace Antmicro.Renode.Peripherals.I2C
                 return;
             }
             txData.Enqueue((byte)newValue);
+            WriteToSlave();
+        }
+
+        private void SlaveTransmitDataWrite(uint newValue)
+        {
+            txData.Enqueue((byte)newValue);
+        }
+
+        private void WriteToSlave()
+        {
             if(txData.Count == (int)bytesToTransfer.Value)
             {
                 currentSlave.Write(txData.ToArray());
                 txData.Clear();
                 SetTransferCompleteFlags();
             }
-        }
-
-        private void SlaveTransmitDataWrite(uint newValue)
-        {
-            txData.Enqueue((byte)newValue);
         }
 
         private void SetTransferCompleteFlags()
