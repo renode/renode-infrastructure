@@ -16,6 +16,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.DMA;
+using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.Sensors;
 
 namespace Antmicro.Renode.Peripherals.Analog
@@ -52,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //    *dualMode ----------- Indicates if there is a secondary ADC that can work in dual mode.
     //
     // * - Feature is either partially implemented, or not at all.
-    public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral
+    public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral, IADC
     {
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null,
             int? watchdogCount = null, bool? hasCalibration = null, int? channelCount = null, bool? hasPrescaler = null,
@@ -83,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             this.machine = machine;
 
-            ChannelCount = channelCount.Value;
+            ADCChannelCount = channelCount.Value;
             WatchdogCount = watchdogCount.Value;
             this.hasChannelSelect = hasChannelSelect.Value;
 
@@ -97,11 +98,11 @@ namespace Antmicro.Renode.Peripherals.Analog
             analogWatchdogLowValues = new IValueRegisterField[WatchdogCount];
             if(WatchdogCount >= 2)
             {
-                analogWatchdog2SelectedChannels = new IFlagRegisterField[ChannelCount];
+                analogWatchdog2SelectedChannels = new IFlagRegisterField[ADCChannelCount];
             }
             if(WatchdogCount == 3)
             {
-                analogWatchdog3SelectedChannels = new IFlagRegisterField[ChannelCount];
+                analogWatchdog3SelectedChannels = new IFlagRegisterField[ADCChannelCount];
             }
 
             registers = new DoubleWordRegisterCollection(this, BuildRegistersMap(hasCalibration.Value,
@@ -121,9 +122,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             this.externalEventFrequency = externalEventFrequency;
 
             samplingThread = machine.ObtainManagedThread(StartSampling, externalEventFrequency);
-            channelSelected = new bool[ChannelCount];
-            sampleProvider = new SensorSamplesFifo<ScalarSample>[ChannelCount];
-            for(var channel = 0; channel < ChannelCount; channel++)
+            channelSelected = new bool[ADCChannelCount];
+            sampleProvider = new SensorSamplesFifo<ScalarSample>[ADCChannelCount];
+            for(var channel = 0; channel < ADCChannelCount; channel++)
             {
                 sampleProvider[channel] = new SensorSamplesFifo<ScalarSample>();
             }
@@ -132,13 +133,13 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         public void FeedVoltageSampleToChannel(int channel, string path)
         {
-            ValidateChannel(channel);
+            this.AssertChannel(channel);
             sampleProvider[channel].FeedSamplesFromFile(path);
         }
 
         public void FeedVoltageSampleToChannel(int channel, decimal valueInmV, uint repeat)
         {
-            ValidateChannel(channel);
+            this.AssertChannel(channel);
             WarnOnTooBigValue((double)valueInmV);
 
             var sample = new ScalarSample(valueInmV);
@@ -154,20 +155,32 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             if(channel != null)
             {
-                ValidateChannel(channel.Value);
+                this.AssertChannel(channel.Value);
                 sampleProvider[channel.Value].DefaultSample.Value = valueInmV;
                 return;
             }
-            for(var i = 0; i < ChannelCount; i++)
+            for(var i = 0; i < ADCChannelCount; i++)
             {
                 sampleProvider[i].DefaultSample.Value = valueInmV;
             }
         }
 
+        public void SetADCValue(int channel, uint valueMicroVolts)
+        {
+            SetDefaultValue((decimal)valueMicroVolts / 1000, channel);
+        }
+
+        public uint GetADCValue(int channel)
+        {
+            this.AssertChannel(channel);
+
+            return (uint)(sampleProvider[channel].Sample.Value * 1000); //mV to µV
+        }
+
         public void Reset()
         {
             RegistersCollection.Reset();
-            for(var i = 0; i < ChannelCount; i++)
+            for(var i = 0; i < ADCChannelCount; i++)
             {
                 channelSelected[i] = false;
             }
@@ -206,13 +219,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         public GPIO IRQ { get; }
 
-        private void ValidateChannel(int channel)
-        {
-            if(channel >= ChannelCount || channel < 0)
-            {
-                throw new RecoverableException($"Invalid argument value: {channel}. This peripheral implements only channels in range 0-{ChannelCount - 1}");
-            }
-        }
+        public int ADCChannelCount { get; }
 
         private void WarnOnTooBigValue(double mv)
         {
@@ -261,7 +268,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
             if(hasChannelSelect)
             {
-                currentChannel = (scanDirection.Value == ScanDirection.Ascending) ? 0 : ChannelCount - 1;
+                currentChannel = (scanDirection.Value == ScanDirection.Ascending) ? 0 : ADCChannelCount - 1;
             }
             else
             {
@@ -315,7 +322,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             Func<bool> iterationFinished = null;
             if(hasChannelSelect)
             {
-                iterationFinished = () => currentChannel >= ChannelCount;
+                iterationFinished = () => currentChannel >= ADCChannelCount;
             }
             else
             {
@@ -687,10 +694,10 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(hasChannelSelect)
             {
                 registers.Add((long)Registers.ChannelSelection, new DoubleWordRegister(this)
-                    .WithFlags(0, ChannelCount,
+                    .WithFlags(0, ADCChannelCount,
                            valueProviderCallback: (id, __) => channelSelected[id],
                            writeCallback: (id, _, val) => { this.Log(LogLevel.Debug, "Channel {0} enable set as {1}", id, val); channelSelected[id] = val; })
-                    .WithReservedBits(ChannelCount, 32 - ChannelCount)
+                    .WithReservedBits(ADCChannelCount, 32 - ADCChannelCount)
                 );
             }
 
@@ -795,11 +802,11 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(3, 1)
                     .WithTag("SMP2", 4, 3)
                     .WithReservedBits(7, 1);
-                for(int i = 0; i < ChannelCount; i++)
+                for(int i = 0; i < ADCChannelCount; i++)
                 {
                     smpr.Tag($"SMPSEL{i}", 8 + i, 1);
                 }
-                smpr.Reserved(32 - (24 - ChannelCount), 24 - ChannelCount);
+                smpr.Reserved(32 - (24 - ADCChannelCount), 24 - ADCChannelCount);
                 registers.Add((long)Registers.SamplingTime, smpr);
             }
             else if(samplingTime == SamplingTime.PerChannel)
@@ -808,20 +815,20 @@ namespace Antmicro.Renode.Peripherals.Analog
                 var smpr1 = new DoubleWordRegister(this);
                 var smpr2 = new DoubleWordRegister(this);
 
-                for(int i = 0; i < ChannelCount && i < 10; i++)
+                for(int i = 0; i < ADCChannelCount && i < 10; i++)
                 {
                     smpr1.Tag($"SMP{i}", 3 * i, 3);
                 }
-                var reservedBitsEntries = ChannelCount > 10 ? 0 : (10 - ChannelCount);
+                var reservedBitsEntries = ADCChannelCount > 10 ? 0 : (10 - ADCChannelCount);
                 var reservedBitsWidth = 2 + reservedBitsEntries * 3;
                 smpr1.Reserved(32 - reservedBitsWidth, reservedBitsWidth);
                 registers.Add((long)Registers.SamplingTime, smpr1);
 
-                for(int i = 10; i < ChannelCount; i++)
+                for(int i = 10; i < ADCChannelCount; i++)
                 {
                     smpr2.Tag($"SMP{i}", 3 * (i - 10), 3);
                 }
-                reservedBitsEntries = ChannelCount > 20 ? 0 : (20 - ChannelCount);
+                reservedBitsEntries = ADCChannelCount > 20 ? 0 : (20 - ADCChannelCount);
                 reservedBitsWidth = 2 + reservedBitsEntries * 3;
                 smpr2.Reserved(32 - reservedBitsWidth, reservedBitsWidth);
                 registers.Add((long)Registers.SamplingTime2, smpr2);
@@ -884,7 +891,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly DoubleWordRegisterCollection registers;
         private readonly IMachine machine;
 
-        private readonly int ChannelCount;
         private readonly int WatchdogCount;
 
         private const int MaximumSequenceLength = 16;
