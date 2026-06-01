@@ -13,7 +13,6 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
-using SDCardAppCommand = Antmicro.Renode.Peripherals.SD.SDCard.SdCardApplicationSpecificCommand;
 using SDCardCommand = Antmicro.Renode.Peripherals.SD.SDCard.SdCardCommand;
 
 namespace Antmicro.Renode.Peripherals.SD
@@ -70,11 +69,11 @@ namespace Antmicro.Renode.Peripherals.SD
             Registers.CmdXfrTyp.Define(this)
                 .WithReservedBits(0, 16)
                 .WithValueField(16, 2, out responseType, name: "RSPTYP")
-                .WithFlag(18, out commandCrcCheckEnable, name: "CCCEN")
-                .WithFlag(19, out commandIndexCheckEnable, name: "CICEN")
-                .WithFlag(20, out dataPresentSelect, name: "DPSEL")
-                .WithValueField(21, 2, out commandType, name: "CMDTYP")
-                .WithReservedBits(23, 1)
+                .WithReservedBits(18, 1)
+                .WithFlag(19, out commandCrcCheckEnable, name: "CCCEN")
+                .WithFlag(20, out commandIndexCheckEnable, name: "CICEN")
+                .WithFlag(21, out dataPresentSelect, name: "DPSEL")
+                .WithValueField(22, 2, out commandType, name: "CMDTYP")
                 .WithValueField(24, 6, out commandIndex, name: "CMDINX")
                 .WithReservedBits(30, 2)
                 .WithWriteCallback((_, __) => ExecuteCommand());
@@ -117,10 +116,10 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithTaggedFlag("HCKEN", 1)
                 .WithTaggedFlag("PEREN", 2)
                 .WithTaggedFlag("SDCLKEN", 3)
-                .WithTag("SDCLKFS", 4, 4)
+                .WithIgnoredBits(4, 4) // SDCLKFS
                 .WithTag("DVS", 8, 4)
                 .WithReservedBits(12, 4)
-                .WithTag("DTOCV", 16, 8)
+                .WithIgnoredBits(16, 8) // DTOCV
                 .WithFlag(24, FieldMode.Write, name: "RSTA")
                 .WithFlag(25, FieldMode.Write, name: "RSTC")
                 .WithFlag(26, FieldMode.Write, name: "RSTD")
@@ -131,11 +130,11 @@ namespace Antmicro.Renode.Peripherals.SD
             Registers.IntStatus.Define(this)
                 .WithFlag(0, out commandCompleteStatus, FieldMode.Read | FieldMode.WriteOneToClear, name: "CC")
                 .WithFlag(1, out transferCompleteStatus, FieldMode.Read | FieldMode.WriteOneToClear, name: "TC")
-                .WithReservedBits(2, 1)
+                .WithFlag(2, valueProviderCallback: _ => false) // BGE interrupt not implemented
                 .WithFlag(3, out dmaInterruptStatus, FieldMode.Read | FieldMode.WriteOneToClear, name: "DINT")
-                .WithReservedBits(4, 12)
+                .WithValueField(4, 12, valueProviderCallback: _ => 0) // Interrupts not implemented
                 .WithFlag(16, out commandTimeoutStatus, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTOE")
-                .WithReservedBits(17, 15)
+                .WithValueField(17, 15, valueProviderCallback: _ => 0) // Interrupts not implemented
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.IntStatusEn.Define(this, resetValue: 0xFFFFFFFF)
@@ -150,6 +149,9 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithFlag(16, out commandTimeoutStatusEnable, name: "CTOESEN")
                 .WithReservedBits(17, 15)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
+
+            Registers.Autocmd12ErrStatus.Define(this)
+                .WithValueField(0, 32, name: "AUTOCM12_ERR_STATUS");
 
             Registers.HostCtrlCap.Define(this)
                 .WithReservedBits(0, 21)
@@ -172,11 +174,11 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithTaggedFlag("VSELECT", 1)
                 .WithTaggedFlag("CONFLICT_CHK_EN", 2)
                 .WithTaggedFlag("AC12_WR_CHKBUSY_EN", 3)
-                .WithReservedBits(4, 4)
+                .WithIgnoredBits(4, 4)
                 .WithFlag(8, out forceSDCardClockEnable, name: "FRC_SDCLK_ON")
-                .WithReservedBits(9, 6)
+                .WithIgnoredBits(9, 6)
                 .WithTaggedFlag("CRC_CHK_DIS", 15)
-                .WithReservedBits(16, 15)
+                .WithIgnoredBits(16, 15)
                 .WithTaggedFlag("CMD_BYTE_EN", 31);
 
             Registers.DllCtrl.Define(this)
@@ -276,14 +278,7 @@ namespace Antmicro.Renode.Peripherals.SD
             case SDCardCommand.WriteMultipleBlocks_CMD25:
                 DmaWrite(sdCard, dest, size * count);
                 break;
-            case (SDCardCommand)SDCardAppCommand.SendSDCardStatus_ACMD13:
-                DmaRead(sdCard, dest, 64);
-                break;
-            case (SDCardCommand)SDCardAppCommand.SendSDConfigurationRegister_ACMD51:
-                DmaRead(sdCard, dest, 8);
-                break;
             default:
-                this.WarningLog("Unhandled data command: {0}", command);
                 break;
             }
 
@@ -355,35 +350,35 @@ namespace Antmicro.Renode.Peripherals.SD
 
         private enum Registers
         {
-            DsAddr            = 0x00, // DS_ADDR
-            BlkAtt            = 0x04, // BLK_ATT
-            CmdArg            = 0x08, // CMD_ARG
-            CmdXfrTyp         = 0x0C, // CMD_XFR_TYP
-            CmdRsp0           = 0x10, // CMD_RSP0
-            CmdRsp1           = 0x14, // CMD_RSP1
-            CmdRsp2           = 0x18, // CMD_RSP2
-            CmdRsp3           = 0x1C, // CMD_RSP3
-            DataBuff          = 0x20, // DATA_BUFF_ACC_PORT
-            PresState         = 0x24, // PRES_STATE
-            ProtCtrl          = 0x28, // PROT_CTRL
-            SysCtrl           = 0x2C, // SYS_CTRL
-            IntStatus         = 0x30, // INT_STATUS
-            IntStatusEn       = 0x34, // INT_STATUS_EN
-            IntSignalEn       = 0x38, // INT_SIGNAL_EN
-                                      // AUTOCMD12_ERR_STATUS
-            HostCtrlCap       = 0x40, // HOST_CTRL_CAP
-            WtmkLvl           = 0x44, // WTMK_LVL
-            MixCtrl           = 0x48, // MIX_CTRL
-                                      // FORCE_EVENT
-                                      // ADMA_ERR_STATUS
-                                      // ADMA_SYS_ADDR
-            DllCtrl           = 0x60, // DLL_CTRL
-            DllStatus         = 0x64, // DLL_STATUS
-            ClkTuneCtrlStatus = 0x68, // CLK_TUNE_CTRL_STATUS
-            VendSpec          = 0xC0, // VEND_SPEC
-            MmcBoot           = 0xC4, // MCC_BOOT
-            VendSpec2         = 0xC8, // VEND_SPEC2
-            TuningCtrl        = 0xCC, // TUNING_CTRL
+            DsAddr             = 0x00, // DS_ADDR
+            BlkAtt             = 0x04, // BLK_ATT
+            CmdArg             = 0x08, // CMD_ARG
+            CmdXfrTyp          = 0x0C, // CMD_XFR_TYP
+            CmdRsp0            = 0x10, // CMD_RSP0
+            CmdRsp1            = 0x14, // CMD_RSP1
+            CmdRsp2            = 0x18, // CMD_RSP2
+            CmdRsp3            = 0x1C, // CMD_RSP3
+            DataBuff           = 0x20, // DATA_BUFF_ACC_PORT
+            PresState          = 0x24, // PRES_STATE
+            ProtCtrl           = 0x28, // PROT_CTRL
+            SysCtrl            = 0x2C, // SYS_CTRL
+            IntStatus          = 0x30, // INT_STATUS
+            IntStatusEn        = 0x34, // INT_STATUS_EN
+            IntSignalEn        = 0x38, // INT_SIGNAL_EN
+            Autocmd12ErrStatus = 0x3C, // AUTOCMD12_ERR_STATUS
+            HostCtrlCap        = 0x40, // HOST_CTRL_CAP
+            WtmkLvl            = 0x44, // WTMK_LVL
+            MixCtrl            = 0x48, // MIX_CTRL
+                                       // FORCE_EVENT
+                                       // ADMA_ERR_STATUS
+                                       // ADMA_SYS_ADDR
+            DllCtrl            = 0x60, // DLL_CTRL
+            DllStatus          = 0x64, // DLL_STATUS
+            ClkTuneCtrlStatus  = 0x68, // CLK_TUNE_CTRL_STATUS
+            VendSpec           = 0xC0, // VEND_SPEC
+            MmcBoot            = 0xC4, // MCC_BOOT
+            VendSpec2          = 0xC8, // VEND_SPEC2
+            TuningCtrl         = 0xCC, // TUNING_CTRL
         }
     }
 }
