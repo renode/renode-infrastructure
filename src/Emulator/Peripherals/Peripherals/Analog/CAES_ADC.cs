@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,6 +7,7 @@
 using System.Linq;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -34,6 +35,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 autoUpdate: false,
                 workMode: WorkMode.OneShot);
             samplingTimer.LimitReached += OnConversionFinished;
+            ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
         }
 
         public void FeedSamplesFromRESD(ReadFilePath filePath, uint adcChannel, uint resdChannel = 0,
@@ -63,13 +65,30 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         public void SetADCValue(int adcChannel, uint value)
         {
+            IRESDSampleSource<VoltageSample> sampleSource;
+
             EnsureChannelIsValid((uint)adcChannel);
-            rawVoltage[adcChannel] = value;
+
+            if(ADCContainer.TryGetByAddress(adcChannel, out sampleSource) && sampleSource is ADCChannelSource channelSource)
+            {
+                channelSource.Sample = new VoltageSample(value);
+            }
+            else
+            {
+                rawVoltage[adcChannel] = value;
+            }
         }
 
         public uint GetADCValue(int adcChannel)
         {
+            IRESDSampleSource<VoltageSample> sampleSource;
+
             EnsureChannelIsValid((uint)adcChannel);
+
+            if(ADCContainer.TryGetByAddress(adcChannel, out sampleSource))
+            {
+                return sampleSource.Sample.Voltage;
+            }
             return rawVoltage[adcChannel];
         }
 
@@ -78,6 +97,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         public long Size => 0x1000;
 
         public int ADCChannelCount => (int)NumberOfDataChannels;
+
+        public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; }
 
         private void UpdateInterrupts()
         {

@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -18,6 +19,7 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.DMA;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.Sensors;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
@@ -83,6 +85,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
 
             this.machine = machine;
+            ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
 
             ADCChannelCount = channelCount.Value;
             WatchdogCount = watchdogCount.Value;
@@ -167,14 +170,38 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         public void SetADCValue(int channel, uint valueMicroVolts)
         {
-            SetDefaultValue((decimal)valueMicroVolts / 1000, channel);
+            IRESDSampleSource<VoltageSample> sampleSource;
+
+            this.AssertChannel(channel);
+
+            if(ADCContainer.TryGetByAddress(channel, out sampleSource) && sampleSource is ADCChannelSource channelSource)
+            {
+                this.WarningLog("This API is deprecated in favor of setting values from ADC sources");
+                channelSource.Sample = new VoltageSample(valueMicroVolts);
+            }
+            else
+            {
+                this.ErrorLog("Cannot set value for channel {0}, use ADC sources API", channel);
+            }
         }
 
         public uint GetADCValue(int channel)
         {
+            IRESDSampleSource<VoltageSample> sampleSource;
+
             this.AssertChannel(channel);
 
-            return (uint)(sampleProvider[channel].Sample.Value * 1000); //mV to µV
+            if(ADCContainer.TryGetByAddress(channel, out sampleSource))
+            {
+                this.WarningLog("This API is deprecated in favor of getting values from ADC sources");
+                return sampleSource.Sample.Voltage;
+            }
+            else
+            {
+                // This should not happen as at least a default children is registered.
+                this.ErrorLog("Cannot get value for channel {0}", channel);
+                return 0;
+            }
         }
 
         public void Reset()
@@ -213,6 +240,22 @@ namespace Antmicro.Renode.Peripherals.Analog
             RegistersCollection.Write(offset, value);
         }
 
+        void IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>.Register(IRESDSampleSource<VoltageSample> peripheral, NumberRegistrationPoint<int> channel)
+        {
+            IRESDSampleSource<VoltageSample> sampleSource;
+
+            this.AssertChannel(channel.Address);
+
+            // Allow to register a new source over the default child.
+            if(ADCContainer.TryGetByAddress(channel.Address, out sampleSource) && sampleSource is ADCDefaultChannelSource)
+            {
+                ADCContainer.Unregister(sampleSource);
+            }
+
+            ADCContainer.Register(peripheral, channel);
+            peripheral.NewSample += newValue => WarnOnTooBigValue((double)newValue.Voltage / 1e3); // µV to mV
+        }
+
         public DoubleWordRegisterCollection RegistersCollection { get => registers; }
 
         public long Size => 0x400;
@@ -220,6 +263,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         public GPIO IRQ { get; }
 
         public int ADCChannelCount { get; }
+
+        public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; }
 
         private void WarnOnTooBigValue(double mv)
         {
@@ -414,9 +459,14 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private uint GetSampleFromChannel(int channelNumber)
         {
-            var sample = sampleProvider[channelNumber].Sample;
-            sampleProvider[channelNumber].TryDequeueNewSample();
-            return MillivoltsToSample((double)sample.Value);
+            IRESDSampleSource<VoltageSample> sampleSource;
+            var milliVolts = 0.0;
+
+            if(ADCContainer.TryGetByAddress(channelNumber, out sampleSource))
+            {
+                milliVolts = sampleSource.Sample.Voltage / 1000;
+            }
+            return MillivoltsToSample(milliVolts);
         }
 
         private uint MillivoltsToSample(double sampleInMillivolts)
