@@ -29,6 +29,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public Bits StopBits => shifter.StopBit == ShifterStopBitConfiguration ? Bits.One : Bits.None;
 
+        public Shifter Shifter => shifter;
+
         protected void LogWarnings()
         {
             if(warningsShown)
