@@ -236,7 +236,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         void Reset();
 
-        void ShadowReload();
+        void ShadowReloadValue();
+
+        void ShadowReloadCallbacks();
 
         string[,] Dump(bool allowSideEffects);
     }
@@ -440,16 +442,18 @@ namespace Antmicro.Renode.Core.Structure.Registers
             return field;
         }
 
-        public void ShadowReload()
+        public void ShadowReloadValue()
         {
-            var oldValue = UnderlyingShadowValue;
+            UnderlyingLastShadowValue = UnderlyingShadowValue;
             UnderlyingShadowValue = UnderlyingValue;
-            var newValue = UnderlyingShadowValue;
+        }
 
+        public void ShadowReloadCallbacks()
+        {
             foreach(var field in registerFields)
             {
-                var oldFieldValue = BitHelper.GetValue(oldValue, field.Position, field.Width);
-                var newFieldValue = BitHelper.GetValue(newValue, field.Position, field.Width);
+                var oldFieldValue = BitHelper.GetValue(UnderlyingLastShadowValue, field.Position, field.Width);
+                var newFieldValue = BitHelper.GetValue(UnderlyingShadowValue, field.Position, field.Width);
                 field.CallShadowReloadHandler(oldFieldValue, newFieldValue);
 
                 if(oldFieldValue == newFieldValue)
@@ -459,7 +463,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 parent.NoisyLog($"{field.Name}: reloaded shadow from {oldFieldValue:x} to {newFieldValue:x}");
             }
 
-            CallShadowReloadHandlers(oldValue, UnderlyingShadowValue);
+            CallShadowReloadHandlers(UnderlyingLastShadowValue, UnderlyingShadowValue);
         }
 
         public string[,] Dump(bool allowSideEffects = false)
@@ -683,6 +687,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         protected abstract void CallShadowReloadHandlers(ulong oldValue, ulong newValue);
 
         protected ulong UnderlyingValue;
+
+        protected ulong UnderlyingLastShadowValue;
 
         protected ulong UnderlyingShadowValue;
 

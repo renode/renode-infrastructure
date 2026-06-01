@@ -37,11 +37,19 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
-        public void ShadowReload()
+        public void ShadowReloadValue()
         {
             foreach(var c in conditionalRegisters)
             {
-                c.Register.ShadowReload();
+                c.Register.ShadowReloadValue();
+            }
+        }
+
+        public void ShadowReloadCallbacks()
+        {
+            foreach(var c in conditionalRegisters)
+            {
+                c.Register.ShadowReloadCallbacks();
             }
         }
 

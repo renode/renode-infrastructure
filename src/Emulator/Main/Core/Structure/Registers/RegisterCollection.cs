@@ -297,7 +297,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         {
             foreach(var register in registers.Values)
             {
-                register.ShadowReload();
+                register.ShadowReloadValue();
+            }
+            foreach(var register in registers.Values)
+            {
+                register.ShadowReloadCallbacks();
             }
         }
 
