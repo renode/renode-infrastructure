@@ -709,13 +709,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             Registers.SysTickControl.Define(RegisterCollection)
                 .WithFlag(0,
-                    changeCallback: (_, value) => systick.Get(isNextAccessSecure).Enabled = value,
+                    writeCallback: (_, value) => systick.Get(isNextAccessSecure).Enabled = value,
                     valueProviderCallback: _ => systick.Get(isNextAccessSecure).Enabled,
                     name: "ENABLE")
                 .WithFlag(1,
                     valueProviderCallback: _ => systick.Get(isNextAccessSecure).TickInterruptEnabled,
-                    changeCallback: (_, newValue) =>
+                    writeCallback: (_, newValue) =>
                     {
+                        if(systick.Get(isNextAccessSecure).TickInterruptEnabled == newValue)
+                        {
+                            return;
+                        }
                         this.NoisyLog("Systick_{0} interrupt {1}", isNextAccessSecure ? "S" : "NS", newValue ? "enabled" : "disabled");
                         systick.Get(isNextAccessSecure).TickInterruptEnabled = newValue;
                     }, name: "TICKINT")
@@ -735,7 +739,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Registers.SysTickReloadValue.Define(RegisterCollection)
                 .WithValueField(0, 24,
                     valueProviderCallback: _ => systick.Get(isNextAccessSecure).Reload,
-                    changeCallback: (_, newValue) => systick.Get(isNextAccessSecure).Reload = newValue,
+                    writeCallback: (_, newValue) => systick.Get(isNextAccessSecure).Reload = newValue,
                     name: "RELOAD")
                 .WithReservedBits(24, 8);
 
@@ -850,10 +854,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     },
                     name: "SLEEPDEEPS")
                 .WithFlag(4,
-                    changeCallback: (_, value) =>
+                    writeCallback: (_, value) =>
                     {
-                        SetSevOnPendingOnAllCPUs(value);
-                        currentSevOnPending.Get(isNextAccessSecure) = value;
+                        if(currentSevOnPending.Get(isNextAccessSecure) != value)
+                        {
+                            SetSevOnPendingOnAllCPUs(value);
+                            currentSevOnPending.Get(isNextAccessSecure) = value;
+                        }
                     },
                     valueProviderCallback: _ => currentSevOnPending.Get(isNextAccessSecure),
                     name: "SEVONPEND")
@@ -1972,7 +1979,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 get => reloadValue;
                 set
                 {
-                    if(Enabled && reloadValue == 0 && !systick.Enabled)
+                    if(Enabled && reloadValue == 0 && value != 0 && !systick.Enabled)
                     {
                         // We explicitly enable underlying SysTick counter only in the case it was blocked by RELOAD=0.
                         // We ignore other cases, as we don't want to accidentally enable counter in DEEPSLEEP just by writing to this register.
