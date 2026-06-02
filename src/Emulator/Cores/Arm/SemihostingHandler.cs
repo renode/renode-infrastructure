@@ -523,12 +523,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public string SemihostingDirectory
+        public string WorkingDirectory
         {
-            get => this.fullSemihostingDirectory;
+            get => this.fullWorkingDirectory;
             set
             {
-                this.Log(LogLevel.Debug, "Trying to set SemihostingDirectory to: {0}", value);
+                this.Log(LogLevel.Debug, "Trying to set working directory to: {0}", value);
                 try
                 {
                     if(String.IsNullOrEmpty(value))
@@ -542,12 +542,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                     }
                     // Make sure that the path ends with directory separator for the check later
                     fullDirectoryPath = fullDirectoryPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-                    this.Log(LogLevel.Noisy, "Full SemihostingDirectory: {0}", fullDirectoryPath);
-                    fullSemihostingDirectory = fullDirectoryPath;
+                    this.Log(LogLevel.Noisy, "Full working directory: {0}", fullDirectoryPath);
+                    fullWorkingDirectory = fullDirectoryPath;
                 }
                 catch(Exception e)
                 {
-                    throw new ConstructionException($"Incorrect SemihostingDirectory: {value}. {e.Message}");
+                    throw new ConstructionException($"Incorrect working directory: {value}. {e.Message}");
                 }
             }
         }
@@ -673,19 +673,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             errorMessage = "";
             fullPath = "";
 
-            if(String.IsNullOrEmpty(SemihostingDirectory))
+            if(String.IsNullOrEmpty(WorkingDirectory))
             {
-                errorMessage = $"'{filePath}' can't be accessed; SemihostingDirectory isn't set";
+                errorMessage = $"'{filePath}' can't be accessed; WorkingDirectory isn't set";
                 return false;
             }
 
-            fullPath = Path.GetFullPath(filePath, SemihostingDirectory);
-            if(fullPath.StartsWith(SemihostingDirectory))
+            fullPath = Path.GetFullPath(filePath, WorkingDirectory);
+            if(fullPath.StartsWith(WorkingDirectory))
             {
                 return true;
             }
 
-            errorMessage = $"'{fullPath}' can't be accessed; it's outside the SemihostingDirectory ({SemihostingDirectory})";
+            errorMessage = $"'{fullPath}' can't be accessed; it's outside the working directory ({WorkingDirectory})";
             return false;
         }
 
@@ -805,7 +805,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private Errno semihostingErrno = Errno.NoError;
         private SemihostingUart stdInOut;
         private SemihostingUart stdErr;
-        private string fullSemihostingDirectory;
+        private string fullWorkingDirectory;
         private uint highestFileDescriptor = 0;
         private int? exitReason = null;
         private int? exitCode = null;
