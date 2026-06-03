@@ -42,6 +42,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 skipAddress = true;
                 skipAlternateBytes = true;
                 skipData = true;
+                dummyBytes = 0;
 
                 IRQ.Unset();
             }
@@ -202,7 +203,21 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithValueField(12, 2, out addressSize, name: "Address size")
                 .WithValueField(14, 2, writeCallback: (_, value) => skipAlternateBytes = value == 0, name: "Alternate byte mode")
                 .WithValueField(16, 2, out alternateBytesSize, name: "Alternate byte size")
-                .WithTag("Number of dummy cycles", 18, 5)
+                .WithValueField(18, 5,
+                    writeCallback: (_, val) =>
+                    {
+                        if(val == 0)
+                        {
+                            return;
+                        }
+                        dummyBytes = val switch
+                        {
+                            <= 8 => 1,
+                            <= 16 => 2,
+                            <= 24 => 3,
+                            _ => 4
+                        };
+                    }, name: "Number of dummy cycles")
                 .WithReservedBits(23, 1)
                 .WithValueField(24, 2, writeCallback: (_, value) => skipData = value == 0, name: "Data mode")
                 .WithEnumField(26, 2, out functionalMode,
@@ -538,6 +553,11 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void TransferData()
         {
+            while(dummyBytes > 0)
+            {
+                RegisteredPeripheral.Transmit(0);
+                dummyBytes -= 1;
+            }
             if(skipData)
             {
                 return;
@@ -610,6 +630,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private IEnumRegisterField<ModeOfOperation> functionalMode;
         private int? remainingBytesToTransfer;
+        private int dummyBytes;
         private bool skipData = true;
         private bool skipAlternateBytes = true;
         private bool skipAddress = true;
