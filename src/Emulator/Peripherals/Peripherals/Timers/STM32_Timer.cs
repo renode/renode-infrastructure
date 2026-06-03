@@ -486,6 +486,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                 return;
             }
 
+            if(channels[number].IsOutputMode)
+            {
+                this.Log(LogLevel.Noisy, "Channel #{0} received external input when configured as output", number);
+                return;
+            }
+
             var oldPinValue = channels[number].Connection.IsSet;
             channels[number].Connection.Set(value);
 
