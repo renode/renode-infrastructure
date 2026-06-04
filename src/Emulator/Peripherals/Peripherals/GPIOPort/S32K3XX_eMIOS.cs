@@ -641,7 +641,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
                 registerMap.Add((long)Registers.UChannelCounter0 + (channelNumber * ChannelOffset), new DoubleWordRegister(parent)
                     .WithReservedBits(24, 8)
-                    .WithValueField(0, 23, out counterField, readCallback: (_, __) =>
+                    .WithValueField(0, 24, out counterField, readCallback: (_, __) =>
                     {
                         if(parent.BusController.TryGetCurrentCPU(out var cpu))
                         {
