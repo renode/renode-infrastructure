@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -128,16 +128,41 @@ namespace Antmicro.Renode.Time
         /// Calculates a base elapsed virtual time (minimal) for all handles.
         /// Returns `false` if the handles collection is empty.
         /// </summary>
-        public bool TryGetCommonElapsedTime(out TimeInterval commonElapsedTime)
+        /// <param name="commonElapsedTime">Minimal elapsed virtual time</param>
+        /// <param name="blockers">Number of handles that are blocking common elapsed time progression (number of handles with minimal elapsed virtual time)</param>
+        public bool TryGetCommonElapsedTime(out TimeInterval commonElapsedTime, out uint blockers)
         {
             lock(locker)
             {
                 if(notReady.Count == 0 && ready.Count == 0)
                 {
+                    blockers = 0;
                     commonElapsedTime = TimeInterval.Empty;
                     return false;
                 }
-                commonElapsedTime = All.Min(x => x.TotalElapsedTime);
+
+                var (notReadyMinTicks, notReadMinTicksCount) = GetMinTicksAndCountOccurences(notReady);
+                var (readyMinTicks, readyMinTicksCount) = GetMinTicksAndCountOccurences(ready);
+
+                if(notReadyMinTicks < readyMinTicks)
+                {
+                    commonElapsedTime = TimeInterval.FromTicks(notReadyMinTicks);
+                    blockers = notReadMinTicksCount;
+                }
+                else
+                {
+                    commonElapsedTime = TimeInterval.FromTicks(readyMinTicks);
+
+                    if(notReadMinTicksCount == readyMinTicks)
+                    {
+                        blockers = notReadMinTicksCount + readyMinTicksCount;
+                    }
+                    else
+                    {
+                        blockers = readyMinTicksCount;
+                    }
+                }
+
                 return true;
             }
         }
@@ -200,6 +225,29 @@ namespace Antmicro.Renode.Time
 
                 current = next;
             }
+        }
+
+        private (ulong, uint) GetMinTicksAndCountOccurences(LinkedList<TimeHandle> list)
+        {
+            var minTicks = ulong.MaxValue;
+            var count = 0u;
+
+            for(var node = list.First; node is not null; node = node.Next)
+            {
+                var ticks = node.Value.TotalElapsedTime.Ticks;
+
+                if(ticks < minTicks)
+                {
+                    minTicks = ticks;
+                    count = 1;
+                }
+                else if(ticks == minTicks)
+                {
+                    count++;
+                }
+            }
+
+            return (minTicks, count);
         }
 
         private readonly LinkedList<TimeHandle> ready;

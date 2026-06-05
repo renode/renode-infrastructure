@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -159,9 +159,35 @@ namespace Antmicro.Renode.Time
         }
 
         /// <see cref="ITimeSource.ReportTimeProgress">
-        public void ReportTimeProgress()
+        public void ReportTimeProgress(ulong previousElapsedTicks = 0)
         {
-            SynchronizeVirtualTime();
+            lock(virtualTimeSyncLock)
+            {
+                if(previousElapsedTicks == 0)
+                {
+                    SynchronizeVirtualTime();
+                    return;
+                }
+
+                var elapsed = virtualTicksElapsed.CumulativeValue;
+
+                // If previously this handle was above common time, we can skip it as it was not blocking other ones
+                if(previousElapsedTicks > elapsed)
+                {
+                    return;
+                }
+
+                // If previously this was one of the blocking handles, wait until all of them progress
+                if(previousElapsedTicks == elapsed)
+                {
+                    virtualTimeProgressBlockers--;
+
+                    if(virtualTimeProgressBlockers == 0)
+                    {
+                        SynchronizeVirtualTime();
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -618,7 +644,7 @@ namespace Antmicro.Renode.Time
         {
             lock(virtualTimeSyncLock)
             {
-                if(!handles.TryGetCommonElapsedTime(out var currentCommonElapsedTime))
+                if(!handles.TryGetCommonElapsedTime(out var currentCommonElapsedTime, out virtualTimeProgressBlockers))
                 {
                     return;
                 }
@@ -769,6 +795,7 @@ namespace Antmicro.Renode.Time
         private bool updateNearestSyncPoint;
         private int? executeThreadId;
         private ulong delayedTaskId;
+        private uint virtualTimeProgressBlockers;
         private TimeInterval quantum;
 
         [Antmicro.Migrant.Constructor(true)]

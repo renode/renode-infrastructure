@@ -312,8 +312,8 @@ namespace Antmicro.Renode.Time
                 return;
             }
 
-            UpdateElapsedTime(progress);
-            TimeSource.ReportTimeProgress();
+            UpdateElapsedTime(progress, out var previous);
+            TimeSource.ReportTimeProgress(previous);
         }
 
         /// <summary>
@@ -444,6 +444,8 @@ namespace Antmicro.Renode.Time
         {
             this.Trace();
             WaitResult result;
+            var previousElapsedTicks = 0ul;
+
             lock(innerLock)
             {
                 Debugging.DebugHelper.Assert(sourceSideInProgress, "About to wait until time is used, but it seems none has recently been granted.");
@@ -480,7 +482,7 @@ namespace Antmicro.Renode.Time
                 Debugging.DebugHelper.Assert(reportedSoFar <= intervalUsed);
                 // here we report the remaining part of granted time
                 reportedTimeResiduum = TimeInterval.Empty;
-                UpdateElapsedTime(intervalUsed - reportedSoFar);
+                UpdateElapsedTime(intervalUsed - reportedSoFar, out previousElapsedTicks);
                 reportedSoFar = TimeInterval.Empty;
 
                 reportPending = false;
@@ -503,7 +505,7 @@ namespace Antmicro.Renode.Time
                 this.Trace($"Reporting {intervalUsed.Ticks} ticks used. Local elapsed virtual time is {TotalElapsedTime.Ticks} ticks.");
                 this.Trace(result.ToString());
             }
-            TimeSource.ReportTimeProgress();
+            TimeSource.ReportTimeProgress(previousElapsedTicks);
             return result;
         }
 
@@ -819,8 +821,10 @@ namespace Antmicro.Renode.Time
         /// </summary>
         public event Action ReportedBack;
 
-        private void UpdateElapsedTime(TimeInterval progress)
+        private void UpdateElapsedTime(TimeInterval progress, out ulong previousElapsedTicks)
         {
+            previousElapsedTicks = TotalElapsedTime.Ticks;
+
             if(progress.Ticks == 0)
             {
                 return;
