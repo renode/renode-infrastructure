@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -38,7 +38,9 @@ namespace Antmicro.Renode.Core.USB
         {
         }
 
-        public USBDeviceCore USBCore => dev?.USBCore;
+        public IUSBConnection ConnectUSB() => dev?.ConnectUSB();
+
+        public byte Address => dev?.Address ?? 0;
 
         private IUSBDevice dev;
     }

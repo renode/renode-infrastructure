@@ -1742,6 +1742,26 @@ namespace Antmicro.Renode.Utilities
             return false;
         }
 
+        public static R WaitForCallback<R>(this Action<Action<R>> func, CancellationToken token = default)
+        {
+            var mre = new ManualResetEventSlim();
+            var returnValue = default(R);
+            func(res =>
+            {
+                returnValue = res;
+                mre.Set();
+            });
+            mre.Wait(token);
+            return returnValue;
+        }
+
+        public static void WaitForCallback(this Action<Action> func, CancellationToken token = default)
+        {
+            var mre = new ManualResetEventSlim();
+            func(mre.Set);
+            mre.Wait(token);
+        }
+
         public static bool IsOnOsX
         {
             get

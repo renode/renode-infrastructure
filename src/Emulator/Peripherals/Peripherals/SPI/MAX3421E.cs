@@ -38,6 +38,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public override void Register(IUSBDevice peripheral, NumberRegistrationPoint<int> registrationPoint)
         {
             base.Register(peripheral, registrationPoint);
+            deviceToConnection[peripheral] = peripheral.ConnectUSB();
 
             // indicate the K state - full-speed device attached
             kStatus.Value = true;
@@ -53,6 +54,10 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public override void Unregister(IUSBDevice peripheral)
         {
+            if(deviceToConnection.Remove(peripheral, out var conn))
+            {
+                conn.Dispose();
+            }
             base.Unregister(peripheral);
 
             connectDisconnectInterruptRequest.Value = true;
@@ -69,6 +74,10 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public override void Dispose()
         {
+            foreach(var (_, conn) in deviceToConnection)
+            {
+                conn.Dispose();
+            }
             base.Dispose();
             bumper.Dispose();
         }
@@ -346,7 +355,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(5, out var outnin, name: "outnin")
                 .WithTag("ISO", 6, 1)
                 .WithFlag(7, out var hs, name: "hs")
-                .WithWriteCallback((_, v) => { HandleHostTransfer((uint)ep.Value, setup.Value, outnin.Value, hs.Value); })
+                .WithWriteCallback((_, v) => { HandleHostTransfer((byte)ep.Value, setup.Value, outnin.Value, hs.Value); })
             ;
 
             RegisterType.HostResult.Define(this)
@@ -380,7 +389,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void HandleHostTransfer(uint ep, bool setup, bool outnin, bool hs)
+        private void HandleHostTransfer(byte ep, bool setup, bool outnin, bool hs)
         {
             if(setup && hs)
             {
@@ -388,7 +397,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return;
             }
 
-            var device = this.ChildCollection.Values.FirstOrDefault(x => x.USBCore.Address == deviceAddress.Value);
+            IUSBConnection device = deviceToConnection.FirstOrDefault(x => x.Key.Address == deviceAddress.Value).Value;
             if(device == null)
             {
                 this.Log(LogLevel.Warning, "Tried to send setup packet to a device with address 0x{0:X}, but it's not connected", deviceAddress.Value);
@@ -400,50 +409,55 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return;
             }
 
-            if(setup)
-            {
-                this.Log(LogLevel.Noisy, "Setup TX");
-                if(ep != 0)
-                {
-                    this.Log(LogLevel.Error, "This model does not support SETUP packets on EP different than 0");
-                    return;
-                }
-
-                HandleSetup(device);
-            }
-            else if(hs)
+            if(hs)
             {
                 this.Log(LogLevel.Noisy, "Handshake {0}", outnin ? "out" : "in");
 
                 hostTransferDoneInterruptRequest.Value = true;
                 UpdateInterrupts();
+                return;
+            }
+            var warnNonexistingEndpoint = () =>
+            {
+                this.Log(LogLevel.Error, "Tried to access a non-existing EP #{0}", ep);
+
+                hostTransferDoneInterruptRequest.Value = true;
+                UpdateInterrupts();
+            };
+            if(setup)
+            {
+                this.Log(LogLevel.Noisy, "Setup TX");
+                var pipe = device.ConnectEndpointSetup(ep);
+                if(pipe == null)
+                {
+                    warnNonexistingEndpoint();
+                    return;
+                }
+
+                HandleSetup(pipe);
+                return;
+            }
+            if(outnin)
+            {
+                var pipe = device.ConnectEndpointWrite(ep);
+                if(pipe == null)
+                {
+                    warnNonexistingEndpoint();
+                    return;
+                }
+                this.Log(LogLevel.Noisy, "Bulk out");
+                HandleBulkOut(pipe);
             }
             else
             {
-                USBEndpoint endpoint = null;
-                if(ep != 0)
+                var pipe = device.ConnectEndpointRead(ep);
+                if(pipe == null)
                 {
-                    endpoint = device.USBCore.GetEndpoint((int)ep, outnin ? Direction.HostToDevice : Direction.DeviceToHost);
-                    if(endpoint == null)
-                    {
-                        this.Log(LogLevel.Error, "Tried to access a non-existing EP #{0}", ep);
-
-                        hostTransferDoneInterruptRequest.Value = true;
-                        UpdateInterrupts();
-                        return;
-                    }
+                    warnNonexistingEndpoint();
+                    return;
                 }
-
-                if(outnin)
-                {
-                    this.Log(LogLevel.Noisy, "Bulk out");
-                    HandleBulkOut(endpoint);
-                }
-                else
-                {
-                    this.Log(LogLevel.Noisy, "Bulk in");
-                    HandleBulkIn(endpoint);
-                }
+                this.Log(LogLevel.Noisy, "Bulk in");
+                HandleBulkIn(pipe);
             }
         }
 
@@ -455,7 +469,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             UpdateInterrupts();
         }
 
-        private void HandleBulkOut(USBEndpoint endpoint)
+        private void HandleBulkOut(IUSBPipeWrite endpoint)
         {
             if(endpoint != null)
             {
@@ -466,7 +480,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
                 var bytesToSend = sendQueue.DequeueRange((int)sendByteCount.Value);
                 this.Log(LogLevel.Noisy, "Writing {0} bytes to the device", bytesToSend.Length);
-                endpoint.WriteData(bytesToSend);
+                endpoint.Write(bytesToSend);
 
                 sendDataBufferAvailableInterruptRequest.Value = true;
             }
@@ -475,12 +489,13 @@ namespace Antmicro.Renode.Peripherals.SPI
             UpdateInterrupts();
         }
 
-        private void HandleBulkIn(USBEndpoint endpoint)
+        private void HandleBulkIn(IUSBPipeRead pipe)
         {
-            if(endpoint != null)
+            if(pipe != null)
             {
                 this.Log(LogLevel.Noisy, "Initiated read from the device");
-                endpoint.SetDataReadCallbackOneShot((_, data) =>
+                pipe.ReadPacket(
+                    data =>
                 {
                     this.Log(LogLevel.Noisy, "Received data from the device");
 #if DEBUG_PACKETS
@@ -499,7 +514,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void HandleSetup(IUSBDevice device)
+        private void HandleSetup(IUSBPipeSetup pipe)
         {
             var data = setupQueue.DequeueAll();
             if(!Packet.TryDecode<SetupPacket>(data, out var setupPacket))
@@ -508,13 +523,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return;
             }
 
-            device.USBCore.HandleSetupPacket(setupPacket, response =>
-            {
-                EnqueueReceiveData(response);
+            pipe.SetupPacketWrite(setupPacket);
 
-                hostTransferDoneInterruptRequest.Value = true;
-                UpdateInterrupts();
-            });
+            hostTransferDoneInterruptRequest.Value = true;
+            UpdateInterrupts();
         }
 
         private void EnqueueReceiveData(IEnumerable<byte> data)
@@ -553,6 +565,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly Queue<byte> receiveQueue;
         private readonly Queue<byte> sendQueue;
         private readonly IManagedThread bumper;
+        private readonly IDictionary<IUSBDevice, IUSBConnection> deviceToConnection = new Dictionary<IUSBDevice, IUSBConnection>();
 
         private const byte ChipRevision = 0x13;
         private const int BumpsPerSecond = 100;

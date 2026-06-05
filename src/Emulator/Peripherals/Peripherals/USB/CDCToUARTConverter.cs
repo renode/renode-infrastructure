@@ -74,25 +74,25 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public event Action<byte> CharReceived;
 
-        protected override void DeviceEnumerated(IUSBDevice device)
+        protected override void DeviceEnumerated(IUSBConnection device)
         {
             SetDataReadCallback(device);
         }
 
-        private void SetDataReadCallback(IUSBDevice device)
+        private void SetDataReadCallback(IUSBConnection device)
         {
-            var ep = device.USBCore.GetEndpoint(UARTDataInEndpoint, Core.USB.Direction.DeviceToHost);
-            ep.SetDataReadCallbackOneShot((dataEp, data) => ReadData(data, device));
+            var ep = device.ConnectEndpointRead((byte)UARTDataInEndpoint);
+            ep.ReadPacket(data => ReadData(data, device));
         }
 
-        private void ReadData(IEnumerable<byte> bytes, IUSBDevice device)
+        private void ReadData(IEnumerable<byte> bytes, IUSBConnection device)
         {
             foreach(var data in bytes)
             {
                 WriteChar(data);
             }
-            var ep = device.USBCore.GetEndpoint(UARTDataInEndpoint, Core.USB.Direction.DeviceToHost);
-            ep.SetDataReadCallbackOneShot((dataEp, data) => ReadData(data, device));
+            var ep = device.ConnectEndpointRead((byte)UARTDataInEndpoint);
+            ep.ReadPacket(data => ReadData(data, device));
         }
 
         private readonly Queue<byte> queue;

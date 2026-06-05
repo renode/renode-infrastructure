@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -13,7 +14,8 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.USB
 {
-    public class USBEndpoint : DescriptorProvider
+    // NOTE: Do not use this class for USB controller peripherals a CPU will talk to. Implement `IUSBPipe*` yourself. This class is only for USB devices that exist entirely within C# - `USBPendrive` and the like
+    public class USBEndpoint : DescriptorProvider, IUSBPipeWrite, IUSBPipeRead
     {
         public USBEndpoint(IUSBDevice device,
                            byte identifier,
@@ -30,11 +32,10 @@ namespace Antmicro.Renode.Core.USB
             MaximumPacketSize = maximumPacketSize;
             Interval = interval;
 
-            buffer = new Queue<IEnumerable<byte>>();
-            packetCreator = new PacketCreator(HandlePacket);
+            packetCreator = new PacketCreator(DeviceWrite);
         }
 
-        public event Action<byte[]> DataWritten
+        public event Action<byte[]> DeviceGotWriteFromHost
         {
             add
             {
@@ -51,15 +52,17 @@ namespace Antmicro.Renode.Core.USB
             }
         }
 
-        public void HandlePacket(ICollection<byte> data)
+        public void DeviceWrite(ICollection<byte> data)
         {
-            lock(buffer)
-            {
-                device.Log(LogLevel.Noisy, "Handling data packet of size: {0}", data.Count);
+            device.Log(LogLevel.Noisy, "Handling data packet of size: {0}", data.Count);
 #if DEBUG_PACKETS
-                device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(data));
+            device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(data));
 #endif
+            // Lock on write (despite `readBuffer` being a concurrent queue) so that
+            // responses split into multiple packets don't get mixed together
 
+            lock(readBuffer)
+            {
                 // split packet into chunks of size not exceeding `MaximumPacketSize`
                 var offset = 0;
                 while(offset < data.Count)
@@ -67,7 +70,8 @@ namespace Antmicro.Renode.Core.USB
                     var toTake = Math.Min(MaximumPacketSize, data.Count - offset);
                     var chunk = data.Skip(offset).Take(toTake);
                     offset += toTake;
-                    buffer.Enqueue(chunk);
+                    readBuffer.Enqueue(chunk.ToArray());
+                    NewPacket?.Invoke();
 #if DEBUG_PACKETS
                     device.Log(LogLevel.Noisy, "Enqueuing chunk of {0} bytes: {1}", chunk.Count(), Misc.PrettyPrintCollectionHex(chunk));
 #endif
@@ -78,28 +82,46 @@ namespace Antmicro.Renode.Core.USB
                         // the chunk should be shorter than `MaximumPacketSize`;
                         // in case there is no data to send, empty chunk
                         // is generated
-                        buffer.Enqueue(new byte[0]);
+                        readBuffer.Enqueue(new byte[] { });
+                        NewPacket?.Invoke();
                         device.Log(LogLevel.Noisy, "Enqueuing end of packet marker");
                     }
                 }
-
-                if(dataCallback != null)
-                {
-                    dataCallback(this, buffer.Dequeue());
-                    dataCallback = null;
-                }
             }
         }
 
-        public void Reset()
+        public PacketCreator DevicePreparePacket()
         {
-            lock(buffer)
+            if(Direction != Direction.DeviceToHost)
             {
-                buffer.Clear();
+                throw new ArgumentException("Writing to this descriptor is not supported");
             }
+
+            return packetCreator;
         }
 
-        public void WriteData(byte[] packet)
+        public bool TryRead(out byte[] data) => readBuffer.TryDequeue(out data);
+
+        public override string ToString()
+        {
+            return $"[EP: id={Identifier}, dir={Direction}, type={TransferType}, mps={MaximumPacketSize}, int={Interval}]";
+        }
+
+        public byte Identifier { get; }
+
+        public Direction Direction { get; }
+
+        public EndpointTransferType TransferType { get; }
+
+        public short MaximumPacketSize { get; }
+
+        public byte Interval { get; }
+
+        public bool DeviceNonBlocking { get; set; }
+
+        public event Action NewPacket;
+
+        void IUSBPipeWrite.Write(byte[] packet)
         {
             if(Direction != Direction.HostToDevice)
             {
@@ -122,94 +144,6 @@ namespace Antmicro.Renode.Core.USB
             dw(packet);
         }
 
-        public PacketCreator PreparePacket()
-        {
-            if(Direction != Direction.DeviceToHost)
-            {
-                throw new ArgumentException("Writing to this descriptor is not supported");
-            }
-
-            return packetCreator;
-        }
-
-        public void SetDataReadCallbackOneShot(Action<USBEndpoint, IEnumerable<byte>> callback)
-        {
-            lock(buffer)
-            {
-                device.Log(LogLevel.Noisy, "Data read callback set");
-                if(buffer.Count > 0)
-                {
-                    device.Log(LogLevel.Noisy, "Data read callback fired");
-#if DEBUG_PACKETS
-                    device.Log(LogLevel.Noisy, "Sending back {0} bytes: {1}", buffer.Peek().Count(), Misc.PrettyPrintCollectionHex(buffer.Peek()));
-#endif
-                    callback(this, buffer.Dequeue());
-                }
-                else
-                {
-                    if(NonBlocking)
-                    {
-                        device.Log(LogLevel.Noisy, "No data to read in non-blocking mode - returning an empty buffer");
-                        callback(this, new byte[0]);
-                    }
-                    else
-                    {
-                        dataCallback = callback;
-                    }
-                }
-            }
-        }
-
-        public byte[] Read(uint limit, System.Threading.CancellationToken cancellationToken)
-        {
-            var result = Enumerable.Empty<byte>();
-
-            var endOfPacketDetected = false;
-            while(!endOfPacketDetected
-                    && (!cancellationToken.IsCancellationRequested)
-                    && (limit == 0 || result.Count() < limit))
-            {
-                var mre = new System.Threading.ManualResetEvent(false);
-                SetDataReadCallbackOneShot((e, bytes) =>
-                {
-                    var arr = bytes.ToArray();
-                    result = result.Concat(arr);
-                    if(arr.Length < MaximumPacketSize)
-                    {
-                        endOfPacketDetected = true;
-                    }
-                    mre.Set();
-                });
-
-                System.Threading.WaitHandle.WaitAny(new System.Threading.WaitHandle[] { cancellationToken.WaitHandle, mre });
-            }
-
-            if(result.Count() > limit)
-            {
-                Logger.Log(LogLevel.Warning, "Read more data from the USB endpoint ({0}) than limit ({1}). Some bytes will be dropped, expect problems!", result.Count(), limit);
-                result = result.Take((int)limit);
-            }
-
-            return result.ToArray();
-        }
-
-        public override string ToString()
-        {
-            return $"[EP: id={Identifier}, dir={Direction}, type={TransferType}, mps={MaximumPacketSize}, int={Interval}]";
-        }
-
-        public byte Identifier { get; }
-
-        public Direction Direction { get; }
-
-        public EndpointTransferType TransferType { get; }
-
-        public short MaximumPacketSize { get; }
-
-        public byte Interval { get; }
-
-        public bool NonBlocking { get; set; }
-
         protected override void FillDescriptor(BitStream buffer)
         {
             buffer
@@ -222,11 +156,10 @@ namespace Antmicro.Renode.Core.USB
 
         private event Action<byte[]> DataWrittenInner;
 
-        private Action<USBEndpoint, IEnumerable<byte>> dataCallback;
-
-        private readonly Queue<IEnumerable<byte>> buffer;
         private readonly PacketCreator packetCreator;
         private readonly IUSBDevice device;
+
+        private readonly ConcurrentQueue<byte[]> readBuffer = new();
 
         public class PacketCreator : IDisposable
         {

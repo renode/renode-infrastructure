@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.USB
             }
         }
 
-        protected virtual void DeviceEnumerated(IUSBDevice device)
+        protected virtual void DeviceEnumerated(IUSBConnection device)
         {
             // Intentionally left empty
         }
@@ -59,57 +59,20 @@ namespace Antmicro.Renode.Peripherals.USB
 
         protected void EnumerateDevice(IUSBDevice device)
         {
-            SetAddress(device);
-            GetDescriptor(device);
-            SetConfiguration(device);
+            var conn = device.ConnectUSB();
+            addressCounter += 1;
             // Note: We wait for endpoints to fully enable, because if we
             // do it too early, then the data will be lost
-            ExecuteWithDelay(() => { DeviceEnumerated(device); });
-        }
-
-        private void GetDescriptor(IUSBDevice device)
-        {
-            var setupPacket = new SetupPacket();
-            setupPacket.Recipient = PacketRecipient.Device;
-            setupPacket.Type = PacketType.Standard;
-            setupPacket.Request = (byte)StandardRequest.GetDescriptor;
-            setupPacket.Direction = Core.USB.Direction.DeviceToHost;
-            setupPacket.Value = 0x0200;
-            setupPacket.Index = 0;
-            setupPacket.Count = 9;
-            device.USBCore.HandleSetupPacket(setupPacket, _ => { }, null);
-        }
-
-        private void SetAddress(IUSBDevice device)
-        {
-            var setupPacket = new SetupPacket();
-            setupPacket.Recipient = PacketRecipient.Device;
-            setupPacket.Type = PacketType.Standard;
-            setupPacket.Request = (byte)StandardRequest.SetAddress;
-            setupPacket.Direction = Core.USB.Direction.HostToDevice;
-            setupPacket.Value = addressCounter;
-            setupPacket.Index = 0;
-            setupPacket.Count = 0;
-
-            // This should respond with empty data packet, but we dont check it for now as it is not necessary
-            device.USBCore.HandleSetupPacket(setupPacket, _ =>
+            ExecuteWithDelay(() =>
             {
-                devices.Add(addressCounter, device);
-                addressCounter++;
-            }, null);
-        }
-
-        private void SetConfiguration(IUSBDevice device)
-        {
-            var setupPacket = new SetupPacket();
-            setupPacket.Recipient = PacketRecipient.Device;
-            setupPacket.Type = PacketType.Standard;
-            setupPacket.Request = (byte)StandardRequest.SetConfiguration;
-            setupPacket.Direction = Core.USB.Direction.HostToDevice;
-            setupPacket.Value = 1; // Set to first configuration for now
-            setupPacket.Index = 0;
-            setupPacket.Count = 0;
-            device.USBCore.HandleSetupPacket(setupPacket, _ => { }, null);
+                var ep0 = conn.ConnectEndpointSetup(0);
+                ep0.SetAddress(addressCounter, () =>
+                {
+                    // USB configurations are 1-based (0 means unconfigured),
+                    // so choose the first configuration, which all devices should have
+                    ep0.SetConfiguration(1, () => DeviceEnumerated(conn));
+                });
+            });
         }
 
         private bool TryInitializeConnectedDevice(IUSBDevice peripheral)
@@ -128,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 ChildCollection.Add(addressCounter, peripheral);
                 // Initialize device with it's first configuration
                 // Note: Delay here is necessary, as if we start to do anything before
-                // the USB device gets to pullup, then we'll stall endpoints 
+                // the USB device gets to pullup, then we'll stall endpoints
                 ExecuteWithDelay(() => { EnumerateDevice(peripheral); });
                 return true;
             }

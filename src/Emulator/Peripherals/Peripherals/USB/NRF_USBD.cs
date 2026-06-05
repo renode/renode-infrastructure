@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.USB
         public NRF_USBD(IMachine machine, short maximumPacketSize = 64)
         {
             this.machine = machine;
-            USBCore = new USBDeviceCore(this, customSetupPacketHandler: HandleSetupPacket);
+            usbCore = new USBDeviceCore(this, customSetupPacketHandler: HandleSetupPacket);
             registers = new DoubleWordRegisterCollection(this);
             IRQ = new GPIO();
             interruptManager = new InterruptManager<Events>(this, IRQ, "UsbIrq");
@@ -50,7 +50,9 @@ namespace Antmicro.Renode.Peripherals.USB
             registers.Reset();
         }
 
-        public USBDeviceCore USBCore { get; }
+        public IUSBConnection ConnectUSB() => usbCore;
+
+        public byte Address => usbCore.Address;
 
         [IrqProvider]
         public GPIO IRQ { get; }
@@ -71,7 +73,7 @@ namespace Antmicro.Renode.Peripherals.USB
             switch(packet.Request)
             {
             case (byte)StandardRequest.SetAddress:
-                USBCore.Address = (byte)setupPacket.Value;
+                usbCore.Address = (byte)setupPacket.Value;
                 setupPacketResultCallback(Array.Empty<byte>());
                 break;
             case (byte)StandardRequest.SetConfiguration:
@@ -83,8 +85,8 @@ namespace Antmicro.Renode.Peripherals.USB
         private void GetData(ushort epNumber)
         {
             this.Log(LogLevel.Noisy, "Reading data from EP number: {0}", epNumber);
-            // Every pointer to endpoint data and endpoint count is n * 0x14 away from endpoint's 0, where n is number of endpoint. 
-            // E.g: pointer to second endpoint data would be: (2 * 0x14 + address of endpoint 0) 
+            // Every pointer to endpoint data and endpoint count is n * 0x14 away from endpoint's 0, where n is number of endpoint.
+            // E.g: pointer to second endpoint data would be: (2 * 0x14 + address of endpoint 0)
             uint endpointIn = registers.Read((0x14 * epNumber) + (long)Registers.Endpoint0In);
             uint endpointInCount = registers.Read((0x14 * epNumber) + (long)Registers.Endpoint0InCount);
             var usbPacket = machine.GetSystemBus(this).ReadBytes(endpointIn, (int)endpointInCount);
@@ -96,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.USB
             }
             else if(usbPacket.Length != 0)
             {
-                deviceToHostEndpoint.HandlePacket(usbPacket);
+                deviceToHostEndpoint.DeviceWrite(usbPacket);
             }
             DataAcknowledged(epNumber);
         }
@@ -470,7 +472,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             maximumPacketSize,
                             0x10,
                             out _));
-            USBCore.SelectedConfiguration = config;
+            usbCore.SelectedConfiguration = config;
         }
 
         DoubleWordRegisterCollection IProvidesRegisterCollection<DoubleWordRegisterCollection>.RegistersCollection => registers;
@@ -504,6 +506,8 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private readonly short maximumPacketSize;
         private readonly DoubleWordRegisterCollection registers;
+
+        private readonly USBDeviceCore usbCore;
 
         private const ushort EndpointCount = 8;
 

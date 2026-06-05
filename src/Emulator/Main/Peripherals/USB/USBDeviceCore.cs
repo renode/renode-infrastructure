@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -14,7 +15,8 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Core.USB
 {
-    public class USBDeviceCore : DescriptorProvider
+    // NOTE: Do not use this class for USB controller peripherals a CPU will talk to. Implement `IUSBConnection` yourself. This class is only for USB devices that exist entirely within C# - `USBPendrive` and the like
+    public class USBDeviceCore : DescriptorProvider, IUSBConnection, IDisposable
     {
         public USBDeviceCore(IUSBDevice device,
                              USBClassCode classCode = USBClassCode.NotSpecified,
@@ -40,6 +42,7 @@ namespace Antmicro.Renode.Core.USB
 
             this.customSetupPacketHandler = customSetupPacketHandler;
             this.device = device;
+            ep0 = new USBPipeSetupEp0(this);
             configurations = new List<USBConfiguration>();
 
             CompatibleProtocolVersion = usbProtocolVersion;
@@ -69,19 +72,6 @@ namespace Antmicro.Renode.Core.USB
         {
             Address = 0;
 
-            if(SelectedConfiguration == null)
-            {
-                return;
-            }
-
-            foreach(var iface in SelectedConfiguration.Interfaces)
-            {
-                foreach(var epoint in iface.Endpoints)
-                {
-                    epoint.Reset();
-                }
-            }
-
             SelectedConfiguration = null;
         }
 
@@ -104,47 +94,36 @@ namespace Antmicro.Renode.Core.USB
             return null;
         }
 
-        public void HandleSetupPacket(SetupPacket packet, Action<byte[]> resultCallback, byte[] additionalData = null)
+        public IUSBPipeRead ConnectEndpointRead(byte endpoint)
         {
-            var result = BitStream.Empty;
-
-            device.Log(LogLevel.Noisy, "Handling setup packet: {0}", packet);
-
-            if(customSetupPacketHandler != null)
+            if(endpoint == 0)
             {
-                customSetupPacketHandler(packet, additionalData, receivedBytes =>
-                {
-                    SendSetupResult(resultCallback, receivedBytes);
-                });
+                return ep0;
             }
-            else
-            {
-                switch(packet.Recipient)
-                {
-                case PacketRecipient.Device:
-                    result = HandleRequest(packet);
-                    break;
-                case PacketRecipient.Interface:
-                    if(SelectedConfiguration == null)
-                    {
-                        device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
-                        resultCallback(new byte[0]);
-                        return;
-                    }
-                    var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
-                    if(iface == null)
-                    {
-                        device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", packet.Index);
-                    }
-                    result = iface.HandleRequest(packet);
-                    break;
-                default:
-                    device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
-                    break;
-                }
+            return GetEndpoint(endpoint, Direction.DeviceToHost);
+        }
 
-                SendSetupResult(resultCallback, result.AsByteArray(packet.Count * 8u));
+        public IUSBPipeWrite ConnectEndpointWrite(byte endpoint)
+        {
+            if(endpoint == 0)
+            {
+                return ep0;
             }
+            return GetEndpoint(endpoint, Direction.HostToDevice);
+        }
+
+        public IUSBPipeSetup ConnectEndpointSetup(byte endpoint)
+        {
+            if(endpoint != 0)
+            {
+                device.WarningLog("Non-endpoint 0 control endpoint are unsupported");
+                return null;
+            }
+            return ep0;
+        }
+
+        public void Dispose()
+        {
         }
 
         public IReadOnlyCollection<USBConfiguration> Configurations => configurations;
@@ -192,12 +171,56 @@ namespace Antmicro.Renode.Core.USB
                 .Append((byte)Configurations.Count);
         }
 
+        private void HandleEp0SetupPacket(SetupPacket packet, byte[] data, Action<byte[]> responseCallback = null)
+        {
+            if(responseCallback == null)
+            {
+                responseCallback = _ => { };
+            }
+            var result = BitStream.Empty;
+
+            device.Log(LogLevel.Debug, "Handling setup packet: {0}", packet);
+
+            if(customSetupPacketHandler != null)
+            {
+                customSetupPacketHandler(packet, data, responseCallback);
+                return;
+            }
+
+            switch(packet.Recipient)
+            {
+            case PacketRecipient.Device:
+                result = HandleRequest(packet);
+                break;
+            case PacketRecipient.Interface:
+                if(SelectedConfiguration == null)
+                {
+                    device.Log(LogLevel.Warning, "Trying to access interface before selecting a configuration");
+                    responseCallback(new byte[] { });
+                }
+                var iface = SelectedConfiguration.Interfaces.FirstOrDefault(x => x.Identifier == packet.Index);
+                if(iface == null)
+                {
+                    device.Log(LogLevel.Warning, "Trying to access a non-existing interface #{0}", packet.Index);
+                }
+                result = iface.HandleRequest(packet);
+                break;
+            default:
+                device.Log(LogLevel.Warning, "Unsupported recipient type: 0x{0:X}", packet.Recipient);
+                break;
+            }
+
+            var resultBytes = result.AsByteArray(packet.Count * 8u);
+
+            device.Log(LogLevel.Noisy, "Sending setup packet response of length {0}", resultBytes.Length);
+#if DEBUG_PACKETS
+            device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(resultBytes));
+#endif
+            responseCallback(resultBytes);
+        }
+
         private void SendSetupResult(Action<byte[]> resultCallback, byte[] result)
         {
-            device.Log(LogLevel.Noisy, "Sending setup packet response of length {0}", result.Length);
-#if DEBUG_PACKET
-            device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(result));
-#endif
             resultCallback(result);
         }
 
@@ -282,5 +305,70 @@ namespace Antmicro.Renode.Core.USB
 
         private readonly List<USBConfiguration> configurations;
         private readonly IUSBDevice device;
+
+        private readonly USBPipeSetupEp0 ep0;
+
+        private class USBPipeSetupEp0 : IUSBPipeSetup
+        {
+            public USBPipeSetupEp0(USBDeviceCore core)
+            {
+                this.core = core;
+            }
+
+            public bool TryRead(out byte[] data) => readBuffer.TryDequeue(out data);
+
+            public void SetupPacketWrite(SetupPacket packet)
+            {
+                if(pendingPacket != null)
+                {
+                    core.device.WarningLog("Received setup packet twice in a row");
+                }
+                if(packet.Direction == Direction.DeviceToHost)
+                {
+                    core.HandleEp0SetupPacket(packet, null, res =>
+                    {
+                        readBuffer.Enqueue(res);
+                        NewPacket?.Invoke();
+                    });
+                }
+                else if(packet.Count == 0)
+                {
+                    core.HandleEp0SetupPacket(packet, null);
+                }
+                else
+                {
+                    pendingPacket = packet;
+                }
+            }
+
+            public void Write(byte[] data)
+            {
+                if(pendingPacket == null)
+                {
+                    core.device.WarningLog("Recieved a write without a write setup packet");
+                    return;
+                }
+                core.HandleEp0SetupPacket(pendingPacket.Value, data);
+                pendingPacket = null;
+            }
+
+            public void SetupWrite(SetupPacket packet, byte[] data)
+            {
+                core.HandleEp0SetupPacket(packet, data);
+            }
+
+            public void SetupRead(SetupPacket packet, Action<byte[]> onRead)
+            {
+                core.HandleEp0SetupPacket(packet, null, onRead);
+            }
+
+            public event Action NewPacket;
+
+            private SetupPacket? pendingPacket;
+
+            private readonly ConcurrentQueue<byte[]> readBuffer = new();
+
+            private readonly USBDeviceCore core;
+        }
     }
 }

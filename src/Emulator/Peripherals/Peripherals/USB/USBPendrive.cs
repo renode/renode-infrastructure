@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -52,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 this.Log(LogLevel.Warning, "Underlying data size extended by {0} bytes to align it to the block size ({1} bytes)", blockSize - sizeMisalignment, blockSize);
             }
 
-            USBCore = new USBDeviceCore(this)
+            usbCore = new USBDeviceCore(this)
                 .WithConfiguration(configure: c => c.WithInterface<Core.USB.MSC.Interface>(
                     (byte)Core.USB.MSC.Subclass.ScsiTransparentCommandSet,
                     (byte)Core.USB.MSC.Protocol.BulkOnlyTransport,
@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.USB
                             out deviceToHostEndpoint))
                 );
 
-            hostToDeviceEndpoint.DataWritten += HandleInput;
+            hostToDeviceEndpoint.DeviceGotWriteFromHost += HandleInput;
         }
 
         public void Dispose()
@@ -99,14 +99,16 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void Reset()
         {
-            USBCore.Reset();
+            usbCore.Reset();
             mode = Mode.Command;
             dataBackend.Position = 0;
             bytesToWrite = 0;
             writeCommandDescriptor = null;
         }
 
-        public USBDeviceCore USBCore { get; }
+        public IUSBConnection ConnectUSB() => usbCore;
+
+        public byte Address => usbCore.Address;
 
         public uint BlockSize { get; }
 
@@ -114,13 +116,13 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             var response = new CommandStatusWrapper(commandBlockWrapper.Tag, dataResidue, status);
             this.Log(LogLevel.Debug, "Sending result: {0}", response);
-            deviceToHostEndpoint.HandlePacket(Packet.Encode(response));
+            deviceToHostEndpoint.DeviceWrite(Packet.Encode(response));
         }
 
         private void SendData(byte[] data)
         {
             this.Log(LogLevel.Debug, "Sending data of length {0}.", data.Length);
-            deviceToHostEndpoint.HandlePacket(data);
+            deviceToHostEndpoint.DeviceWrite(data);
         }
 
         private void HandleData(byte[] packet)
@@ -219,6 +221,8 @@ namespace Antmicro.Renode.Peripherals.USB
         private BulkOnlyTransportCommandBlockWrapper writeCommandWrapper;
         private object writeCommandDescriptor;
         private readonly Stream dataBackend;
+
+        private readonly USBDeviceCore usbCore;
 
         // 64 is a maximum value for USB 2.0 low/full-speed devices;
         // 512 is allowed only for high-speed devices that

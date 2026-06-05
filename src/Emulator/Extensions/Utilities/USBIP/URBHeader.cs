@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using Antmicro.Renode.Extensions.Utilities.USB;
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Extensions.Utilities.USBIP
@@ -25,6 +26,8 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         public uint EndpointNumber;
         [PacketField]
         public uint FlagsOrStatus;
+
+        public EndpointDirection EndpointDirection => (FlagsOrStatus & 0x0200) != 0 ? EndpointDirection.In : EndpointDirection.Out;
 
         public override string ToString()
         {

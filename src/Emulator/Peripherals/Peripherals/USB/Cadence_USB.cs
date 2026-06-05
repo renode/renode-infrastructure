@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.USB
             this.machine = machine;
 
             IRQ = new GPIO();
-            USBCore = new USBDeviceCore(this, customSetupPacketHandler: SetupPacketHandler);
+            usbCore = new USBDeviceCore(this, customSetupPacketHandler: SetupPacketHandler);
             dmaCore = new DMACore(this);
 
             byteRegisters = new ByteRegisterCollection(this);
@@ -37,6 +37,8 @@ namespace Antmicro.Renode.Peripherals.USB
             DefineRegisters();
             Reset();
         }
+
+        public IUSBConnection ConnectUSB() => usbCore;
 
         public byte ReadByte(long offset)
         {
@@ -172,11 +174,11 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public GPIO IRQ { get; }
 
-        public USBDeviceCore USBCore { get; }
-
         ByteRegisterCollection IProvidesRegisterCollection<ByteRegisterCollection>.RegistersCollection => byteRegisters;
 
         WordRegisterCollection IProvidesRegisterCollection<WordRegisterCollection>.RegistersCollection => wordRegisters;
+
+        public byte Address => usbCore.Address;
 
         private void ThrowIfReplayInProgress()
         {
@@ -243,7 +245,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
             // NOTE: The USBIP stack does not send the "SET_ADDRESS" setup request required for some USB drivers' init routines.
             // Check whether this is `SET_CONFIGURATION` while still in Address 0 (default state); if so, prepare a fake `SET_ADDRESS` transaction.
-            if((packet.Request == (byte)StandardRequest.SetConfiguration) && (USBCore.Address == 0))
+            if((packet.Request == (byte)StandardRequest.SetConfiguration) && (usbCore.Address == 0))
             {
                 this.Log(LogLevel.Info, "Received SET_CONFIGURATION while in Default State. USBIP likely skipped SET_ADDRESS. Injecting fake SET_ADDRESS (address = {0}) first.", SpoofedUSBAddress);
                 isSpoofingAddress = true;
@@ -300,7 +302,7 @@ namespace Antmicro.Renode.Peripherals.USB
             if(isSpoofingAddress)
             {
                 isSpoofingAddress = false;
-                USBCore.Address = SpoofedUSBAddress;
+                usbCore.Address = SpoofedUSBAddress;
                 this.Log(LogLevel.Info, "Spoofed SET_ADDRESS acknowledged by driver. Injecting pending SET_CONFIGURATION.");
 
                 // Now load the real packet that we held back previously
@@ -502,6 +504,8 @@ namespace Antmicro.Renode.Peripherals.USB
         private readonly ByteRegisterCollection byteRegisters;
         private readonly WordRegisterCollection wordRegisters;
 
+        private readonly USBDeviceCore usbCore;
+
         private const int SpoofedUSBAddress = 0x1;
         private const int USBSetupPacketSize = 0x8;
         private const int DMARegistersOffset = 0x400;
@@ -656,7 +660,8 @@ namespace Antmicro.Renode.Peripherals.USB
                 var data = sysbus.ReadBytes(trb.BufferAddress, trb.Length);
 
                 parent.Log(LogLevel.Noisy, "Executing setupPacketResultCallback");
-                parent.setupPacketResultCallback(data);
+                // This has to be done in this order to allow a new setup packet to be sent from the callback
+                var cb = parent.setupPacketResultCallback;
                 parent.setupPacketResultCallback = null;
                 endpointInterruptPending.Value = true;
 
@@ -664,6 +669,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 dmaEndpointInterruptStatus[statusIndex].Value = true;
 
                 parent.UpdateUsbInterrupts();
+                cb(data);
             }
 
             private int GetEndpointInterruptIndex(int ep, bool dirIn)

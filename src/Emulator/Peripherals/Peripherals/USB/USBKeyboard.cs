@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -114,7 +114,7 @@ namespace Antmicro.Renode.Peripherals.USB
     {
         public USBKeyboard()
         {
-            USBCore = new USBDeviceCore(this)
+            usbCore = new USBDeviceCore(this)
                 .WithConfiguration(configure: c =>
                     c.WithInterface(new Core.USB.HID.Interface(this, 0,
                         subClassCode: (byte)Core.USB.HID.SubclassCode.BootInterfaceSubclass,
@@ -131,7 +131,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public void Reset()
         {
-            USBCore.Reset();
+            usbCore.Reset();
             modifiers = 0;
             pressedKey = 0;
         }
@@ -156,7 +156,9 @@ namespace Antmicro.Renode.Peripherals.USB
             SendPacket();
         }
 
-        public USBDeviceCore USBCore { get; }
+        public IUSBConnection ConnectUSB() => usbCore;
+
+        public byte Address => usbCore.Address;
 
         private bool UpdateModifiers(KeyScanCode scanCode, bool set)
         {
@@ -170,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private void SendPacket()
         {
-            using(var p = endpoint.PreparePacket())
+            using(var p = endpoint.DevicePreparePacket())
             {
                 p.Add(modifiers);
                 p.Add(0); // reserved field
@@ -188,6 +190,8 @@ namespace Antmicro.Renode.Peripherals.USB
         private byte modifiers;
         private byte pressedKey;
         private USBEndpoint endpoint;
+
+        private readonly USBDeviceCore usbCore;
 
         private readonly byte[] ReportHidDescriptor = new byte[]
         {

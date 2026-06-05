@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.USB
     {
         public USBMouse()
         {
-            USBCore = new USBDeviceCore(this)
+            usbCore = new USBDeviceCore(this)
                 .WithConfiguration(configure: c =>
                     c.WithInterface(new Core.USB.HID.Interface(this, 0,
                         subClassCode: (byte)Core.USB.HID.SubclassCode.BootInterfaceSubclass,
@@ -67,12 +67,12 @@ namespace Antmicro.Renode.Peripherals.USB
         public void Reset()
         {
             buttonState = 0;
-            USBCore.Reset();
+            usbCore.Reset();
         }
 
         public void MoveBy(int x, int y)
         {
-            using(var p = endpoint.PreparePacket())
+            using(var p = endpoint.DevicePreparePacket())
             {
                 p.Add((byte)buttonState);
                 p.Add((byte)x.Clamp(-127, 127));
@@ -93,11 +93,13 @@ namespace Antmicro.Renode.Peripherals.USB
             SendButtonState();
         }
 
-        public USBDeviceCore USBCore { get; }
+        public IUSBConnection ConnectUSB() => usbCore;
+
+        public byte Address => usbCore.Address;
 
         private void SendButtonState()
         {
-            using(var p = endpoint.PreparePacket())
+            using(var p = endpoint.DevicePreparePacket())
             {
                 p.Add((byte)buttonState);
                 p.Add(0);
@@ -109,6 +111,8 @@ namespace Antmicro.Renode.Peripherals.USB
         private MouseButton buttonState;
 
         private USBEndpoint endpoint;
+
+        private readonly USBDeviceCore usbCore;
 
         private readonly byte[] ReportHidDescriptor = new byte[]
         {

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -66,6 +66,10 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
         public override void Dispose()
         {
+            foreach(var (_, conn) in deviceToConnection)
+            {
+                conn.Dispose();
+            }
             base.Dispose();
             Shutdown();
         }
@@ -83,6 +87,21 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
             buffer.Clear();
             cancellationToken = new CancellationTokenSource();
+        }
+
+        public override void Register(IUSBDevice device, NumberRegistrationPoint<int> registrationPoint)
+        {
+            base.Register(device, registrationPoint);
+            deviceToConnection[device] = device.ConnectUSB();
+        }
+
+        public override void Unregister(IUSBDevice device)
+        {
+            if(deviceToConnection.Remove(device, out var conn))
+            {
+                conn.Dispose();
+            }
+            base.Unregister(device);
         }
 
         private void SendResponse(IEnumerable<byte> bytes)
@@ -164,7 +183,8 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     var busId = System.Text.Encoding.ASCII.GetString(buffer.ToArray());
                     buffer.Clear();
 
-                    state = TryHandleDeviceAttachCommand(busId, out var response)
+                    var (success, response) = HandleDeviceAttachCommand(busId);
+                    state = success
                         ? State.WaitForURBHeader
                         : State.WaitForCommand;
 
@@ -234,41 +254,69 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 {
                     this.Log(LogLevel.Warning, "URB command directed to a non-existing device 0x{0:X}", urbHeader.DeviceId);
                 }
-                else if(urbHeader.EndpointNumber == 0)
-                {
-                    // setup packet is passed in URB Request in a single `ulong` field
-                    var setupPacket = Packet.Decode<SetupPacket>(buffer, Packet.CalculateOffset<URBRequest>(nameof(URBRequest.Setup)));
-                    var additionalData = (additionalDataCount > 0)
-                            ? buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray()
-                            : null;
-                    var replyHeader = urbHeader;
-                    device.USBCore.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
-                    {
-                        SendResponse(GenerateURBReply(replyHeader, packet, response));
-                    });
-                }
                 else
                 {
-                    var ep = device.USBCore.GetEndpoint((int)urbHeader.EndpointNumber, urbHeader.Direction == URBDirection.Out ? Direction.HostToDevice : Direction.DeviceToHost);
-                    if(ep == null)
+                    var conn = deviceToConnection[device];
+                    // We currently assume that ep0 is the only control endpoint
+                    if(urbHeader.EndpointNumber == 0)
                     {
-                        this.Log(LogLevel.Warning, "URB command directed to a non-existing endpoint 0x{0:X}", urbHeader.EndpointNumber);
-                    }
-                    else if(ep.Direction == Direction.DeviceToHost)
-                    {
-                        this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", ep.Identifier);
-                        var response = ep.Read(packet.TransferBufferLength, cancellationToken.Token);
-#if DEBUG_PACKETS
-                            this.Log(LogLevel.Noisy, "Count {0}: {1}", response.Length, Misc.PrettyPrintCollectionHex(response));
-#endif
-                        SendResponse(GenerateURBReply(urbHeader, packet, response));
+                        // setup packet is passed in URB Request in a single `ulong` field
+                        var setupPacket = Packet.Decode<SetupPacket>(buffer, Packet.CalculateOffset<URBRequest>(nameof(URBRequest.Setup)));
+                        var additionalData = (additionalDataCount > 0)
+                            ? buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray()
+                            : null;
+                        var replyHeader = urbHeader;
+                        var ep = conn.ConnectEndpointSetup(0);
+
+                        byte[] response = null;
+                        if(additionalData != null)
+                        {
+                            ep.SetupWriteBlocking(setupPacket, additionalData, cancellationToken.Token);
+                        }
+                        else
+                        {
+                            response = ep.SetupReadBlocking(setupPacket, cancellationToken.Token);
+                        }
+                        SendResponse(GenerateURBReply(replyHeader, packet, response));
                     }
                     else
                     {
-                        var additionalData = buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray();
+                        var warnNonexistingEndpoint = () =>
+                        {
+                            this.Log(LogLevel.Warning, "URB command directed to a non-existing endpoint 0x{0:X}", urbHeader.EndpointNumber);
+                        };
+                        if(urbHeader.EndpointDirection == USB.EndpointDirection.In)
+                        {
+                            var ep = conn.ConnectEndpointRead((byte)urbHeader.EndpointNumber);
+                            if(ep == null)
+                            {
+                                warnNonexistingEndpoint();
+                            }
+                            else
+                            {
+                                this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", urbHeader.EndpointNumber);
+                                var response = ep.ReadPacketBlocking(token: cancellationToken.Token);
+#if DEBUG_PACKETS
+                            this.Log(LogLevel.Noisy, "Count {0}: {1}", response.Length, Misc.PrettyPrintCollectionHex(response));
+#endif
+                                SendResponse(GenerateURBReply(urbHeader, packet, response));
+                            }
+                        }
+                        else
+                        {
+                            var ep = conn.ConnectEndpointWrite((byte)urbHeader.EndpointNumber);
+                            if(ep == null)
+                            {
+                                warnNonexistingEndpoint();
+                            }
+                            else
+                            {
+                                var additionalData = buffer.Skip(buffer.Count - additionalDataCount).Take(additionalDataCount).ToArray();
 
-                        ep.WriteData(additionalData);
-                        SendResponse(GenerateURBReply(urbHeader, packet));
+                                ep.Write(additionalData);
+                                SendResponse(GenerateURBReply(urbHeader, packet));
+                            }
+                        }
                     }
                 }
 
@@ -327,89 +375,18 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             return result;
         }
 
-        // using this blocking helper method simplifies the logic of other methods
-        // + it seems to be harmless, as this logic is not executed as a result of
-        // intra-emulation communication (where it could lead to deadlocks)
-        private byte[] HandleSetupPacketSync(IUSBDevice device, SetupPacket setupPacket)
+        private IEnumerable<byte> GenerateDeviceDescriptor(IUSBConnection conn, uint deviceNumber, bool includeInterfaces)
         {
-            byte[] result = null;
-
-            var mre = new ManualResetEvent(false);
-            device.USBCore.HandleSetupPacket(setupPacket, received =>
-            {
-                result = received;
-                mre.Set();
-            });
-
-            mre.WaitOne();
-            return result;
-        }
-
-        private USB.DeviceDescriptor ReadDeviceDescriptor(IUSBDevice device)
-        {
-            var setupPacket = new SetupPacket
-            {
-                Recipient = PacketRecipient.Device,
-                Type = PacketType.Standard,
-                Direction = Direction.DeviceToHost,
-                Request = (byte)StandardRequest.GetDescriptor,
-                Value = ((int)DescriptorType.Device << 8),
-                Count = (ushort)Packet.CalculateLength<USB.DeviceDescriptor>()
-            };
-
-            return Packet.Decode<USB.DeviceDescriptor>(HandleSetupPacketSync(device, setupPacket));
-        }
-
-        private USB.ConfigurationDescriptor ReadConfigurationDescriptor(IUSBDevice device, byte configurationId, out USB.InterfaceDescriptor[] interfaceDescriptors)
-        {
-            var setupPacket = new SetupPacket
-            {
-                Recipient = PacketRecipient.Device,
-                Type = PacketType.Standard,
-                Direction = Direction.DeviceToHost,
-                Request = (byte)StandardRequest.GetDescriptor,
-                Value = (ushort)(((int)DescriptorType.Configuration << 8) | configurationId),
-                Count = (ushort)Packet.CalculateLength<USB.ConfigurationDescriptor>()
-            };
-            // first ask for the configuration descriptor non-recursively ...
-            var configurationDescriptorBytes = HandleSetupPacketSync(device, setupPacket);
-            var result = Packet.Decode<USB.ConfigurationDescriptor>(configurationDescriptorBytes);
-
-            interfaceDescriptors = new USB.InterfaceDescriptor[result.NumberOfInterfaces];
-            // ... read the total length of a recursive structure ...
-            setupPacket.Count = result.TotalLength;
-            // ... and only then read the whole structure again.
-            var recursiveBytes = HandleSetupPacketSync(device, setupPacket);
-
-            var currentOffset = Packet.CalculateLength<USB.ConfigurationDescriptor>();
-            for(var i = 0; i < interfaceDescriptors.Length; i++)
-            {
-                // the second byte of each descriptor contains the type
-                while(recursiveBytes[currentOffset + 1] != (byte)DescriptorType.Interface)
-                {
-                    // the first byte of each descriptor contains the length in bytes
-                    currentOffset += recursiveBytes[currentOffset];
-                }
-
-                interfaceDescriptors[i] = Packet.Decode<USB.InterfaceDescriptor>(recursiveBytes, currentOffset);
-                // skip until the next interface descriptor
-                currentOffset += Packet.CalculateLength<USB.InterfaceDescriptor>();
-            }
-
-            return result;
-        }
-
-        private IEnumerable<byte> GenerateDeviceDescriptor(IUSBDevice device, uint deviceNumber, bool includeInterfaces)
-        {
-            var deviceDescriptor = ReadDeviceDescriptor(device);
+            var ep0 = conn.ConnectEndpointSetup(0);
+            var deviceDescriptor = ep0.ReadDeviceDescriptorBlocking(cancellationToken.Token);
             var interfaceDescriptors = new List<USB.InterfaceDescriptor>();
 
             if(includeInterfaces)
             {
                 for(var i = 0; i < deviceDescriptor.NumberOfConfigurations; i++)
                 {
-                    ReadConfigurationDescriptor(device, (byte)i, out var ifaces);
-                    interfaceDescriptors.AddRange(ifaces);
+                    var (_, descs) = ep0.ReadConfigurationDescriptorBlocking((byte)i, cancellationToken.Token);
+                    interfaceDescriptors.AddRange(USB.IDescriptor.EnumerateInterfaceDescriptors(descs).Select(v => v.Item1));
                 }
             }
 
@@ -476,13 +453,13 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
             foreach(var child in ChildCollection)
             {
-                result = result.Concat(GenerateDeviceDescriptor(child.Value, (uint)child.Key, true));
+                result = result.Concat(GenerateDeviceDescriptor(deviceToConnection[child.Value], (uint)child.Key, true));
             }
 
             return result;
         }
 
-        private bool TryHandleDeviceAttachCommand(string deviceIdString, out IEnumerable<byte> response)
+        private (bool, IEnumerable<byte>) HandleDeviceAttachCommand(string deviceIdString)
         {
             var success = true;
             var deviceId = 0;
@@ -518,13 +495,14 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 Status = success ? 0 : 1u
             };
 
-            response = Packet.Encode(header).AsEnumerable();
+            var response = Packet.Encode(header).AsEnumerable();
             if(success)
             {
-                response = response.Concat(GenerateDeviceDescriptor(device, (uint)deviceId, false));
+                var conn = deviceToConnection[device];
+                response = response.Concat(GenerateDeviceDescriptor(conn, (uint)deviceId, false));
             }
 
-            return success;
+            return (success, response);
         }
 
         private State state;
@@ -535,6 +513,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         private readonly int port;
         private readonly List<byte> buffer;
         private readonly SocketServerProvider server;
+        private readonly IDictionary<IUSBDevice, IUSBConnection> deviceToConnection = new Dictionary<IUSBDevice,IUSBConnection>();
 
         private const uint ExportedBusId = 1;
         private const ushort ProtocolVersion = 0x0111;

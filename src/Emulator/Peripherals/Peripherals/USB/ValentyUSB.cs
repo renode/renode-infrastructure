@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -23,9 +23,11 @@ namespace Antmicro.Renode.Peripherals.USB
         public ValentyUSB(IMachine machine, int maximumPacketSize = 64) : base(machine)
         {
             maxPacketSize = maximumPacketSize;
-            USBCore = new USBDeviceCore(this, customSetupPacketHandler: SetupPacketHandler);
+            usbCore = new USBDeviceCore(this, customSetupPacketHandler: SetupPacketHandler);
             DefineRegisters();
         }
+
+        public IUSBConnection ConnectUSB() => usbCore;
 
         public override void Reset()
         {
@@ -40,9 +42,9 @@ namespace Antmicro.Renode.Peripherals.USB
 
         public long Size => 0x100;
 
-        public USBDeviceCore USBCore { get; }
-
         public GPIO IRQ { get; } = new GPIO();
+
+        public byte Address => usbCore.Address;
 
         private void DefineRegisters()
         {
@@ -200,8 +202,8 @@ namespace Antmicro.Renode.Peripherals.USB
 
             Registers.Address.Define(this)
                 .WithValueField(0, 8, name: "USBAddress",
-                    writeCallback: (_, val) => { USBCore.Address = (byte)val; },
-                    valueProviderCallback: _ => USBCore.Address)
+                    writeCallback: (_, val) => { usbCore.Address = (byte)val; },
+                    valueProviderCallback: _ => usbCore.Address)
                 .WithReservedBits(8, 24)
             ;
         }
@@ -226,8 +228,10 @@ namespace Antmicro.Renode.Peripherals.USB
                 return;
             }
 
-            setupPacketResultCallback(slaveToMasterBuffer.DequeueAll());
+            // This has to be done in this order to allow a new setup packet to be sent from the callback
+            var cb = setupPacketResultCallback;
             setupPacketResultCallback = null;
+            cb(slaveToMasterBuffer.DequeueAll());
         }
 
         private void HandleStall()
@@ -386,6 +390,8 @@ namespace Antmicro.Renode.Peripherals.USB
         private readonly Queue<byte> masterToSlaveBuffer = new Queue<byte>();
         private readonly Queue<byte> masterToSlaveAdditionalDataBuffer = new Queue<byte>();
         private readonly Queue<byte> slaveToMasterBuffer = new Queue<byte>();
+
+        private readonly USBDeviceCore usbCore;
 
         private enum USBResponse
         {

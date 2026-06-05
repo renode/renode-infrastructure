@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
-using Antmicro.Renode.Utilities.Collections;
+
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.USB
@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             this.mode = mode;
 
-            addressToDeviceCache = new TwoWayDictionary<byte, IUSBDevice>();
+            addressToDeviceConnection = new Dictionary<byte, (IUSBDevice, IUSBConnection)>();
 
             fifoFromDeviceToHost = new Queue<byte>[NumberOfEndpoints];
             fifoFromHostToDevice = new Queue<byte>[NumberOfEndpoints];
@@ -329,9 +329,9 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private void HandleSessionStart()
         {
-            lock(addressToDeviceCache)
+            lock(addressToDeviceConnection)
             {
-                addressToDeviceCache.Clear();
+                addressToDeviceConnection.Clear();
                 if(sessionInProgress.Value)
                 {
                     TryInitializeConnectedDevice();
@@ -380,7 +380,8 @@ namespace Antmicro.Renode.Peripherals.USB
                             }
 
                             var packet = Packet.Decode<SetupPacket>(data);
-                            peripheral.USBCore.HandleSetupPacket(packet, receivedBytes =>
+                            var ep0 = peripheral.ConnectEndpointSetup(0);
+                            ep0.SetupRead(packet, receivedBytes =>
                             {
                                 fifoFromDeviceToHost[0].EnqueueRange(receivedBytes);
                                 txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
@@ -433,20 +434,23 @@ namespace Antmicro.Renode.Peripherals.USB
                                 return;
                             }
 
-                            var endpoint = peripheral.USBCore.GetEndpoint((int)receiveTargetEndpointNumber[endpointId].Value, Direction.DeviceToHost);
+                            var endpoint = peripheral.ConnectEndpointRead(
+                                (byte)receiveTargetEndpointNumber[endpointId].Value
+                            );
                             if(endpoint == null)
                             {
                                 this.Log(LogLevel.Warning, "Trying to read from a non-existing endpoint #{0}", receiveTargetEndpointNumber[endpointId].Value);
                                 return;
                             }
-
-                            endpoint.SetDataReadCallbackOneShot((e, bytes) =>
-                            {
-                                fifoFromDeviceToHost[endpointId].EnqueueRange(bytes);
-                                requestInTransaction[endpointId].Value = false;
-                                localReceivedPacketReady.Value = true;
-                                rxInterruptsManager.SetInterrupt((RxInterrupt)endpointId);
-                            });
+                            endpoint.ReadPacket(
+                                bytes =>
+                                {
+                                    fifoFromDeviceToHost[endpointId].EnqueueRange(bytes);
+                                    requestInTransaction[endpointId].Value = false;
+                                    localReceivedPacketReady.Value = true;
+                                    rxInterruptsManager.SetInterrupt((RxInterrupt)endpointId);
+                                }
+                            );
                         })
                     .WithFlag(4, FieldMode.WriteOneToClear, name: "FlushFIFO", writeCallback: (_, val) =>
                     {
@@ -498,14 +502,16 @@ namespace Antmicro.Renode.Peripherals.USB
                             }
 
                             var mappedEndpointId = (int)transmitTargetEndpointNumber[endpointId].Value;
-                            var endpoint = peripheral.USBCore.GetEndpoint(mappedEndpointId, Direction.HostToDevice);
+                            var endpoint = peripheral.ConnectEndpointWrite((byte)mappedEndpointId);
                             if(endpoint == null)
                             {
                                 this.Log(LogLevel.Warning, "Trying to write to a non-existing endpoint #{0}", mappedEndpointId);
                             }
-
-                            var data = fifoFromHostToDevice[endpointId].DequeueAll();
-                            endpoint.WriteData(data);
+                            else
+                            {
+                                var data = fifoFromHostToDevice[endpointId].DequeueAll();
+                                endpoint.Write(data);
+                            }
 
                             txPktRdy.Value = false;
                             txInterruptsManager.SetInterrupt((TxInterrupt)endpointId);
@@ -550,7 +556,7 @@ namespace Antmicro.Renode.Peripherals.USB
             rxInterruptsManager.Reset();
         }
 
-        private bool TryGetDeviceForEndpoint(int endpointId, Direction direction, out IUSBDevice device)
+        private bool TryGetDeviceForEndpoint(int endpointId, Direction direction, out IUSBConnection conn)
         {
             IValueRegisterField addressField = null;
             switch(direction)
@@ -565,29 +571,29 @@ namespace Antmicro.Renode.Peripherals.USB
                 throw new ArgumentException($"Unexpected direction: {direction}");
             }
 
-            lock(addressToDeviceCache)
+            lock(addressToDeviceConnection)
             {
                 var address = (byte)addressField.Value;
-                if(!addressToDeviceCache.TryGetValue(address, out device))
+                if(addressToDeviceConnection.TryGetValue(address, out var devConn))
                 {
-                    // it will happen at the first access to the device after it has been granted an address
-                    device = this.ChildCollection.Select(x => x.Value).FirstOrDefault(x => x.USBCore.Address == address);
-                    if(device != null)
-                    {
-                        if(!addressToDeviceCache.TryExchange(device, address, out var oldAddress) || oldAddress != 0)
-                        {
-                            this.Log(LogLevel.Error, "USB device address change detected: previous address 0x{0:X}, current address 0x{1:X}. This might lead to problems", oldAddress, address);
-                        }
-
-                        TryInitializeConnectedDevice();
-                    }
+                    (_, conn) = devConn;
+                    return true;
+                }
+                // it will happen at the first access to the device after it has been granted an address
+                (var oldAddress, (var device, conn)) = addressToDeviceConnection.FirstOrDefault(x => x.Value.Item1.Address == address);
+                if(conn == null)
+                {
+                    return false;
+                }
+                addressToDeviceConnection.Remove(oldAddress);
+                addressToDeviceConnection[address] = (device, conn);
+                if(oldAddress != 0)
+                {
+                    this.Log(LogLevel.Error, "USB device address change detected: previous address 0x{0:X}, current address 0x{1:X}. This might lead to problems", oldAddress, address);
                 }
 
-                if(device != null && device.USBCore.Address != address)
-                {
-                    this.Log(LogLevel.Error, "USB device address change detected: previous address 0x{0:X}, current address 0x{1:X}. This might lead to problems", address, device.USBCore.Address);
-                }
-                return device != null;
+                TryInitializeConnectedDevice();
+                return true;
             }
         }
 
@@ -599,22 +605,23 @@ namespace Antmicro.Renode.Peripherals.USB
                 return false;
             }
 
-            lock(addressToDeviceCache)
+            lock(addressToDeviceConnection)
             {
-                if(addressToDeviceCache.Exists(0))
+                if(addressToDeviceConnection.ContainsKey(0))
                 {
                     // there is an enumeration in progress, the next device will be picked automatically later
                     return false;
                 }
 
-                var peripheral = ChildCollection.Values.FirstOrDefault(x => !addressToDeviceCache.Exists(x));
+                var peripheral = ChildCollection.Values.FirstOrDefault(x => !addressToDeviceConnection.Values.Where(devConn => devConn.Item1 == x).Any());
                 if(peripheral == null)
                 {
                     // no more devices to initialize
                     return false;
                 }
 
-                addressToDeviceCache.Add(0, peripheral);
+                var devConn = (peripheral, peripheral.ConnectUSB());
+                addressToDeviceConnection.Add(0, devConn);
 
                 usbInterruptsManager.SetInterrupt(UsbInterrupt.DeviceConnected);
                 return true;
@@ -630,7 +637,7 @@ namespace Antmicro.Renode.Peripherals.USB
         private readonly IValueRegisterField[] transmitTargetEndpointNumber;
         private readonly IValueRegisterField[] receiveTargetEndpointNumber;
 
-        private readonly TwoWayDictionary<byte, IUSBDevice> addressToDeviceCache;
+        private readonly IDictionary<byte, (IUSBDevice, IUSBConnection)> addressToDeviceConnection;
         private readonly Queue<byte>[] fifoFromHostToDevice;
         private readonly Queue<byte>[] fifoFromDeviceToHost;
 
