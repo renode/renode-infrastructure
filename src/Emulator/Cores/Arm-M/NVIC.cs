@@ -44,6 +44,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             ccr = new SecurityBanked<uint>();
             irqs = new ExceptionSimpleArray<IRQState>();
             targetInterruptSecurityState = new InterruptTargetSecurityState[IRQCount];
+            interruptEnabled = new Dictionary<SystemException, bool>();
             IRQ = new GPIO();
             SystemResetRequest = new GPIO();
             InSleep = new GPIO();
@@ -970,21 +971,72 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithTaggedFlag("MEMFAULTPENDED (Mem Manage Pending)", 13)
                 .WithTaggedFlag("BUSFAULTPENDED (Bus Fault Pending)", 14)
                 .WithTaggedFlag("SVCALLPENDED (SV Call Pending)", 15)
-                // The enable flags only store written data.
-                // Changing them doesn't change a behavior of the model.
-                .WithFlag(16, name: "MEMFAULTENA (Memory Manage Fault Enable)")
-                .WithFlag(17, name: "BUSFAULTENA (Bus Fault Enable)")
-                .WithFlag(18, name: "USGFAULTENA (Usage Fault Enable)")
-                .WithReservedBits(19, 13)
-                .WithChangeCallback((_, val) =>
+                .WithFlag(16,
+                    writeCallback: (_, value) =>
                     {
-                        // Don't warn about implemented fields.
-                        if(val != BitHelper.Bits(16, 3))
+                        var bank = isNextAccessSecure ? SystemException.MemManageFault_S : SystemException.MemManageFault;
+                        interruptEnabled[bank] = value;
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.MemManageFault_S : SystemException.MemManageFault;
+                        return interruptEnabled[bank];
+                    },
+                    name: "MEMFAULTENA (Memory Manage Fault Enable)")
+                .WithFlag(17,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!isNextAccessSecure && !IsInterruptTargetNonSecure((int)SystemException.BusFault))
                         {
-                            this.Log(LogLevel.Warning, "Changing value of the SHCSR register to 0x{0:X}, but only bits [16:18] are supported", val);
+                            // This bit is RAZ/WI from Non-secure state if BusFault targets Secure state
+                            return;
                         }
-                    }
-                );
+                        interruptEnabled[SystemException.BusFault] = value;
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure && !IsInterruptTargetNonSecure((int)SystemException.BusFault))
+                        {
+                            // This bit is RAZ/WI from Non-secure state if BusFault targets Secure state
+                            return false;
+                        }
+                        return interruptEnabled[SystemException.BusFault];
+                    }, name: "BUSFAULTENA (Bus Fault Enable)")
+                .WithFlag(18,
+                    writeCallback: (_, value) =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.UsageFault_S : SystemException.UsageFault;
+                        interruptEnabled[bank] = value;
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.UsageFault_S : SystemException.UsageFault;
+                        return interruptEnabled[bank];
+                    },
+                    name: "USGFAULTENA (Usage Fault Enable)")
+                .WithFlag(19,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!isNextAccessSecure)
+                        {
+                            // This bit is RAZ/WI from Non-secure state.
+                            return;
+                        }
+                        interruptEnabled[SystemException.SecureFault] = value;
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure)
+                        {
+                            // This bit is RAZ/WI from Non-secure state.
+                            return false;
+                        }
+                        return interruptEnabled[SystemException.SecureFault];
+                    },
+                    name: "SECUREFAULTENA (Secure Fault Enable)")
+                .WithTaggedFlag(name: "SECUREFAULTPENDED (Secure Fault Pending)", 20)
+                .WithTaggedFlag(name: "HARDFAULTPENDED (Hard Fault Pending)", 21)
+                .WithReservedBits(22, 10);
 
             Registers.HardFaultStatus.Define(RegisterCollection)
                 .WithReservedBits(0, 1)
@@ -1078,6 +1130,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             foreach(var i in bankedInterrupts)
             {
                 irqs[i] = IRQState.Enabled;
+            }
+            foreach(var i in hardFaultEnabledInterrupts)
+            {
+                interruptEnabled[i] = false;
             }
             maskedInterruptPresent = false;
             prioritizeSecureInterrupts = false;
@@ -1490,6 +1546,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private void SetPending(int i)
         {
             this.DebugLog("Set pending IRQ {0}.", ExceptionToString(i));
+            i = EscalateToHardFault(i);
             var before = irqs[i];
             irqs[i] |= IRQState.Pending;
             pendingIRQs.Add(i);
@@ -1503,6 +1560,33 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     cpu.SetEventFlag(true);
                 }
             }
+        }
+
+        /// <summary>
+        /// Returns type of the interrupt.
+        /// It can be one of the following: Secure HardFault, Non-secure HardFault or the original interruptNo if the escalation didn't happen.
+        ///
+        /// Only escalates in case that interrupt is disabled. We don't implement escalation related to interrupt priority yet.
+        /// </summary>
+        private int EscalateToHardFault(int interruptNo)
+        {
+            if(!interruptEnabled.TryGetValue((SystemException)interruptNo, out var isEnabled) || isEnabled)
+            {
+                return interruptNo; /* Interrupt is enabled or is always enabled (not in dictionary), don't escalate to HardFault */
+            }
+
+            this.DebugLog("Escalating IRQ {0} to HardFault.", ExceptionToString(interruptNo));
+            if(IsInterruptTargetNonSecure(interruptNo))
+            {
+                return (int)SystemException.HardFault;
+            }
+
+            /* When escalating Secure targeted exception check if HardFault is banked, if not escalate to normal HardFault as it'll target Secure state anyway */
+            if(targetInterruptSecurityState[(int)SystemException.HardFault] == InterruptTargetSecurityState.NonSecure)
+            {
+                return (int)SystemException.HardFault_S;
+            }
+            return (int)SystemException.HardFault;
         }
 
         private void ClearPending(int i)
@@ -1807,6 +1891,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private bool deepSleepOnlyFromSecure;
         private bool isNextAccessSecure;
         private uint mpuControlRegister;
+
+        // The interrupt is enabled, either if it's NOT present in the Dictionary, or it's present and has the value set to true.
+        private readonly Dictionary<SystemException, bool> interruptEnabled;
         private readonly ISet<int> pendingIRQs;
         private readonly Stack<int> activeIRQs;
         private readonly IMachine machine;
@@ -2288,6 +2375,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             (int)SystemException.DebugMonitor_S,
             // Lack of HardFault here is not a mistake
             // HardFault is by default handled as Secure exception
+        };
+
+        // Interrupts that can escalate to HardFault when not enabled
+        private static readonly SystemException[] hardFaultEnabledInterrupts = new SystemException []
+        {
+            SystemException.BusFault,
+            SystemException.SecureFault,
+
+            SystemException.MemManageFault,
+            SystemException.MemManageFault_S,
+
+            SystemException.UsageFault,
+            SystemException.UsageFault_S,
         };
     }
 }
