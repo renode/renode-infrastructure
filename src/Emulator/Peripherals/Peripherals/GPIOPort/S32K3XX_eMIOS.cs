@@ -570,9 +570,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         break;
                     case ChannelModes.SingleActionInputCapture:
                         // EDSEL == 1 indicates both edge trigger mode
-                        if(((isRisingEdge && !edgePolarity.Value) || (!isRisingEdge && edgePolarity.Value) || (edgeSelection.Value)))
+                        if(isRisingEdge == edgePolarity.Value || edgeSelection.Value)
                         {
-                            riseFall.Value = SAICEdgeCapture ? (edgePolarity.Value ? isRisingEdge : !isRisingEdge) : false;
+                            riseFall.Value = SAICEdgeCapture ? edgePolarity.Value : false;
                             // Capture the timestamp from the currently active bus
                             AS2 = (uint)counterField.Value;
                             if(Flag)
