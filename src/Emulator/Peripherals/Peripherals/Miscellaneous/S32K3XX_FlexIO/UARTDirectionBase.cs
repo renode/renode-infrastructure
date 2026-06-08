@@ -7,6 +7,7 @@
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel;
 using Antmicro.Renode.Peripherals.UART;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -51,6 +52,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
+        protected void LogWarningNotIn(uint given, string configuration, string block, params uint[] expected)
+        {
+            foreach(var e in expected)
+            {
+                if(given == e)
+                {
+                    return;
+                }
+            }
+
+            owner.Log(LogLevel.Warning, "{0}{1} of {2} is unexpected, given 0x{3:X}, expected one of {4}", WarningPrefix, configuration, block, given, expected.ToLazyHexString());
+        }
+
         protected void LogWarning(string message, params object[] arg)
         {
             owner.Log(LogLevel.Warning, WarningPrefix + message, arg);
@@ -64,6 +78,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         protected readonly Shifter shifter;
         protected const uint Compare8bitShift = 2 * 8 - 1;
+        protected const uint Compare16bitShift = 2 * 16 - 1;
+        protected const uint Compare32bitShift = 2 * 32 - 1;
         protected const uint ShifterStopBitConfiguration = 0b11;
 
         private void LogCommonWarnings()
@@ -77,8 +93,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return;
             }
 
-            LogWarningNonEqual(shifter.Timer.Compare >> 8, Compare8bitShift, "compare value (upper bits)", shifter.Timer.Name);
-            LogWarningNonEqual((uint)shifter.Timer.Decrement, (uint)TimerDecrement.OnFLEXIOClockDividedBy16, "decrement configuration", shifter.Timer.Name);
+            LogWarningNotIn((uint)shifter.Timer.Compare >> 8, "compare value (upper bits)", shifter.Timer.Name, Compare8bitShift, Compare16bitShift, Compare32bitShift);
             LogWarningNonEqual((uint)shifter.Timer.StartBit, (uint)TimerStartBit.Always, "start bit", shifter.Timer.Name);
             LogWarningNonEqual((uint)shifter.Timer.StopBit, (uint)TimerStopBit.OnTimerDisable, "stop bit", shifter.Timer.Name);
             LogWarningNonEqual((uint)shifter.Timer.Mode, (uint)TimerMode.DualBaud, "mode", shifter.Timer.Name);
