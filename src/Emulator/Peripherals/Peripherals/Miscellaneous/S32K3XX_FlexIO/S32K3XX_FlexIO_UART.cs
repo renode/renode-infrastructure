@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 using Antmicro.Migrant;
 using Antmicro.Renode.Exceptions;
@@ -15,7 +16,7 @@ using Antmicro.Renode.Peripherals.UART;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    public class S32K3XX_FlexIO_UART : IUART, IUART<ushort>, IUART<uint>, IEndpoint
+    public class S32K3XX_FlexIO_UART : IUARTWithFrameInfo, IUARTWithFrameInfo<ushort>, IUARTWithFrameInfo<uint>, IEndpoint
     {
         public S32K3XX_FlexIO_UART(uint? rxShifterId = null, uint? txShifterId = null)
         {
@@ -61,32 +62,32 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public void WriteChar(byte value)
         {
-            if(receiver == null)
-            {
-                this.Log(LogLevel.Warning, "The UART doesn't support receiving, no shifter set");
-                return;
-            }
-            receiver.WriteChar(value);
+            WriteChar(value, null);
         }
 
         public void WriteChar(ushort value)
         {
-            if(receiver == null)
-            {
-                this.Log(LogLevel.Warning, "The UART doesn't support receiving, no shifter set");
-                return;
-            }
-            receiver.WriteChar(value);
+            WriteChar(value, null);
         }
 
         public void WriteChar(uint value)
         {
-            if(receiver == null)
-            {
-                this.Log(LogLevel.Warning, "The UART doesn't support receiving, no shifter set");
-                return;
-            }
-            receiver.WriteChar(value);
+            WriteChar(value, null);
+        }
+
+        public void WriteChar(byte value, UARTFrame frame)
+        {
+            WriteCharImpl(value, frame);
+        }
+
+        public void WriteChar(ushort value, UARTFrame frame)
+        {
+            WriteCharImpl(value, frame);
+        }
+
+        public void WriteChar(uint value, UARTFrame frame)
+        {
+            WriteCharImpl(value, frame);
         }
 
         public uint BaudRate => LogWarningWhenDirectionsDiffer(GetBaudRate(receiver), GetBaudRate(transmitter), "BaudRate") ?? 0;
@@ -94,6 +95,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public Bits StopBits => LogWarningWhenDirectionsDiffer(receiver?.StopBits, transmitter?.StopBits, "StopBits") ?? Bits.None;
 
         public Parity ParityBit => Parity.Unsupported;
+
+        public bool InjectFramingError { get; set; }
 
         [field: Transient]
         public event Action<byte> CharReceived;
@@ -145,6 +148,37 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.Log(LogLevel.Warning, "The {0} property is different for the receiver ({1}) and transmitter ({2}) sides", propertyName, receiverProperty, transmitterProperty);
             }
             return receiverProperty != null ? receiverProperty : transmitterProperty;
+        }
+
+        private void WriteCharImpl<T>(T value, UARTFrame frame)
+            where T : IBinaryInteger<T>
+        {
+            if(receiver == null)
+            {
+                this.Log(LogLevel.Warning, "The UART doesn't support receiving, no shifter set");
+                return;
+            }
+
+            var receiveStatus = true;
+            if(frame != null || InjectFramingError)
+            {
+                frame = frame ?? UARTFrame.CreateFromSenderAndMessage((IUART<T>)this, value);
+                var baudRate = BaudRate;
+                if(frame.BaudRate != baudRate)
+                {
+                    this.WarningLog("Missmatched baud rate (transmitter: {0}, receiver: {1}), dropping character: 0x{2:X}", frame.BaudRate, baudRate, value);
+                    return;
+                }
+
+                if(InjectFramingError || frame.StopBits != StopBits)
+                {
+                    receiver.Shifter.Error.SetFlag(true);
+                    InjectFramingError = false;
+                    receiveStatus = false;
+                }
+            }
+
+            receiver.WriteChar(value, setStatus: receiveStatus);
         }
 
         private S32K3XX_FlexIO flexIO;

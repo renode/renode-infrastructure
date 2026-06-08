@@ -4,6 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Numerics;
+
 using Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -12,24 +14,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public UARTReceiver(IEmulationElement owner, Shifter shifter) : base(owner, shifter) { }
 
-        public void WriteChar(byte value)
+        public void WriteChar<T>(T value, bool setStatus = true)
+            where T : IBinaryInteger<T>
         {
             LogWarnings();
             // The input data is shifted into the buffer from the left side (MSB).
-            shifter.OnDataReceive((uint)value << 24);
-        }
-
-        public void WriteChar(ushort value)
-        {
-            LogWarnings();
-            // The input data is shifted into the buffer from the left side (MSB).
-            shifter.OnDataReceive((uint)value << 16);
-        }
-
-        public void WriteChar(uint value)
-        {
-            LogWarnings();
-            shifter.OnDataReceive(value);
+            shifter.OnDataReceive(uint.CreateTruncating(value) << (sizeof(uint) - value.GetByteCount()) * 8, setStatus);
         }
 
         protected override void LogSpecificWarnings()

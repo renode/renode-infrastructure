@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             receiveBuffer.Clear();
         }
 
-        public void OnDataReceive(uint data)
+        public void OnDataReceive(uint data, bool setStatus = true)
         {
             if(mode.Value != ShifterMode.Receive)
             {
@@ -51,7 +51,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.S32K3XX_FlexIOModel
             {
                 // Trigger an interrupt when there was no data in the buffer before.
                 buffer.Value = data;
-                Status.SetFlag(true);
+                if(setStatus)
+                {
+                    Status.SetFlag(true);
+                }
             }
         }
 
