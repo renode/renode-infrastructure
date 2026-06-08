@@ -142,9 +142,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Fluent API for tagged field creation. For parameters see <see cref="PeripheralRegister.Tag"/>.
         /// </summary>
         /// <returns>This register with a defined tag field.</returns>
-        public static T WithTag<T>(this T register, string name, int position, int width) where T : PeripheralRegister
+        public static T WithTag<T>(this T register, string name, int position, int width, bool silent = false) where T : PeripheralRegister
         {
-            register.Tag(name, position, width);
+            register.Tag(name, position, width, silent: silent);
             return register;
         }
 
@@ -152,11 +152,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Fluent API for creating a set of tagged fields. For parameters see <see cref="PeripheralRegister.Tag"/>.
         /// </summary>
         /// <returns>This register with a defined tag field set.</returns>
-        public static T WithTags<T>(this T register, string name, int position, int width, int count) where T : PeripheralRegister
+        public static T WithTags<T>(this T register, string name, int position, int width, int count, bool silent = false) where T : PeripheralRegister
         {
             for(var i = 0; i < count; i++)
             {
-                register.Tag(name == null ? null : $"{name}_{i}", position + (i * width), width);
+                register.Tag(name == null ? null : $"{name}_{i}", position + (i * width), width, silent: silent);
             }
             return register;
         }
@@ -165,9 +165,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Fluent API for tagged flag creation - a tag of width equal to 1. For parameters see <see cref="PeripheralRegister.DefineValueField"/>.
         /// </summary>
         /// <returns>This register with a defined tag field.</returns>
-        public static T WithTaggedFlag<T>(this T register, string name, int position) where T : PeripheralRegister
+        public static T WithTaggedFlag<T>(this T register, string name, int position, bool silent = false) where T : PeripheralRegister
         {
-            register.TaggedFlag(name, position);
+            register.TaggedFlag(name, position, silent);
             return register;
         }
 
@@ -430,9 +430,9 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// Fluent API for tagging bits as "RESERVED". For description see <see cref="PeripheralRegister.Reserved"/>.
         /// </summary>
         /// <returns>This register with a new "RESERVED" tag.</returns>
-        public static T WithReservedBits<T>(this T register, int position, int width, uint? allowedValue = null) where T : PeripheralRegister
+        public static T WithReservedBits<T>(this T register, int position, int width, uint? allowedValue = null, bool silent = false) where T : PeripheralRegister
         {
-            register.Reserved(position, width, allowedValue);
+            register.Reserved(position, width, allowedValue, silent);
             return register;
         }
 

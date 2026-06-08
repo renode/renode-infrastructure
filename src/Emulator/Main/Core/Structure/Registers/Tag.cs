@@ -22,5 +22,6 @@ namespace Antmicro.Renode.Core.Structure.Registers
         public ulong? AllowedValue;
         public ulong ResetValue;
         public bool IsFlag;
+        public bool IsSilent;
     }
 }

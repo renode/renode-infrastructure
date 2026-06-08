@@ -263,9 +263,10 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="position">Offset in the register.</param>
         /// <param name="width">Width of field.</param>
         /// <param name="allowedValue">Value allowed to be written.<\param>
-        public void Reserved(int position, int width, ulong? allowedValue = null)
+        /// <param name="silent">Reduces log level of write accesses if default one is too noisy.<\param>
+        public void Reserved(int position, int width, ulong? allowedValue = null, bool silent = false)
         {
-            Tag("RESERVED", position, width, allowedValue);
+            Tag("RESERVED", position, width, allowedValue, silent: silent);
         }
 
         /// <summary>
@@ -275,7 +276,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         /// <param name="position">Offset in the register.</param>
         /// <param name="width">Width of field.</param>
         /// <param name="allowedValue">Value allowed to be written.<\param>
-        public void Tag(string name, int position, int width, ulong? allowedValue = null, bool isFlag = false)
+        /// <param name="silent">Reduces log level of write accesses if default one is too noisy.<\param>
+        public void Tag(string name, int position, int width, ulong? allowedValue = null, bool isFlag = false, bool silent = false)
         {
             ThrowIfRangeIllegal(position, width, name);
 
@@ -292,12 +294,13 @@ namespace Antmicro.Renode.Core.Structure.Registers
                 AllowedValue = allowedValue,
                 ResetValue = BitHelper.GetValue(this.resetValue, position, width),
                 IsFlag = isFlag,
+                IsSilent = silent,
             });
         }
 
-        public void TaggedFlag(string name, int position)
+        public void TaggedFlag(string name, int position, bool silent = false)
         {
-            Tag(name, position, 1, isFlag: true);
+            Tag(name, position, 1, isFlag: true, silent: silent);
         }
 
         /// <summary>
@@ -654,7 +657,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             var unhandledWrites = difference & ~definedFieldsMask;
             if(unhandledWrites != 0)
             {
-                parent.Log(LogLevel.Warning, TagLogger(offset, unhandledWrites, value));
+                LogUnhandledWrites(offset, unhandledWrites, value);
             }
 
             if(InvalidTagValues(offset, value, out var invalidValueLog))
@@ -683,22 +686,43 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         protected ulong UnderlyingShadowValue;
 
+        private void LogUnhandledWrites(long offset, ulong unhandledWrites, ulong originalValue)
+        {
+            var warningLogMessage = TagLogger(offset, unhandledWrites, originalValue, matchSilent: false);
+            if(warningLogMessage != "")
+            {
+                parent.Log(LogLevel.Warning, warningLogMessage);
+            }
+
+            var noisyLogMessage = TagLogger(offset, unhandledWrites, originalValue, matchSilent: true);
+            if(noisyLogMessage != "")
+            {
+                parent.Log(LogLevel.Noisy, noisyLogMessage);
+            }
+        }
+
         /// <summary>
         /// Returns information about tag writes. Extracted as a method to allow future lazy evaluation.
         /// </summary>
         /// <param name="offset">The offset of the affected register.</param>
         /// <param name="unhandledMask">Unhandled bits mask.</param>
         /// <param name="originalValue">The whole value written to the register.</param>
-        private string TagLogger(long offset, ulong unhandledMask, ulong originalValue)
+        /// <param name="matchSilent">Select silent or non-silent tags.</param>
+        private string TagLogger(long offset, ulong unhandledMask, ulong originalValue, bool matchSilent)
         {
-            var tagsAffected = tags.Where(x => BitHelper.AreAnyBitsSet(unhandledMask, x.Position, x.Width))
+            var tagsAffected = tags.Where(x => matchSilent == x.IsSilent
+                                               && BitHelper.AreAnyBitsSet(unhandledMask, x.Position, x.Width))
                 .Select(x =>  new { x.Name, Value = BitHelper.GetValue(originalValue, x.Position, x.Width) });
-            return "Unhandled write to offset 0x{2:X}. Unhandled bits: [{1}] when writing value 0x{3:X}.{0}"
-                .FormatWith(tagsAffected.Any() ? " Tags: {0}.".FormatWith(
-                    tagsAffected.Select(x => "{0} (0x{1:X})".FormatWith(x.Name, x.Value)).Stringify(", ")) : String.Empty,
-                    BitHelper.GetSetBitsPretty(unhandledMask),
-                    offset,
-                    originalValue);
+            if(tagsAffected.Any())
+            {
+                return "Unhandled write to offset 0x{2:X}. Unhandled bits: [{1}] when writing value 0x{3:X}.{0}"
+                    .FormatWith(tagsAffected.Any() ? " Tags: {0}.".FormatWith(
+                                tagsAffected.Select(x => "{0} (0x{1:X})".FormatWith(x.Name, x.Value)).Stringify(", ")) : String.Empty,
+                            BitHelper.GetSetBitsPretty(unhandledMask),
+                            offset,
+                            originalValue);
+            }
+            return "";
         }
 
         private bool InvalidTagValues(long offset, ulong originalValue, out string log)
