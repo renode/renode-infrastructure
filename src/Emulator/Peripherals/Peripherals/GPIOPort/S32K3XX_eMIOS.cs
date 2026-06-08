@@ -20,7 +20,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    public class S32K3XX_eMIOS : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IHasMappedRegisters
+    public class S32K3XX_eMIOS : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IHasMappedRegisters, IHasFrequency
     {
         public S32K3XX_eMIOS(IMachine machine, int numberOfChannels = 24, ulong clockFrequency = 48_000_000) : base(machine, numberOfChannels * 3)
         {
@@ -94,6 +94,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         public bool ModuleDisable => moduleDisable.Value;
 
         public DoubleWordRegisterCollection RegistersCollection { get; private set; }
+
+        public ulong Frequency
+        {
+            get => this.clockFrequency;
+            set
+            {
+                this.clockFrequency = value;
+                UpdateGlobalPrescaler();
+            }
+        }
 
         private Dictionary<long, DoubleWordRegister> DefineRegisters()
         {
@@ -188,9 +198,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private IValueRegisterField globalPrescaler;
         private IFlagRegisterField moduleDisable;
         private IFlagRegisterField globalPrescaleEnable;
+        private ulong clockFrequency;
         private readonly RegisterMapper registerMapper = new RegisterMapper(typeof(Registers));
         private readonly int numberOfChannels;
-        private readonly ulong clockFrequency;
         private readonly UnifiedChannel[] unifiedChannels;
         private readonly IFlagRegisterField[] flagEnableFlags;
         private readonly IBusController BusController;
