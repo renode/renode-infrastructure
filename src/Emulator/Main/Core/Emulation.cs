@@ -457,7 +457,6 @@ namespace Antmicro.Renode.Core
                 Array.ForEach(machs.Rights, x => (x as IDisposable)?.Dispose());
                 MasterTimeSource.Dispose();
                 machs.Dispose();
-                HostMachine.Dispose();
                 CurrentLogger.Dispose();
                 FileFetcher.Dispose();
                 if(randomGenerator.IsValueCreated)
