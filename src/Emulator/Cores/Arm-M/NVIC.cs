@@ -2245,7 +2245,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CortexM>())
                 {
-                    cpu.SetEventFlag(true);
+                    cpu.SetEventFlag();
                 }
             }
         }

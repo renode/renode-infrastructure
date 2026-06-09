@@ -78,9 +78,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibSetSevOnPending(value ? 1 : 0);
         }
 
-        public void SetEventFlag(bool value)
+        public void SetEventFlag()
         {
-            TlibSetEventFlag(value ? 1 : 0);
+            TlibSetEventFlag();
         }
 
         public override void Dispose()
@@ -424,13 +424,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void SetSystemEvent(int value)
+        private void SetSystemEvent()
         {
-            var flag = value != 0;
-
             foreach(var cpu in machine.SystemBus.GetCPUs().OfType<Arm>())
             {
-                cpu.SetEventFlag(flag);
+                cpu.SetEventFlag();
             }
         }
 
@@ -514,7 +512,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Action<uint> TlibSetNumberOfMpuRegions;
 
         [Import]
-        private readonly Action<int> TlibSetEventFlag;
+        private readonly Action TlibSetEventFlag;
 
         [Import]
         private readonly Action<int> TlibSetThumb;

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under MIT License.
@@ -34,6 +34,6 @@ EXTERNAL_AS(void, Write64CP15, tlib_write_cp15_64, uint32_t, uint64_t)
 EXTERNAL_AS(uint32_t, IsWfiAsNop, tlib_is_wfi_as_nop)
 EXTERNAL_AS(uint32_t, IsWfeAndSevAsNop, tlib_is_wfe_and_sev_as_nop)
 EXTERNAL_AS(uint32_t, DoSemihosting, tlib_do_semihosting)
-EXTERNAL_AS(void, SetSystemEvent, tlib_set_system_event, int32_t)
+EXTERNAL_AS(void, SetSystemEvent, tlib_set_system_event)
 EXTERNAL_AS(void, ReportPMUOverflow, tlib_report_pmu_overflow, int32_t)
 EXTERNAL_AS(void, FillConfigurationSignalsState, tlib_fill_configuration_signals_state, voidptr)
