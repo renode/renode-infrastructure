@@ -28,7 +28,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, IRegisterablePeripheral<ExternalPMPBase, NullRegistrationPoint>, ICPUWithPostGprAccessHooks, ICPUWithNMI
+    public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, IRegisterablePeripheral<ExternalPMPBase, NullRegistrationPoint>, ICPUWithPostGprAccessHooks, ICPUWithNMI, ICPUWithDirtyAdressesSharing
     {
         public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
         {

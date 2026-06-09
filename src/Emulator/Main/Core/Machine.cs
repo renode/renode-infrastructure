@@ -61,10 +61,10 @@ namespace Antmicro.Renode.Core
             SetLocalName(SystemBus, SystemBusName);
             gdbStubs = new Dictionary<int, GdbStub>();
 
-            invalidatedAddressesByCpu = new Dictionary<ICPU, List<long>>();
+            invalidatedAddressesByCpu = new Dictionary<TranslationCPU, List<long>>();
             invalidatedAddressesByArchitecture = new Dictionary<string, List<long>>();
+            firstUnbroadcastedDirtyAddressIndex = new Dictionary<TranslationCPU, int>();
             invalidatedAddressesLock = new object();
-            firstUnbroadcastedDirtyAddressIndex = new Dictionary<ICPU, int>();
             beforeHaltState = new Dictionary<IHaltable, bool>();
 
             if(createLocalTimeSource)
@@ -277,7 +277,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public long[] GetNewDirtyAddressesForCore(ICPU cpu)
+        public long[] GetNewDirtyAddressesForCore(TranslationCPU cpu)
         {
             if(!firstUnbroadcastedDirtyAddressIndex.ContainsKey(cpu))
             {
@@ -295,7 +295,7 @@ namespace Antmicro.Renode.Core
             return newAddresses;
         }
 
-        public void AppendDirtyAddresses(ICPU cpu, long[] addresses)
+        public void AppendDirtyAddresses(TranslationCPU cpu, long[] addresses)
         {
             if(!invalidatedAddressesByCpu.ContainsKey(cpu))
             {
@@ -1014,18 +1014,15 @@ namespace Antmicro.Renode.Core
         public void PostCreationActions()
         {
             // Enable broadcasting dirty addresses if there are multiple CPUs of an architecture supporting the mechanism.
-            foreach(var architecture in architecturesWithBroadcastSupport)
-            {
-                var translationCPUs = SystemBus.GetCPUs()
-                    .Where(cpu => cpu.Architecture == architecture)
-                    .OfType<TranslationCPU>().ToArray();
+            var translationCPUs = SystemBus.GetCPUs()
+                .OfType<TranslationCPU>()
+                .Where(cpu => cpu is ICPUWithDirtyAdressesSharing);
 
-                if(translationCPUs.Count() > 1)
+            if(translationCPUs.Count() > 1)
+            {
+                foreach(var cpu in translationCPUs)
                 {
-                    foreach(var cpu in translationCPUs)
-                    {
-                        cpu.SetBroadcastDirty(true);
-                    }
+                    cpu.SetBroadcastDirty(true);
                 }
             }
 
@@ -1759,7 +1756,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        private void TryReduceBroadcastedDirtyAddresses(ICPU cpu)
+        private void TryReduceBroadcastedDirtyAddresses(TranslationCPU cpu)
         {
             var sameArchitectureCPUs = firstUnbroadcastedDirtyAddressIndex
                 .Where(pair => pair.Key.Architecture == cpu.Architecture)
@@ -1799,7 +1796,7 @@ namespace Antmicro.Renode.Core
                             throw new RecoverableException($"{cpu.Model ?? "Unknown model"}: CPU architecture not provided");
                         }
 
-                        if(architecturesWithBroadcastSupport.Contains(cpu.Architecture))
+                        if(cpu is ICPUWithDirtyAdressesSharing)
                         {
                             InitializeInvalidatedAddressesList(cpu);
                             firstUnbroadcastedDirtyAddressIndex[cpu] = 0;
@@ -1888,7 +1885,7 @@ namespace Antmicro.Renode.Core
             return parents;
         }
 
-        private void InitializeInvalidatedAddressesList(ICPU cpu)
+        private void InitializeInvalidatedAddressesList(TranslationCPU cpu)
         {
             lock(invalidatedAddressesLock)
             {
@@ -1926,22 +1923,10 @@ namespace Antmicro.Renode.Core
         private readonly BaseClockSource clockSource;
         private readonly object invalidatedAddressesLock;
         private readonly Dictionary<string, List<long>> invalidatedAddressesByArchitecture;
-        private readonly Dictionary<ICPU, List<long>> invalidatedAddressesByCpu;
+        private readonly Dictionary<TranslationCPU, List<long>> invalidatedAddressesByCpu;
 
-        private readonly Dictionary<ICPU, int> firstUnbroadcastedDirtyAddressIndex;
+        private readonly Dictionary<TranslationCPU, int> firstUnbroadcastedDirtyAddressIndex;
         private readonly Dictionary<IHaltable, bool> beforeHaltState;
-
-        /*
-         *  Variables used for memory invalidation
-         *  Currently the mechanism only applies to ARM and RISC-V CPUs.
-         */
-        private readonly string[] architecturesWithBroadcastSupport = new string[] {
-            "arm",
-            "arm-m",
-            "arm64",
-            "riscv",
-            "riscv64",
-        };
 
         private readonly DateTime machineCreatedAt;
         private readonly object collectionSync;

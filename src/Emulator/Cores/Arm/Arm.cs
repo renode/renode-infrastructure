@@ -23,7 +23,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 namespace Antmicro.Renode.Peripherals.CPU
 {
     [GPIO(NumberOfInputs = 2)]
-    public abstract partial class Arm : TranslationCPU, ICPUWithHooks, IRegisterablePeripheral<SemihostingHandler, NullRegistrationPoint>, IRegisterablePeripheral<ArmPerformanceMonitoringUnit, NullRegistrationPoint>
+    public abstract partial class Arm : TranslationCPU, ICPUWithHooks, IRegisterablePeripheral<SemihostingHandler, NullRegistrationPoint>, IRegisterablePeripheral<ArmPerformanceMonitoringUnit, NullRegistrationPoint>, ICPUWithDirtyAdressesSharing
     {
         public Arm(string cpuType, IMachine machine, uint cpuId = 0, Endianess endianness = Endianess.LittleEndian, uint? numberOfMPURegions = null, ArmSignalsUnit signalsUnit = null)
             : base(cpuId, cpuType, machine, endianness)
