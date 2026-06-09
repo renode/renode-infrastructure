@@ -586,6 +586,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             base.Reset();
             isInterruptLoggingEnabled = false;
+            pendingTranslationCacheClearing = false;
             TlibReset();
             ResetOpcodesCounters();
             profiler?.Dispose();
@@ -710,6 +711,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                     queuedAction();
                 }
 
+                if(pendingTranslationCacheClearing)
+                {
+                    this.NoisyLog("Executing postponed clearing of translation cache");
+                    TlibInvalidateTranslationCache();
+                    pendingTranslationCacheClearing = false;
+                }
+
                 pauseGuard.Enter();
                 lastTlibResult = (TlibExecutionResult)TlibExecute(checked((int)numberOfInstructionsToExecute));
                 pauseGuard.Leave();
@@ -771,6 +779,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void InitStoreTable(bool afterDeserialization = false)
         {
             TlibStoreTableInit(StoreTablePointer, (byte)StoreTableBits, afterDeserialization ? 1 : 0);
+        }
+
+        public void RequestTranslationCacheClearing()
+        {
+            if(pendingTranslationCacheClearing)
+            {
+                return;
+            }
+            pendingTranslationCacheClearing = true;
+            RequestReturn();
         }
 
         public void RemoveHooksAt(ulong addr) => hooks.RemoveHooksAt(addr);
@@ -2067,6 +2085,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool isInterruptLoggingEnabled;
         private LogFunctionNamesState? logFunctionNamesCurrentState;
         private Action<ulong, uint> blockFinishedHook;
+
+        private bool pendingTranslationCacheClearing;
 
         [Transient]
         private SimpleMemoryManager memoryManager;

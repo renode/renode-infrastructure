@@ -1758,22 +1758,34 @@ namespace Antmicro.Renode.Core
 
         private void TryReduceBroadcastedDirtyAddresses(TranslationCPU cpu)
         {
-            var sameArchitectureCPUs = firstUnbroadcastedDirtyAddressIndex
-                .Where(pair => pair.Key.Architecture == cpu.Architecture)
-                .ToArray();
+            var firstUnbroadcastedAddressesOfSameArchCPUs = firstUnbroadcastedDirtyAddressIndex
+                .Where(pair => pair.Key.Architecture == cpu.Architecture);
 
-            var firstUnread = sameArchitectureCPUs.Select(pair => pair.Value).Min();
+            var firstUnread = firstUnbroadcastedAddressesOfSameArchCPUs.Select(pair => pair.Value).Min();
             if(firstUnread == 0)
             {
-                var laggingCPUNames = sameArchitectureCPUs.Where(pair => pair.Value == 0).Select(pair => pair.Key.GetName());
+                var currentListCount = invalidatedAddressesByCpu[cpu].Count;
+                var laggingCPUs = firstUnbroadcastedAddressesOfSameArchCPUs.Where(pair => pair.Value == 0).Select(pair => pair.Key);
                 cpu.DebugLog(
-                    "Attempted reduction of {0} dirty addresses list failed, current count: {1}, CPUs that didn't fetch any: {2}",
-                    cpu.Architecture, invalidatedAddressesByCpu[cpu].Count, string.Join(", ", laggingCPUNames));
-                return;
+                    "Attempted reduction of {0} dirty addresses list failed, current count: {1}, " +
+                    "requesting TB cache clear on CPUs that didn't fetch any: {2}",
+                    cpu.Architecture, currentListCount, string.Join(", ", laggingCPUs.Select(c => c.GetName()))
+                );
+
+                foreach(var laggingCPU in laggingCPUs)
+                {
+                    laggingCPU.RequestTranslationCacheClearing();
+
+                    // TB cache will be cleared so there's no need to broadcast any of the addresses from the current list anymore.
+                    firstUnbroadcastedDirtyAddressIndex[laggingCPU] = currentListCount;
+                }
+
+                // Let's re-establish `firstUnread`.
+                firstUnread = firstUnbroadcastedAddressesOfSameArchCPUs.Select(pair => pair.Value).Min();
             }
 
             invalidatedAddressesByCpu[cpu].RemoveRange(0, (int)firstUnread);
-            foreach(var key in sameArchitectureCPUs.Select(pair => pair.Key))
+            foreach(var key in firstUnbroadcastedAddressesOfSameArchCPUs.Select(pair => pair.Key))
             {
                 firstUnbroadcastedDirtyAddressIndex[key] -= firstUnread;
             }
