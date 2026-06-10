@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -20,6 +20,15 @@ namespace Antmicro.Renode.Tests.UnitTests.Mocks
             MockStringList = mockStringList;
             MockCpuList = mockCpuList;
             MockIntArray = mockIntArray;
+        }
+
+        public MockPeripheralWithCollectionAttributes(Dictionary<int, string> mockIntStringDict = null,
+                                                      Dictionary<int, ICPU> mockIntCpuDict = null,
+                                                      Dictionary<ICPU, int> mockCpuIntDict = null)
+        {
+            MockIntStringDict = mockIntStringDict;
+            MockIntCpuDict = mockIntCpuDict;
+            MockCpuIntDict = mockCpuIntDict;
         }
 
         public void Reset()
@@ -43,5 +52,11 @@ namespace Antmicro.Renode.Tests.UnitTests.Mocks
         public List<ICPU> MockCpuList { get; set; }
 
         public int[] MockIntArray { get; set; }
+
+        public Dictionary<int, string> MockIntStringDict { get; set; }
+
+        public Dictionary<int, ICPU> MockIntCpuDict { get; set; }
+
+        public Dictionary<ICPU, int> MockCpuIntDict { get; set; }
     }
 }
