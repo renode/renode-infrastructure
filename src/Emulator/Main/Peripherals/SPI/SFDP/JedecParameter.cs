@@ -175,6 +175,8 @@ namespace Antmicro.Renode.Peripherals.SPI.SFDP
             }
         }
 
+        public JedecParameterPacket JedecPacket => jedecParameterPacket;
+
         public long EraseSize { get => (long)Math.Pow(2, (double)jedecParameterPacket.EraseType1Size); set => jedecParameterPacket.EraseType1Size = (byte)Math.Floor(Math.Log(value, 2)); }
 
         public bool CmdF0Supported => (jedecParameterPacket.SoftResetAndRescueSequence ?? 0) == 0b001000;
