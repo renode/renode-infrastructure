@@ -41,7 +41,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             binaryPointPosition = new SecurityBanked<int>();
             currentSevOnPending = new SecurityBanked<bool>();
             basepri = new SecurityBanked<byte>();
-            ccr = new SecurityBanked<uint>();
             irqs = new ExceptionSimpleArray<IRQState>();
             targetInterruptSecurityState = new InterruptTargetSecurityState[IRQCount];
             interruptEnabled = new Dictionary<SystemException, bool>();
@@ -402,7 +401,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.FPDSCR = val, (val) => cpu.FPDSCR_NS = val, value & 0x07c00000);
                 break;
             case Registers.ConfigurationAndControl:
-                ccr.Get(isSecure) = value;
+                SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.ConfigurationAndControlRegister = val, (val) => cpu.ConfigurationAndControlRegisterNonSecure = val, value);
                 break;
             default:
                 lock(RegisterCollection)
@@ -512,7 +511,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FPDSCR, () => cpu.FPDSCR_NS);
             case Registers.ConfigurationAndControl:
-                return ccr.Get(isSecure);
+                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.ConfigurationAndControlRegister, () => cpu.ConfigurationAndControlRegisterNonSecure);
             case Registers.SystemHandlerPriority1:
             case Registers.SystemHandlerPriority2:
             case Registers.SystemHandlerPriority3:
@@ -561,9 +560,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             canResetOnlyFromSecure = false;
             deepSleepOnlyFromSecure = false;
             binaryPointPosition.Reset();
-
-            // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
-            ccr.Reset(0x10000);
         }
 
         [ConnectionRegion("NonSecure")]
@@ -1902,9 +1898,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private readonly RegisterMapper mapper;
 
         private readonly ExceptionSimpleArray<IRQState> irqs;
-
-        // bit [16] DC / Cache enable. This is a global enable bit for data and unified caches.
-        private readonly SecurityBanked<uint> ccr;
 
         // This is configurable through NVIC_ITNSx only for Hardware Interrupts (exception numbered 16 and above)
         // for configuring selected exceptions, look at AIRCR.BFHFNMINS

@@ -771,6 +771,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public UInt32 ConfigurationAndControlRegister
+        {
+            get => tlibGetCcr(ShouldAccessBeSecure());
+            set => tlibSetCcr(value, ShouldAccessBeSecure());
+        }
+
+        public UInt32 ConfigurationAndControlRegisterNonSecure
+        {
+            get => GetTrustZoneRelatedRegister(nameof(ConfigurationAndControlRegisterNonSecure), () => tlibGetCcr(0u));
+            set => SetTrustZoneRelatedRegister(nameof(ConfigurationAndControlRegisterNonSecure), val => tlibSetCcr(val, 0u), value);
+        }
+
         public UInt32 PmsaV8Rnr
         {
             get
@@ -1253,6 +1265,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<uint, uint> tlibSetInterruptVectorBase;
+
+        [Import]
+        private readonly Func<uint, uint> tlibGetCcr;
+
+        [Import]
+        private readonly Action<uint, uint> tlibSetCcr;
 
         [Import]
         private readonly Func<uint> tlibGetXpsr;
