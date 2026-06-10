@@ -34,6 +34,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             interruptType = new InterruptType[ExternalInterruptCount];
             interruptPending = new IFlagRegisterField[ExternalInterruptCount];
             interruptEnabled = new IFlagRegisterField[ExternalInterruptCount];
+            invertSignal = new IFlagRegisterField[MaximumValidPadIndex + 1];
 
             doubleWordRegisterCollection = new DoubleWordRegisterCollection(this);
             byteRegisterCollection = new ByteRegisterCollection(this);
@@ -91,6 +92,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 this.Log(LogLevel.Warning, "Tried to set {0} to pad#{1} is not an valid pad index", value, number);
                 return;
+            }
+
+            if(invertSignal[number]?.Value ?? false)
+            {
+                value = !value;
             }
 
             var previousState = State[number];
@@ -320,7 +326,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithTaggedFlag("SlewRateControl", 14)
                     .WithReservedBits(15, 1)
                     .WithTaggedFlag("PadKeepingEnable", 16)
-                    .WithTaggedFlag("Invert", 17)
+                    .WithFlag(17, out invertSignal[index], name: "Invert")
                     .WithReservedBits(18, 1)
                     .WithFlag(19, name: "InputBufferEnable")
                     .WithReservedBits(20, 1)
@@ -366,7 +372,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 outputOffset.Define(asByteCollection, name: $"GPDO{index}")
                     .WithFlag(0, name: $"PadDataOut{index}",
                         valueProviderCallback: _ => Connections[index].IsSet,
-                        changeCallback: (_, value) => Connections[index].Set(value))
+                        changeCallback: (_, value) => Connections[index].Set((invertSignal[index]?.Value ?? false) ? value : !value))
                     .WithReservedBits(1, 7)
                 ;
 
@@ -509,6 +515,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly ByteRegisterCollection byteRegisterCollection;
         private readonly IFlagRegisterField[] interruptPending;
         private readonly IFlagRegisterField[] interruptEnabled;
+        private readonly IFlagRegisterField[] invertSignal;
 
         private const int MaximumValidPadIndex = 236;
         private const uint ExternalInterruptCount = 32;
