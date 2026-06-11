@@ -37,7 +37,7 @@ namespace Antmicro.Renode.UI
             }
         }
 
-        private static void ShowErrorWindow(string message)
+        public static void ShowErrorWindow(string message)
         {
             var mre = new ManualResetEventSlim();
 

@@ -94,9 +94,23 @@ namespace Antmicro.Renode.UI
         private static void ShowXwtError(string primary, string secondary)
         {
             // Try to quickly spin up Xwt to show the message
-            using(XwtProvider.Create(null))
+            var provider = XwtProvider.Create(null);
+            if(provider == null)
             {
-                Xwt.MessageDialog.ShowError(primary, secondary);
+                // Failed to open Xwt, at least print to console
+                Logger.Log(LogLevel.Error, "{0}\n{1}", primary, secondary);
+                return;
+            }
+            using(provider)
+            {
+                if(RuntimeInfo.IsMacOS())
+                {
+                    CrashHandler.ShowErrorWindow($"{primary}\n{secondary}");
+                }
+                else
+                {
+                    Xwt.MessageDialog.ShowError(primary, secondary);
+                }
             }
         }
 
