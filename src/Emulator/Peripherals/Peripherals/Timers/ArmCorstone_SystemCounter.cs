@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 using Antmicro.Renode.Core;
@@ -33,7 +34,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             controlMapper = new RegisterMapper(typeof(ArmCorstone_SystemCounter), ControlRegion);
             mapperProvider = new MapperProvider(null);
 
-            counter = new Counter(this, frequency);
+            counter = new InnerCounter(this, frequency);
             counter.LimitReached += HandleLimitReached;
 
             DefineRegisters();
@@ -85,6 +86,8 @@ namespace Antmicro.Renode.Peripherals.Timers
         }
 
         public string OffsetToString(long offset) => mapperProvider.CurrentMapper?.ToString(offset) ?? "<undefined>";
+
+        public ICounter Counter => counter;
 
         [DefaultInterrupt]
         public GPIO IRQ { get; } = new GPIO();
@@ -315,7 +318,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly RegisterMapper controlMapper;
         private readonly RegisterMapper readMapper;
         private readonly MapperProvider mapperProvider;
-        private readonly Counter counter;
+        private readonly InnerCounter counter;
         private readonly IMachine machine;
 
         private const uint DefaultCounterScaling = 0x01000000;
@@ -365,13 +368,33 @@ namespace Antmicro.Renode.Peripherals.Timers
             ComponentIdentification3  = 0xFFC, // CNTCIDR3
         }
 
-        private class Counter
+        public interface ICounter
+        {
+            void RegisterComparePoint(Action handle, IEmulationElement parent, string localName);
+
+            // Sets value for compare point and activates it
+            void SetComparePoint(Action handle, ulong compareValue);
+
+            void DeactivateComparePoint(Action handle);
+
+            ulong Value { get; }
+
+            uint ValueLow { get; }
+
+            uint ValueHigh { get; }
+
+            event Action<ulong> ValueLoaded;
+
+            event Action ValueOverflown;
+        }
+
+        private class InnerCounter : ICounter
         {
             // The counter consists of 88 bits, 64 bits are public and 24 are internal.
             // For this purpose the custom implementation is chosen instead of use of Timer helpers.
             // LowerBits + FractionalBits are handled by clock entry, but UpperBits are handled
             // in this class.
-            public Counter(ArmCorstone_SystemCounter parent, ulong frequency)
+            public InnerCounter(ArmCorstone_SystemCounter parent, ulong frequency)
             {
                 this.frequency = frequency;
                 this.parent = parent;
@@ -382,52 +405,61 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public void Reset()
             {
-                var entry = new ClockEntry(TimerLimit, frequency, HandleLimitReached, parent, "sysCounter", enabled: false, step: DefaultCounterScaling);
+                var entry = new ClockEntry(timerLimit, frequency, HandleLimitReached, parent, "counter", enabled: false, step: DefaultCounterScaling);
                 clockSource.ExchangeClockEntryWith(HandleLimitReached, x => entry, () => entry);
+                UpdateAllComparePoints(entry);
+            }
+
+            public void RegisterComparePoint(Action handle, IEmulationElement parent, string localName)
+            {
+                comparePoints[handle] = new ComparePoint(handle, parent, localName);
+            }
+
+            public void SetComparePoint(Action handle, ulong compareValue)
+            {
+                var comparePoint = comparePoints[handle];
+                if(comparePoint.Active && comparePoint.Value == compareValue)
+                {
+                    return;
+                }
+                comparePoint.Value = compareValue;
+
+                var counterEntry = clockSource.GetClockEntry(HandleLimitReached);
+                // No pre-access synchronization is needed. Blind writes do not depend on the
+                // current value, and writes that do are preceded by a read, keeping
+                // the synchronized value up to date.
+                if(!IsWithinCurrentTimerLimit(compareValue, counterEntry.Value) || !counterEntry.Enabled)
+                {
+                    DeactivateComparePoint(comparePoint);
+                    return;
+                }
+
+                ActivateComparePoint(comparePoint, counterEntry);
+                TryRequestReturn();
+            }
+
+            public void DeactivateComparePoint(Action handle)
+            {
+                DeactivateComparePoint(comparePoints[handle]);
             }
 
             public bool Enabled
             {
-                get
-                {
-                    return clockSource.GetClockEntry(HandleLimitReached).Enabled;
-                }
-
-                set
-                {
-                    clockSource.ExchangeClockEntryWith(HandleLimitReached,
-                        entry =>
-                        {
-                            if(entry.Enabled == value)
-                            {
-                                return entry;
-                            }
-
-                            TryRequestReturn();
-                            return entry.With(enabled: value);
-                        },
-                        () => throw new UnreachableException()
-                    );
-                }
+                get => clockSource.GetClockEntry(HandleLimitReached).Enabled;
+                set => SetForClockEntry(enabled: value);
             }
 
             public uint Step
             {
-                set
-                {
-                    clockSource.ExchangeClockEntryWith(HandleLimitReached,
-                        entry =>
-                        {
-                            if(entry.Step == value)
-                            {
-                                return entry;
-                            }
+                set => SetForClockEntry(step: value);
+            }
 
-                            TryRequestReturn();
-                            return entry.With(step: value);
-                        },
-                        () => throw new UnreachableException()
-                    );
+            public ulong Value
+            {
+                get
+                {
+                    var lowerValue = ValueLow; // also syncs time
+                    return (upperValue << LowerBits) | lowerValue;
                 }
             }
 
@@ -440,24 +472,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     return (uint)(clockSource.GetClockEntry(HandleLimitReached).Value >> FractionalBits);
                 }
 
-                set
-                {
-                    clockSource.ExchangeClockEntryWith(HandleLimitReached,
-                        entry =>
-                        {
-                            // assumes LowerBits >= 32
-                            var newValue = BitHelper.SetBitsFrom(entry.Value, value, FractionalBits, LowerBits);
-                            if(entry.Value == newValue)
-                            {
-                                return entry;
-                            }
-
-                            TryRequestReturn();
-                            return entry.With(value: newValue);
-                        },
-                        () => throw new UnreachableException()
-                    );
-                }
+                set => SetForClockEntry(valueLow: value);
             }
 
             public uint ValueHigh
@@ -473,17 +488,141 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public event Action LimitReached;
 
+            public event Action<ulong> ValueLoaded;
+
+            public event Action ValueOverflown;
+
+            private bool IsWithinCurrentTimerLimit(ulong value, ulong? currentClockEntryValue = null)
+            {
+                if(value < (upperValue << LowerBits) || value >= ((upperValue + 1) << LowerBits))
+                {
+                    return false;
+                }
+
+                value &= lowerValueMask;
+                var lowerValue = (currentClockEntryValue ?? clockSource.GetClockEntry(HandleLimitReached).Value) >> FractionalBits;
+                return value > lowerValue;
+            }
+
+            private void DeactivateComparePoint(ComparePoint comparePoint, ClockEntry? counterEntry = null)
+            {
+                if(comparePoint.Active)
+                {
+                    comparePoint.Active = false;
+                    clockSource.ExchangeClockEntryWith(comparePoint.HandleComparePointReached,
+                        entry =>
+                        {
+                            TryRequestReturn();
+                            return entry.With(enabled: false);
+                        },
+                        () => comparePoint.CreateClockEntry(counterEntry ?? clockSource.GetClockEntry(HandleLimitReached))
+                    );
+                }
+            }
+
+            private void ActivateComparePoint(ComparePoint comparePoint, ClockEntry counterEntry)
+            {
+                comparePoint.Active = true;
+                UpdateComparePoint(comparePoint, counterEntry);
+            }
+
+            private void UpdateComparePoint(ComparePoint comparePoint, ClockEntry counterEntry)
+            {
+                var entry = comparePoint.CreateClockEntry(counterEntry);
+                clockSource.ExchangeClockEntryWith(comparePoint.HandleComparePointReached, _ => entry, () => entry);
+            }
+
+            private void UpdateAllComparePoints(ClockEntry counterEntry)
+            {
+                foreach(var comparePoint in comparePoints.Values)
+                {
+                    if(!IsWithinCurrentTimerLimit(comparePoint.Value, counterEntry.Value) || !counterEntry.Enabled)
+                    {
+                        DeactivateComparePoint(comparePoint, counterEntry);
+                        continue;
+                    }
+                    ActivateComparePoint(comparePoint, counterEntry);
+                }
+            }
+
+            private void SetForClockEntry(uint? valueLow = null, bool? enabled = null, uint? step = null)
+            {
+                var newValue = (ulong?)null;
+                var counterEntry = (ClockEntry?)null;
+                clockSource.ExchangeClockEntryWith(HandleLimitReached,
+                    entry =>
+                    {
+                        if(valueLow.HasValue)
+                        {
+                            // assumes LowerBits >= 32
+                            newValue = BitHelper.SetBitsFrom(entry.Value, valueLow.Value, FractionalBits, LowerBits);
+                            if(entry.Value == newValue.Value)
+                            {
+                                return entry;
+                            }
+
+                            counterEntry = entry.With(value: newValue.Value);
+                        }
+                        else if(enabled.HasValue)
+                        {
+                            if(entry.Enabled == enabled.Value)
+                            {
+                                return entry;
+                            }
+
+                            counterEntry = entry.With(enabled: enabled.Value);
+                        }
+                        else if(step.HasValue)
+                        {
+                            if(entry.Step == step.Value)
+                            {
+                                return entry;
+                            }
+
+                            counterEntry = entry.With(step: step.Value);
+                        }
+
+                        TryRequestReturn();
+                        return counterEntry.Value;
+                    },
+                    () => throw new UnreachableException()
+                );
+
+                if(counterEntry.HasValue)
+                {
+                    if(newValue.HasValue)
+                    {
+                        // after value change update all entries
+                        UpdateAllComparePoints(counterEntry.Value);
+                        ValueLoaded?.Invoke(newValue.Value);
+                        return;
+                    }
+
+                    // if value doesn't change no need to update non-active entries
+                    foreach(var point in comparePoints.Values)
+                    {
+                        if(point.Active)
+                        {
+                            UpdateComparePoint(point, counterEntry.Value);
+                        }
+                    }
+                }
+            }
+
             private void HandleLimitReached()
             {
-                if(upperValue == UpperValueLimit)
+                if(upperValue == upperValueLimit)
                 {
                     upperValue = 0;
                     LimitReached?.Invoke();
+                    ValueOverflown?.Invoke();
                 }
                 else
                 {
                     upperValue += 1;
                 }
+                var counterEntry = clockSource.GetClockEntry(HandleLimitReached);
+                UpdateAllComparePoints(counterEntry);
             }
 
             private void TrySyncTime()
@@ -502,12 +641,15 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
             }
 
-            private static readonly ulong TimerLimit = BitHelper.CalculateQuadWordMask(FractionalBits + LowerBits, 0);
-            private static readonly ulong UpperValueLimit = BitHelper.CalculateQuadWordMask(UpperBits, 0);
+            private static readonly ulong timerLimit = BitHelper.CalculateQuadWordMask(FractionalBits + LowerBits, 0);
+            private static readonly ulong upperValueLimit = BitHelper.CalculateQuadWordMask(UpperBits, 0);
+            private static readonly ulong lowerValueMask = BitHelper.CalculateQuadWordMask(LowerBits, 0);
 
             private ulong upperValue;
 
             private readonly ulong frequency;
+
+            private readonly Dictionary<Action, ComparePoint> comparePoints = new Dictionary<Action, ComparePoint>();
             private readonly ArmCorstone_SystemCounter parent;
             private readonly IClockSource clockSource;
 
@@ -518,6 +660,54 @@ namespace Antmicro.Renode.Peripherals.Timers
             private const int LowerBits = 40;
             // code assumes FractionalBits + LowerBits <= 64
             private const int FractionalBits = 24;
+
+            private class ComparePoint
+            {
+                public ComparePoint(Action handle, IEmulationElement parent, string localName)
+                {
+                    this.handle = handle;
+                    Parent = parent;
+                    Name = localName;
+                }
+
+                public void HandleComparePointReached()
+                {
+                    Active = false;
+                    handle?.Invoke();
+                }
+
+                public ClockEntry CreateClockEntry(ClockEntry main)
+                {
+                    var entry = new ClockEntry(
+                        (Value & lowerValueMask) << FractionalBits,
+                        main.Frequency,
+                        HandleComparePointReached,
+                        Parent,
+                        Name,
+                        main.Enabled && Active,
+                        main.Direction,
+                        WorkMode.OneShot,
+                        main.Step
+                    );
+
+                    entry.Value = main.Value;
+                    entry.ValueResiduum = main.ValueResiduum;
+
+                    return entry;
+                }
+
+                public override string ToString() => Misc.ToDebugString(this);
+
+                public bool Active { get; set; }
+
+                public ulong Value { get; set; }
+
+                public IEmulationElement Parent { get; }
+
+                public string Name { get; }
+
+                private readonly Action handle;
+            }
         }
     }
 }
