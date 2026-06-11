@@ -44,6 +44,7 @@ namespace Antmicro.Renode.UI
             var dialog = ApplicationExtensions.InvokeInUIThreadAndWait(() =>
             {
                 var localDialog = CreateErrorWindow(message);
+                localDialog.Hidden += (_, __) => localDialog.Close();
                 localDialog.Closed += (_, __) => mre.Set();
                 localDialog.Show();
                 return localDialog;
