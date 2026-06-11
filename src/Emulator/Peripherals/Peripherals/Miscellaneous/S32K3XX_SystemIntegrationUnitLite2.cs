@@ -452,6 +452,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             Registers.MaskedParallelGPIOPadDataOut0.DefineMany(asDoubleWordCollection, PadDataCount, (register, registerIndex) =>
             {
+                var legalPins = 0;
                 for(var flagIndex = 0; flagIndex < 16; ++flagIndex)
                 {
                     var maskFlagIndex = 16 + flagIndex;
@@ -462,9 +463,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         register.WithReservedBits(flagIndex, 1);
                         continue;
                     }
-                    register.WithTaggedFlag($"MaskField{flagIndex}", maskFlagIndex);
-                    register.WithTaggedFlag($"MaskedParallelPadDataOut{flagIndex}", flagIndex);
+
+                    if(validPadIndexes.Contains(registerIndex * 16 + 15 - flagIndex))
+                    {
+                        legalPins |= 1 << flagIndex;
+                    }
+                    register.WithFlag(maskFlagIndex, FieldMode.Write, name: $"MaskField{flagIndex}");
+                    register.WithFlag(flagIndex, FieldMode.Write, name: $"MaskedParallelPadDataOut{flagIndex}");
                 }
+                register.WithWriteCallback((_, value) =>
+                {
+                    var mask = (ushort)((value >> 16) & legalPins);
+                    var values = (ushort)value;
+                    foreach(var i in BitHelper.GetSetBits(mask))
+                    {
+                        var index = registerIndex * 16 + 15 - i;
+                        var v = (values & i) == 1;
+                        Connections[index].Set((invertSignal[index]?.Value ?? false) ? v : !v);
+                    }
+                });
             });
         }
 
