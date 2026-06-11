@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -81,6 +82,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             base.Reset();
             registers.Reset();
 
+            lockedPins = 0;
+            lockSequenceState = LockSequence.Idle;
+
             for(var i = 0; i < NumberOfPins; i++)
             {
                 // Reset AF outputs before resetting pin modes as changing pin mode can affect whether AF is connected or not.
@@ -140,6 +144,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             alternateFunctionOutputs[number].IsConnected = newMode == Mode.AlternateFunction;
         }
 
+        private void GuardPinAction(int number, string name, Action action)
+        {
+            if(lockSequenceState == LockSequence.Armed && BitHelper.IsBitSet(lockedPins, (byte)number))
+            {
+                this.Log(LogLevel.Warning, "Ignoring attempt to change {0} configuration of the locked pin #{1}", name, number);
+                return;
+            }
+            action();
+        }
+
         private DoubleWordRegisterCollection CreateRegisters()
         {
             var registersMap = new Dictionary<long, DoubleWordRegister>
@@ -147,7 +161,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)Registers.Mode, new DoubleWordRegister(this)
                     .WithEnumFields<DoubleWordRegister, Mode>(0, 2, NumberOfPins, name: "MODER",
                         valueProviderCallback: (idx, _) => mode[idx],
-                        writeCallback: (idx, _, val) => ChangeMode(idx, val))
+                        changeCallback: (idx, _, val) => GuardPinAction(idx, "MODER", () => ChangeMode(idx, val)))
                 },
                 {(long)Registers.OutputType, new DoubleWordRegister(this)
                     .WithTaggedFlag("OT0", 0)
@@ -171,12 +185,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)Registers.OutputSpeed, new DoubleWordRegister(this)
                     .WithEnumFields<DoubleWordRegister, OutputSpeed>(0, 2, NumberOfPins, name: "OSPEEDR",
                         valueProviderCallback: (idx, _) => outputSpeed[idx],
-                        writeCallback: (idx, _, val) => { outputSpeed[idx] = val; })
+                        changeCallback: (idx, _, val) => GuardPinAction(idx, "OSPEEDR", () =>  outputSpeed[idx] = val))
                 },
                 {(long)Registers.PullUpPullDown, new DoubleWordRegister(this)
                     .WithEnumFields<DoubleWordRegister, PullUpPullDown>(0, 2, NumberOfPins, name: "PUPDR0",
                         valueProviderCallback: (idx, _) => pullUpPullDown[idx],
-                        writeCallback: (idx, _, val) => { pullUpPullDown[idx] = val; })
+                        changeCallback: (idx, _, val) => GuardPinAction(idx, "PUPDR0", () => pullUpPullDown[idx] = val))
                 },
                 {(long)Registers.InputData, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State), name: "IDR")
@@ -195,34 +209,70 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         name: "GPIOx_BR")
                 },
                 { (long)Registers.ConfigurationLock, new DoubleWordRegister(this)
-                    .WithTaggedFlag("LCK0", 0)
-                    .WithTaggedFlag("LCK1", 1)
-                    .WithTaggedFlag("LCK2", 2)
-                    .WithTaggedFlag("LCK3", 3)
-                    .WithTaggedFlag("LCK4", 4)
-                    .WithTaggedFlag("LCK5", 5)
-                    .WithTaggedFlag("LCK6", 6)
-                    .WithTaggedFlag("LCK7", 7)
-                    .WithTaggedFlag("LCK8", 8)
-                    .WithTaggedFlag("LCK9", 9)
-                    .WithTaggedFlag("LCK10", 10)
-                    .WithTaggedFlag("LCK11", 11)
-                    .WithTaggedFlag("LCK12", 12)
-                    .WithTaggedFlag("LCK13", 13)
-                    .WithTaggedFlag("LCK14", 14)
-                    .WithTaggedFlag("LCK15", 15)
-                    .WithTaggedFlag("LCKK", 16)
+                    .WithValueField(0, 16, out var pendingLockPins, name: "LCK",
+                        valueProviderCallback: _ =>
+                        {
+                            if(lockSequenceState == LockSequence.Step2)
+                            {
+                                lockSequenceState = LockSequence.Armed;
+                            }
+                            if(lockSequenceState != LockSequence.Armed)
+                            {
+                                lockSequenceState = LockSequence.Idle;
+                            }
+                            return lockedPins;
+                        })
+                    .WithFlag(16, out var lockBit, name: "LCKK")
                     .WithReservedBits(17, 15)
+                    .WithWriteCallback((_, __) =>
+                    {
+                        switch(lockSequenceState)
+                        {
+                        case LockSequence.Idle:
+                            if(!lockBit.Value)
+                            {
+                                return;
+                            }
+                            lockedPins = pendingLockPins.Value;
+                            lockSequenceState++;
+                            break;
+
+                        case LockSequence.Step0:
+                            if(lockBit.Value || pendingLockPins.Value != lockedPins)
+                            {
+                                goto case default;
+                            }
+                            lockSequenceState++;
+                            break;
+
+                        case LockSequence.Step1:
+                            if(!lockBit.Value || pendingLockPins.Value != lockedPins)
+                            {
+                                goto case default;
+                            }
+                            lockSequenceState++;
+                            break;
+
+                        case LockSequence.Armed:
+                            // NOTE: Ignore write
+                            return;
+
+                        default:
+                            // NOTE: Reset lock sequence
+                            lockSequenceState = LockSequence.Idle;
+                            break;
+                        }
+                    })
                 },
                 {(long)Registers.AlternateFunctionLow, new DoubleWordRegister(this)
                     .WithValueFields(0, 4, 8, name: "AFSEL_LO",
-                            writeCallback: (i, _, val) => alternateFunctionOutputs[i].ActiveFunction = val,
+                            changeCallback: (i, _, val) => GuardPinAction(i, "AFSEL", () => alternateFunctionOutputs[i].ActiveFunction = val),
                             valueProviderCallback: (i, _) => alternateFunctionOutputs[i].ActiveFunction
                         )
                 },
                 {(long)Registers.AlternateFunctionHigh, new DoubleWordRegister(this)
                     .WithValueFields(0, 4, 8, name: "AFSEL_HI",
-                            writeCallback: (i, _, val) => alternateFunctionOutputs[i + 8].ActiveFunction = val,
+                            changeCallback: (i, _, val) => GuardPinAction(i + 8, "AFSEL", () => alternateFunctionOutputs[i + 8].ActiveFunction = val),
                             valueProviderCallback: (i, _) => alternateFunctionOutputs[i + 8].ActiveFunction
                         )
                 },
@@ -235,6 +285,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             };
             return new DoubleWordRegisterCollection(this, registersMap);
         }
+
+        private ulong lockedPins;
+        private LockSequence lockSequenceState;
 
         private readonly Mode[] mode;
         private readonly OutputSpeed[] outputSpeed;
@@ -355,6 +408,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Up       = 0b01,
             Down     = 0b10,
             Reserved = 0b11,
+        }
+
+        private enum LockSequence
+        {
+            Idle,
+            Step0,
+            Step1,
+            Step2,
+            Armed,
         }
 
         // Source: Chapter 7.4 in RM0090 Cortex M4 Reference Manual (Doc ID 018909 Rev 4)
