@@ -19,38 +19,22 @@ namespace Antmicro.Renode.UI
     {
         public UIProvider(int port)
         {
-            if(!FindUIExecutable(out var path))
+            uiPort = port;
+            if(!FindUIExecutable(out uiPath))
             {
                 Logger.Log(LogLevel.Error, "Couldn't find the {0} executable", UIExecutableName);
                 return;
             }
             if(RuntimeInfo.IsMacOS())
             {
-                SignRenodeUI(path);
+                SignRenodeUI(uiPath);
             }
             process = new Process
             {
-                StartInfo = new ProcessStartInfo { FileName = path, ArgumentList = { "--renode-port=" + port.ToString() } },
+                StartInfo = StartInfo,
                 EnableRaisingEvents = true
             };
-            process.Exited += (_, __) =>
-            {
-                if(process.ExitCode != 0)
-                {
-                    // No advice for macOS since it should have Safari pre-installed
-                    var advice = "";
-                    if(RuntimeInfo.IsWindows())
-                    {
-                        advice = "Make sure you have WebView2 installed";
-                    }
-                    else if(RuntimeInfo.IsLinux())
-                    {
-                        advice = "Make sure you have libwebkit2gtk-4.0-37 or libwebkit2gtk-4.1-0 installed";
-                    }
-                    ShowXwtError("Failed to launch renode-ui", advice);
-                }
-                WindowClosed?.Invoke();
-            };
+            process.Exited += ProcessExited;
             process.Start();
         }
 
@@ -116,7 +100,53 @@ namespace Antmicro.Renode.UI
             }
         }
 
+        private void ProcessExited(object _, EventArgs __)
+        {
+            // webkit2gtk (which is what renode-ui uses on Linux) silently crashes on some Nvidia GPUs, so try forcing software rendering if we crashed
+            if(RuntimeInfo.IsLinux() && !triedSettingSoftwareGL)
+            {
+                Logger.Log(LogLevel.Info, "Failed to launch renode-ui, trying again with software-only libgl");
+                triedSettingSoftwareGL = true;
+                var startInfo = StartInfo;
+                startInfo.Environment["LIBGL_ALWAYS_SOFTWARE"] = "true";
+                process = new Process
+                {
+                    StartInfo = startInfo,
+                    EnableRaisingEvents = true
+                };
+                process.Exited += ProcessExited;
+                process.Start();
+                return;
+            }
+            if(process.ExitCode != 0)
+            {
+                // No advice for macOS since it should have Safari pre-installed
+                var advice = "";
+                if(RuntimeInfo.IsWindows())
+                {
+                    advice = "Make sure you have WebView2 installed";
+                }
+                else if(RuntimeInfo.IsLinux())
+                {
+                    advice = "Make sure you have libwebkit2gtk-4.0-37 or libwebkit2gtk-4.1-0 installed";
+                }
+                else
+                {
+                    advice = "";
+                }
+                ShowXwtError("Failed to launch renode-ui", advice);
+            }
+            WindowClosed?.Invoke();
+        }
+
+        private ProcessStartInfo StartInfo => new ProcessStartInfo { FileName = uiPath, ArgumentList = { "--renode-port=" + uiPort.ToString() } };
+
         private Process process;
+
+        private bool triedSettingSoftwareGL = false;
+
+        private readonly string uiPath;
+        private readonly int uiPort;
 
         private const string UIExecutableName = "renode-ui";
     }
