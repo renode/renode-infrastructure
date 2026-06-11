@@ -128,7 +128,7 @@ namespace Antmicro.Renode.UI
                 }
                 else if(RuntimeInfo.IsLinux())
                 {
-                    advice = "Make sure you have libwebkit2gtk-4.0-37 or libwebkit2gtk-4.1-0 installed";
+                    advice = "Make sure you have libwebkit2gtk 4.0 or 4.1 installed";
                 }
                 else
                 {
