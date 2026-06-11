@@ -134,7 +134,7 @@ namespace Antmicro.Renode.UI
             }
             if(process.ExitCode != 0)
             {
-                // No advice for macOS since it should have Safari pre-installed
+                // No browser advice for macOS since it should have Safari pre-installed
                 var advice = "";
                 if(RuntimeInfo.IsWindows())
                 {
@@ -146,7 +146,7 @@ namespace Antmicro.Renode.UI
                 }
                 else
                 {
-                    advice = "";
+                    advice = $"This is possible if auto-signing failed. Try running the following command in a terminal:\ncodesign --sign - --force '{uiPath}'";
                 }
                 ShowXwtError("Failed to launch renode-ui", advice);
             }
