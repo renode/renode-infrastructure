@@ -1761,15 +1761,20 @@ namespace Antmicro.Renode.Core
             var firstUnbroadcastedAddressesOfSameArchCPUs = firstUnbroadcastedDirtyAddressIndex
                 .Where(pair => pair.Key.Architecture == cpu.Architecture);
 
+            // Halted CPUs are not considered here because their whole translation cache is cleared on unhalting
+            foreach(var haltedSameArchCPU in firstUnbroadcastedAddressesOfSameArchCPUs.Select(pair => pair.Key).Where(c => c.IsHalted))
+            {
+                firstUnbroadcastedDirtyAddressIndex[haltedSameArchCPU] = invalidatedAddressesByCpu[haltedSameArchCPU].Count;
+            }
+
             var firstUnread = firstUnbroadcastedAddressesOfSameArchCPUs.Select(pair => pair.Value).Min();
             if(firstUnread == 0)
             {
-                var currentListCount = invalidatedAddressesByCpu[cpu].Count;
                 var laggingCPUs = firstUnbroadcastedAddressesOfSameArchCPUs.Where(pair => pair.Value == 0).Select(pair => pair.Key);
                 cpu.DebugLog(
                     "Attempted reduction of {0} dirty addresses list failed, current count: {1}, " +
                     "requesting TB cache clear on CPUs that didn't fetch any: {2}",
-                    cpu.Architecture, currentListCount, string.Join(", ", laggingCPUs.Select(c => c.GetName()))
+                    cpu.Architecture, invalidatedAddressesByCpu[cpu].Count, string.Join(", ", laggingCPUs.Select(c => c.GetName()))
                 );
 
                 foreach(var laggingCPU in laggingCPUs)
@@ -1777,7 +1782,7 @@ namespace Antmicro.Renode.Core
                     laggingCPU.RequestTranslationCacheClearing();
 
                     // TB cache will be cleared so there's no need to broadcast any of the addresses from the current list anymore.
-                    firstUnbroadcastedDirtyAddressIndex[laggingCPU] = currentListCount;
+                    firstUnbroadcastedDirtyAddressIndex[laggingCPU] = invalidatedAddressesByCpu[laggingCPU].Count;
                 }
 
                 // Let's re-establish `firstUnread`.
@@ -1785,9 +1790,9 @@ namespace Antmicro.Renode.Core
             }
 
             invalidatedAddressesByCpu[cpu].RemoveRange(0, (int)firstUnread);
-            foreach(var key in firstUnbroadcastedAddressesOfSameArchCPUs.Select(pair => pair.Key))
+            foreach(var sameArchCPU in firstUnbroadcastedAddressesOfSameArchCPUs.Select(pair => pair.Key))
             {
-                firstUnbroadcastedDirtyAddressIndex[key] -= firstUnread;
+                firstUnbroadcastedDirtyAddressIndex[sameArchCPU] -= firstUnread;
             }
         }
 

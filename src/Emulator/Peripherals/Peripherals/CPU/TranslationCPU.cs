@@ -1038,6 +1038,21 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool DisableInterruptsWhileStepping { get; set; }
 
+        public override bool IsHalted
+        {
+            get => base.IsHalted;
+            set
+            {
+                if(base.IsHalted == value)
+                {
+                    return;
+                }
+                base.IsHalted = value;
+
+                TlibInvalidateTranslationCache();
+            }
+        }
+
         public abstract List<GDBFeatureDescriptor> GDBFeatures { get; }
 
         public abstract string GDBArchitecture { get; }
