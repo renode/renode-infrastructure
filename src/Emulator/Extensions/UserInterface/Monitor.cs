@@ -982,7 +982,7 @@ namespace Antmicro.Renode.UserInterface
 
         private void PrintException(string commandName, Exception e, ICommandInteraction writer)
         {
-            writer.WriteError(string.Format("There was an error executing command '{0}'", commandName));
+            writer.WriteError(string.Format("There was an error executing command '{0}': ", commandName));
             PrintExceptionDetails(e, writer);
         }
 
