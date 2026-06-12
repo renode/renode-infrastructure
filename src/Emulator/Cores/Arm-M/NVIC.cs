@@ -1932,11 +1932,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             public void UpdateSystickValue()
             {
-                if(reloadValue != 0)
+                if(reloadValue == 0)
                 {
-                    // Write to this register does not trigger the SysTick exception logic - we can't write zero to timer value as it would trigger an event.
-                    systick.Value = reloadValue;
+                    // Write to this register does not trigger the SysTick exception logic, so disable the timer before setting its value to 0
+                    systick.Enabled = false;
                 }
+
+                systick.Value = reloadValue;
                 CountFlag = false;
             }
 
