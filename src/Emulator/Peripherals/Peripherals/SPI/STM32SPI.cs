@@ -169,9 +169,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
             if(txDmaEnable.Value)
             {
-                // This function might be called from the DMA engine after setting DMASend so let's
-                // defer the next call to avoid infinite recursive call
-                Machine.LocalTimeSource.ExecuteInNearestSyncedState((___) => DMASend.Set(true));
+                DMASend.Set(true);
             }
             Update();
         }

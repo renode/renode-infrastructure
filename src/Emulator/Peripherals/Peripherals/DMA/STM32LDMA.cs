@@ -217,6 +217,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 TransferComplete = false;
                 HalfTransfer = false;
                 enabled = false;
+                transferInProgress = false;
+                triggerRequested = false;
             }
 
             public void DoTransfer()
@@ -291,12 +293,20 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public void OnGPIO(bool value)
             {
-                if(!value)
+                triggerRequested = value;
+
+                if(transferInProgress)
                 {
                     return;
                 }
 
-                DoTransfer();
+                transferInProgress = true;
+                while(triggerRequested)
+                {
+                    triggerRequested = false;
+                    DoTransfer();
+                }
+                transferInProgress = false;
             }
 
             public GPIO IRQ { get; private set; }
@@ -390,6 +400,9 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 IRQ.Set(transferCompleteInterrupt || halfTransferInterrupt);
             }
+
+            private bool transferInProgress;
+            private bool triggerRequested;
 
             private Direction direction;
             private byte priority;
