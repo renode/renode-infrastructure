@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 using Antmicro.Renode.Core;
@@ -353,13 +354,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 LogReceived("SYS_GET_CMDLINE", "args: 0x{0:X} / {1}", bufferPointer, bufferLength);
 
-                if(ProgramArguments == null)
-                {
-                    cpu.Bus.WriteDoubleWord(argumentsAddress + 4, 0, context: cpu); /* write 0 to signify there are no arguments */
-                    return 0;
-                }
+                var arguments = string.Join(" ", new[] { ProgramName, ProgramArguments }.Where(s => !string.IsNullOrEmpty(s)));
 
-                var argumentBytes = Encoding.UTF8.GetBytes(ProgramArguments + '\0');
+                var argumentBytes = Encoding.UTF8.GetBytes(arguments + '\0');
                 if(argumentBytes.Length > bufferLength)
                 {
                     semihostingErrno = Errno.EOVERFLOW;
@@ -554,7 +551,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool HaltOnExit { get; set; } = true;
 
+        public string ProgramName { get; set; } = "program-name";
+
         public string ProgramArguments { get; set; }
+
+        public string AttachedToCPU => cpu.GetName();
 
         public string TemporaryFilesDirectory { get; set; }
 
