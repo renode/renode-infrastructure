@@ -222,6 +222,16 @@ namespace Antmicro.Renode.Peripherals.SPI
             switch(command)
             {
             case Commands.FastRead:
+            case Commands.FastRead4byte:
+            case Commands.DualInputOutputFastRead:
+            case Commands.DualInputOutputFastRead4byte:
+            case Commands.DualOutputFastRead:
+            case Commands.DualOutputFastRead4byte:
+            case Commands.QuadOutputFastRead:
+            case Commands.QuadOutputFastRead4byte:
+            case Commands.QuadInputOutputFastRead:
+            case Commands.QuadInputOutputFastRead4byte:
+            case Commands.QuadInputOutputWordRead:
             case Commands.ReadSerialFlashDiscoveryParameter:
                 return 1;
             default:
