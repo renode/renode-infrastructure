@@ -477,6 +477,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
             register.DefineChangeCallback(changeCallback);
             return register;
         }
+
+        /// <summary>
+        /// Fluent API for adding register to a collection. For description see <see cref="BaseRegisterCollection.AddRegister"/>.
+        /// </summary>
+        /// <returns>This register.</returns>
+        public static QuadWordRegister DefinedFor(this QuadWordRegister register, QuadWordRegisterCollection collection, System.Enum o)
+        {
+            collection.AddRegister(Convert.ToInt64(o), register);
+            return register;
+        }
     }
 
     public static class DoubleWordRegisterExtensions
@@ -508,6 +518,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
         public static DoubleWordRegister WithChangeCallback(this DoubleWordRegister register, Action<uint, uint> changeCallback)
         {
             register.DefineChangeCallback(changeCallback);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for adding register to a collection. For description see <see cref="BaseRegisterCollection.AddRegister"/>.
+        /// </summary>
+        /// <returns>This register.</returns>
+        public static DoubleWordRegister DefinedFor(this DoubleWordRegister register, DoubleWordRegisterCollection collection, System.Enum o)
+        {
+            collection.AddRegister(Convert.ToInt64(o), register);
             return register;
         }
     }
@@ -543,6 +563,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
             register.DefineChangeCallback(changeCallback);
             return register;
         }
+
+        /// <summary>
+        /// Fluent API for adding register to a collection. For description see <see cref="BaseRegisterCollection.AddRegister"/>.
+        /// </summary>
+        /// <returns>This register.</returns>
+        public static WordRegister DefinedFor(this WordRegister register, WordRegisterCollection collection, System.Enum o)
+        {
+            collection.AddRegister(Convert.ToInt64(o), register);
+            return register;
+        }
     }
 
     public static class ByteRegisterExtensions
@@ -574,6 +604,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
         public static ByteRegister WithChangeCallback(this ByteRegister register, Action<byte, byte> changeCallback)
         {
             register.DefineChangeCallback(changeCallback);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for adding register to a collection. For description see <see cref="BaseRegisterCollection.AddRegister"/>.
+        /// </summary>
+        /// <returns>This register.</returns>
+        public static ByteRegister DefinedFor(this ByteRegister register, ByteRegisterCollection collection, System.Enum o)
+        {
+            collection.AddRegister(Convert.ToInt64(o), register);
             return register;
         }
     }
