@@ -580,37 +580,10 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(15, 1);
             }
 
-            var regularSequence1 = new DoubleWordRegister(this);
-
             if(hasChannelSequence)
-            {
-                if(hasChannelSelect)
-                {
-                    configurationRegister1
-                        .WithFlag(21, name: "CHSELRMOD"); // no actual logic, but software expects to read the value back
-                }
-                else
-                {
-                    regularSequence1
-                        .WithValueField(0, 4, out regularSequenceLength)
-                        .WithReservedBits(28, 4);
-
-                    for(var i = 0; i < 4; ++i)
-                    {
-                        var j = i;
-                        regularSequence1
-                            .WithReservedBits(4 + 6 * i, 2)
-                            .WithValueField(6 + 6 * i, 4, out regularSequence[j]);
-                    }
-                }
-            }
-            else
             {
                 configurationRegister1
                     .WithReservedBits(21, 1);
-
-                regularSequence1
-                    .WithReservedBits(0, 32);
             }
 
             var configurationRegister2 = new DoubleWordRegister(this)
@@ -713,7 +686,6 @@ namespace Antmicro.Renode.Peripherals.Analog
                 {(long)Registers.Control, controlRegister},
                 {(long)Registers.Configuration1, configurationRegister1},
                 {(long)Registers.Configuration2, configurationRegister2},
-                {(long)Registers.RegularSequence1, regularSequence1},
                 {(long)Registers.DataRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out data, FieldMode.Read, readCallback: (_, __) =>
                         {
@@ -728,6 +700,11 @@ namespace Antmicro.Renode.Peripherals.Analog
                 },
                 {(long)Registers.CommonConfiguration, commonConfigurationRegister},
             };
+
+            if(hasChannelSequence)
+            {
+                BuildRegularSequenceRegisters(registers, MaximumSequenceLength);
+            }
 
             BuildSampingTimeRegisters(registers, samplingTime);
 
@@ -830,6 +807,56 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
 
             return registers;
+        }
+
+        private void BuildRegularSequenceRegisters(Dictionary<long, DoubleWordRegister> registers, int sequenceCount)
+        {
+            DoubleWordRegister BuildRegularSequenceRegister(int offset, int sequenceCount, bool containsSequenceLength)
+            {
+                var register = new DoubleWordRegister(this);
+                var sequenceOffset = 0;
+
+                if(containsSequenceLength)
+                {
+                    register.WithValueField(0, 4, out regularSequenceLength, name: "L")
+                        .WithReservedBits(4, 2);
+                    sequenceOffset = 6;
+                }
+
+                for(var i = 0; i < sequenceCount; i++)
+                {
+                    var sequenceFieldWidth = 5;
+                    var sequenceIndex = offset + i;
+
+                    register
+                        .WithValueField(sequenceOffset, sequenceFieldWidth, out regularSequence[sequenceIndex], name: $"SQ{sequenceIndex + 1}")
+                        .WithReservedBits(sequenceOffset + sequenceFieldWidth, 1);
+                    sequenceOffset += sequenceFieldWidth + 1;
+                }
+                register.WithReservedBits(sequenceOffset, register.RegisterWidth - sequenceOffset);
+                return register;
+            }
+
+            Registers GetSequenceRegister(int i) => i switch
+            {
+                0 => Registers.RegularSequence1,
+                1 => Registers.RegularSequence2,
+                2 => Registers.RegularSequence3,
+                3 => Registers.RegularSequence4,
+                _ => throw new ConstructionException($"ADC_SQR{i} does not exist")
+            };
+
+            var sequenceOffset = 0;
+            for(var i = 0; i < 4; i++)
+            {
+                var sequencesPerRegister = i == 0 ? 4 : 5;
+                var sequencesInRegister = Math.Min(sequencesPerRegister, sequenceCount - sequenceOffset);
+
+                var register = BuildRegularSequenceRegister(sequenceOffset, sequencesInRegister, i == 0);
+
+                registers.Add((long)GetSequenceRegister(i), register);
+                sequenceOffset += sequencesPerRegister;
+            }
         }
 
         private void BuildSampingTimeRegisters(Dictionary<long, DoubleWordRegister> registers, SamplingTime samplingTime)
@@ -1000,7 +1027,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             ChannelSelection       = 0x28, // ADC_CHSELR
             Watchdog3Threshold     = 0x2C, // ADC_AWD3TR
             RegularSequence1       = 0x30, // ADC_SQR1
-            // Gap intended
+            RegularSequence2       = 0x34, // ADC_SQR2
+            RegularSequence3       = 0x38, // ADC_SQR3
+            RegularSequence4       = 0x3C, // ADC_SQR4
             DataRegister           = 0x40, // ADC_DR
             Power                  = 0x44, // ADC_PWRR
             // Gap intended
