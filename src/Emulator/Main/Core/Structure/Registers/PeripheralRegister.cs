@@ -808,13 +808,13 @@ namespace Antmicro.Renode.Core.Structure.Registers
             {
                 throw new ArgumentException("Field {0} does not fit in the register size.".FormatWith(name ?? "at {0} of {1} bits".FormatWith(position, width)));
             }
-            foreach(var field in registerFields.Select(x => new { x.Position, x.Width }).Concat(tags.Select(x => new { Position = x.Position, Width = x.Width })))
+            foreach(var field in registerFields.Select(x => new { x.Position, x.Width, x.Name }).Concat(tags.Select(x => new { Position = x.Position, Width = x.Width, Name = x.Name })))
             {
                 var minEnd = Math.Min(position + width, field.Position + field.Width);
                 var maxStart = Math.Max(position, field.Position);
                 if(minEnd > maxStart)
                 {
-                    throw new ArgumentException("Field {0} intersects with another range.".FormatWith(name ?? "at {0} of {1} bits".FormatWith(position, width)));
+                    throw new ArgumentException($"Field {name ?? "Unnamed"} at {position} of {width} bits intersects with another range {field.Name} at {field.Position} of {field.Width} bits");
                 }
             }
         }
