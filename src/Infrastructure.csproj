@@ -65,9 +65,6 @@
     <Compile Remove="Emulator/Peripherals/Test/**/*"/>
     <Compile Remove="Emulator/Extensions/MonitorTests/**/*" />
   </ItemGroup>
-  <ItemGroup Condition="$(CurrentPlatform) != 'Linux' Or $(Architecture) != 'i386'">
-    <Compile Remove="Emulator/Cores/KVM/**" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../../lib/Migrant/Migrant/Migrant.csproj"/>

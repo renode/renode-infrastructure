@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,6 +14,7 @@ using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
+    [SupportedRID("linux-x64")]
     public abstract class X86KVMBase : KVMCPU
     {
         // field in the 'flags' variable are defined in
