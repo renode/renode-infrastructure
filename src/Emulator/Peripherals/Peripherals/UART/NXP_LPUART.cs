@@ -638,10 +638,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateErrorFlags()
         {
-            // Error flags are based on the next character in the RX FIFO, start with them cleared
-            noiseFlag.Value = false;
-            framingErrorFlag.Value = false;
-            parityErrorFlag.Value = false;
             if(TryGetCharacterWithFrame(out var data, out var frame, peek: true) && frame != null)
             {
                 if(frame.StopBits != this.StopBits)
