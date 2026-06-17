@@ -227,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
 
             ADCContainer.Register(peripheral, channel);
-            peripheral.NewSample += newValue => WarnOnTooBigValue((double)newValue.Voltage / 1e3); // µV to mV
+            peripheral.NewSample += newValue => WarnOnTooBigValue(channel.Address, (double)newValue.Voltage / 1e3); // µV to mV
         }
 
         public DoubleWordRegisterCollection RegistersCollection { get => registers; }
@@ -240,21 +240,23 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; }
 
-        private void WarnOnTooBigValue(double mv)
+        private void WarnOnTooBigValue(int channel, double mv)
         {
             var maxValue = (1 << data.Width) - 1;
 
             if(MillivoltsToSample(mv, Resolution.Min) > maxValue)
             {
-                this.Log(LogLevel.Warning, "{0}mV is too big in any ADC configuration", mv);
+                this.Log(LogLevel.Warning, "Channel {0}: {1}mV is too big in any ADC configuration", channel, mv);
             }
             else if(MillivoltsToSample(mv) > maxValue)
             {
-                this.Log(LogLevel.Warning, "{0}mV is too big for current ADC resolution", mv);
+                this.Log(LogLevel.Warning, "Channel {0}: {1}mV is too big for current ADC resolution", channel, mv);
             }
             else if(MillivoltsToSample(mv, Resolution.Max) > maxValue)
             {
-                this.Log(LogLevel.Debug, "{0}mV will be too big for some ADC resolution other than the current one", mv);
+                this.Log(LogLevel.Debug,
+                         "Channel {0}: {1}mV will be too big for some ADC resolution other than the current one",
+                         channel, mv);
             }
         }
 
