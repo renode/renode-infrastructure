@@ -105,20 +105,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Register]
-        public RegisterValue CurrentSP
-        {
-            get
-            {
-                return GetRegisterValue32((int)CortexMRegisters.CurrentSP);
-            }
-
-            set
-            {
-                SetRegisterValue32((int)CortexMRegisters.CurrentSP, value);
-            }
-        }
-
-        [Register]
         public RegisterValue OtherSP
         {
             get
@@ -379,7 +365,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             { CortexMRegisters.Control,  new CPURegister(18, 32, isGeneral: false, isReadonly: false, aliases: new [] { "Control" }) },
             { CortexMRegisters.BasePri,  new CPURegister(19, 32, isGeneral: false, isReadonly: false, aliases: new [] { "BasePri" }) },
             { CortexMRegisters.VecBase,  new CPURegister(20, 32, isGeneral: false, isReadonly: false, aliases: new [] { "VecBase" }) },
-            { CortexMRegisters.CurrentSP,  new CPURegister(21, 32, isGeneral: false, isReadonly: false, aliases: new [] { "CurrentSP" }) },
             { CortexMRegisters.OtherSP,  new CPURegister(22, 32, isGeneral: false, isReadonly: false, aliases: new [] { "OtherSP" }) },
             { CortexMRegisters.FPCCR,  new CPURegister(23, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FPCCR" }) },
             { CortexMRegisters.FPCAR,  new CPURegister(24, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FPCAR" }) },
@@ -467,7 +452,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         Control = 18,
         BasePri = 19,
         VecBase = 20,
-        CurrentSP = 21,
         OtherSP = 22,
         FPCCR = 23,
         FPCAR = 24,

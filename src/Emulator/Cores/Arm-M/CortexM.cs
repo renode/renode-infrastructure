@@ -302,6 +302,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             set => VectorTableOffset = value;
         }
 
+        public bool IsUsingProcessSP
+        {
+            get
+            {
+                return tlibGetProcessSp() > 0;
+            }
+
+            set
+            {
+                tlibSetProcessSp(value ? 1u : 0u);
+            }
+        }
+
         public UInt32 PmsaV8Mair0
         {
             get
@@ -1080,6 +1093,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         /* TrustZone SAU */
         [Import]
         private readonly Action<uint> tlibSetNumberOfSauRegions;
+
+        [Import]
+        private readonly Func<uint> tlibGetProcessSp;
+
+        [Import]
+        private readonly Action<uint> tlibSetProcessSp;
 
         [Import]
         private readonly Func<uint, uint, uint> tlibTryRemoveImplementationDefinedExemptionRegion;
