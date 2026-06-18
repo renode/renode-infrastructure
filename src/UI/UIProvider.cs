@@ -95,7 +95,7 @@ namespace Antmicro.Renode.UI
         private void ProcessExited(object _, EventArgs __)
         {
             // webkit2gtk (which is what renode-ui uses on Linux) silently crashes on some Nvidia GPUs, so try forcing software rendering if we crashed
-            if(RuntimeInfo.IsLinux() && !triedSettingSoftwareGL)
+            if(RuntimeInfo.IsLinux() && process.ExitCode != 0 && !triedSettingSoftwareGL)
             {
                 Logger.Log(LogLevel.Info, "Failed to launch renode-ui, trying again with software-only libgl");
                 triedSettingSoftwareGL = true;
