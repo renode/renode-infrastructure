@@ -84,7 +84,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Registers.ClockMux0SelectStatus.Define(this, 0x0008_0000)
                 .WithReservedBits(28, 4)
                 .WithEnumField<DoubleWordRegister, SourceClock>(24, 4, mode: FieldMode.Read, valueProviderCallback: _ => clockMux0Source.Value, name: "SELSTAT")
-                .WithTag("SWTRG", 17, 3)
+                .WithValueField(17, 3, mode: FieldMode.Read, valueProviderCallback: _ => 0b001, name: "SWTRG")
                 .WithTaggedFlag("SWIP", 16)
                 .WithReservedBits(4, 12)
                 .WithTaggedFlag("SAFE_SW", 3)
@@ -109,7 +109,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 reg
                     .WithReservedBits(28, 4)
                     .WithTag("SELSTAT", 24, 4)
-                    .WithTag("SWTRG", 17, 3)
+                    .WithValueField(17, 3, mode: FieldMode.Read, valueProviderCallback: _ => 0b001, name: "SWTRG")
                     .WithTaggedFlag("SWIP", 16)
                     .WithReservedBits(4, 12)
                     .WithTaggedFlag("SAFE_SW", 3)
