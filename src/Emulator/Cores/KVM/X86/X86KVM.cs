@@ -163,7 +163,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public Endianess DisassemblyHexFormatting => Endianess.BigEndian;
 
-
         public string LLVMModel => Model == "x86" ? "i386" : Model;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
