@@ -366,7 +366,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 break;
             case Registers.SoftwareTriggerInterrupt:
                 // This register is implemented only in ARMv7m and ARMv8m
-                if(cpu.Model == "cortex-m3" || cpu.Model == "cortex-m4" || cpu.Model == "cortex-m4f" || cpu.Model == "cortex-m7")
+                if(cpu.ArchitectureVersion >= 7)
                 {
                     SetPendingIRQ((int)(16 + value));
                 }
