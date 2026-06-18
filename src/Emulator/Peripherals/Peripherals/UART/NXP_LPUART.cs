@@ -18,7 +18,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
-    public class NXP_LPUART : UARTBaseWithFrameInfo, IUARTWithBufferState, ILINController, IBytePeripheral, IDoubleWordPeripheral, IKnownSize
+    public class NXP_LPUART : UARTBaseWithFrameInfo, IUARTWithBufferState, ILINController, IBytePeripheral, IDoubleWordPeripheral, IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
         public NXP_LPUART(IMachine machine, long frequency = 8000000, bool hasGlobalRegisters = true, bool hasFifoRegisters = true, uint fifoSize = DefaultFIFOSize, bool separateIRQs = false) : base(machine)
         {
@@ -321,7 +321,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 );
             }
 
-            registers = new DoubleWordRegisterCollection(this, registersMap);
+            RegistersCollection = new DoubleWordRegisterCollection(this, registersMap);
         }
 
         public override void Reset()
@@ -329,7 +329,7 @@ namespace Antmicro.Renode.Peripherals.UART
             lock(locker)
             {
                 base.Reset(); // reset clears all buffered characters
-                registers.Reset();
+                RegistersCollection.Reset();
                 txQueue.Clear();
                 latestBufferState = BufferState.Empty;
                 rxMaxBytes = 1;
@@ -353,7 +353,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     return 0;
                 }
 
-                return (byte)registers.Read(offset);
+                return (byte)RegistersCollection.Read(offset);
             }
         }
 
@@ -367,7 +367,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     return;
                 }
 
-                registers.Write(offset, value);
+                RegistersCollection.Write(offset, value);
             }
         }
 
@@ -375,7 +375,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock(locker)
             {
-                return registers.Read(offset);
+                return RegistersCollection.Read(offset);
             }
         }
 
@@ -383,7 +383,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             lock(locker)
             {
-                registers.Write(offset, value);
+                RegistersCollection.Write(offset, value);
             }
         }
 
@@ -474,6 +474,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 }
             }
         }
+
+        public DoubleWordRegisterCollection RegistersCollection { get; }
 
         public event Action BroadcastLINBreak;
 
@@ -850,7 +852,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly object locker;
         private readonly Queue<byte> txQueue;
         private readonly Queue<(byte, UARTFrame)> intermediateRxQueue;
-        private readonly DoubleWordRegisterCollection registers;
         private readonly IFlagRegisterField reset;
         private readonly IFlagRegisterField stopBitNumberSelect;
         private readonly IFlagRegisterField bothEdgeSampling;
