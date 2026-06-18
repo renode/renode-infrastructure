@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void DefineRegisters()
         {
             Registers.Control.Define(this, 0x8000_0000)
-                .WithTaggedFlag("PLLPD", 31)
+                .WithFlag(31, name: "PLLPD")
                 .WithReservedBits(0, 31);
             Registers.Status.Define(this, 0x0000_0300)
                 .WithReservedBits(4, 28)
