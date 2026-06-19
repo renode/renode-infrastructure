@@ -227,7 +227,12 @@ namespace Antmicro.Renode.Utilities.Binding
             // just use it without verifying its layout.
             // Its name is derived from the full name of the class to bind (including its namespace): for example,
             // the wrappers type for Some.Namespace.Class will be NativeBinder.Some.Namespace.ClassWrappers.
-            var wrappersTypeName = $"NativeBinder.{classToBind.GetType().FullName}Wrappers";
+
+            // GetType and DefineType might handle some special characters differently
+            // DefineType tends to escape them, even in GetType().FullName doesn't have them escaped
+            // Let's just replace them at this point, since we only want to create a new type
+            // '+' is used in nested classes.
+            var wrappersTypeName = $"NativeBinder.{classToBind.GetType().FullName}Wrappers".Replace("+", "__");
 
             lock(moduleBuilder)
             {
@@ -235,6 +240,7 @@ namespace Antmicro.Renode.Utilities.Binding
 
                 if(wrappersType == null)
                 {
+                    // If this line crashes, see explanation above wrappersTypeName
                     var typeBuilder = moduleBuilder.DefineType(wrappersTypeName);
                     typeBuilder.DefineField(nameof(ExceptionKeeper), typeof(ExceptionKeeper), FieldAttributes.Public);
                     typeBuilder.DefineField(nameof(classToBind), classToBind.GetType(), FieldAttributes.Public);
