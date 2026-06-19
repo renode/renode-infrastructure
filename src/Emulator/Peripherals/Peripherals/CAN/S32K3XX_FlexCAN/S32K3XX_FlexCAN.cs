@@ -818,15 +818,15 @@ namespace Antmicro.Renode.Peripherals.CAN
             ;
 
             Registers.CanFdBitTiming.Define(this, softResettable: false)
-                .WithTag("Fast Phase Segment 2 (FDCBT.FPSEG2)", 0, 3)
+                .WithValueField(0, 3, name: "Fast Phase Segment 2 (FDCBT.FPSEG2)")
                 .WithReservedBits(3, 2)
-                .WithTag("Fast Phase Segment 1 (FDCBT.FPSEG1)", 5, 3)
+                .WithValueField(5, 3, name: "Fast Phase Segment 1 (FDCBT.FPSEG1)")
                 .WithReservedBits(8, 2)
-                .WithTag("Fast Propagation Segment (FDCBT.FPROPSEG)", 10, 5)
+                .WithValueField(10, 5, name: "Fast Propagation Segment (FDCBT.FPROPSEG)")
                 .WithReservedBits(15, 1)
-                .WithTag("Fast Resync Jump Width (FDCBT.FRJW)", 16, 3)
+                .WithValueField(16, 3, name: "Fast Resync Jump Width (FDCBT.FRJW)")
                 .WithReservedBits(19, 1)
-                .WithTag("Fast Prescaler Division Factor (FDCBT.FPRESDIV)", 20, 10)
+                .WithValueField(20, 10, name: "Fast Prescaler Division Factor (FDCBT.FPRESDIV)")
                 .WithReservedBits(30, 2)
             ;
 
