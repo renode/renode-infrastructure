@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Utilities
             EnsureCacheDirectory();
             using(var locker = new FileLocker(Path.Combine(cacheLocation, LockFileName)))
             {
-                FileCopier.Copy(filename, Path.Combine(cacheLocation, sha), true);
+                File.Copy(filename, Path.Combine(cacheLocation, sha), true);
                 internalCache.Add(sha);
             }
         }

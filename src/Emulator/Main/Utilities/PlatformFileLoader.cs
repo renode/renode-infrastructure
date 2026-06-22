@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Utilities
             var baseFile = FindPlatformFile(filename);
             var file = TemporaryFilesManager.Instance.GetTemporaryFile();
 
-            FileCopier.Copy(baseFile, file, true);
+            File.Copy(baseFile, file, true);
             Logger.Log(LogLevel.Noisy, $"Copying platform file {filename} to {file}");
 
             return file;

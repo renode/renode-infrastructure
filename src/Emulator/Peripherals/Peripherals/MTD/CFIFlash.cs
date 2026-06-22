@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -258,7 +258,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             if(nonPersistent)
             {
                 var tempFile = TemporaryFilesManager.Instance.GetTemporaryFile();
-                FileCopier.Copy(fileName, tempFile, true);
+                File.Copy(fileName, tempFile, true);
                 fileName = tempFile;
             }
             // if `requestedSize` is `null`, the file lenght will be used

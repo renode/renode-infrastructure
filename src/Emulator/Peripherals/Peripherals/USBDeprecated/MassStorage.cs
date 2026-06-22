@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,7 +11,6 @@ using System.IO;
 
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Storage;
-using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
@@ -350,7 +349,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 {
                     if(lbaBackend.UnderlyingFile != null && File.Exists(lbaBackend.UnderlyingFile))
                     {
-                        FileCopier.Copy(lbaBackend.UnderlyingFile, value);
+                        File.Copy(lbaBackend.UnderlyingFile, value);
                     }
                     else
                     {

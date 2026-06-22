@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -101,7 +101,7 @@ namespace Antmicro.Renode.Storage
             if(!persistent)
             {
                 var tempFileName = TemporaryFilesManager.Instance.GetTemporaryFile();
-                FileCopier.Copy(underlyingFile, tempFileName, true);
+                File.Copy(underlyingFile, tempFileName, true);
                 underlyingFile = tempFileName;
             }
             if(numberOfBlocks == null)
