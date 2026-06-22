@@ -34,14 +34,12 @@ typedef struct list_node_t {
 
 typedef struct {
     list_node_t* guest_to_host_head;
-    list_node_t* host_to_guest_head;
     
     uint32_t size;
     
     host_memory_block_t *elements;
     
     list_node_t *guest_to_host_nodes;
-    list_node_t *host_to_guest_nodes;
 } host_memory_block_lists_t;
 
 static host_memory_block_lists_t *lists;
@@ -95,31 +93,6 @@ try_find_block:
   goto try_find_block;
 }
 
-uint64_t tlib_host_ptr_to_guest_offset(void *ptr)
-{
-  host_memory_block_lists_t *host_blocks_list_cached;
-  list_node_t *current_block;
-
-  host_blocks_list_cached = lists;
-
-  if(host_blocks_list_cached != NULL)
-  {
-      current_block = host_blocks_list_cached->host_to_guest_head; 
-      while(current_block != NULL)
-      {
-        if(ptr >= current_block->element->host_pointer && ptr <= (current_block->element->host_pointer + current_block->element->size - 1)) {
-            move_to_head(&host_blocks_list_cached->host_to_guest_head, current_block);
-            return current_block->element->start + (ptr - current_block->element->host_pointer);
-        }
-
-        current_block = current_block->next;
-      }
-  }
-
-  tlib_abort("Trying to translate pointer that was not allocated by us.");
-  return 0;
-}
-
 static void free_list(host_memory_block_lists_t **lists)
 {
     if(*lists == NULL)
@@ -129,7 +102,6 @@ static void free_list(host_memory_block_lists_t **lists)
 
     tlib_free((*lists)->elements);
     tlib_free((*lists)->guest_to_host_nodes);
-    tlib_free((*lists)->host_to_guest_nodes);
     tlib_free(*lists);
 
     *lists = NULL;
@@ -149,8 +121,6 @@ void renode_set_host_blocks(host_memory_block_packed_t *blocks, int count)
 
   new_mappings->guest_to_host_nodes = tlib_malloc(sizeof(list_node_t) * count);
   new_mappings->guest_to_host_head = &new_mappings->guest_to_host_nodes[0];
-  new_mappings->host_to_guest_nodes = tlib_malloc(sizeof(list_node_t) * count);
-  new_mappings->host_to_guest_head = &new_mappings->host_to_guest_nodes[0];
 
   for(i = 0; i < count; i++) {
     new_mappings->elements[i].start = blocks[i].start;
@@ -158,28 +128,23 @@ void renode_set_host_blocks(host_memory_block_packed_t *blocks, int count)
     new_mappings->elements[i].host_pointer = blocks[i].host_pointer;
 
     new_mappings->guest_to_host_nodes[i].element = &new_mappings->elements[i];
-    new_mappings->host_to_guest_nodes[i].element = &new_mappings->elements[i];
 
     if(i == 0)
     {
         new_mappings->guest_to_host_nodes[i].prev = NULL;
-        new_mappings->host_to_guest_nodes[i].prev = NULL;
     }
     else
     {
         new_mappings->guest_to_host_nodes[i].prev = &new_mappings->guest_to_host_nodes[i - 1];
-        new_mappings->host_to_guest_nodes[i].prev = &new_mappings->host_to_guest_nodes[i - 1];
     }
 
     if(i == count - 1)
     {
         new_mappings->guest_to_host_nodes[i].next = NULL;
-        new_mappings->host_to_guest_nodes[i].next = NULL;
     }
     else
     {
         new_mappings->guest_to_host_nodes[i].next = &new_mappings->guest_to_host_nodes[i + 1];
-        new_mappings->host_to_guest_nodes[i].next = &new_mappings->host_to_guest_nodes[i + 1];
     }
   }
 
