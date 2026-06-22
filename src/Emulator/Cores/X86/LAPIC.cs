@@ -239,8 +239,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             var addresses = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.LocalAPICId, new DoubleWordRegister(this)
-                                .WithReservedBits(0, 24)
-                                .WithValueField(24, 8, FieldMode.Read, valueProviderCallback: _ => (ulong)this.PhysicalID, name: "Local APIC ID")
+                                .WithValueField(0, 32, FieldMode.Read, name: "Local APIC ID", valueProviderCallback: _ =>
+                                {
+                                    return X2Mode ? (ulong)this.PhysicalID : ((ulong)this.PhysicalID << 24);
+                                })
                 },
                 {(long)Registers.LocalAPICVersion, new DoubleWordRegister(this, Version + (MaxLVTEntry << 16))
                                 .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => Version, name: "Local APIC Version")
