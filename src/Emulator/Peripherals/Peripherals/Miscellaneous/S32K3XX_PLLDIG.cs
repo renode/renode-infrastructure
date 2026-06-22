@@ -62,7 +62,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 8, out outputMultiplier, name: "MFI")
                 .WithChangeCallback((_, _) => UpdateFrequency());
             Registers.FrequencyModulation.Define(this, 0x4000_000)
-                .WithTag("PLLFM", 0, 32);
+                .WithReservedBits(31, 1)
+                .WithFlag(30, name: "SSCGBYP")
+                .WithFlag(29, name: "SPREADCTL")
+                .WithReservedBits(26, 3)
+                .WithValueField(16, 10, name: "STEPSIZE")
+                .WithReservedBits(11, 5)
+                .WithValueField(0, 11, name: "STEPNO");
             Registers.FractionalDivider.Define(this)
                 .WithReservedBits(31, 1)
                 .WithTag("SDMEN", 28, 3)

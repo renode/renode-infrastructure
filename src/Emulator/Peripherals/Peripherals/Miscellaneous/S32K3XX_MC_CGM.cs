@@ -18,6 +18,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public S32K3XX_MC_CGM(IMachine machine, List<IHasFrequency> coreClk) : base(machine)
         {
             this.coreClk = coreClk;
+
+            lastStatusFlagValues = new int[20];
+            for(var i = 0; i < lastStatusFlagValues.Length; i++)
+            {
+                lastStatusFlagValues[i] = 0;
+            }
             DefineRegisters();
             Reset();
         }
@@ -25,6 +31,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public override void Reset()
         {
             phaseLockedLoop0Frequency = 0;
+            for(var i = 0; i < lastStatusFlagValues.Length; i++)
+            {
+                lastStatusFlagValues[i] = 0;
+            }
             base.Reset();
             OnClockingChanged();
         }
@@ -87,10 +97,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(17, 3, mode: FieldMode.Read, valueProviderCallback: _ => 0b001, name: "SWTRG")
                 .WithTaggedFlag("SWIP", 16)
                 .WithReservedBits(4, 12)
-                .WithTaggedFlag("SAFE_SW", 3)
-                .WithTaggedFlag("CLK_SW", 2)
-                .WithTaggedFlag("RAMPDOWN", 1)
-                .WithTaggedFlag("RAMPUP", 0);
+                // This is a hack. The driver does a lot of triggering changes, check that they are pending, and then check that they got cleared
+                // To make our way through the driver we just return alternating flags set and unset on every other read so we make it through init
+                .WithValueField(0, 4, mode: FieldMode.Read, valueProviderCallback: _ =>
+                {
+                    lastStatusFlagValues[0] = ~lastStatusFlagValues[0];
+                    return (byte)lastStatusFlagValues[0];
+                });
             Registers.ClockMux0Divider0Control.Define(this, 0x8000_0000)
                 .WithFlag(31, out mux0Div0Enable, name: "mux0Div0DE")
                 .WithReservedBits(19, 12)
@@ -104,6 +117,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithFlag(0, mode: FieldMode.Read, valueProviderCallback: _ => false, name: $"DIV_STAT{i}");
             }, 0x40);
             // End of actually implemented registers, the following are just mocks to make the driver happy.
+            Registers.ClockMux1SelectControl.Define32Many(this, 19, (reg, i) =>
+            {
+                reg
+                    .WithReservedBits(28, 4)
+                    .WithValueField(24, 4, name: "SELCTL")
+                    .WithReservedBits(4, 20)
+                    .WithTaggedFlag("SAFE_SW", 3)
+                    .WithTaggedFlag("CLK_SW", 2)
+                    .WithTaggedFlag("RAMPDOWN", 1)
+                    .WithTaggedFlag("RAMPUP", 0)
+                    .WithChangeCallback((_, _) => OnClockingChanged());
+            }, 0x40);
             Registers.ClockMux1SelectStatus.Define32Many(this, 19, (reg, i) =>
             {
                 reg
@@ -112,17 +137,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithValueField(17, 3, mode: FieldMode.Read, valueProviderCallback: _ => 0b001, name: "SWTRG")
                     .WithTaggedFlag("SWIP", 16)
                     .WithReservedBits(4, 12)
-                    .WithTaggedFlag("SAFE_SW", 3)
-                    .WithTaggedFlag("CLK_SW", 2)
-                    .WithTaggedFlag("RAMPDOWN", 1)
-                    .WithTaggedFlag("RAMPUP", 0);
+                    // This is a hack. The driver does a lot of triggering changes, check that they are pending, and then check that they got cleared
+                    // To make our way through the driver we just return alternating flags set and unset on every other read so we make it through init
+                    .WithValueField(0, 4, mode: FieldMode.Read, valueProviderCallback: _ =>
+                    {
+                        lastStatusFlagValues[i + 1] = ~lastStatusFlagValues[i + 1];
+                        return (byte)lastStatusFlagValues[i + 1];
+                    });
             }, 0x40, 0x0008_0000);
         }
+
+        private ulong phaseLockedLoop0Frequency = 0; // Will get its value set from PLL peripheral before using it
 
         private IEnumRegisterField<SourceClock> clockMux0Source;
         private IFlagRegisterField mux0Div0Enable;
         private IValueRegisterField mux0Div0Divider;
-        private ulong phaseLockedLoop0Frequency = 0; // Will get its value set from PLL peripheral before using it
+        private readonly int[] lastStatusFlagValues;
         private readonly List<IHasFrequency> coreClk;
         // Static clock frequencies
         private const ulong FastInternalRCOscillatorFrequency = 48_000_000;
@@ -150,6 +180,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             ClockMux0DividerTrigger = 0x338,
             ClockMux0DividerUpdateStatus = 0x33C,
             // The following status registers are just mocked
+            ClockMux1SelectControl = 0x340,
             ClockMux1SelectStatus = 0x344,
         }
     }
