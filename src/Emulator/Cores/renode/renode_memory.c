@@ -116,7 +116,7 @@ uint64_t tlib_host_ptr_to_guest_offset(void *ptr)
       }
   }
 
-  tlib_abort("Trying to translate pointer that was not alocated by us.");
+  tlib_abort("Trying to translate pointer that was not allocated by us.");
   return 0;
 }
 
