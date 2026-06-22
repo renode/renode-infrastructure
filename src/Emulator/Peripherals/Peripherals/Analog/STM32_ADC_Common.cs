@@ -618,7 +618,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithTag("CKMODE", 30, 2);
 
             var commonConfigurationRegister = new DoubleWordRegister(this)
-                .WithReservedBits(0, 18)
+                .WithReservedBits(0, 16)
+                .WithValueField(16, 2, name: "CKMODE") // no actual logic, since we do not handle clock in this model
                 .WithTaggedFlag("VREFEN", 22)
                 .WithTaggedFlag("TSEN", 23)
                 .WithReservedBits(25, 7);
