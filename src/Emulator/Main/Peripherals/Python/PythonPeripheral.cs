@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -55,7 +55,14 @@ namespace Antmicro.Renode.Peripherals.Python
             }
             if(this.script != null)
             {
-                this.pythonRunner = new PeripheralPythonEngine(this, x => x.CreateScriptSourceFromString(this.script));
+                try
+                {
+                    this.pythonRunner = new PeripheralPythonEngine(this, x => x.CreateScriptSourceFromString(this.script));
+                }
+                catch(RecoverableException e)
+                {
+                    throw new ConstructionException($"Error encountered when parsing Python peripheral script.", e);
+                }
             }
             else if(this.filename != null)
             {
