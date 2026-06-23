@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,6 +14,16 @@ namespace Antmicro.Renode.Time
     /// </remarks>
     public struct TimeStamp
     {
+        public static TimeStamp operator +(TimeStamp ts, TimeInterval ti)
+        {
+            return new TimeStamp(ts.TimeElapsed + ti, ts.Domain);
+        }
+
+        public static TimeStamp operator -(TimeStamp ts, TimeInterval ti)
+        {
+            return new TimeStamp(ts.TimeElapsed - ti, ts.Domain);
+        }
+
         public TimeStamp(TimeInterval interval, ITimeDomain domain)
         {
             TimeElapsed = interval;
