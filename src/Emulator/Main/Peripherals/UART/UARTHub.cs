@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     d = x =>
                     {
                         var now = TimeDomainsManager.Instance.VirtualTimeStamp;
-                        var when = new TimeStamp(now.TimeElapsed + duart.CharacterTransmissionDelay, now.Domain);
+                        var when = now + duart.CharacterTransmissionDelay;
                         HandleCharReceived(x, when, uart);
                     };
                 }
@@ -193,6 +193,13 @@ namespace Antmicro.Renode.Peripherals.UART
                 foreach(var recipient in uarts.Where(x => shouldLoopback || x.Key != sender).Select(x => x.Key))
                 {
                     var compatible = CheckUARTCompatibility(sender, recipient);
+                    var localWhen = when;
+
+                    if(recipient is IDelayableUART drecipient)
+                    {
+                        localWhen = when + drecipient.CharacterReceptionDelay;
+                    }
+
                     // Only send extra info in strict mode, as the model might otherwise not deliver the message
                     if(recipient is IUARTWithFrameInfo<T> frameRecipient && StrictMode)
                     {
@@ -215,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             frame.StopBits = allStopBitValues.Where(x => x != frame.StopBits).ElementAt(rng.Next(allStopBitValues.Length - 1));
                         }
 
-                        recipient.GetMachine().HandleTimeDomainEvent(frameRecipient.WriteChar, obj, frame, when, () =>
+                        recipient.GetMachine().HandleTimeDomainEvent(frameRecipient.WriteChar, obj, frame, localWhen, () =>
                         {
                             DataRouted?.Invoke(sender, recipient, obj);
                         });
@@ -224,7 +231,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     {
                         if(!StrictMode || compatible)
                         {
-                            recipient.GetMachine().HandleTimeDomainEvent(recipient.WriteChar, obj, when, () =>
+                            recipient.GetMachine().HandleTimeDomainEvent(recipient.WriteChar, obj, localWhen, () =>
                             {
                                 DataRouted?.Invoke(sender, recipient, obj);
                             });
