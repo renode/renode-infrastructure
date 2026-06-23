@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,12 +18,13 @@ using Antmicro.Renode.Time;
 namespace Antmicro.Renode.Peripherals.UART
 {
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord | AllowedTranslation.ByteToDoubleWord)]
-    public class STM32_UART : BasicDoubleWordPeripheral, IUART
+    public class STM32_UART : BasicDoubleWordPeripheral, IUART, IDelayableUART
     {
         public STM32_UART(IMachine machine, uint frequency = 8000000) : base(machine)
         {
             this.frequency = frequency;
             DefineRegisters();
+            UpdateBaudrate();
         }
 
         public void WriteChar(byte value)
@@ -61,22 +62,17 @@ namespace Antmicro.Renode.Peripherals.UART
         public override void Reset()
         {
             base.Reset();
+            UpdateBaudrate();
             idleLineDetectedCancellationTokenSrc?.Cancel();
             receiveFifo.Clear();
             IRQ.Set(false);
         }
 
-        public uint BaudRate
-        {
-            get
-            {
-                //OversamplingMode.By8 means we ignore the oldest bit of dividerFraction.Value
-                var fraction = oversamplingMode.Value == OversamplingMode.By16 ? dividerFraction.Value : dividerFraction.Value & 0b111;
+        public TimeInterval CharacterTransmissionDelay { get; set; } = TimeInterval.Empty;
 
-                var divisor = 8 * (2 - (int)oversamplingMode.Value) * (dividerMantissa.Value + fraction / 16.0);
-                return divisor == 0 ? 0 : (uint)(frequency / divisor);
-            }
-        }
+        public TimeInterval CharacterReceptionDelay { get; set; } = TimeInterval.Empty;
+
+        public uint BaudRate => baudrate;
 
         public Bits StopBits
         {
@@ -103,6 +99,34 @@ namespace Antmicro.Renode.Peripherals.UART
                                         Parity.Even :
                                         Parity.Odd) :
                                     Parity.None;
+
+        public bool AutoUpdateDelay
+        {
+            get => autoUpdateDelay;
+            set
+            {
+                autoUpdateDelay = value;
+                if(AutoUpdateDelay)
+                {
+                    UpdateDelay();
+                }
+            }
+        }
+
+        public double DelayMultiplier
+        {
+            get => delayMultiplier;
+            set
+            {
+                delayMultiplier = value;
+                if(AutoUpdateDelay)
+                {
+                    UpdateDelay();
+                }
+            }
+        }
+
+        public uint CharacterLength => wordLength0.Value ? 9U : 8U;
 
         [DefaultInterrupt]
         public GPIO IRQ { get; } = new GPIO();
@@ -160,6 +184,7 @@ namespace Antmicro.Renode.Peripherals.UART
             Register.BaudRate.Define(this, name: "USART_BRR")
                 .WithValueField(0, 4, out dividerFraction, name: "DIV_Fraction")
                 .WithValueField(4, 12, out dividerMantissa, name: "DIV_Mantissa")
+                .WithChangeCallback((_, __) => UpdateBaudrate())
             ;
             Register.Control1.Define(this, name: "USART_CR1")
                 .WithTaggedFlag("SBK", 0)
@@ -174,7 +199,13 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithEnumField(9, 1, out paritySelection, name: "PS")
                 .WithFlag(10, out parityControlEnabled, name: "PCE")
                 .WithTaggedFlag("WAKE", 11)
-                .WithTaggedFlag("M", 12)
+                .WithFlag(12, out wordLength0, name: "M",
+                    changeCallback: (_, __) =>
+                    {
+                        this.WarningLog("9-bit word mode is not implemented");
+                        wordLength0.Value = false;
+                    }
+                )
                 .WithFlag(13, out usartEnabled, name: "UE")
                 .WithReservedBits(14, 1)
                 .WithEnumField(15, 1, out oversamplingMode, name: "OVER8")
@@ -185,6 +216,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     {
                         idleLineDetectedCancellationTokenSrc?.Cancel();
                     }
+                    UpdateBaudrate();
                     Update();
                 })
             ;
@@ -227,6 +259,37 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        private void UpdateDelay()
+        {
+            if(baudrate == 0)
+            {
+                CharacterTransmissionDelay = TimeInterval.Empty;
+                return;
+            }
+
+            CharacterTransmissionDelay = this.GetActualTransmissionDuration(CharacterLength) * DelayMultiplier;
+        }
+
+        private void UpdateBaudrate()
+        {
+            // OversamplingMode.By8 means we ignore the oldest bit of dividerFraction.Value
+            var fraction = oversamplingMode.Value == OversamplingMode.By16 ? dividerFraction.Value : dividerFraction.Value & 0b111;
+
+            var divisor = 8 * (2 - (int)oversamplingMode.Value) * (dividerMantissa.Value + fraction / 16.0);
+            var newBaudrate = divisor == 0 ? 0 : (uint)(frequency / divisor);
+
+            if(baudrate == newBaudrate)
+            {
+                return;
+            }
+            baudrate = newBaudrate;
+
+            if(AutoUpdateDelay)
+            {
+                UpdateDelay();
+            }
+        }
+
         private void Update()
         {
             IRQ.Set(
@@ -249,6 +312,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField transmissionCompleteInterruptEnabled;
         private IEnumRegisterField<ParitySelection> paritySelection;
         private IFlagRegisterField parityControlEnabled;
+        private IFlagRegisterField wordLength0;
         private IFlagRegisterField usartEnabled;
         private IEnumRegisterField<StopBitsValues> stopBits;
         private IFlagRegisterField dmaReceptionRequest;
@@ -256,6 +320,10 @@ namespace Antmicro.Renode.Peripherals.UART
         private IEnumRegisterField<OversamplingMode> oversamplingMode;
         private IFlagRegisterField transmitDataRegisterEmptyInterruptEnabled;
         private IValueRegisterField dividerFraction;
+
+        private uint baudrate;
+        private bool autoUpdateDelay;
+        private double delayMultiplier = 1;
 
         private readonly uint frequency;
 
