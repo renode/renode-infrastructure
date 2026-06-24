@@ -52,7 +52,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             SetKeyShare();
 
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x205);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x405);
             WriteInputData(decrypted);
 
             for(int i = 0; i < 4; i++)
@@ -89,12 +89,56 @@ namespace Antmicro.Renode.PeripheralsTests
         }
 
         [Test]
+        public void ShouldEncryptInCBCModeWithNistVector()
+        {
+            // Write Key Share 0 (128-bit Key: 2b7e151628aed2a6abf7158809cf4f3c)
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitialKeyShare0_0, 0x16157e2b);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitialKeyShare0_1, 0xa6d2ae28);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitialKeyShare0_2, 0x8815f7ab);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitialKeyShare0_3, 0x3c4fcf09);
+            
+            // Zero out the remaining 128 bits of the 256-bit key share space
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitialKeyShare0_4, 0x0);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitialKeyShare0_5, 0x0);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitialKeyShare0_6, 0x0);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitialKeyShare0_7, 0x0);
+
+            // Write Key Share 1 (All zeros so Share0 XOR Share1 = Share0)
+            for(int i = 0; i < 8; i++) 
+            {
+                peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitialKeyShare1_0 + (i * 4), 0x0);
+            }
+
+            // Write Initialization Vector (000102030405060708090a0b0c0d0e0f)
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitializationVector_0, 0x03020100);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitializationVector_1, 0x07060504);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitializationVector_2, 0x0b0a0908);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InitializationVector_3, 0x0f0e0d0c);
+
+            // Configure Control Register: 0x109 (Encryption, CBC Mode, 128-bit)
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x109);
+
+            // Write Plaintext (6bc1bee22e409f96e93d7e117393172a)
+            // Writing to InputData automatically triggers the cipher process
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InputData_0, 0xe2bec16b);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InputData_1, 0x969f402e);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InputData_2, 0x117e3de9);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.InputData_3, 0x2a179373);
+
+            // Read and Assert Ciphertext (Expected: 7649abac8119b246cee98e9b12e9197d)
+            Assert.AreEqual(0xacab4976, peripheral.ReadDoubleWord((long)OpenTitan_AES.Registers.OutputData_0));
+            Assert.AreEqual(0x46b21981, peripheral.ReadDoubleWord((long)OpenTitan_AES.Registers.OutputData_1));
+            Assert.AreEqual(0x9b8ee9ce, peripheral.ReadDoubleWord((long)OpenTitan_AES.Registers.OutputData_2));
+            Assert.AreEqual(0x7d19e912, peripheral.ReadDoubleWord((long)OpenTitan_AES.Registers.OutputData_3));
+        }
+
+        [Test]
         //This test is based on OpenTitan AES smoketest binary
         public void ShouldGiveCorrectDecryptionOutput()
         {
             SetKeyShare();
 
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x206);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x406);
 
             WriteInputData(encrypted);
 
@@ -139,7 +183,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             SetKeyShare();
 
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x206);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x406);
 
             WriteInputData(decrypted);
             WriteInputData(encrypted);
