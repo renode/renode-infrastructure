@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -23,6 +23,7 @@ namespace Antmicro.Renode
         static Emulator()
         {
             UserDirectoryPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.Create), "renode");
+            exitLock = new object();
         }
 
         public static void ExecuteOnMainThread(Action what)
@@ -46,22 +47,29 @@ namespace Antmicro.Renode
 
         public static void Exit()
         {
-            var beforeExit = BeforeExit;
-            if(beforeExit != null)
+            lock(exitLock)
             {
-                try
+                if(exitEvent.IsSet)
                 {
-                    beforeExit();
+                    return;
                 }
-                catch(RecoverableException)
+                var beforeExit = BeforeExit;
+                if(beforeExit != null)
                 {
-                    // Due to a complex bug, such exception is thrown on each exit if GUI was started.
-                    // All OSs are affected, but only Windows logs it. As it looks like a crash and
-                    // Linux/macOS seem to just silence those exceptions anyway, explicit silencing
-                    // seems best for all of them until the real fix is introduced.
+                    try
+                    {
+                        beforeExit();
+                    }
+                    catch(RecoverableException)
+                    {
+                        // Due to a complex bug, such exception is thrown on each exit if GUI was started.
+                        // All OSs are affected, but only Windows logs it. As it looks like a crash and
+                        // Linux/macOS seem to just silence those exceptions anyway, explicit silencing
+                        // seems best for all of them until the real fix is introduced.
+                    }
                 }
+                exitEvent.Set();
             }
-            exitEvent.Set();
         }
 
         public static void OpenGUI()
@@ -149,6 +157,7 @@ namespace Antmicro.Renode
         public static event Action DisableGUI;
 
         private static IUserInterfaceProvider userInterfaceProvider;
+        private static readonly object exitLock;
         private static readonly ManualResetEventSlim exitEvent = new ManualResetEventSlim();
         private static bool disposed;
     }
