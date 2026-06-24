@@ -33,6 +33,19 @@ namespace Antmicro.Renode.Core
             ExternalWorld = new ExternalWorldTimeDomain();
             PreservableManager = new PreservableManager();
 
+        private EmulationManager()
+        {
+            var serializerMode = ConfigurationManager.Instance.Get("general", "serialization-mode", Antmicro.Migrant.Customization.Method.Generated);
+            
+            var settings = new Antmicro.Migrant.Customization.Settings(serializerMode, serializerMode,
+                Antmicro.Migrant.Customization.VersionToleranceLevel.AllowGuidChange, disableTypeStamping: false);
+            serializer = new Serializer(settings);
+            serializer.ForObject<PythonDictionary>().SetSurrogate(x => new PythonDictionarySurrogate(x));
+            serializer.ForSurrogate<PythonDictionarySurrogate>().SetObject(x => x.Restore());
+            currentEmulation = new Emulation();
+            ProgressMonitor = new ProgressMonitor();
+            stopwatch = new Stopwatch();
+            currentEmulationLock = new object();
             RebuildInstance();
         }
 
