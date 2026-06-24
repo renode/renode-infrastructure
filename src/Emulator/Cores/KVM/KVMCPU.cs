@@ -220,6 +220,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return $"[CPU: {this.GetCPUThreadName(machine)}]";
         }
 
+        public virtual IEnumerable<CPURegister> GetAllRegisters()
+        {
+            return GetRegisters();
+        }
+
         public abstract void SetRegister(int register, RegisterValue value);
 
         public abstract RegisterValue GetRegister(int register);

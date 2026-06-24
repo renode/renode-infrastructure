@@ -166,6 +166,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             return Enumerable.Range(0, 16).Select(idx => new CPURegister(idx, 32, isGeneral: true, isReadonly: false));
         }
 
+        public IEnumerable<CPURegister> GetAllRegisters()
+        {
+            return GetRegisters();
+        }
+
         public void EnterSingleStepModeSafely(HaltArguments args)
         {
             ExecutionMode = ExecutionMode.SingleStep;

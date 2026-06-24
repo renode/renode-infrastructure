@@ -19,7 +19,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         public PacketData Execute()
         {
             var registers = new StringBuilder();
-            foreach(var i in manager.Cpu.GetRegisters().Where(x => x.IsGeneral))
+            foreach(var i in manager.Cpu.GetAllRegisters().Where(x => x.IsGeneral))
             {
                 var start = registers.Length;
                 var value = manager.Cpu.GetRegister(i.Index);

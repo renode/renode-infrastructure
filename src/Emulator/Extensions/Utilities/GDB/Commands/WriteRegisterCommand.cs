@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)] byte[] value)
         {
             var isLittleEndian = manager.Cpu.Endianness == Endianess.LittleEndian;
-            var reg = manager.Cpu.GetRegisters().SingleOrDefault(x => x.Index == registerNumber);
+            var reg = manager.Cpu.GetAllRegisters().SingleOrDefault(x => x.Index == registerNumber);
             if(reg.Width == 0)
             {
                 manager.Cpu.Log(LogLevel.Warning, "Writing to register #{0} failed, register doesn't exit.", registerNumber);

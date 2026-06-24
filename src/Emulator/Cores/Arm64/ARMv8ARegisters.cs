@@ -65,9 +65,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public override IEnumerable<CPURegister> GetRegisters()
+        public override IEnumerable<CPURegister> GetAllRegisters()
         {
             return mapping.Values.Concat(GetNonMappedRegisters()).OrderBy(x => x.Index);
+        }
+
+        public override IEnumerable<CPURegister> GetRegisters()
+        {
+            return mapping.Values.OrderBy(x => x.Index);
         }
 
         [Register]

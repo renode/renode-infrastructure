@@ -78,7 +78,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     break;
                 case "reg":
                     var inputBuilder = new StringBuilder("=====\n");
-                    foreach(var i in manager.Cpu.GetRegisters().Where(x => x.IsGeneral).Select(x => x.Index))
+                    foreach(var i in manager.Cpu.GetAllRegisters().Where(x => x.IsGeneral).Select(x => x.Index))
                     {
                         inputBuilder.AppendFormat("({0}) r{0} (/32): 0x", i);
                         var value = manager.Cpu.GetRegister(i);

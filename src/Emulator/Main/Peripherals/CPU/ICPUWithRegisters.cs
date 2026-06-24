@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
@@ -21,6 +22,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         RegisterValue GetRegister(int register);
 
         IEnumerable<CPURegister> GetRegisters();
+
+        IEnumerable<CPURegister> GetAllRegisters();
     }
 
     public static class ICPUWithRegistersExtensions
@@ -74,11 +77,28 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public static string[,] GetRegistersValues(this ICPUWithRegisters cpu)
         {
+            return GetRegistersValuesFrom(cpu, cpu.GetRegisters());
+        }
+
+        public static string[,] GetAllRegistersValues(this ICPUWithRegisters cpu)
+        {
+            return GetRegistersValuesFrom(cpu, cpu.GetAllRegisters());
+        }
+
+        private static string[,] GetRegistersValuesFrom(this ICPUWithRegisters cpu, IEnumerable<CPURegister> registers)
+        {
             var result = new List<Tuple<string, int, ulong>>();
 
-            foreach(var reg in cpu.GetRegisters()/*.Where(r => r.Aliases != null)*/)
+            foreach(var reg in registers)
             {
-                result.Add(Tuple.Create(reg.ToString(), reg.Index, cpu.GetRegister(reg.Index).RawValue));
+                try
+                {
+                    result.Add(Tuple.Create(reg.ToString(), reg.Index, cpu.GetRegister(reg.Index).RawValue));
+                }
+                catch
+                {
+                    Logger.Log(LogLevel.Warning, "Failed to get value of register {}", reg);
+                }
             }
 
             var table = new Table().AddRow(" Name ", " Index ", " Value ");
