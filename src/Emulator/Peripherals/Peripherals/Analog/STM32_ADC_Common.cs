@@ -56,18 +56,11 @@ namespace Antmicro.Renode.Peripherals.Analog
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral, IADC
     {
-        public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel = 0, IDMA dmaPeripheral = null,
-            int? watchdogCount = null, bool? hasCalibration = null, int? channelCount = null, bool? hasPrescaler = null,
-            bool? hasVbatPin = null, bool? hasChannelSequence = null, bool? hasPowerRegister = null, bool? hasChannelSelect = null,
-            bool? hasOffset = null, bool? hasDifferentialMode = null, SamplingTime? samplingTime = null, bool? dualMode = null)
+        public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel, IDMA dmaPeripheral,
+            int watchdogCount, bool hasCalibration, int channelCount, bool hasPrescaler,
+            bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasChannelSelect,
+            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode)
         {
-            if(!watchdogCount.HasValue || !hasCalibration.HasValue || !channelCount.HasValue || !hasPrescaler.HasValue ||
-                !hasVbatPin.HasValue || !hasChannelSequence.HasValue || !hasPowerRegister.HasValue || !hasChannelSelect.HasValue ||
-                !hasOffset.HasValue || !hasDifferentialMode.HasValue || !samplingTime.HasValue || !dualMode.HasValue)
-            {
-                throw new ConstructionException("Missing configuration options");
-            }
-
             if(dmaPeripheral == null)
             {
                 if(dmaChannel != 0)
@@ -86,9 +79,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             this.machine = machine;
             ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
 
-            ADCChannelCount = channelCount.Value;
-            WatchdogCount = watchdogCount.Value;
-            this.hasChannelSelect = hasChannelSelect.Value;
+            ADCChannelCount = channelCount;
+            WatchdogCount = watchdogCount;
+            this.hasChannelSelect = hasChannelSelect;
 
             if(WatchdogCount < 1 || WatchdogCount > 3)
             {
@@ -107,15 +100,15 @@ namespace Antmicro.Renode.Peripherals.Analog
                 analogWatchdog3SelectedChannels = new IFlagRegisterField[ADCChannelCount];
             }
 
-            registers = new DoubleWordRegisterCollection(this, BuildRegistersMap(hasCalibration.Value,
-                                                                                 hasPrescaler.Value,
-                                                                                 hasVbatPin.Value,
-                                                                                 hasChannelSequence.Value,
-                                                                                 hasPowerRegister.Value,
-                                                                                 hasOffset.Value,
-                                                                                 hasDifferentialMode.Value,
-                                                                                 samplingTime.Value,
-                                                                                 dualMode.Value));
+            registers = new DoubleWordRegisterCollection(this, BuildRegistersMap(hasCalibration,
+                                                                                 hasPrescaler,
+                                                                                 hasVbatPin,
+                                                                                 hasChannelSequence,
+                                                                                 hasPowerRegister,
+                                                                                 hasOffset,
+                                                                                 hasDifferentialMode,
+                                                                                 samplingTime,
+                                                                                 dualMode));
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
