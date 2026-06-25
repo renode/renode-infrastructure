@@ -36,8 +36,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     interrupts[irq, cpu] = new Interrupt(this, irq, cpu);
                 }
             }
+            interCoreIrqSources = new int[ProcessorCount, ProcessorCount];
 
             DefineRegisters();
+            Reset();
         }
 
         public ushort ReadWord(long offset)
@@ -57,6 +59,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             foreach(var irq in interrupts)
             {
                 irq.Reset();
+            }
+
+            for(var i = 0; i < interCoreIrqSources.GetLength(0); i++)
+            {
+                for(var j = 0; j < interCoreIrqSources.GetLength(1); j++)
+                {
+                    interCoreIrqSources[i, j] = UnsignaledInterCoreIrq;
+                }
             }
         }
 
@@ -139,23 +149,39 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var interruptRegisterStep = (uint)Registers.InterruptRouterCP0InterruptStatus1 - (uint)Registers.InterruptRouterCP0InterruptStatus0;
             Registers.InterruptRouterCP0InterruptStatus0.DefineMany(asDoubleWordCollection, InterruptRouterRegisterCount, stepInBytes: interruptRegisterStep, setup: (reg, index) =>
                 {
-                    var cpuIndex = index / 4;
+                    var destinationCpu = index / 4;
+                    var irqNumber = index % 4;
                     reg.WithReservedBits(4, 28)
-                        .WithFlags(0, 4,
-                            writeCallback: (irqNumber, _, value) => { if(value) interrupts[irqNumber, cpuIndex].Value = false; },
-                            valueProviderCallback: (irqNumber, _) => interrupts[irqNumber, cpuIndex].Value,
-                            name: "CPn_INT")
-                        ;
+                        .WithFlags(0, 4, FieldMode.Read | FieldMode.WriteOneToClear,
+                            valueProviderCallback: (sourceCpu, _) => interCoreIrqSources[destinationCpu, irqNumber] == sourceCpu,
+                            writeCallback: (sourceCpu, _, value) =>
+                            {
+                                if(value)
+                                {
+                                    // Clear both the interrupt and the source CPU
+                                    interCoreIrqSources[destinationCpu, irqNumber] = UnsignaledInterCoreIrq;
+                                    interrupts[irqNumber, destinationCpu].Value = false;
+                                }
+                            },
+                            name: "CPn_INT");
                 }
             );
             Registers.InterruptRouterCP0InterruptGeneration0.DefineMany(asDoubleWordCollection, InterruptRouterRegisterCount, stepInBytes: interruptRegisterStep, setup: (reg, index) =>
                 {
-                    var targetCpu = index / 4;
+                    var destinationCpu = index / 4;
                     var irqNumber = index % 4;
                     reg.WithReservedBits(1, 31)
                         .WithFlag(0,
                             FieldMode.Write,
-                            writeCallback: (_, value) => interrupts[irqNumber, targetCpu].Value = value,
+                            writeCallback: (_, value) =>
+                            {
+                                if(sysbus.TryGetCurrentCPU(out var cpu))
+                                {
+                                    interrupts[irqNumber, destinationCpu].Value = true;
+                                    interCoreIrqSources[destinationCpu, irqNumber] = (int)cpu.MultiprocessingId;
+                                }
+                                // 7.4.3.38 - Noncore (and nondebugger) bus masters are treated as RAZ/WI.
+                            },
                             name: "Int_En");
                 }
             );
@@ -284,11 +310,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly WordRegisterCollection wordRegisterCollection;
         private readonly List<NVIC> nvics;
         private readonly Interrupt[,] interrupts;
+        // For a pair of Core ID + inter-core interrupt number stores
+        // the Core ID of the processor that signaled this interrupt
+        // or `UnsignaledInterCoreIrq` if the IRQ is not pending.
+        private readonly int[,] interCoreIrqSources;
 
         private const uint ProcessorCount = 4;
         private const uint ProcessorConfigurationCount = ProcessorCount + 1;
-        private const uint InterruptRouterRegisterCount = ProcessorCount * 4;
+        private const uint InterruptRouterRegisterCount = ProcessorCount * ProcessorCount;
         private const uint InterruptRouterSharedRegisterCount = 240;
+        private const int UnsignaledInterCoreIrq = -1;
 
         public enum Registers
         {
