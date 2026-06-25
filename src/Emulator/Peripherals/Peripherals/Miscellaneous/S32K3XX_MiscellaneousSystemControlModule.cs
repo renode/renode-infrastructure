@@ -94,7 +94,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     var numberSize = index == 0 ? 3 : 2;
                     reg.WithReservedBits(numberSize, 32 - numberSize)
                         .WithValueField(0, numberSize,
-                            valueProviderCallback: _ => machine.GetSystemBus(this).GetCurrentCPU().MultiprocessingId,
+                            valueProviderCallback: _ =>
+                            {
+                                if(sysbus.TryGetCurrentCPU(out var cpu))
+                                {
+                                    return cpu.MultiprocessingId;
+                                }
+                                // 7.4.3.3 - Reads from any other bus master return all 0s ...
+                                return 0;
+                            },
                             name: "ProcessorNumber");
                 }
             );
