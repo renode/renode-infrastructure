@@ -86,9 +86,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 var mbOffset = (ulong)offset - messageBufferRange.StartAddress;
                 messageBuffers.WriteDoubleWord((long)mbOffset, value);
                 // NOTE: Align offset to size of the message buffer
-                var mbRegion = GetMessageBufferRegionByOffset(mbOffset);
-                mbOffset -= mbOffset % GetMessageBufferSizeByRegion(mbRegion);
-                TryTransmitFromMessageBuffer(mbOffset);
+                var messageBufferAddress = GetMessageBufferAddress(mbOffset);
+                TryTransmitFromMessageBuffer(messageBufferAddress);
                 return;
             }
             RegistersCollection.Write(offset, value);
@@ -120,9 +119,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 messageBuffers.WriteByte((long)mbOffset, value);
 
                 // NOTE: Align offset to size of the message buffer
-                var mbRegion = GetMessageBufferRegionByOffset(mbOffset);
-                mbOffset -= mbOffset % GetMessageBufferSizeByRegion(mbRegion);
-                TryTransmitFromMessageBuffer(mbOffset);
+                var messageBufferAddress = GetMessageBufferAddress(mbOffset);
+                TryTransmitFromMessageBuffer(messageBufferAddress);
                 return;
             }
             this.WriteByteNotTranslated(offset, value);
@@ -240,6 +238,8 @@ namespace Antmicro.Renode.Peripherals.CAN
             messageBuffer.FillReceivedFrame(messageBuffers, messageBufferOffset, frame);
             messageBufferInterrupt[messageBufferIndex].Value = true;
 
+            UpdateInterrupts();
+
             return true;
         }
 
@@ -330,6 +330,15 @@ namespace Antmicro.Renode.Peripherals.CAN
                 messageBufferIndex -= MessageBufferRegionSize / (int)currentRegionSize;
             }
             return 0;
+        }
+
+        private ulong GetMessageBufferAddress(ulong offset)
+        {
+            var regionId = GetMessageBufferRegionByOffset(offset);
+            var regionStartAddress = (uint)regionId * (ulong)MessageBufferRegionSize;
+            var regionRelativeOffset = offset - regionStartAddress;
+            regionRelativeOffset -= regionRelativeOffset % GetMessageBufferSizeByRegion(regionId);
+            return regionRelativeOffset + regionStartAddress;
         }
 
         private IEnumerable<MessageBufferIteratorEntry> MessageBuffersIteratorForRegion(int regionIndex) =>
