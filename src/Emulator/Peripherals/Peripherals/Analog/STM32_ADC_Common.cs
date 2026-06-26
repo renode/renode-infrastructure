@@ -52,6 +52,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //    *samplingTime ------- Specifies from the SamplingTime enum how the sampling time registers are defined. These registers
     //                          are tagged but their value are not used by the model.
     //    *dualMode ----------- Indicates if there is a secondary ADC that can work in dual mode.
+    //    hasLinearityCalibration - Specifies whether the ADC supports linear calibration procedure.
     //
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral, IADC
@@ -59,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel, IDMA dmaPeripheral,
             int watchdogCount, bool hasCalibration, int channelCount, bool hasPrescaler,
             bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasChannelSelect,
-            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode)
+            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration)
         {
             if(dmaPeripheral == null)
             {
@@ -108,7 +109,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                                                                                  hasOffset,
                                                                                  hasDifferentialMode,
                                                                                  samplingTime,
-                                                                                 dualMode));
+                                                                                 dualMode,
+                                                                                 hasLinearityCalibration));
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
@@ -472,7 +474,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             return referencedValue;
         }
 
-        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode)
+        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration)
         {
             var isrRegister = new DoubleWordRegister(this)
                 .WithFlag(0, out adcReadyFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "ADRDY")
@@ -680,10 +682,28 @@ namespace Antmicro.Renode.Peripherals.Analog
                                 sequenceInProgress = false;
                             }
                         }, name: "ADSTP")
-                    .WithReservedBits(5, 23)
+                    .WithReservedBits(5, 11)
                     .WithFlag(28, out adcRegulatorEnable, name: "ADVREGEN")
                     .WithReservedBits(29, 2)
                     .WithTaggedFlag("ADCAL", 31);
+
+            if(hasLinearityCalibration)
+            {
+                controlRegister
+                    .WithFlag(16, name: "ADCALLIN")
+                    .WithReservedBits(17, 5)
+                    .WithFlag(22, valueProviderCallback: _ => true, name: "LINCALRDYW1")
+                    .WithFlag(23, valueProviderCallback: _ => true, name: "LINCALRDYW2")
+                    .WithFlag(24, valueProviderCallback: _ => true, name: "LINCALRDYW3")
+                    .WithFlag(25, valueProviderCallback: _ => true, name: "LINCALRDYW4")
+                    .WithFlag(26, valueProviderCallback: _ => true, name: "LINCALRDYW5")
+                    .WithFlag(27, valueProviderCallback: _ => true, name: "LINCALRDYW6");
+            }
+            else
+            {
+                controlRegister
+                    .WithReservedBits(16, 11);
+            }
 
             var registers = new Dictionary<long, DoubleWordRegister>
             {
@@ -757,6 +777,14 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 registers.Add((long)Registers.CalibrationFactor, new DoubleWordRegister(this)
                     .WithValueField(0, 7, name: "CALFACT")
+                    .WithReservedBits(7, 25));
+            }
+
+            if(hasLinearityCalibration)
+            {
+                // Also present on U5 family, which does not have linearity calibration
+                registers.Add((long)Registers.CalibrationFactor2, new DoubleWordRegister(this)
+                    .WithValueField(0, 7, name: "CALFACT2")
                     .WithReservedBits(7, 25));
             }
 
@@ -987,6 +1015,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             DifferentialMode       = 0xB0, // ADC_DIFSEL
             // Gap intended
             CalibrationFactor      = 0xC4, // ADC_CALFACT
+            CalibrationFactor2     = 0xC8, // ADC_CALFACT2
             // Gap intended
             CommonConfiguration    = 0x308, // ADC_CCR
         }

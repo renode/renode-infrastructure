@@ -31,7 +31,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 hasOffset: false,
                 hasDifferentialMode: false,
                 samplingTime: SamplingTime.OneForAll,
-                dualMode: false
+                dualMode: false,
+                hasLinearityCalibration: false
             )
         { }
     }
