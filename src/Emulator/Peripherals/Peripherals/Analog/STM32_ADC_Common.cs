@@ -757,8 +757,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithValueField(16, 12, out analogWatchdogHighValues[1], name: "HT")
                     .WithReservedBits(28, 4));
                 registers.Add((long)Registers.Watchdog2Configuration, new DoubleWordRegister(this)
-                    .WithFlags(0, 14, out analogWatchdog2SelectedChannels, name: "AWD2CH")
-                    .WithReservedBits(14, 18));
+                    .WithFlags(0, ADCChannelCount, out analogWatchdog2SelectedChannels, name: "AWD2CH")
+                    .WithReservedBits(ADCChannelCount, 31 - ADCChannelCount));
             }
             if(WatchdogCount == 3)
             {
@@ -769,8 +769,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithValueField(16, 12, out analogWatchdogHighValues[2], name: "HT")
                     .WithReservedBits(28, 4));
                 registers.Add((long)Registers.Watchdog3Configuration, new DoubleWordRegister(this)
-                    .WithFlags(0, 14, out analogWatchdog3SelectedChannels, name: "AWD3CH")
-                    .WithReservedBits(14, 18));
+                    .WithFlags(0, ADCChannelCount, out analogWatchdog3SelectedChannels, name: "AWD3CH")
+                    .WithReservedBits(ADCChannelCount, 31 - ADCChannelCount));
             }
 
             if(hasCalibration)
