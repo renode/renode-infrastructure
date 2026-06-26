@@ -643,11 +643,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(24, 1);
             }
 
-            var registers = new Dictionary<long, DoubleWordRegister>
-            {
-                {(long)Registers.InterruptAndStatus, isrRegister},
-                {(long)Registers.InterruptEnable, interruptEnableRegister},
-                {(long)Registers.Control, new DoubleWordRegister(this)
+            var controlRegister = new DoubleWordRegister(this)
                     .WithFlag(0, valueProviderCallback: _ => enabled, writeCallback: (_, val) =>
                         {
                             if(val)
@@ -687,8 +683,13 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(5, 23)
                     .WithFlag(28, out adcRegulatorEnable, name: "ADVREGEN")
                     .WithReservedBits(29, 2)
-                    .WithTaggedFlag("ADCAL", 31)
-                },
+                    .WithTaggedFlag("ADCAL", 31);
+
+            var registers = new Dictionary<long, DoubleWordRegister>
+            {
+                {(long)Registers.InterruptAndStatus, isrRegister},
+                {(long)Registers.InterruptEnable, interruptEnableRegister},
+                {(long)Registers.Control, controlRegister},
                 {(long)Registers.Configuration1, configurationRegister1},
                 {(long)Registers.Configuration2, configurationRegister2},
                 {(long)Registers.RegularSequence1, regularSequence1},
