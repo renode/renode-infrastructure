@@ -1002,13 +1002,12 @@ namespace Antmicro.Renode.Peripherals.Analog
             RegularSequence1       = 0x30, // ADC_SQR1
             // Gap intended
             DataRegister           = 0x40, // ADC_DR
+            Power                  = 0x44, // ADC_PWRR
             // Gap intended
             OffsetRegister1        = 0x60, // ADC_OFR1
             OffsetRegister2        = 0x64, // ADC_OFR2
             OffsetRegister3        = 0x68, // ADC_OFR3
             OffsetRegister4        = 0x6C, // ADC_OFR4
-            // Gap intended
-            Power                  = 0x44, // ADC_PWRR
             // Gap intended
             Watchdog2Configuration = 0xA0, // ADC_AWD2CR
             Watchdog3Configuration = 0xA4, // ADC_AWD3CR
