@@ -1,11 +1,12 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Globalization;
+using System.Numerics;
 using System.Text.RegularExpressions;
 
 using Antmicro.Renode.Debugging;
@@ -18,7 +19,11 @@ namespace Antmicro.Renode.Time
     /// Represents time interval.
     /// Right now it has the resolution of 10^-9 second, but is intended for future extension.
     /// </summary>
-    public struct TimeInterval : IComparable<TimeInterval>, IEquatable<TimeInterval>
+    public struct TimeInterval : IComparable<TimeInterval>, IEquatable<TimeInterval>,
+        IAdditionOperators<TimeInterval, TimeInterval, TimeInterval>,
+        ISubtractionOperators<TimeInterval, TimeInterval, TimeInterval>,
+        IComparisonOperators<TimeInterval, TimeInterval, bool>,
+        IEqualityOperators<TimeInterval, TimeInterval, bool>
     {
         // this method is required by a parsing mechanism in the monitor
         public static explicit operator TimeInterval(string s)
