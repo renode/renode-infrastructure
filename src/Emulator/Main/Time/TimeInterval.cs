@@ -23,7 +23,11 @@ namespace Antmicro.Renode.Time
         IAdditionOperators<TimeInterval, TimeInterval, TimeInterval>,
         ISubtractionOperators<TimeInterval, TimeInterval, TimeInterval>,
         IComparisonOperators<TimeInterval, TimeInterval, bool>,
-        IEqualityOperators<TimeInterval, TimeInterval, bool>
+        IEqualityOperators<TimeInterval, TimeInterval, bool>,
+        IMultiplyOperators<TimeInterval, ulong, TimeInterval>,
+        IMultiplyOperators<TimeInterval, double, TimeInterval>,
+        IDivisionOperators<TimeInterval, ulong, TimeInterval>,
+        IDivisionOperators<TimeInterval, double, TimeInterval>
     {
         // this method is required by a parsing mechanism in the monitor
         public static explicit operator TimeInterval(string s)
@@ -178,6 +182,26 @@ namespace Antmicro.Renode.Time
         public static bool operator !=(TimeInterval t1, TimeInterval t2)
         {
             return t1.ticks != t2.ticks;
+        }
+
+        public static TimeInterval operator *(TimeInterval t, double n)
+        {
+            return new TimeInterval(checked((ulong)(t.ticks * n)));
+        }
+
+        public static TimeInterval operator *(TimeInterval t, ulong n)
+        {
+            return new TimeInterval(checked(t.ticks * n));
+        }
+
+        public static TimeInterval operator /(TimeInterval t, double n)
+        {
+            return new TimeInterval(checked((ulong)(t.ticks / n)));
+        }
+
+        public static TimeInterval operator /(TimeInterval t, ulong n)
+        {
+            return new TimeInterval(checked(t.ticks / n));
         }
 
         public static readonly TimeInterval Empty = FromTicks(0);
