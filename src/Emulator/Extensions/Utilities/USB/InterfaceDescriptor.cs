@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,7 +9,8 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Extensions.Utilities.USB
 {
-    public struct InterfaceDescriptor
+    [LeastSignificantByteFirst]
+    public struct InterfaceDescriptor : IDescriptor
     {
         [PacketField]
         public byte Length;
@@ -30,9 +31,13 @@ namespace Antmicro.Renode.Extensions.Utilities.USB
         [PacketField]
         public byte DescriptionStringIndex;
 
+        byte IDescriptor.Type => Type;
+
+        public byte[] AsBytes => Packet.Encode(this);
+
         public override string ToString()
         {
-            return $" Length = {Length}, Type = {Type}, Number = {Number}, AlternateSetting = {AlternateSetting}, NumberOfEndpoints = {NumberOfEndpoints}, Class = {Class}, Subclass = {Subclass}, Protocol = {Protocol}, DescriptionStringIndex = {DescriptionStringIndex}";
+            return $"[InterfaceDescriptor Length = {Length}, Type = {Type}, Number = {Number}, AlternateSetting = {AlternateSetting}, NumberOfEndpoints = {NumberOfEndpoints}, Class = {Class}, Subclass = {Subclass}, Protocol = {Protocol}, DescriptionStringIndex = {DescriptionStringIndex}]";
         }
     }
 }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -10,7 +10,7 @@ using Antmicro.Renode.Utilities.Packets;
 namespace Antmicro.Renode.Extensions.Utilities.USB
 {
     [LeastSignificantByteFirst]
-    public struct ConfigurationDescriptor
+    public struct ConfigurationDescriptor : IDescriptor
     {
         [PacketField]
         public byte Length;
@@ -28,6 +28,10 @@ namespace Antmicro.Renode.Extensions.Utilities.USB
         public byte Attributes;
         [PacketField]
         public byte MaximumPower;
+
+        byte IDescriptor.Type => Type;
+
+        public byte[] AsBytes => Packet.Encode(this);
 
         public override string ToString()
         {

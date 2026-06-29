@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2019 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -10,7 +10,7 @@ using Antmicro.Renode.Utilities.Packets;
 namespace Antmicro.Renode.Extensions.Utilities.USB
 {
     [LeastSignificantByteFirst]
-    public struct DeviceDescriptor
+    public struct DeviceDescriptor : IDescriptor
     {
         [PacketField]
         public byte Length;
@@ -41,9 +41,13 @@ namespace Antmicro.Renode.Extensions.Utilities.USB
         [PacketField]
         public byte NumberOfConfigurations;
 
+        byte IDescriptor.Type => Type;
+
+        public byte[] AsBytes => Packet.Encode(this);
+
         public override string ToString()
         {
-            return $" Length = {Length}, Type = {Type}, ProtocolVersion = {ProtocolVersion}, Class = {Class}, Subclass = {Subclass}, Protocol = {Protocol}, MaximumPacketSize = {MaximumPacketSize}, VendorId = {VendorId}, ProductId = {ProductId}, DeviceReleaseNumber = {DeviceReleaseNumber}, ManufacturerNameIndex = {ManufacturerNameIndex}, ProductNameIndex = {ProductNameIndex}, SerialNumberIndex = {SerialNumberIndex}, NumberOfConfigurations = {NumberOfConfigurations}";
+            return $"[DeviceDescriptor Length = {Length}, Type = {Type}, ProtocolVersion = {ProtocolVersion}, Class = {Class}, Subclass = {Subclass}, Protocol = {Protocol}, MaximumPacketSize = {MaximumPacketSize}, VendorId = {VendorId}, ProductId = {ProductId}, DeviceReleaseNumber = {DeviceReleaseNumber}, ManufacturerNameIndex = {ManufacturerNameIndex}, ProductNameIndex = {ProductNameIndex}, SerialNumberIndex = {SerialNumberIndex}, NumberOfConfigurations = {NumberOfConfigurations}]";
         }
     }
 }
