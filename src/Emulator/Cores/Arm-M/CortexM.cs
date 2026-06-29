@@ -796,11 +796,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             set => SetTrustZoneRelatedRegister(nameof(PmsaV8Rnr_NS), val => tlibSetPmsav8Rnr(val, 0), value);
         }
 
+        public uint ArchitectureVersion
+        {
+            get
+            {
+                return tlibGetArchitectureVersion();
+            }
+        }
+
         public bool IsV8
         {
             get
             {
-                return tlibIsV8() > 0;
+                return tlibGetArchitectureVersion() >= 8;
             }
         }
 
@@ -1187,7 +1195,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Func<int, uint> GetRegisterValue32NonSecure;
 
         [Import]
-        private readonly Func<uint> tlibIsV8;
+        private readonly Func<uint> tlibGetArchitectureVersion;
 
         [Import]
         private readonly Func<uint> tlibGetSecurityState;
