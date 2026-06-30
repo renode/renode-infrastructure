@@ -803,6 +803,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                             {
                                 machine.LocalTimeSource.ExecuteInNearestSyncedState((___) => SampleNextChannel());
                             }
+                            UpdateInterrupts();
                         }, name: "DATA")
                     .WithReservedBits(16, 16)
                 },
