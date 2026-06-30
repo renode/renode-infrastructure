@@ -360,67 +360,67 @@ namespace Antmicro.Renode.Peripherals.Analog
             Func<bool> iterationFinished = null;
             if(hasChannelSelect)
             {
-                iterationFinished = () => currentChannel >= ADCChannelCount;
+                iterationFinished = () => currentChannel >= ADCChannelCount || currentChannel < 0;
             }
             else
             {
-                iterationFinished = () => sequenceCounter > (int)regularSequenceLength.Value;
+                iterationFinished = () => sequenceCounter > (int)regularSequenceLength.Value || currentChannel < 0;
             }
 
-            while(!iterationFinished() && currentChannel >= 0)
+            // Skip disabled channels
+            while(hasChannelSelect && !iterationFinished() && !channelSelected[currentChannel])
             {
-                if(hasChannelSelect && !channelSelected[currentChannel])
-                {
-                    SwitchToNextChannel();
-                    continue;
-                }
-                else
-                {
-                    uint sample = GetSampleFromChannel(currentChannel);
-                    if(!adcOverrunFlag.Value || overrunMode.Value)
-                    {
-                        data.Value = ClampSample(sample, data.Width);
-                    }
-                    if(dmaEnabled.Value && !adcOverrunFlag.Value)
-                    {
-                        SendDmaRequest();
-                    }
-                    endOfSamplingFlag.Value = true;
+                SwitchToNextChannel();
+            }
 
-                    for(int i = 0; i < WatchdogCount; i++)
+            if(!iterationFinished())
+            {
+                uint sample = GetSampleFromChannel(currentChannel);
+                if(!adcOverrunFlag.Value || overrunMode.Value)
+                {
+                    data.Value = ClampSample(sample, data.Width);
+                }
+                endOfSamplingFlag.Value = true;
+
+                for(int i = 0; i < WatchdogCount; i++)
+                {
+                    if(WatchdogEnabled(i))
                     {
-                        if(WatchdogEnabled(i))
+                        if(sample > analogWatchdogHighValues[i].Value || sample < analogWatchdogLowValues[i].Value)
                         {
-                            if(sample > analogWatchdogHighValues[i].Value || sample < analogWatchdogLowValues[i].Value)
-                            {
-                                analogWatchdogFlags[i].Value = true;
-                                this.Log(LogLevel.Debug, "Analog watchdog {0} flag raised for value {1} on channel {2}", i, data.Value, currentChannel);
-                            }
+                            analogWatchdogFlags[i].Value = true;
+                            this.Log(LogLevel.Debug, "Analog watchdog {0} flag raised for value {1} on channel {2}", i, data.Value, currentChannel);
                         }
                     }
-                    if(endOfConversionFlag.Value)
-                    {
-                        adcOverrunFlag.Value = true;
-                    }
-                    endOfConversionFlag.Value = true;
-                    UpdateInterrupts();
-                    this.Log(LogLevel.Debug, "Sampled channel {0}", currentChannel);
-                    SwitchToNextChannel();
-                    return;
                 }
+                if(endOfConversionFlag.Value)
+                {
+                    adcOverrunFlag.Value = true;
+                }
+                endOfConversionFlag.Value = true;
+                this.Log(LogLevel.Debug, "Sampled channel {0}", currentChannel);
+                SwitchToNextChannel();
             }
-            this.Log(LogLevel.Debug, "No more channels enabled");
-            endOfSequenceFlag.Value = true;
-            sequenceInProgress = false;
-            sequenceCounter = 0;
-            UpdateInterrupts();
-            startFlag.Value = false;
 
-            if(awaitingConversion)
+            var didIterationFinish = iterationFinished();
+            if(didIterationFinish)
+            {
+                this.Log(LogLevel.Debug, "No more channels enabled");
+                endOfSequenceFlag.Value = true;
+                sequenceInProgress = false;
+                sequenceCounter = 0;
+                startFlag.Value = false;
+            }
+            if(dmaEnabled.Value && !adcOverrunFlag.Value)
+            {
+                SendDmaRequest();
+            }
+            if(didIterationFinish && awaitingConversion)
             {
                 awaitingConversion = false;
                 StartSampling();
             }
+            UpdateInterrupts();
         }
 
         private void SampleNextInjectedChannel()
