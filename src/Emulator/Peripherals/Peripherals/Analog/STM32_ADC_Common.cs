@@ -493,7 +493,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithReservedBits(5, 2)
                 .WithFlags(7, WatchdogCount, out analogWatchdogFlags, FieldMode.Read | FieldMode.WriteOneToClear, name: "AWD")
                 .WithReservedBits(7 + WatchdogCount, 4 - WatchdogCount)
-                .WithReservedBits(13, 19);
+                .WithReservedBits(13, 19)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
 
             var interruptEnableRegister = new DoubleWordRegister(this)
                 .WithFlag(0, out adcReadyInterruptEnable, name: "ADRDYIE")
