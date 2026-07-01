@@ -55,6 +55,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //    *injectedChannels --- Specifies whether injected channels are supported (auto-injection, external trigger, queuing, JQOVF not implemented).
     //    hasSeparateThresholdRegisters - Specifies whether watchdog threshold values are stored in ADC_AWDnTR registers or ADC_LTRn and ADC_HTRn registers.
     //    resolutionRange -- Specifies bit resolution range this peripheral supports.
+    //    hasChannelPreselection - Specifies whether ADC requires preselecting channels to be sampled.
     //
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral, IADC
@@ -62,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel, IDMA dmaPeripheral,
             int watchdogCount, bool hasCalibration, int channelCount, bool hasPrescaler,
             bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasChannelSelect,
-            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection, bool hasSeparateThresholdRegisters, ResolutionRange resolutionRange)
+            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection, bool hasSeparateThresholdRegisters, ResolutionRange resolutionRange, bool hasChannelPreselection)
         {
             if(dmaPeripheral == null)
             {
@@ -87,6 +88,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             this.hasChannelSelect = hasChannelSelect;
             this.hasChannelInjection = hasChannelInjection;
             this.resolutionRange = resolutionRange;
+            this.hasChannelPreselection = hasChannelPreselection;
 
             if(WatchdogCount < 1 || WatchdogCount > 3)
             {
@@ -250,6 +252,14 @@ namespace Antmicro.Renode.Peripherals.Analog
                 this.Log(LogLevel.Debug,
                          "Channel {0}: {1}mV will be too big for some ADC resolution other than the current one",
                          channel, mv);
+            }
+        }
+
+        private void WarnOnCurrentChannelNotPreselected()
+        {
+            if(hasChannelPreselection && !preselectedChannels[currentChannel].Value)
+            {
+                this.Log(LogLevel.Warning, "Channel {0} is not preselected", currentChannel);
             }
         }
 
@@ -468,6 +478,10 @@ namespace Antmicro.Renode.Peripherals.Analog
                 startFlag.Value = false;
                 sequenceInProgress = false;
             }
+            else
+            {
+                WarnOnCurrentChannelNotPreselected();
+            }
         }
 
         private uint GetSampleFromChannel(int channelNumber)
@@ -479,6 +493,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 milliVolts = sampleSource.Sample.Voltage / 1000;
             }
+            WarnOnCurrentChannelNotPreselected();
             return MillivoltsToSample(milliVolts);
         }
 
@@ -903,6 +918,13 @@ namespace Antmicro.Renode.Peripherals.Analog
                 );
             }
 
+            if(hasChannelPreselection)
+            {
+                registers.Add((long)Registers.ChannelPreselection, new DoubleWordRegister(this)
+                    .WithFlags(0, ADCChannelCount, out preselectedChannels, name: "PCSELn")
+                );
+            }
+
             return registers;
         }
 
@@ -1162,6 +1184,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField startInjectionFlag;
         private IValueRegisterField injectedSequenceLength;
         private int injectedSequenceCounter;
+        private IFlagRegisterField[] preselectedChannels;
         private IValueRegisterField[] analogWatchdogHighValues;
         private IValueRegisterField[] analogWatchdogLowValues;
         private readonly bool[] channelSelected;
@@ -1173,6 +1196,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly int dmaChannel;
         private readonly bool hasChannelSelect;
         private readonly ResolutionRange resolutionRange;
+        private readonly bool hasChannelPreselection;
         private readonly uint externalEventFrequency;
         private readonly double referenceVoltage;
         private readonly IManagedThread samplingThread;
@@ -1228,6 +1252,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             Configuration2         = 0x10, // ADC_CFGR2
             SamplingTime           = 0x14, // ADC_SMPR/ADC_SMPR1
             SamplingTime2          = 0x18, // ADC_SMPR2
+            ChannelPreselection    = 0x1C, // ADC_PCSEL
             Watchdog1Threshold     = 0x20, // ADC_AWD1TR
             WatchdogLowThreshold1  = 0x20, // ADC_LTR1
             Watchdog2Threshold     = 0x24, // ADC_AWD2TR
