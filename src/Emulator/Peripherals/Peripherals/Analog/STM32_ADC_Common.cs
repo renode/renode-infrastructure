@@ -53,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //                          are tagged but their value are not used by the model.
     //    *dualMode ----------- Indicates if there is a secondary ADC that can work in dual mode.
     //    hasLinearityCalibration - Specifies whether the ADC supports linear calibration procedure.
+    //    *injectedChannels --- Specifies whether injected channels are supported (auto-injection, external trigger, queuing, JQOVF not implemented).
     //
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral, IADC
@@ -60,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel, IDMA dmaPeripheral,
             int watchdogCount, bool hasCalibration, int channelCount, bool hasPrescaler,
             bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasChannelSelect,
-            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration)
+            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection)
         {
             if(dmaPeripheral == null)
             {
@@ -83,6 +84,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             ADCChannelCount = channelCount;
             WatchdogCount = watchdogCount;
             this.hasChannelSelect = hasChannelSelect;
+            this.hasChannelInjection = hasChannelInjection;
 
             if(WatchdogCount < 1 || WatchdogCount > 3)
             {
@@ -110,7 +112,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                                                                                  hasDifferentialMode,
                                                                                  samplingTime,
                                                                                  dualMode,
-                                                                                 hasLinearityCalibration));
+                                                                                 hasLinearityCalibration,
+                                                                                 hasChannelInjection));
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
@@ -268,7 +271,11 @@ namespace Antmicro.Renode.Peripherals.Analog
             irq |= endOfConversionFlag.Value && endOfConversionInterruptEnable.Value;
             irq |= endOfSequenceFlag.Value && endOfSequenceInterruptEnable.Value;
             irq |= adcOverrunFlag.Value && adcOverrunInterruptEnable.Value;
-
+            if(hasChannelInjection)
+            {
+                irq |= endOfConversionInjectedFlag.Value && endOfConversionInjectedInterruptEnable.Value;
+                irq |= endOfSequenceInjectedFlag.Value && endOfSequenceInjectedInterruptEnable.Value;
+            }
             IRQ.Set(irq);
         }
 
@@ -296,6 +303,12 @@ namespace Antmicro.Renode.Peripherals.Analog
             sequenceInProgress = true;
             startFlag.Value = true;
             SampleNextChannel();
+        }
+
+        private void StartInjectedSampling()
+        {
+            injectedSequenceCounter = 0;
+            SampleNextInjectedChannel();
         }
 
         private void SendDmaRequest()
@@ -418,6 +431,42 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
+        private void SampleNextInjectedChannel()
+        {
+            // Exit when peripheral is not enabled
+            if(!enabled)
+            {
+                injectedSequenceCounter = 0;
+                return;
+            }
+
+            Func<bool> iterationFinished = () => injectedSequenceCounter > (int)injectedSequenceLength.Value;
+
+            if(!iterationFinished())
+            {
+                int currentInjectedChannel = (int)injectedSequence[injectedSequenceCounter].Value;
+
+                uint sample = GetSampleFromChannel(currentInjectedChannel);
+                if(!adcOverrunFlag.Value || overrunMode.Value)
+                {
+                    var register = injectedData[injectedSequenceCounter];
+                    register.Value = ClampSample(sample, register.Width);
+                }
+
+                endOfConversionInjectedFlag.Value = true;
+                this.Log(LogLevel.Debug, "Sampled injected channel {0}", currentInjectedChannel);
+                injectedSequenceCounter++;
+            }
+
+            if(iterationFinished())
+            {
+                this.Log(LogLevel.Debug, "No more injected channels enabled");
+                startInjectionFlag.Value = false;
+                endOfSequenceInjectedFlag.Value = true;
+            }
+            UpdateInterrupts();
+        }
+
         private void SwitchToNextChannel()
         {
             if(hasChannelSelect)
@@ -498,9 +547,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                     }, name: "EOC")
                 .WithFlag(3, out endOfSequenceFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "EOSEQ")
                 .WithFlag(4, out adcOverrunFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "OVR")
-                .WithReservedBits(5, 2)
                 .WithFlags(7, WatchdogCount, out analogWatchdogFlags, FieldMode.Read | FieldMode.WriteOneToClear, name: "AWD")
-                .WithReservedBits(7 + WatchdogCount, 4 - WatchdogCount)
+                .WithReservedBits(7 + WatchdogCount, 3 - WatchdogCount)
                 .WithReservedBits(13, 19)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
@@ -510,9 +558,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithFlag(2, out endOfConversionInterruptEnable, name: "EOCIE")
                 .WithFlag(3, out endOfSequenceInterruptEnable, name: "EOSEQIE")
                 .WithFlag(4, out adcOverrunInterruptEnable, name: "OVRIE")
-                .WithReservedBits(5, 2)
                 .WithFlags(7, WatchdogCount, out analogWatchdogsInterruptEnable, name: "AWDIE")
-                .WithReservedBits(7 + WatchdogCount, 4 - WatchdogCount)
+                .WithReservedBits(7 + WatchdogCount, 3 - WatchdogCount)
                 .WithReservedBits(13, 19)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
@@ -532,6 +579,35 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(11, 2);
                 interruptEnableRegister
                     .WithReservedBits(11, 2);
+            }
+
+            if(hasChannelInjection)
+            {
+                isrRegister
+                    .WithFlag(5, out endOfConversionInjectedFlag, FieldMode.Read | FieldMode.WriteOneToClear, writeCallback: (_, val) =>
+                        {
+                            if(val && startInjectionFlag.Value)
+                            {
+                                machine.LocalTimeSource.ExecuteInNearestSyncedState((___) => SampleNextInjectedChannel());
+                            }
+                        },
+                        name: "JEOC")
+                    .WithFlag(6, out endOfSequenceInjectedFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "JEOS")
+                    .WithTaggedFlag("JQOVF", 10);
+
+                interruptEnableRegister
+                    .WithFlag(5, out endOfConversionInjectedInterruptEnable, name: "JEOCIE")
+                    .WithFlag(6, out endOfSequenceInjectedInterruptEnable, name: "JEOSIE")
+                    .WithTaggedFlag("JQOVFIE", 10);
+            }
+            else
+            {
+                isrRegister
+                    .WithReservedBits(5, 2)
+                    .WithReservedBits(10, 1);
+                interruptEnableRegister
+                    .WithReservedBits(5, 2)
+                    .WithReservedBits(10, 1);
             }
 
             var configurationRegister1 = new DoubleWordRegister(this)
@@ -572,12 +648,26 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithFlag(14, out waitFlag, name: "WAIT")
                 .WithTaggedFlag("DISCEN", 16)
                 .WithTag("DISCNUM", 17, 3)
-                .WithReservedBits(20, 1)
                 .WithFlag(22, out analogWatchdogSingleChannel, name: "AWDSGL")
                 .WithFlag(23, out analogWatchdogEnable, name: "AWDEN")
-                .WithReservedBits(24, 2)
-                .WithValueField(26, 5, out analogWatchdogChannel, name: "AWDCH")
-                .WithReservedBits(31, 1);
+                .WithValueField(26, 5, out analogWatchdogChannel, name: "AWDCH");
+
+            if(hasChannelInjection)
+            {
+                configurationRegister1
+                    .WithTaggedFlag("JDISCEN", 20)
+                    .WithTaggedFlag("JQM", 21)
+                    .WithTaggedFlag("JAWD1EN", 24)
+                    .WithTaggedFlag("JAUTO", 25)
+                    .WithTaggedFlag("JQDIS", 31);
+            }
+            else
+            {
+                configurationRegister1
+                    .WithReservedBits(20, 1)
+                    .WithReservedBits(24, 2)
+                    .WithReservedBits(31, 1);
+            }
 
             if(!hasPowerRegister)
             {
@@ -591,6 +681,14 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
 
             if(hasChannelSequence)
+            {
+                if(!hasChannelInjection)
+                {
+                    configurationRegister1
+                        .WithFlag(21, name: "CHSELRMOD"); // no actual logic, but software expects to read the value back
+                }
+            }
+            else
             {
                 configurationRegister1
                     .WithReservedBits(21, 1);
@@ -656,7 +754,6 @@ namespace Antmicro.Renode.Peripherals.Analog
                                 }
                             }
                         },name: "ADSTART")
-                    .WithReservedBits(3, 1)
                     // Reading one from below field would mean that command is in progress. This is never the case in this model
                     .WithFlag(4, valueProviderCallback: _ => false,  writeCallback: (_, val) =>
                         {
@@ -673,11 +770,10 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(hasLinearityCalibration)
             {
                 controlRegister
-                    .WithReservedBits(5, 3)
+                    .WithReservedBits(6, 2)
                     .WithFlags(8, 2, name: "BOOST")
                     .WithReservedBits(10, 6)
                     .WithFlag(16, name: "ADCALLIN")
-                    .WithReservedBits(17, 5)
                     .WithFlag(22, valueProviderCallback: _ => true, name: "LINCALRDYW1")
                     .WithFlag(23, valueProviderCallback: _ => true, name: "LINCALRDYW2")
                     .WithFlag(24, valueProviderCallback: _ => true, name: "LINCALRDYW3")
@@ -688,7 +784,33 @@ namespace Antmicro.Renode.Peripherals.Analog
             else
             {
                 controlRegister
+                    .WithReservedBits(6, 10)
                     .WithReservedBits(16, 11);
+            }
+
+            if(hasChannelInjection)
+            {
+                controlRegister
+                    .WithFlag(3, out startInjectionFlag, changeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                StartInjectedSampling();
+                            }
+                        }, name: "JADSTART")
+                    .WithFlag(5, valueProviderCallback: _ => false, writeCallback: (_, val) =>
+                        {
+                            if(val)
+                            {
+                                startInjectionFlag.Value = false;
+                            }
+                        }, name: "JADSTP");
+            }
+            else
+            {
+                controlRegister
+                    .WithReservedBits(3, 1)
+                    .WithReservedBits(5, 1);
             }
 
             var registers = new Dictionary<long, DoubleWordRegister>
@@ -784,6 +906,30 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithTaggedFlag("AUTOFF", 0)
                     .WithTaggedFlag("DPD", 1) // Deep-power-down mode
                     .WithReservedBits(2, 30));
+            }
+
+            if(hasChannelInjection)
+            {
+                registers.Add((long)Registers.InjectedSequence, new DoubleWordRegister(this)
+                        .WithValueField(0, 2, out injectedSequenceLength, name: "JL")
+                        .WithTag("JEXTSEL", 2, 4)
+                        .WithTag("JEXTEN", 7, 2)
+                        .WithValueField(9, 4, out injectedSequence[0], name: "JSQ1")
+                        .WithReservedBits(14, 1)
+                        .WithValueField(15, 4, out injectedSequence[1], name: "JSQ2")
+                        .WithReservedBits(20, 1)
+                        .WithValueField(21, 4, out injectedSequence[2], name: "JSQ3")
+                        .WithReservedBits(26, 1)
+                        .WithValueField(27, 4, out injectedSequence[3], name: "JSQ4"));
+
+                registers.Add((long)Registers.InjectedChannel1, new DoubleWordRegister(this)
+                        .WithValueField(0, 32, out injectedData[0], name: "JDATA1"));
+                registers.Add((long)Registers.InjectedChannel2, new DoubleWordRegister(this)
+                        .WithValueField(0, 32, out injectedData[1], name: "JDATA2"));
+                registers.Add((long)Registers.InjectedChannel3, new DoubleWordRegister(this)
+                        .WithValueField(0, 32, out injectedData[2], name: "JDATA3"));
+                registers.Add((long)Registers.InjectedChannel4, new DoubleWordRegister(this)
+                        .WithValueField(0, 32, out injectedData[3], name: "JDATA4"));
             }
 
             if(hasOffset)
@@ -964,6 +1110,11 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField startFlag;
         private IFlagRegisterField analogWatchdogEnable;
 
+        private IFlagRegisterField endOfConversionInjectedFlag;
+        private IFlagRegisterField endOfSequenceInjectedFlag;
+        private IFlagRegisterField endOfSequenceInjectedInterruptEnable;
+        private IFlagRegisterField endOfConversionInjectedInterruptEnable;
+
         private IFlagRegisterField dmaEnabled;
         private IEnumRegisterField<ScanDirection> scanDirection;
         private IEnumRegisterField<Resolution> resolution;
@@ -977,10 +1128,15 @@ namespace Antmicro.Renode.Peripherals.Analog
         private bool externalTrigger;
         private bool sequenceInProgress;
         private bool awaitingConversion;
+        private IFlagRegisterField startInjectionFlag;
+        private IValueRegisterField injectedSequenceLength;
+        private int injectedSequenceCounter;
         private readonly bool[] channelSelected;
         private readonly IValueRegisterField[] analogWatchdogHighValues;
         private readonly IValueRegisterField[] analogWatchdogLowValues;
         private readonly IValueRegisterField[] regularSequence = new IValueRegisterField[MaximumSequenceLength];
+        private readonly IValueRegisterField[] injectedSequence = new IValueRegisterField[MaximumInjectedSequenceLength];
+        private readonly IValueRegisterField[] injectedData = new IValueRegisterField[MaximumInjectedSequenceLength];
 
         private readonly IDMA dma;
         private readonly int dmaChannel;
@@ -992,8 +1148,9 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly IMachine machine;
 
         private readonly int WatchdogCount;
-
+        private readonly bool hasChannelInjection;
         private const int MaximumSequenceLength = 16;
+        private const int MaximumInjectedSequenceLength = 4;
 
         public enum SamplingTime
         {
@@ -1044,11 +1201,17 @@ namespace Antmicro.Renode.Peripherals.Analog
             RegularSequence4       = 0x3C, // ADC_SQR4
             DataRegister           = 0x40, // ADC_DR
             Power                  = 0x44, // ADC_PWRR
+            InjectedSequence       = 0x4C, // ADC_JSQR
             // Gap intended
             OffsetRegister1        = 0x60, // ADC_OFR1
             OffsetRegister2        = 0x64, // ADC_OFR2
             OffsetRegister3        = 0x68, // ADC_OFR3
             OffsetRegister4        = 0x6C, // ADC_OFR4
+            // Gap intended
+            InjectedChannel1       = 0x80, // ADC_JDR1
+            InjectedChannel2       = 0x84, // ADC_JDR2
+            InjectedChannel3       = 0x88, // ADC_JDR3
+            InjectedChannel4       = 0x8C, // ADC_JDR4
             // Gap intended
             Watchdog2Configuration = 0xA0, // ADC_AWD2CR
             Watchdog3Configuration = 0xA4, // ADC_AWD3CR
