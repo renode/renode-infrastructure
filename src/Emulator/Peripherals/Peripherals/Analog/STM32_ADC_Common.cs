@@ -54,6 +54,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //    *dualMode ----------- Indicates if there is a secondary ADC that can work in dual mode.
     //    hasLinearityCalibration - Specifies whether the ADC supports linear calibration procedure.
     //    *injectedChannels --- Specifies whether injected channels are supported (auto-injection, external trigger, queuing, JQOVF not implemented).
+    //    hasSeparateThresholdRegisters - Specifies whether watchdog threshold values are stored in ADC_AWDnTR registers or ADC_LTRn and ADC_HTRn registers.
     //
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral, IADC
@@ -61,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel, IDMA dmaPeripheral,
             int watchdogCount, bool hasCalibration, int channelCount, bool hasPrescaler,
             bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasChannelSelect,
-            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection)
+            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection, bool hasSeparateThresholdRegisters)
         {
             if(dmaPeripheral == null)
             {
@@ -90,17 +91,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 throw new ConstructionException("Invalid watchdog count");
             }
-
-            analogWatchdogFlags = new IFlagRegisterField[WatchdogCount];
-            analogWatchdogHighValues = new IValueRegisterField[WatchdogCount];
-            analogWatchdogLowValues = new IValueRegisterField[WatchdogCount];
-            if(WatchdogCount >= 2)
+            if(hasSeparateThresholdRegisters && watchdogCount == 0)
             {
-                analogWatchdog2SelectedChannels = new IFlagRegisterField[ADCChannelCount];
-            }
-            if(WatchdogCount == 3)
-            {
-                analogWatchdog3SelectedChannels = new IFlagRegisterField[ADCChannelCount];
+                throw new ConstructionException("Invalid Watchdog configuration");
             }
 
             registers = new DoubleWordRegisterCollection(this, BuildRegistersMap(hasCalibration,
@@ -113,7 +106,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                                                                                  samplingTime,
                                                                                  dualMode,
                                                                                  hasLinearityCalibration,
-                                                                                 hasChannelInjection));
+                                                                                 hasChannelInjection,
+                                                                                 hasSeparateThresholdRegisters));
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
@@ -331,12 +325,9 @@ namespace Antmicro.Renode.Peripherals.Analog
                 var enabledOnAll = !analogWatchdogSingleChannel.Value;
                 var enabledOnCurrent = enabledOnAll || (int)analogWatchdogChannel.Value == currentChannel;
                 return analogWatchdogEnable.Value && enabledOnCurrent;
-            case 1:
-                return analogWatchdog2SelectedChannels[currentChannel].Value;
-            case 2:
-                return analogWatchdog3SelectedChannels[currentChannel].Value;
+            default:
+                return analogWatchdogSelectedChannels[watchdogNumber][currentChannel].Value;
             }
-            throw new UnreachableException("Watchdog count is checked in the constructor");
         }
 
         private ulong ClampSample(uint sample, int width)
@@ -531,7 +522,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             return referencedValue;
         }
 
-        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration)
+        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection, bool hasSeparateThresholdRegisters)
         {
             var isrRegister = new DoubleWordRegister(this)
                 .WithFlag(0, out adcReadyFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "ADRDY")
@@ -853,37 +844,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 );
             }
 
-            if(WatchdogCount >= 1)
-            {
-                registers.Add((long)Registers.Watchdog1Threshold, new DoubleWordRegister(this)
-                    .WithValueField(0, 12, out analogWatchdogLowValues[0], name: "LT")
-                    .WithReservedBits(12, 4)
-                    .WithValueField(16, 12, out analogWatchdogHighValues[0], name: "HT")
-                    .WithReservedBits(28, 4));
-            }
-            if(WatchdogCount >= 2)
-            {
-                registers.Add((long)Registers.Watchdog2Threshold, new DoubleWordRegister(this)
-                    .WithValueField(0, 12, out analogWatchdogLowValues[1], name: "LT")
-                    .WithReservedBits(12, 4)
-                    .WithValueField(16, 12, out analogWatchdogHighValues[1], name: "HT")
-                    .WithReservedBits(28, 4));
-                registers.Add((long)Registers.Watchdog2Configuration, new DoubleWordRegister(this)
-                    .WithFlags(0, ADCChannelCount, out analogWatchdog2SelectedChannels, name: "AWD2CH")
-                    .WithReservedBits(ADCChannelCount, 31 - ADCChannelCount));
-            }
-            if(WatchdogCount == 3)
-            {
-                // NOTE: If given implementation doesn't have channel selection, the third Watchdog Threshold will be under ChannelSelection offset
-                registers.Add(hasChannelSelect ? (long)Registers.Watchdog3Threshold : (long)Registers.ChannelSelection, new DoubleWordRegister(this)
-                    .WithValueField(0, 12, out analogWatchdogLowValues[2], name: "LT")
-                    .WithReservedBits(12, 4)
-                    .WithValueField(16, 12, out analogWatchdogHighValues[2], name: "HT")
-                    .WithReservedBits(28, 4));
-                registers.Add((long)Registers.Watchdog3Configuration, new DoubleWordRegister(this)
-                    .WithFlags(0, ADCChannelCount, out analogWatchdog3SelectedChannels, name: "AWD3CH")
-                    .WithReservedBits(ADCChannelCount, 31 - ADCChannelCount));
-            }
+            BuildWatchdogRegisters(registers, hasSeparateThresholdRegisters);
 
             if(hasCalibration)
             {
@@ -947,7 +908,8 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             if(hasDifferentialMode)
             {
-                registers.Add((long)Registers.DifferentialMode, new DoubleWordRegister(this)
+                var register = hasSeparateThresholdRegisters ? Registers.DifferentialMode2 : Registers.DifferentialMode;
+                registers.Add((long)register, new DoubleWordRegister(this)
                     .WithTag("DIFSEL", 0, 19)
                     .WithReservedBits(19, 13)
                 );
@@ -965,6 +927,74 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
 
             return registers;
+        }
+
+        private void BuildWatchdogRegisters(Dictionary<long, DoubleWordRegister> registers, bool hasSeparateThresholdRegisters)
+        {
+            Registers GetLowThresholdRegister(int i) => i switch
+            {
+                0 => Registers.WatchdogLowThreshold1,
+                1 => Registers.WatchdogLowThreshold2,
+                2 => Registers.WatchdogLowThreshold3,
+                _ => throw new ConstructionException($"ADC_LT{i + 1} does not exist")
+            };
+
+            Registers GetHighThresholdRegister(int i) => i switch
+            {
+                0 => Registers.WatchdogHighThreshold1,
+                1 => Registers.WatchdogHighThreshold2,
+                2 => Registers.WatchdogHighThreshold3,
+                _ => throw new ConstructionException($"ADC_HT{i + 1} does not exist")
+            };
+
+            // NOTE: If given implementation doesn't have channel selection, the third Watchdog Threshold will be under ChannelSelection offset
+            Registers GetThresholdRegister(int i) => i switch
+            {
+                0 => Registers.Watchdog1Threshold,
+                1 => Registers.Watchdog2Threshold,
+                2 => hasChannelSelect ? Registers.Watchdog3Threshold : Registers.ChannelSelection,
+                _ => throw new ConstructionException($"ADC_TR{i + 1} does not exist")
+            };
+
+            Registers GetConfigurationRegister(int i) => i switch
+            {
+                1 => Registers.Watchdog2Configuration,
+                2 => Registers.Watchdog3Configuration,
+                _ => throw new ConstructionException($"ADC_AWD{i + 1}CH does not exist")
+            };
+
+            analogWatchdogHighValues = new IValueRegisterField[WatchdogCount];
+            analogWatchdogLowValues = new IValueRegisterField[WatchdogCount];
+            analogWatchdogSelectedChannels = new Dictionary<int, IFlagRegisterField[]>();
+
+            for(var i = 0; i < WatchdogCount; i++)
+            {
+                if(hasSeparateThresholdRegisters)
+                {
+                    registers.Add((long)GetLowThresholdRegister(i), new DoubleWordRegister(this)
+                        .WithValueField(0, 26, out analogWatchdogLowValues[i], name: $"LT{i + 1}")
+                        .WithReservedBits(26, 6));
+
+                    registers.Add((long)GetHighThresholdRegister(i), new DoubleWordRegister(this)
+                        .WithValueField(0, 26, out analogWatchdogHighValues[i], name: $"HT{i + 1}")
+                        .WithReservedBits(26, 6));
+                }
+                else
+                {
+                    registers.Add((long)GetThresholdRegister(i), new DoubleWordRegister(this)
+                        .WithValueField(0, 12, out analogWatchdogLowValues[i], name: $"LT{i + 1}")
+                        .WithReservedBits(12, 4)
+                        .WithValueField(16, 12, out analogWatchdogHighValues[i], name: $"HT{i + 1}")
+                        .WithReservedBits(28, 4));
+                }
+                if(i > 0)
+                {
+                    registers.Add((long)GetConfigurationRegister(i), new DoubleWordRegister(this)
+                        .WithFlags(0, ADCChannelCount, out var selectedChannels, name: $"AWD{i + 1}CH")
+                        .WithReservedBits(ADCChannelCount, 31 - ADCChannelCount));
+                    analogWatchdogSelectedChannels.Add(i, selectedChannels);
+                }
+            }
         }
 
         private void BuildRegularSequenceRegisters(Dictionary<long, DoubleWordRegister> registers, int sequenceCount)
@@ -1084,7 +1114,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private IEnumRegisterField<Align> align;
         // While watchdogs 2 and 3 use bitfields for selecting channels to watch
-        private IFlagRegisterField[] analogWatchdog2SelectedChannels;
+        private IDictionary<int, IFlagRegisterField[]> analogWatchdogSelectedChannels;
         // Watchdog 1 either watches all channels or a single channel
         private IValueRegisterField analogWatchdogChannel;
 
@@ -1096,7 +1126,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField[] analogWatchdogsInterruptEnable;
         private IFlagRegisterField adcReadyInterruptEnable;
         private IFlagRegisterField adcOverrunInterruptEnable;
-        private IFlagRegisterField[] analogWatchdog3SelectedChannels;
         private IFlagRegisterField endOfSequenceFlag;
         private IFlagRegisterField endOfConversionFlag;
         private IFlagRegisterField[] analogWatchdogFlags;
@@ -1131,9 +1160,9 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField startInjectionFlag;
         private IValueRegisterField injectedSequenceLength;
         private int injectedSequenceCounter;
+        private IValueRegisterField[] analogWatchdogHighValues;
+        private IValueRegisterField[] analogWatchdogLowValues;
         private readonly bool[] channelSelected;
-        private readonly IValueRegisterField[] analogWatchdogHighValues;
-        private readonly IValueRegisterField[] analogWatchdogLowValues;
         private readonly IValueRegisterField[] regularSequence = new IValueRegisterField[MaximumSequenceLength];
         private readonly IValueRegisterField[] injectedSequence = new IValueRegisterField[MaximumInjectedSequenceLength];
         private readonly IValueRegisterField[] injectedData = new IValueRegisterField[MaximumInjectedSequenceLength];
@@ -1190,9 +1219,10 @@ namespace Antmicro.Renode.Peripherals.Analog
             Configuration2         = 0x10, // ADC_CFGR2
             SamplingTime           = 0x14, // ADC_SMPR/ADC_SMPR1
             SamplingTime2          = 0x18, // ADC_SMPR2
-            // Gap intended
             Watchdog1Threshold     = 0x20, // ADC_AWD1TR
+            WatchdogLowThreshold1  = 0x20, // ADC_LTR1
             Watchdog2Threshold     = 0x24, // ADC_AWD2TR
+            WatchdogHighThreshold1 = 0x24, // ADC_HTR1
             ChannelSelection       = 0x28, // ADC_CHSELR
             Watchdog3Threshold     = 0x2C, // ADC_AWD3TR
             RegularSequence1       = 0x30, // ADC_SQR1
@@ -1217,7 +1247,12 @@ namespace Antmicro.Renode.Peripherals.Analog
             Watchdog3Configuration = 0xA4, // ADC_AWD3CR
             // Gap intended
             DifferentialMode       = 0xB0, // ADC_DIFSEL
+            WatchdogLowThreshold2  = 0xB0, // ADC_LTR2
+            WatchdogHighThreshold2 = 0xB4, // ADC_HTR2
+            WatchdogLowThreshold3  = 0xB8, // ADC_LTR3
+            WatchdogHighThreshold3 = 0xBC, // ADC_HTR3
             // Gap intended
+            DifferentialMode2      = 0xC0, // ADC_DIFSEL
             CalibrationFactor      = 0xC4, // ADC_CALFACT
             CalibrationFactor2     = 0xC8, // ADC_CALFACT2
             // Gap intended

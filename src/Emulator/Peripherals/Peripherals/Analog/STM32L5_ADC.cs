@@ -33,7 +33,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 samplingTime: SamplingTime.PerChannel,
                 dualMode: true,
                 hasLinearityCalibration: false,
-                hasChannelInjection: true
+                hasChannelInjection: true,
+                hasSeparateThresholdRegisters: false
             )
         { }
     }
