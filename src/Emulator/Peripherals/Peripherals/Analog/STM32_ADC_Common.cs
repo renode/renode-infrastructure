@@ -7,7 +7,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -55,6 +54,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //    hasLinearityCalibration - Specifies whether the ADC supports linear calibration procedure.
     //    *injectedChannels --- Specifies whether injected channels are supported (auto-injection, external trigger, queuing, JQOVF not implemented).
     //    hasSeparateThresholdRegisters - Specifies whether watchdog threshold values are stored in ADC_AWDnTR registers or ADC_LTRn and ADC_HTRn registers.
+    //    resolutionRange -- Specifies bit resolution range this peripheral supports.
     //
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral, IADC
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel, IDMA dmaPeripheral,
             int watchdogCount, bool hasCalibration, int channelCount, bool hasPrescaler,
             bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasChannelSelect,
-            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection, bool hasSeparateThresholdRegisters)
+            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection, bool hasSeparateThresholdRegisters, ResolutionRange resolutionRange)
         {
             if(dmaPeripheral == null)
             {
@@ -86,6 +86,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             WatchdogCount = watchdogCount;
             this.hasChannelSelect = hasChannelSelect;
             this.hasChannelInjection = hasChannelInjection;
+            this.resolutionRange = resolutionRange;
 
             if(WatchdogCount < 1 || WatchdogCount > 3)
             {
@@ -495,25 +496,7 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private uint MillivoltsToSample(double sampleInMillivolts, Resolution sampleResolution)
         {
-            ushort resolutionInBits;
-            switch(sampleResolution)
-            {
-            case Resolution.Bits6:
-                resolutionInBits = 6;
-                break;
-            case Resolution.Bits8:
-                resolutionInBits = 8;
-                break;
-            case Resolution.Bits10:
-                resolutionInBits = 10;
-                break;
-            case Resolution.Bits12:
-                resolutionInBits = 12;
-                break;
-            default:
-                throw new UnreachableException();
-            }
-
+            ushort resolutionInBits = ResolutionToBits(sampleResolution);
             uint referencedValue = (uint)Math.Round((sampleInMillivolts / (referenceVoltage * 1000)) * ((1 << resolutionInBits) - 1));
             if(align.Value == Align.Left)
             {
@@ -1112,6 +1095,31 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
+        private ushort ResolutionToBits(Resolution resolution)
+        {
+            if(resolutionRange == ResolutionRange.Bits8_16)
+            {
+                switch(resolution)
+                {
+                case Resolution.Bits12_16: return 16;
+                case Resolution.Bits10_14: return 14;
+                case Resolution.Bits8_12: return 12;
+                case Resolution.Bits6_8: return 8;
+                }
+            }
+            else if(resolutionRange == ResolutionRange.Bits6_12)
+            {
+                switch(resolution)
+                {
+                case Resolution.Bits12_16: return 12;
+                case Resolution.Bits10_14: return 10;
+                case Resolution.Bits8_12: return 8;
+                case Resolution.Bits6_8: return 6;
+                }
+            }
+            throw new NotImplementedException($"Missing {resolutionRange} bit support");
+        }
+
         private IEnumRegisterField<Align> align;
         // While watchdogs 2 and 3 use bitfields for selecting channels to watch
         private IDictionary<int, IFlagRegisterField[]> analogWatchdogSelectedChannels;
@@ -1170,6 +1178,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly IDMA dma;
         private readonly int dmaChannel;
         private readonly bool hasChannelSelect;
+        private readonly ResolutionRange resolutionRange;
         private readonly uint externalEventFrequency;
         private readonly double referenceVoltage;
         private readonly IManagedThread samplingThread;
@@ -1188,14 +1197,20 @@ namespace Antmicro.Renode.Peripherals.Analog
             PerChannel,
         }
 
+        public enum ResolutionRange
+        {
+            Bits8_16,
+            Bits6_12,
+        }
+
         private enum Resolution
         {
-            Bits12 = 0b00,
-            Max    = 0b00, // Keep alias in second place to display Bits12 name when dumping Resolution value
-            Bits10 = 0b01,
-            Bits8  = 0b10,
-            Bits6  = 0b11,
-            Min    = 0b11, // Keep alias in second place to display Bits6 name when dumping Resolution value
+            Bits12_16 = 0b00,
+            Max       = 0b00, // Keep alias in second place to display Bits12_16 name when dumping Resolution value
+            Bits10_14 = 0b01,
+            Bits8_12  = 0b10,
+            Bits6_8   = 0b11,
+            Min       = 0b11, // Keep alias in second place to display Bits6_8 name when dumping Resolution value
         }
 
         private enum ScanDirection
