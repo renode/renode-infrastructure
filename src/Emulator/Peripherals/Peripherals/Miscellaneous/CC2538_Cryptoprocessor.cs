@@ -355,7 +355,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private void HandleKeyTransfer(int length)
         {
             var totalNumberOfActivatedSlots = keyStoreWriteArea.Sum(x => x ? 1 : 0);
-            var keyWriteSlotIndex = keyStoreWriteArea.IndexOf(x => true);
+            var keyWriteSlotIndex = keyStoreWriteArea.IndexOf(x => x == true);
             var numberOfConsecutiveSlots = keyStoreWriteArea.Skip(keyWriteSlotIndex).TakeWhile(x => x == true).Count();
 
             if(totalNumberOfActivatedSlots != numberOfConsecutiveSlots)
@@ -383,8 +383,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return;
             }
 
-            for(var i = keyWriteSlotIndex; i < numberOfConsecutiveSlots; i++)
+            for(var i = keyWriteSlotIndex; i < keyWriteSlotIndex + numberOfConsecutiveSlots; i++)
             {
+                this.Log(LogLevel.Debug, "Read key {0} at {1:X} size {2}", i, dmaInputAddress.Value, KeyEntrySizeInBytes);
                 keys[i] = sysbus.ReadBytes(dmaInputAddress.Value, KeyEntrySizeInBytes);
                 dmaInputAddress.Value += KeyEntrySizeInBytes;
             }
