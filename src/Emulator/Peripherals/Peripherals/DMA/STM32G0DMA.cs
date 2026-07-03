@@ -15,7 +15,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public class STM32G0DMA : IDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput
+    public class STM32G0DMA : IDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput, IDMA
     {
         public STM32G0DMA(IMachine machine, int numberOfChannels)
         {
@@ -158,17 +158,24 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return;
             }
 
-            this.Log(LogLevel.Debug, "DMA peripheral request on channel {0}", number);
-            if(!channels[number - 1].TryTriggerTransfer())
+            RequestTransfer(number);
+        }
+
+        public void RequestTransfer(int channel)
+        {
+            this.Log(LogLevel.Debug, "DMA peripheral request on channel {0}", channel);
+            if(!channels[channel - 1].TryTriggerTransfer())
             {
                 this.Log(LogLevel.Warning, "DMA peripheral request on channel {0} ignored - channel is disabled "
-                    + "or has data count set to 0", number);
+                    + "or has data count set to 0", channel);
             }
         }
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         public long Size => 0x100;
+
+        public int NumberOfChannels => numberOfChannels;
 
         private bool TryGetChannelNumberBasedOnOffset(long offset, out int channel)
         {
