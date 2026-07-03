@@ -16,9 +16,6 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
-#pragma warning disable IDE0005
-using Antmicro.Renode.Utilities;
-#pragma warning restore IDE0005
 
 using Range = Antmicro.Renode.Core.Range;
 

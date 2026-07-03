@@ -12,9 +12,6 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
-#pragma warning disable IDE0005
-using Antmicro.Renode.Utilities;
-#pragma warning restore IDE0005
 
 namespace Antmicro.Renode.Peripherals.CAN
 {

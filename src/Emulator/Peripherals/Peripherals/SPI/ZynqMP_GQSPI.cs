@@ -13,9 +13,6 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-#pragma warning disable IDE0005
-using Antmicro.Renode.Utilities;
-#pragma warning restore IDE0005
 using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.SPI

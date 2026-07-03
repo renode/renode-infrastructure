@@ -16,10 +16,6 @@ using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Helpers;
 using Antmicro.Renode.Time;
 
-#pragma warning disable IDE0005
-using Antmicro.Renode.Utilities;
-#pragma warning restore IDE0005
-
 namespace Antmicro.Renode.Peripherals.UART
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
