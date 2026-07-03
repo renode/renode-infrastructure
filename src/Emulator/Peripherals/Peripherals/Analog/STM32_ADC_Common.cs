@@ -364,7 +364,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
             else
             {
-                iterationFinished = () => sequenceCounter > (int)regularSequenceLength.Value || currentChannel < 0;
+                iterationFinished = () => sequenceCounter > (int)regularSequenceLength.Value || sequenceCounter < 0 || currentChannel < 0;
             }
 
             // Skip disabled channels
@@ -468,8 +468,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             else
             {
                 sequenceCounter = (scanDirection.Value == ScanDirection.Ascending) ? sequenceCounter + 1 : sequenceCounter - 1;
-                // NOTE: Sequence finishes when `sequenceCounter` is either greater than `regularSequenceLength` or less than `0`.
-                // In both of those cases, we assume that at this point `currentChannel` will contain invalid value.
                 if(sequenceCounter >= 0 && sequenceCounter <= (int)regularSequenceLength.Value)
                 {
                     currentChannel = (int)regularSequence[sequenceCounter].Value;
