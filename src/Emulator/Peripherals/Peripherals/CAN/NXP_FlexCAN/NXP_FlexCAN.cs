@@ -17,6 +17,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.Timers;
+using Antmicro.Renode.Time;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -24,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 {
     public partial class NXP_FlexCAN : BasicDoubleWordPeripheral, IBytePeripheral, ICAN, IKnownSize
     {
-        public NXP_FlexCAN(IMachine machine, uint numberOfMessageBuffers = 64, uint enhancedRxFifoSize = 0) : base(machine)
+        public NXP_FlexCAN(IMachine machine, uint numberOfMessageBuffers = 64, uint enhancedRxFifoSize = 0, uint baudRate = 1000000) : base(machine)
         {
             if(numberOfMessageBuffers != 32 && numberOfMessageBuffers != 64 && numberOfMessageBuffers != 96)
             {
@@ -34,8 +35,14 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 throw new ConstructionException($"{nameof(enhancedRxFifoSize)} parameter should be set to one of the supported values: {{0, 20}}");
             }
+            if(baudRate <= 0)
+            {
+                throw new ConstructionException($"{nameof(baudRate)} parameter should not be zero");
+            }
             this.numberOfMessageBuffers = numberOfMessageBuffers;
             this.enhancedRxFifoSize = enhancedRxFifoSize;
+            // Default to 1Mbps
+            this.baudRate = baudRate;
 
             IRQ = new GPIO();
 
@@ -47,6 +54,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             individualMaskBits = new IValueRegisterField[numberOfMessageBuffers];
 
             legacyRxFifo = new Queue<KeyValuePair<ushort, CANMessageFrame>>();
+            transmitFrames = new Queue<ulong>();
 
             freeRunningTimer = new LimitTimer(machine.ClockSource, this.baudRate, this, nameof(freeRunningTimer), limit: UInt16.MaxValue, direction: Time.Direction.Ascending, enabled: true);
 
@@ -158,19 +166,53 @@ namespace Antmicro.Renode.Peripherals.CAN
                 return false;
             }
 
-            messageBuffer.FetchData(messageBuffers, offset);
-
-            this.Log(LogLevel.Noisy, "Building frame from: {0}", messageBuffer);
-            var frame = messageBuffer.ToCANMessageFrame();
-            messageBuffer.Finalize(messageBuffers, offset);
-            this.Log(LogLevel.Noisy, "Saved frame: {0}", messageBuffer);
-
-            SendFrame(frame);
-
-            var index = GetMessageBufferIndexByOffset(offset);
-            messageBufferInterrupt[index].Value = true;
+            this.Log(LogLevel.Noisy, "MB Ready to for tranmission");
+            transmitFrames.Enqueue(offset);
+            TriggerTransmit();
 
             return true;
+        }
+
+        private void TriggerTransmit()
+        {
+            if(transmitInProgress)
+            {
+                return;
+            }
+
+            ProcessQueue();
+        }
+
+        private void ProcessQueue()
+        {
+            if(!transmitFrames.TryDequeue(out var offset))
+            {
+                transmitInProgress = false;
+                return;
+            }
+            transmitInProgress = true;
+            var messageBuffer = MessageBufferStructure.FetchMetadata(messageBuffers, offset);
+
+            var bitTime = 1.0/baudRate;
+            var transmitTime = TimeInterval.FromSeconds(bitTime * messageBuffer.Size);
+            this.Log(LogLevel.Noisy, "Scheduled MB from: {0} for transmission after: {1}us", offset, transmitTime.TotalMicroseconds);
+            machine.ScheduleAction(transmitTime, _ =>
+            {
+                messageBuffer.FetchData(messageBuffers, offset);
+                this.Log(LogLevel.Noisy, "Building frame from: {0}", messageBuffer);
+                var frame = messageBuffer.ToCANMessageFrame();
+                messageBuffer.Finalize(messageBuffers, offset);
+                this.Log(LogLevel.Noisy, "Saved frame: {0}", messageBuffer);
+
+                SendFrame(frame);
+
+                var index = GetMessageBufferIndexByOffset(offset);
+                messageBufferInterrupt[index].Value = true;
+
+                UpdateInterrupts();
+
+                ProcessQueue();
+            });
         }
 
         private void UpdateLegacyRxFifoMemory()
@@ -565,8 +607,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithTaggedFlag("Bus Off Interrupt Flag (ESR1.BOFFINT)", 2)
                 .WithTaggedFlag("FlexCAN in Reception Flag (ESR1.RX)", 3)
                 .WithTag("Fault Confinement State (ESR1.FLTCONF)", 4, 2)
-                .WithTaggedFlag("FlexCAN In Transmission (ESR1.TX)", 6)
-                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => true, name: "Idle (ESR1.IDLE)")
+                .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => transmitInProgress, name: "FlexCAN In Transmission (ESR1.TX)")
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => !transmitInProgress, name: "Idle (ESR1.IDLE)")
                 .WithTaggedFlag("RX Error Warning Flag (ESR1.RXWRN)", 8)
                 .WithTaggedFlag("TX Error Warning Flag (ESR1.TXWRN)", 9)
                 .WithFlag(10, FieldMode.Read, valueProviderCallback: _ => false, name: "Stuffing Error Flag (ESR1.STFERR)")
@@ -953,6 +995,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IValueRegisterField rxMessageBuffersGlobalMask;
         private IValueRegisterField rxMessageBuffer14Mask;
         private IValueRegisterField rxMessageBuffer15Mask;
+        private bool transmittingFrame = false;
 
         // classic CAN rx -> legacy fifo or message buffer
         // CAN FD rx -> message buffer or enhanced fifo
@@ -963,10 +1006,12 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private readonly uint numberOfMessageBuffers;
         private readonly uint enhancedRxFifoSize;
+        private readonly uint baudRate;
         private readonly Range messageBufferRange;
 
         private readonly ArrayMemory messageBuffers;
         private readonly Queue<KeyValuePair<ushort, CANMessageFrame>> legacyRxFifo;
+        private readonly Queue<ulong> transmitFrames;
         private readonly LimitTimer freeRunningTimer;
 
         private const int NumberOfLegacyMessageBuffers = 38;
