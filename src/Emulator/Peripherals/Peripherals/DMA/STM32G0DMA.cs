@@ -153,12 +153,23 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return;
             }
 
-            if(!value)
+            var channel = channels[number - 1];
+
+            channel.TransferRequested = value;
+            if(channel.TransferInProgress)
             {
                 return;
             }
 
-            RequestTransfer(number);
+            channel.TransferInProgress = true;
+
+            while(channel.TransferRequested)
+            {
+                channel.TransferRequested = false;
+                RequestTransfer(number);
+            }
+
+            channel.TransferInProgress = false;
         }
 
         public void RequestTransfer(int channel)
@@ -279,6 +290,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 registers.Reset();
                 TransferComplete = false;
                 HalfTransfer = false;
+                TransferRequested = false;
+                TransferInProgress = false;
             }
 
             public bool TryTriggerTransfer()
@@ -320,6 +333,10 @@ namespace Antmicro.Renode.Peripherals.DMA
             public bool HalfTransferInterruptEnable => halfTransferInterruptEnable.Value;
 
             public bool TransferCompleteInterruptEnable => transferCompleteInterruptEnable.Value;
+
+            public bool TransferRequested { get; set; }
+
+            public bool TransferInProgress { get; set; }
 
             private void DoTransfer()
             {
