@@ -16,7 +16,7 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
-    public partial class S32K3XX_FlexCAN
+    public partial class NXP_FlexCAN
     {
         private static uint PacketLengthToDataLengthCode(uint length)
         {

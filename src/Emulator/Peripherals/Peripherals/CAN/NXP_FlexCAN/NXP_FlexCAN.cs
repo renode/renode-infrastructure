@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -21,9 +21,9 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.CAN
 {
-    public partial class S32K3XX_FlexCAN : BasicDoubleWordPeripheral, IBytePeripheral, ICAN, IKnownSize
+    public partial class NXP_FlexCAN : BasicDoubleWordPeripheral, IBytePeripheral, ICAN, IKnownSize
     {
-        public S32K3XX_FlexCAN(IMachine machine, uint numberOfMessageBuffers = 64, uint enhancedRxFifoSize = 0) : base(machine)
+        public NXP_FlexCAN(IMachine machine, uint numberOfMessageBuffers = 64, uint enhancedRxFifoSize = 0) : base(machine)
         {
             if(numberOfMessageBuffers != 32 && numberOfMessageBuffers != 64 && numberOfMessageBuffers != 96)
             {
