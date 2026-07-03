@@ -266,8 +266,15 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             if(!individualMaskingAndQueue.Value)
             {
-                // NOTE: Legacy masking is not currently supported
-                return new MessageBufferMatcher(0);
+                switch(index)
+                {
+                case 14:
+                    return new MessageBufferMatcher(rxMessageBuffer14Mask.Value);
+                case 15:
+                    return new MessageBufferMatcher(rxMessageBuffer15Mask.Value);
+                default:
+                    return new MessageBufferMatcher(rxMessageBuffersGlobalMask.Value);
+                }
             }
 
             return new MessageBufferMatcher(individualMaskBits[index].Value);
@@ -478,14 +485,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithTaggedFlag("Local Priority Enable (MCR.LPRIOEN)", 13)
                 .WithReservedBits(14, 1)
                 .WithTaggedFlag("DMA Enable (MCR.DMA)", 15)
-                .WithFlag(16, out individualMaskingAndQueue, name: "Individual RX Masking and Queue Enable (MCR.IRMQ)",
-                    changeCallback: (_, value) =>
-                    {
-                        if(!value)
-                        {
-                            this.Log(LogLevel.Warning, "Global masking for message buffers is not currently implemented, frame reception will not work correctly");
-                        }
-                    })
+                .WithFlag(16, out individualMaskingAndQueue, name: "Individual RX Masking and Queue Enable (MCR.IRMQ)")
                 .WithFlag(17, out selfReceptionDisable, name: "Self-Reception Disable (MCR.SRXDIS)",
                     changeCallback: GetFreezeModeOnlyWritableChangeCallback(selfReceptionDisable, "MCR.SRXDIS"))
                 .WithReservedBits(18, 2)
@@ -530,15 +530,15 @@ namespace Antmicro.Renode.Peripherals.CAN
             ;
 
             Registers.RxMessageBuffersGlobalMask.Define(this)
-                .WithTag("Global Mask for RX Message Buffers (RXMGMASK.MG)", 0, 32)
+                .WithValueField(0, 32, out rxMessageBuffersGlobalMask, name: "Global Mask for RX Message Buffers (RXMGMASK.MG)")
             ;
 
             Registers.Receive14Mask.Define(this)
-                .WithTag("RX Buffer 14 Mask Bits (RX14MASK.RX14M)", 0, 32)
+                .WithValueField(0, 32, out rxMessageBuffer14Mask, name: "RX Buffer 14 Mask Bits (RX14MASK.RX14M)")
             ;
 
             Registers.Receive15Mask.Define(this)
-                .WithTag("RX Buffer 15 Mask Bits (RX15MASK.RX15M)", 0, 32)
+                .WithValueField(0, 32, out rxMessageBuffer15Mask, name: "RX Buffer 15 Mask Bits (RX15MASK.RX15M)")
             ;
 
             Registers.ErrorCounter.Define(this)
@@ -939,6 +939,9 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IFlagRegisterField individualMaskingAndQueue;
         private IFlagRegisterField messageBuffersReceptionPriority;
         private IFlagRegisterField lowestBufferTransmittedFirst;
+        private IValueRegisterField rxMessageBuffersGlobalMask;
+        private IValueRegisterField rxMessageBuffer14Mask;
+        private IValueRegisterField rxMessageBuffer15Mask;
 
         // classic CAN rx -> legacy fifo or message buffer
         // CAN FD rx -> message buffer or enhanced fifo
