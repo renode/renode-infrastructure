@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,7 +11,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
 {
     public class HexToken : DecimalIntegerToken
     {
-        public HexToken(string value) : base(Convert.ToInt64(value.Split('x')[1], 16).ToString())
+        public HexToken(string value) : base(value, Convert.ToInt64(value.Split('x')[1], 16))
         {
         }
 

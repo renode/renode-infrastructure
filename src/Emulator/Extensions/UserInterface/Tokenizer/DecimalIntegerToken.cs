@@ -27,5 +27,10 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
         }
 
         public long Value { get; private set; }
+
+        protected DecimalIntegerToken(string value, long num) : base(value)
+        {
+            Value = num;
+        }
     }
 }
