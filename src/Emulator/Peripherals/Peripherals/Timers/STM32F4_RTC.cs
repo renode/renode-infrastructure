@@ -50,25 +50,19 @@ namespace Antmicro.Renode.Peripherals.Timers
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.TimeRegister, new DoubleWordRegister(this)
-                    .WithValueField(0, 4, name: "SU",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.TimeRegister, DateTimeSelect.Second, Rank.Units, value),
+                    .WithValueField(0, 4, out secondUnits, name: "SU",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Second, Rank.Units))
-                    .WithValueField(4, 3, name: "ST",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.TimeRegister, DateTimeSelect.Second, Rank.Tens, value),
+                    .WithValueField(4, 3, out secondTens, name: "ST",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Second, Rank.Tens))
                     .WithReservedBits(7, 1)
-                    .WithValueField(8, 4, name: "MU",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.TimeRegister, DateTimeSelect.Minute, Rank.Units, value),
+                    .WithValueField(8, 4, out minuteUnits, name: "MU",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Minute, Rank.Units))
-                    .WithValueField(12, 3, name: "MT",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.TimeRegister, DateTimeSelect.Minute, Rank.Tens, value),
+                    .WithValueField(12, 3, out minuteTens, name: "MT",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Minute, Rank.Tens))
                     .WithReservedBits(15, 1)
-                    .WithValueField(16, 4, name: "HU",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.TimeRegister, DateTimeSelect.Hour, Rank.Units, value),
+                    .WithValueField(16, 4, out hourUnits, name: "HU",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Hour, Rank.Units))
-                    .WithValueField(20, 2, name: "HT",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.TimeRegister, DateTimeSelect.Hour, Rank.Tens, value),
+                    .WithValueField(20, 2, out hourTens, name: "HT",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Hour, Rank.Tens))
                     .WithFlag(22, name: "PM",
                         writeCallback: (_, value) =>
@@ -80,20 +74,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                         },
                         valueProviderCallback: _ => mainTimer.PM)
                     .WithReservedBits(23, 9)
+                    .WithWriteCallback((_, __) => UpdateTime())
                 },
                 {(long)Registers.DateRegister, new DoubleWordRegister(this, 0x2101)
-                    .WithValueField(0, 4, name: "DU",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.DateRegister, DateTimeSelect.Day, Rank.Units, value),
+                    .WithValueField(0, 4, out dayUnits, name: "DU",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Day, Rank.Units))
-                    .WithValueField(4, 2, name: "DT",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.DateRegister, DateTimeSelect.Day, Rank.Tens, value),
+                    .WithValueField(4, 2, out dayTens, name: "DT",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Day, Rank.Tens))
                     .WithReservedBits(6, 2)
-                    .WithValueField(8, 4, name: "MU",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.DateRegister, DateTimeSelect.Month, Rank.Units, value),
+                    .WithValueField(8, 4, out monthUnits, name: "MU",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Month, Rank.Units))
-                    .WithValueField(12, 1, name: "MT",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.DateRegister, DateTimeSelect.Month, Rank.Tens, value),
+                    .WithValueField(12, 1, out monthTens, name: "MT",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Month, Rank.Tens))
                     .WithValueField(13, 3, name: "WDU",
                         writeCallback: (_, value) =>
@@ -109,13 +100,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                             }
                         },
                         valueProviderCallback: _ => (uint)mainTimer.WeekDay)
-                    .WithValueField(16, 4, name: "YU",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.DateRegister, DateTimeSelect.Year, Rank.Units, value),
+                    .WithValueField(16, 4, out yearUnits, name: "YU",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Year, Rank.Units))
-                    .WithValueField(20, 4, name: "YT",
-                        writeCallback: (_, value) => UpdateMainTimer(Registers.DateRegister, DateTimeSelect.Year, Rank.Tens, value),
+                    .WithValueField(20, 4, out yearTens, name: "YT",
                         valueProviderCallback: _ => mainTimer.Read(DateTimeSelect.Year, Rank.Tens))
                     .WithReservedBits(24, 8)
+                    .WithWriteCallback((_, __) => UpdateDate())
                 },
                 {(long)Registers.ControlRegister, new DoubleWordRegister(this)
                     .WithValueField(0, 3, out wakeupClockSelection, name: "WUCKSEL",
@@ -543,27 +533,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO WakeupIRQ { get; }
 
-        private static DateTime UpdateTimeState(DateTime timeState, DateTimeSelect select, int value)
-        {
-            switch(select)
-            {
-            case DateTimeSelect.Second:
-                return timeState.With(second: value);
-            case DateTimeSelect.Minute:
-                return timeState.With(minute: value);
-            case DateTimeSelect.Hour:
-                return timeState.With(hour: value);
-            case DateTimeSelect.Day:
-                return timeState.With(day: value);
-            case DateTimeSelect.Month:
-                return timeState.With(month: value);
-            case DateTimeSelect.Year:
-                return timeState.With(year: value);
-            default:
-                throw new ArgumentException($"Unexpected select: {select}");
-            }
-        }
-
         private void ResetInnerTimers()
         {
             mainTimer.Reset();
@@ -648,16 +617,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             return false;
         }
 
-        private void UpdateMainTimer(Registers reg, DateTimeSelect what, Rank rank, ulong value)
-        {
-            if(!CheckIfInInitMode(reg) || !CheckIfUnlocked(reg))
-            {
-                return;
-            }
-
-            mainTimer.Update(what, rank, (uint)value);
-        }
-
         private void UpdateAlarm(AlarmConfig alarm, Registers register, Action<AlarmConfig> action)
         {
             if(!CheckIfDisabled(alarm) || !CheckIfUnlocked(register))
@@ -678,6 +637,62 @@ namespace Antmicro.Renode.Peripherals.Timers
             UpdateAlarm(alarmB, Registers.AlarmBRegister, action);
         }
 
+        private void UpdateTime()
+        {
+            if(!CheckIfInInitMode(Registers.TimeRegister) || !CheckIfUnlocked(Registers.TimeRegister))
+            {
+                return;
+            }
+
+            var dateTime = mainTimer.TimeState;
+
+            var second = dateTime.Second
+                .WithUpdatedRank((int)secondUnits.Value, Rank.Units)
+                .WithUpdatedRank((int)secondTens.Value, Rank.Tens);
+
+            var minute = dateTime.Minute
+                .WithUpdatedRank((int)minuteUnits.Value, Rank.Units)
+                .WithUpdatedRank((int)minuteTens.Value, Rank.Tens);
+
+            var hour = dateTime.Hour
+                .WithUpdatedRank((int)hourUnits.Value, Rank.Units)
+                .WithUpdatedRank((int)hourTens.Value, Rank.Tens);
+
+            mainTimer.TimeState = dateTime.With(
+                hour: hour,
+                minute: minute,
+                second: second
+            );
+        }
+
+        private void UpdateDate()
+        {
+            if(!CheckIfInInitMode(Registers.DateRegister) || !CheckIfUnlocked(Registers.DateRegister))
+            {
+                return;
+            }
+
+            var dateTime = mainTimer.TimeState;
+
+            var day = dateTime.Day
+                .WithUpdatedRank((int)dayUnits.Value, Rank.Units)
+                .WithUpdatedRank((int)dayTens.Value, Rank.Tens);
+
+            var month = dateTime.Month
+                .WithUpdatedRank((int)monthUnits.Value, Rank.Units)
+                .WithUpdatedRank((int)monthTens.Value, Rank.Tens);
+
+            var year = dateTime.Year
+                .WithUpdatedRank((int)yearUnits.Value, Rank.Units)
+                .WithUpdatedRank((int)yearTens.Value, Rank.Tens);
+
+            mainTimer.TimeState = dateTime.With(
+                year: year,
+                month: month,
+                day: day
+            );
+        }
+
         private bool firstStageUnlocked;
         private bool registersUnlocked;
         private bool initMode;
@@ -687,6 +702,20 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly AlarmConfig alarmA;
         private readonly AlarmConfig alarmB;
         // timestamp timer is currenlty not implementedw
+
+        private readonly IValueRegisterField secondUnits;
+        private readonly IValueRegisterField secondTens;
+        private readonly IValueRegisterField minuteUnits;
+        private readonly IValueRegisterField minuteTens;
+        private readonly IValueRegisterField hourUnits;
+        private readonly IValueRegisterField hourTens;
+
+        private readonly IValueRegisterField dayUnits;
+        private readonly IValueRegisterField dayTens;
+        private readonly IValueRegisterField monthUnits;
+        private readonly IValueRegisterField monthTens;
+        private readonly IValueRegisterField yearUnits;
+        private readonly IValueRegisterField yearTens;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly IValueRegisterField wakeupClockSelection;
@@ -736,25 +765,16 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     if(TimeState.Hour < 12)
                     {
-                        var newHour = TimeState.Hour + 12;
-                        timeState = UpdateTimeState(timeState, DateTimeSelect.Hour, newHour);
+                        timeState = timeState.AddHours(12);
                     }
                 }
                 else
                 {
                     if(TimeState.Hour >= 12)
                     {
-                        var newHour = TimeState.Hour - 12;
-                        timeState = UpdateTimeState(timeState, DateTimeSelect.Hour, newHour);
+                        timeState = timeState.AddHours(-12);
                     }
                 }
-            }
-
-            public void Update(DateTimeSelect what, Rank rank, uint value)
-            {
-                var currentValue = GetTimeSelect(what);
-                var val = currentValue.WithUpdatedRank((int)value, rank);
-                TimeState = UpdateTimeState(TimeState, what, val);
             }
 
             public DateTime TimeState
