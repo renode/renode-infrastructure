@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Time
 
         public void Reset()
         {
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 DebugHelper.Assert(TimeSource.ElapsedVirtualTime >= TotalElapsedTime, $"Trying to move time handle back in time from: {TotalElapsedTime} to {TimeSource.ElapsedVirtualTime}");
                 TotalElapsedTime = TimeSource.ElapsedVirtualTime;
@@ -145,7 +145,7 @@ namespace Antmicro.Renode.Time
         public void GrantTimeInterval(TimeInterval interval)
         {
             this.Trace($"{interval.Ticks}");
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 DebugHelper.Assert(IsReadyForNewTimeGrant, "Interval granted, but the handle is not ready for a new one.");
                 sourceSideInProgress = true;
@@ -182,7 +182,7 @@ namespace Antmicro.Renode.Time
         public bool UnblockHandle()
         {
             this.Trace();
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 DebugHelper.Assert(isBlocking || !enabled, "This handle should be blocking or disabled");
 
@@ -216,7 +216,7 @@ namespace Antmicro.Renode.Time
         public bool RequestTimeInterval(out TimeInterval interval, bool blockWhileDisabled = false)
         {
             this.Trace();
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 DebugHelper.Assert(!sinkSideInProgress, "Requested a new time interval, but the previous one is still processed.");
 
@@ -337,7 +337,7 @@ namespace Antmicro.Renode.Time
         public void ReportBackAndContinue(TimeInterval timeLeft)
         {
             this.Trace($"{timeLeft.Ticks}");
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 if(DetachRequested)
                 {
@@ -372,7 +372,7 @@ namespace Antmicro.Renode.Time
         public void ReportBackAndBreak(TimeInterval timeLeft)
         {
             this.Trace($"{timeLeft.Ticks}");
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 if(DetachRequested)
                 {
@@ -402,7 +402,7 @@ namespace Antmicro.Renode.Time
         /// </remarks>
         public bool TrySkipToSyncPoint(out TimeInterval intervalSkipped)
         {
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 if(!RequestTimeInterval(out intervalSkipped))
                 {
@@ -419,7 +419,7 @@ namespace Antmicro.Renode.Time
         public void Dispose()
         {
             this.Trace();
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 SinkSideActive = false;
                 SourceSideActive = false;
@@ -456,7 +456,7 @@ namespace Antmicro.Renode.Time
             WaitResult result;
             var previousElapsedTicks = 0ul;
 
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 Debugging.DebugHelper.Assert(sourceSideInProgress, "About to wait until time is used, but it seems none has recently been granted.");
 
@@ -528,7 +528,7 @@ namespace Antmicro.Renode.Time
         public void Latch()
         {
             this.Trace();
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 latchLevel++;
                 this.Trace($"Time handle latched; current level is {latchLevel}");
@@ -545,7 +545,7 @@ namespace Antmicro.Renode.Time
         public void Unlatch()
         {
             this.Trace();
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 DebugHelper.Assert(latchLevel > 0, "Tried to unlatch not latched handle");
                 latchLevel--;
@@ -625,7 +625,7 @@ namespace Antmicro.Renode.Time
 
             set
             {
-                lock(innerLock)
+                using(new MonitorSmartLock(innerLock))
                 {
                     if(enabled == value)
                     {
@@ -678,7 +678,7 @@ namespace Antmicro.Renode.Time
 
             set
             {
-                lock(innerLock)
+                using(new MonitorSmartLock(innerLock))
                 {
                     this.Trace($"{value}");
                     sourceSideActive = value;
@@ -706,7 +706,7 @@ namespace Antmicro.Renode.Time
 
             set
             {
-                lock(innerLock)
+                using(new MonitorSmartLock(innerLock))
                 {
                     DebugHelper.Assert(!sinkSideInProgress, "Should not change sink side active state when sink is in progress");
 
@@ -737,7 +737,7 @@ namespace Antmicro.Renode.Time
         {
             get
             {
-                lock(innerLock)
+                using(new MonitorSmartLock(innerLock))
                 {
                     var res = !sourceSideInProgress && !DetachRequested;
                     this.Trace($"Reading IsReadyForNewTimeGrant: {res}; sourceSideInProgress={sourceSideInProgress}, DetachRequested={DetachRequested}");
@@ -788,7 +788,7 @@ namespace Antmicro.Renode.Time
 
             set
             {
-                lock(innerLock)
+                using(new MonitorSmartLock(innerLock))
                 {
                     delayGrant = value;
                 }
@@ -840,7 +840,7 @@ namespace Antmicro.Renode.Time
                 return;
             }
 
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 // reportedTimeResiduum represents time that
                 // has been reported, but not yet used;
@@ -865,7 +865,7 @@ namespace Antmicro.Renode.Time
         [Antmicro.Migrant.Hooks.PreSerialization]
         private void VerifyStateBeforeSerialization()
         {
-            lock(innerLock)
+            using(new MonitorSmartLock(innerLock))
             {
                 DebugHelper.Assert(!sinkSideInProgress, "Trying to save a time handle that processes a time grant");
             }
