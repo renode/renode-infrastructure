@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -13,8 +13,8 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 {
     public class WriteHookWrapper<T> : HookWrapper
     {
-        public WriteHookWrapper(IBusPeripheral peripheral, Action<long, T> originalMethod, Func<T, long, T> newMethod = null,
-                               Range? subrange = null) : base(peripheral, typeof(T), subrange)
+        public WriteHookWrapper(PeripheralAccessMethods pam, Action<long, T> originalMethod, Func<T, long, T> newMethod = null,
+                               Range? subrange = null) : base(pam, typeof(T), subrange)
         {
             this.originalMethod = originalMethod;
             this.newMethod = newMethod;

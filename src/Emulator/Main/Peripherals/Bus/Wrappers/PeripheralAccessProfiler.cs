@@ -345,13 +345,13 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 
         private class ReadAccessProfilerWrapper<T> : ReadHookWrapper<T>, IAccessProfilerWrapper
         {
-            public ReadAccessProfilerWrapper(IBusPeripheral peripheral, Func<long, T> originalMethod)
-                : base(peripheral, originalMethod)
+            public ReadAccessProfilerWrapper(PeripheralAccessMethods pam, Func<long, T> originalMethod)
+                : base(pam, originalMethod)
             {
-                Type = GetPeripheralTypeName(peripheral);
-                InstanceName = GetPeripheralName(peripheral);
-                RegisterMapper = new RegisterMapper(peripheral.GetType());
-                Bus = peripheral.GetMachine().GetSystemBus(peripheral);
+                Type = GetPeripheralTypeName(Peripheral);
+                InstanceName = GetPeripheralName(Peripheral);
+                RegisterMapper = new RegisterMapper(Peripheral.GetType());
+                Bus = Peripheral.GetMachine().GetSystemBus(Peripheral);
             }
 
             public override T Read(long offset)
@@ -373,13 +373,13 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 
         private class WriteAccessProfilerWrapper<T> : WriteHookWrapper<T>, IAccessProfilerWrapper
         {
-            public WriteAccessProfilerWrapper(IBusPeripheral peripheral, Action<long, T> originalMethod)
-                : base(peripheral, originalMethod, null, null)
+            public WriteAccessProfilerWrapper(PeripheralAccessMethods pam, Action<long, T> originalMethod)
+                : base(pam, originalMethod, null, null)
             {
-                Type = GetPeripheralTypeName(peripheral);
-                InstanceName = GetPeripheralName(peripheral);
-                RegisterMapper = new RegisterMapper(peripheral.GetType());
-                Bus = peripheral.GetMachine().GetSystemBus(peripheral);
+                Type = GetPeripheralTypeName(Peripheral);
+                InstanceName = GetPeripheralName(Peripheral);
+                RegisterMapper = new RegisterMapper(Peripheral.GetType());
+                Bus = Peripheral.GetMachine().GetSystemBus(Peripheral);
             }
 
             public override void Write(long offset, T value)

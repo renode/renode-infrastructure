@@ -102,14 +102,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             var quadWordWriteWrapperType = writeWrapperType.MakeGenericType(new [] {typeof(ulong)});
 
             // Prepare argument lists for each type's constructor
-            var byteReadWrapperArgs = new object[] {Peripheral, new Func<long, byte>(ReadByte)};
-            var wordReadWrapperArgs = new object[] {Peripheral, new Func<long, ushort>(ReadWord)};
-            var doubleWordReadWrapperArgs = new object[] {Peripheral, new Func<long, uint>(ReadDoubleWord)};
-            var quadWordReadWrapperArgs = new object[] {Peripheral, new Func<long, ulong>(ReadQuadWord)};
-            var byteWriteWrapperArgs = new object[] {Peripheral, new Action<long, byte>(WriteByte)};
-            var wordWriteWrapperArgs = new object[] {Peripheral, new Action<long, ushort>(WriteWord)};
-            var doubleWordWriteWrapperArgs = new object[] {Peripheral, new Action<long, uint>(WriteDoubleWord)};
-            var quadWordWriteWrapperArgs = new object[] {Peripheral, new Action<long, ulong>(WriteQuadWord)};
+            var byteReadWrapperArgs = new object[] {this, new Func<long, byte>(ReadByte)};
+            var wordReadWrapperArgs = new object[] {this, new Func<long, ushort>(ReadWord)};
+            var doubleWordReadWrapperArgs = new object[] {this, new Func<long, uint>(ReadDoubleWord)};
+            var quadWordReadWrapperArgs = new object[] {this, new Func<long, ulong>(ReadQuadWord)};
+            var byteWriteWrapperArgs = new object[] {this, new Action<long, byte>(WriteByte)};
+            var wordWriteWrapperArgs = new object[] {this, new Action<long, ushort>(WriteWord)};
+            var doubleWordWriteWrapperArgs = new object[] {this, new Action<long, uint>(WriteDoubleWord)};
+            var quadWordWriteWrapperArgs = new object[] {this, new Action<long, ulong>(WriteQuadWord)};
 
             // Instantiate each type
             var byteReadWrapperObj = (ReadHookWrapper<byte>)Activator.CreateInstance(byteReadWrapperType, byteReadWrapperArgs);

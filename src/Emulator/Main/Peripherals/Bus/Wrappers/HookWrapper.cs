@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -13,14 +13,16 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 {
     public abstract class HookWrapper
     {
-        protected HookWrapper(IBusPeripheral peripheral, Type type, Range? subrange)
+        protected HookWrapper(PeripheralAccessMethods pam, Type type, Range? subrange)
         {
-            Peripheral = peripheral;
+            Pam = pam;
+            Peripheral = pam.Peripheral;
             Name = type.Name;
             Subrange = subrange;
         }
 
         protected readonly string Name;
+        protected readonly PeripheralAccessMethods Pam;
         protected readonly IBusPeripheral Peripheral;
         protected readonly Range? Subrange;
     }
