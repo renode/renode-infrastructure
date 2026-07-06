@@ -350,7 +350,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             {
                 Type = GetPeripheralTypeName(Peripheral);
                 InstanceName = GetPeripheralName(Peripheral);
-                RegisterMapper = new RegisterMapper(Peripheral.GetType());
+                RegisterMapper = new RegisterMapper(Peripheral.GetType(), Pam.Tag);
                 Bus = Peripheral.GetMachine().GetSystemBus(Peripheral);
             }
 
@@ -378,7 +378,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             {
                 Type = GetPeripheralTypeName(Peripheral);
                 InstanceName = GetPeripheralName(Peripheral);
-                RegisterMapper = new RegisterMapper(Peripheral.GetType());
+                RegisterMapper = new RegisterMapper(Peripheral.GetType(), Pam.Tag);
                 Bus = Peripheral.GetMachine().GetSystemBus(Peripheral);
             }
 
