@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
     {
         public WriteLoggingWrapper(PeripheralAccessMethods pam, Action<long, T> originalMethod) : base(pam, originalMethod, null, null)
         {
-            mapper = new RegisterMapper(Peripheral.GetType());
+            mapper = new RegisterMapper(Peripheral.GetType(), pam.Tag);
             machine = Peripheral.GetMachine();
         }
 
