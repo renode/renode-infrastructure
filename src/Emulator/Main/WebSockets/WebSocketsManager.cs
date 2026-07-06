@@ -94,7 +94,7 @@ namespace Antmicro.Renode.WebSockets
                 return provider.Connections;
             }
 
-            return null;
+            return Array.Empty<WebSocketConnection>();
         }
 
         public void Dispose()
