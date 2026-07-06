@@ -650,7 +650,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void UpdateMainTimer(Registers reg, DateTimeSelect what, Rank rank, ulong value)
         {
-            if(!CheckIfInInitMode(reg) && CheckIfUnlocked(reg))
+            if(!CheckIfInInitMode(reg) || !CheckIfUnlocked(reg))
             {
                 return;
             }
