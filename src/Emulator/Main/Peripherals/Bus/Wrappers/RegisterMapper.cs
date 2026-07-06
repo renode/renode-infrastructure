@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 {
     public class RegisterMapper
     {
-        public RegisterMapper(Type type)
+        public RegisterMapper(Type type, string tag = null)
         {
             if(type.IsEnum)
             {
@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             var types = peripheralType.GetAllNestedTypes();
             var interestingEnums = new List<Type>();
 
-            var enumsWithAttribute = types.Where(t => t.GetCustomAttributes(false).Any(x => x is RegistersDescriptionAttribute));
+            var enumsWithAttribute = types.Where(t => t.GetCustomAttributes(false).Any(x => x is RegistersDescriptionAttribute attr && attr.Tag == tag));
             if(enumsWithAttribute != null)
             {
                 interestingEnums.AddRange(enumsWithAttribute);
@@ -87,6 +87,14 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         private readonly Dictionary<long, string> map = new Dictionary<long, string>();
 
         [AttributeUsage(AttributeTargets.Enum)]
-        public class RegistersDescriptionAttribute : Attribute { }
+        public class RegistersDescriptionAttribute : Attribute
+        {
+            public RegistersDescriptionAttribute(string tag = null)
+            {
+                Tag = tag;
+            }
+
+            public string Tag { get; }
+        }
     }
 }
