@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -28,9 +28,9 @@ namespace Antmicro.Renode.Peripherals.I2C
     /// Therefore for widths other than double word, we handle accesses to that register manually.
     /// It ensures correct operation for e.g. DMA transfers.
     /// </summary>
-    public class RenesasDA_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IWordPeripheral, IBytePeripheral, IKnownSize
+    public class DesignWare_APB_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public RenesasDA_I2C(IMachine machine, IGPIOReceiver dma = null) : base(machine)
+        public DesignWare_APB_I2C(IMachine machine, IGPIOReceiver dma = null) : base(machine)
         {
             this.dma = dma;
             txFifo = new Queue<byte>();
