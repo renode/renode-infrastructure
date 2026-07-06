@@ -172,7 +172,7 @@ namespace Antmicro.Renode.UI
 
         public static bool UsingXwtUI { get; private set; } = false;
 
-        private static void PrepareIOProvider(Options options, out IOProvider io, out ISizeSource size)
+        private static void PrepareIOProvider(Options options, out IOProvider io, out ISizeSource size, Action onQuit)
         {
             IIOSource ioSource;
 
@@ -205,6 +205,7 @@ namespace Antmicro.Renode.UI
             {
                 UsingXwtUI = true;
                 var terminal = new ConsoleWindowBackendAnalyzer(true);
+                terminal.Quitted += onQuit;
                 terminal.Show();
                 io = terminal.IO;
                 size = terminal.SizeSource;
@@ -215,7 +216,7 @@ namespace Antmicro.Renode.UI
 
         private static Shell PrepareShell(Options options, Monitor monitor)
         {
-            PrepareIOProvider(options, out var io, out var size);
+            PrepareIOProvider(options, out var io, out var size, Emulator.Exit);
 
             var shell = ShellProvider.GenerateShell(monitor);
             shell.Terminal = new NavigableTerminalEmulator(io, size);
