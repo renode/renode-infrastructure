@@ -401,6 +401,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.FPDSCR = val, (val) => cpu.FPDSCR_NS = val, value & 0x07c00000);
                 break;
             case Registers.ConfigurationAndControl:
+                if(FilterCcrDiv0Write)
+                {
+                    if(BitHelper.IsBitSet(value, 4))
+                    {
+                        this.Log(LogLevel.Warning, "Writing to CCR.DIV_0_TRP, but FilterCcrDiv0Write is set. The field won't be updated.");
+                        BitHelper.SetBit(ref value, 4, false);
+                    }
+                }
                 SetTrustZoneBankedRegisterValue(isSecure, (val) => cpu.ConfigurationAndControlRegister = val, (val) => cpu.ConfigurationAndControlRegisterNonSecure = val, value);
                 break;
             default:
@@ -665,6 +673,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         }
 
         public bool HaltSystickOnDeepSleep { get; set; }
+
+        /// <summary>
+        /// Blocks writes to CCR.DIV_0_TRP register field so CPU wouldn't fault on integer division by 0
+        /// </summary>
+        public bool FilterCcrDiv0Write { get; set; } = true;
 
         [DefaultInterruptAttribute]
         public GPIO IRQ { get; private set; }
