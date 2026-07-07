@@ -1011,6 +1011,101 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public ulong[] FindBytes(byte[] pattern, ulong startAddress = 0, ulong? endAddress = null, IPeripheral context = null)
+        {
+            // 1 MiB
+            const ulong bufferSize = 1 << 20;
+
+            if(pattern == null || pattern.Length == 0)
+            {
+                throw new RecoverableException("Pattern cannot be null or empty.");
+            }
+            if((ulong)pattern.Length > bufferSize)
+            {
+                throw new RecoverableException(string.Format("Pattern cannot be larger than {0}.", bufferSize));
+            }
+
+            var results = new List<ulong>();
+
+            var overlapBytes = (ulong)pattern.Length - 1;
+            var buffer = new byte[bufferSize + overlapBytes];
+
+            var memories = GetRegistrationsForPeripheralType<IMemory>(context)
+                .Select(x => x.RegistrationPoint.Range)
+                .OrderBy(range => range.StartAddress);
+
+            // `MinimalRangesCollection` merges adjecent memories into a single range,
+            // thus allowing us to find patterns spanning two memories
+            var minimalCombinedRanges = new MinimalRangesCollection(memories);
+
+            foreach(var range in minimalCombinedRanges)
+            {
+                var regionStart = Math.Max(range.StartAddress, startAddress);
+                var regionEnd = Math.Min(range.EndAddress, endAddress ?? range.EndAddress);
+
+                if(regionStart > regionEnd)
+                {
+                    continue;
+                }
+                if(regionEnd - regionStart + 1 < (ulong)pattern.Length)
+                {
+                    continue;
+                }
+
+                var address = regionStart;
+                while(address <= regionEnd - (ulong)pattern.Length + 1)
+                {
+                    var bytesLeftInRegion = regionEnd - address + 1;
+                    var toRead = (int)Math.Min(bufferSize + overlapBytes, bytesLeftInRegion);
+
+                    ReadBytes(address, toRead, buffer, 0, onlyMemory: true, context: context);
+
+                    // Slide window across the whole buffer
+                    for(var i = 0; i < toRead - pattern.Length + 1; i++)
+                    {
+                        // Try to match pattern
+                        var matched = true;
+                        for(var j = 0; j < pattern.Length; j++)
+                        {
+                            if(buffer[i + j] != pattern[j])
+                            {
+                                matched = false;
+                                break;
+                            }
+                        }
+                        if(matched)
+                        {
+                            results.Add(address + (ulong)i);
+                        }
+                    }
+
+                    address += bufferSize;
+                }
+            }
+
+            return results.ToArray();
+        }
+
+        public ulong[] FindBytes(string hexString, ulong startAddress = 0, ulong? endAddress = null, IPeripheral context = null)
+        {
+            if(string.IsNullOrEmpty(hexString))
+            {
+                throw new RecoverableException("Pattern cannot be null or empty.");
+            }
+
+            byte[] bytes;
+            try
+            {
+                bytes = Convert.FromHexString(hexString.Replace(" ", "").ReplaceLineEndings(""));
+            }
+            catch(FormatException exception)
+            {
+                throw new RecoverableException(exception.Message);
+            }
+
+            return FindBytes(bytes, startAddress, endAddress, context);
+        }
+
         /// <summary>
         /// Unregister peripheral from the specified address.
         ///

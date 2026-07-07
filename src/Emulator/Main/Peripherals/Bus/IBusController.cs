@@ -62,6 +62,10 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         byte[] ReadBytes(ulong address, int count, bool onlyMemory = false, IPeripheral context = null);
 
+        ulong[] FindBytes(byte[] pattern, ulong startAddress = 0, ulong? endAddress = null, IPeripheral context = null);
+
+        ulong[] FindBytes(string hexString, ulong startAddress = 0, ulong? endAddress = null, IPeripheral context = null);
+
         void WriteBytes(byte[] bytes, ulong address, bool onlyMemory = false, IPeripheral context = null);
 
         void WriteBytes(byte[] bytes, ulong address, int startingIndex, long count, bool onlyMemory = false, IPeripheral context = null);

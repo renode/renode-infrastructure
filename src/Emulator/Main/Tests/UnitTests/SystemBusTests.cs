@@ -405,6 +405,26 @@ namespace Antmicro.Renode.UnitTests
             Assert.Throws(typeof(RegistrationException), () => machine.SystemBus.Register(cpu, null));
         }
 
+        [Test]
+        public void ShouldFindBytePattern()
+        {
+            // FindBytes internal buffer size
+            const ulong bufferSize = 1 << 20;
+
+            // Register 2 separate memories to test pattern spanning 2 memories
+            var memory1 = new MappedMemory(sysbus.Machine, (long)bufferSize);
+            sysbus.Register(memory1, 0);
+            var memory2 = new MappedMemory(sysbus.Machine, (long)bufferSize);
+            sysbus.Register(memory2, bufferSize.By(bufferSize));
+
+            // Write the pattern at 2 locations, including buffer boundary
+            sysbus.WriteBytes(bytes, 0);
+            sysbus.WriteBytes(bytes, bufferSize - 4);
+
+            var addresses = sysbus.FindBytes(bytes);
+            Assert.AreEqual(new ulong[] { 0x0, bufferSize - 4 }, addresses);
+        }
+
         private void CreateMachineAndExecute(Action<IBusController> action)
         {
             using(var machine = new Machine())

@@ -174,6 +174,16 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ReadBytes((ulong)offset, count, context: context);
         }
 
+        public virtual ulong[] FindBytes(byte[] pattern, ulong startAddress = 0, ulong? endAddress = null, IPeripheral context = null)
+        {
+            return ParentController.FindBytes(pattern, startAddress, endAddress, context);
+        }
+
+        public virtual ulong[] FindBytes(string hexString, ulong startAddress = 0, ulong? endAddress = null, IPeripheral context = null)
+        {
+            return ParentController.FindBytes(hexString, startAddress, endAddress, context);
+        }
+
         public virtual void WriteBytes(byte[] bytes, ulong address, bool onlyMemory = false, IPeripheral context = null)
         {
             WriteBytes(bytes, address, bytes.Length, onlyMemory, context);
