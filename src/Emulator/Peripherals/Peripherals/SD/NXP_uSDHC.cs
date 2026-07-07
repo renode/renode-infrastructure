@@ -96,15 +96,17 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => false, name: "DLA")
                 .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => true, name: "SDSTB")
                 .WithReservedBits(4, 3)
-                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => !forceSDCardClockEnable.Value, name: "SDOFF")
+                .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => !(forceSDCardClockEnable.Value || sdClockEnable.Value), name: "SDOFF")
                 .WithReservedBits(8, 2)
                 .WithFlag(10, FieldMode.Read, valueProviderCallback: _ => false, name: "BWEN")
                 .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => false, name: "BREN")
                 .WithReservedBits(12, 4)
                 .WithFlag(16, FieldMode.Read, valueProviderCallback: _ => RegisteredPeripheral != null, name: "CINS")
-                .WithReservedBits(17, 2)
+                .WithReservedBits(17, 1)
+                .WithFlag(18, FieldMode.Read, valueProviderCallback: _ => RegisteredPeripheral != null, name: "CDPL")
                 .WithFlag(19, FieldMode.Read, valueProviderCallback: _ => RegisteredPeripheral != null, name: "WPSPL")
-                .WithReservedBits(20, 4)
+                .WithReservedBits(20, 3)
+                .WithFlag(23, FieldMode.Read, valueProviderCallback: _ => RegisteredPeripheral != null, name: "CLSL")
                 .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => RegisteredPeripheral != null, name: "DAT0")
                 .WithReservedBits(25, 7);
 
@@ -115,7 +117,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithTaggedFlag("IPGEN", 0)
                 .WithTaggedFlag("HCKEN", 1)
                 .WithTaggedFlag("PEREN", 2)
-                .WithTaggedFlag("SDCLKEN", 3)
+                .WithFlag(3, out sdClockEnable, name: "SDCLKEN")
                 .WithIgnoredBits(4, 4) // SDCLKFS
                 .WithTag("DVS", 8, 4)
                 .WithReservedBits(12, 4)
@@ -336,6 +338,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private IValueRegisterField commandIndex;
 
         private IFlagRegisterField forceSDCardClockEnable;
+        private IFlagRegisterField sdClockEnable;
 
         private readonly IBusController sysbus;
         private readonly IValueRegisterField[] responseFields = new IValueRegisterField[4];
