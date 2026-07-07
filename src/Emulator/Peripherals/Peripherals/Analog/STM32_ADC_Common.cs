@@ -257,17 +257,19 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private void UpdateInterrupts()
         {
-            var adcReady = adcReadyFlag.Value && adcReadyInterruptEnable.Value;
-            var analogWatchdog = analogWatchdogsInterruptEnable.Zip(analogWatchdogFlags, (enable, flag) =>
+            var irq = false;
+
+            irq |= adcReadyFlag.Value && adcReadyInterruptEnable.Value;
+            irq |= analogWatchdogsInterruptEnable.Zip(analogWatchdogFlags, (enable, flag) =>
             {
                 return enable.Value && flag.Value;
             }).Any(flag => flag);
-            var endOfSampling = endOfSamplingFlag.Value && endOfSamplingInterruptEnable.Value;
-            var endOfConversion = endOfConversionFlag.Value && endOfConversionInterruptEnable.Value;
-            var endOfSequence = endOfSequenceFlag.Value && endOfSequenceInterruptEnable.Value;
-            var overrun = adcOverrunFlag.Value && adcOverrunInterruptEnable.Value;
+            irq |= endOfSamplingFlag.Value && endOfSamplingInterruptEnable.Value;
+            irq |= endOfConversionFlag.Value && endOfConversionInterruptEnable.Value;
+            irq |= endOfSequenceFlag.Value && endOfSequenceInterruptEnable.Value;
+            irq |= adcOverrunFlag.Value && adcOverrunInterruptEnable.Value;
 
-            IRQ.Set(adcReady || analogWatchdog || endOfSampling || endOfConversion || endOfSequence || overrun);
+            IRQ.Set(irq);
         }
 
         private void StartSampling()
