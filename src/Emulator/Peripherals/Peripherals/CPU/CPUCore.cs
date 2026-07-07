@@ -5,6 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
+
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
@@ -26,6 +28,23 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     return;
                 }
+
+                // Leave the paused state, but don't unpause cpu yet as it still might be halted.
+                if(isPausedRequested)
+                {
+                    isPausedRequested = false;
+                    UpdateHaltedState(ignoreExecutionMode: false, fromPausedState: true);
+                }
+                else
+                {
+                    UpdateHaltedState(ignoreExecutionMode: false, fromPausedState: false);
+                }
+
+                if(IsHalted)
+                {
+                    return;
+                }
+
                 started = true;
                 isPaused = false;
                 OnResume();
@@ -35,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void Pause()
         {
-            if(isAborted || isPaused)
+            if(isAborted || isPausedRequested)
             {
                 // cpu is already paused or aborted
                 return;
@@ -81,11 +100,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             // by default do nothing
         }
 
+        protected virtual bool UpdateHaltedState(bool ignoreExecutionMode, bool fromPausedState)
+        {
+            throw new NotImplementedException();
+        }
+
         [Transient]
         protected volatile bool started;
 
         protected volatile bool isAborted;
         protected volatile bool isPaused;
+
+        /// <summary>
+        /// Should be set by calling Pause method and unset by calling Resume. CPU won't resume if IsHalted is true.
+        /// </summary>
+        protected volatile bool isPausedRequested;
 
         protected readonly object pauseLock = new object();
         protected readonly object haltedLock = new object();

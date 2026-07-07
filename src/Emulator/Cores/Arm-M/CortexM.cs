@@ -888,16 +888,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public const uint IDAU_SAURegionAddressMask = ~(IDAU_SAURegionMinSize - 1u);
 
-        protected override void OnResume()
-        {
-            // Suppress initialization when processor is turned off as binary may not even be loaded yet
-            if(!IsHalted)
-            {
-                InitPCAndSP();
-            }
-            base.OnResume();
-        }
-
         protected override void HandleBusAccessError(ulong address, SysbusAccessWidth width, BusAccess.Operation operation, BusAccessError error)
         {
             tlibRaisePreciseBusFault(checked((uint)address));
@@ -945,9 +935,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void UpdateCPUWait(bool state)
         {
-            if(!state)
+            if(!state && EmulationState == EmulationCPUState.InReset)
             {
                 IsHalted = false;
+                Resume();
             }
         }
 

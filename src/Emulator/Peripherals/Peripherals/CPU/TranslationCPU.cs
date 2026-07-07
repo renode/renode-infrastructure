@@ -1169,14 +1169,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             addressesToInvalidate = new List<IntPtr>();
         }
 
-        protected override bool UpdateHaltedState(bool ignoreExecutionMode = false)
+        protected override bool UpdateHaltedState(bool ignoreExecutionMode = false, bool fromPausedState = false)
         {
-            if(!base.UpdateHaltedState(ignoreExecutionMode))
+            if(!base.UpdateHaltedState(ignoreExecutionMode, fromPausedState))
             {
                 return false;
             }
 
-            if(currentHaltedState)
+            if(!fromPausedState && currentHaltedState)
             {
                 TlibSetReturnRequest();
             }
