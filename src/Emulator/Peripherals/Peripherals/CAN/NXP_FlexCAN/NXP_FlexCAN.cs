@@ -64,11 +64,25 @@ namespace Antmicro.Renode.Peripherals.CAN
         public void OnFrameReceived(CANMessageFrame message)
         {
             this.Log(LogLevel.Noisy, "Received frame: {0}", message);
-            if(loopback.Value)
+            if(LoopBack)
             {
                 this.Log(LogLevel.Debug, "Ignoring frame, in loopback mode");
                 return;
             }
+
+            if(selfWakeUpEnable.Value)
+            {
+                switch(moduleState)
+                {
+                case State.Doze:
+                case State.Stop:
+                    SetState(State.Normal);
+                    selfWakeUpInterrupt.Value = true;
+                    UpdateInterrupts();
+                    break;
+                }
+            }
+
             OnFrameReceivedInner(message);
         }
 
@@ -76,6 +90,10 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             base.Reset();
             freeRunningTimer.Reset();
+
+            // Reset state is "Freeze" which implies disabled timer
+            freeRunningTimer.Enabled = false;
+            moduleState = State.Freeze;
         }
 
         public override uint ReadDoubleWord(long offset)
@@ -151,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private bool TryTransmitFromMessageBuffer(ulong offset)
         {
-            if(Freeze || listenOnly.Value)
+            if(!Ready)
             {
                 return false;
             }
@@ -412,13 +430,13 @@ namespace Antmicro.Renode.Peripherals.CAN
         private void SendFrame(CANMessageFrame frame)
         {
             this.Log(LogLevel.Noisy, "Transmitted frame: {0}", frame);
-            if(listenOnly.Value)
+            if(ListenOnly)
             {
                 this.Log(LogLevel.Debug, "Transmission is disabled, listen-only enabled");
                 return;
             }
 
-            if(!loopback.Value)
+            if(!LoopBack)
             {
                 FrameSent?.Invoke(frame);
                 this.Log(LogLevel.Debug, "Transmission succeeded");
@@ -469,7 +487,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private void RunArbitrationProcess()
         {
-            if(Freeze || listenOnly.Value)
+            if(Freeze || ListenOnly)
             {
                 return;
             }
@@ -508,6 +526,8 @@ namespace Antmicro.Renode.Peripherals.CAN
         private void UpdateInterrupts()
         {
             var interrupt = Enumerable.Range(0, (int)numberOfMessageBuffers).Any(i => messageBufferInterrupt[i].Value && messageBufferInterruptEnable[i].Value);
+            interrupt |= selfWakeUpInterrupt.Value;
+
             if(interrupt != IRQ.IsSet)
             {
                 this.Log(LogLevel.Debug, "IRQ: {0}", interrupt);
@@ -518,10 +538,40 @@ namespace Antmicro.Renode.Peripherals.CAN
         private void SoftReset()
         {
             // NOTE: Currently, peripheral does not respect behaviour of soft/hard-reset,
-            // and instead all registers are always cleared.
-            var moduleDisable = this.moduleDisable.Value;
+            // and instead all registers are always cleared, but state is persisted
             Reset();
-            this.moduleDisable.Value = moduleDisable;
+        }
+
+        private void SetState(State requestedState)
+        {
+            // It's possible to enter freeze mode directly after exiting Disable mode
+            if(requestedState == State.Normal && halt.Value && freezeEnable.Value)
+            {
+                requestedState = State.Freeze;
+            }
+            if(moduleState == requestedState)
+            {
+                return;
+            }
+            this.Log(LogLevel.Debug, "Changed state: {0} -> {1}", moduleState, requestedState);
+
+            moduleState = requestedState;
+
+            switch(requestedState)
+            {
+            case State.Freeze:
+            case State.Disable:
+            case State.Doze:
+            case State.Stop:
+                freeRunningTimer.Enabled = false;
+                break;
+            case State.Normal:
+            case State.ListenOnly:
+            case State.LoopBack:
+                freeRunningTimer.Enabled = true;
+                RunArbitrationProcess();
+                break;
+            }
         }
 
         private void DefineRegisters()
@@ -540,26 +590,44 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithFlag(16, out individualMaskingAndQueue, name: "Individual RX Masking and Queue Enable (MCR.IRMQ)")
                 .WithFlag(17, out selfReceptionDisable, name: "Self-Reception Disable (MCR.SRXDIS)",
                     changeCallback: GetFreezeModeOnlyWritableChangeCallback(selfReceptionDisable, "MCR.SRXDIS"))
-                .WithReservedBits(18, 2)
-                .WithFlag(20, FieldMode.Read, valueProviderCallback: _ => moduleDisable.Value, name: "Low-Power Mode Acknowledge (MCR.LPMACK)")
+                .WithFlag(18, valueProviderCallback: (_) => Doze, writeCallback: (_, value) =>
+                {
+                    SetState(value ? State.Doze : State.Normal);
+                }, name: "Doze Mode Enable (MCR.DOZE)")
+                .WithReservedBits(19, 1)
+                .WithFlag(20, FieldMode.Read, valueProviderCallback: _ => Disable || Doze || Stop, name: "Low-Power Mode Acknowledge (MCR.LPMACK)")
                 .WithTaggedFlag("Warning Interrupt Enable (MCR.WRNEN)", 21)
-                .WithReservedBits(22, 1)
+                .WithFlag(22, out selfWakeUpEnable, name: "Self Wake Up (MCR.SLFWAK)")
                 .WithTaggedFlag("Supervisor Mode (MCR.SUPV)", 23)
                 .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => Freeze, name: "Freeze Mode Acknowledge (MCR.FRZACK)")
                 .WithFlag(25, FieldMode.WriteOneToClear, writeCallback: (_, value) => { if(value) SoftReset(); }, name: "Soft Reset (MCR.SOFTRST)")
                 .WithReservedBits(26, 1)
-                .WithFlag(27, FieldMode.Read, valueProviderCallback: _ => moduleDisable.Value || Freeze, name: "FlexCAN Not Ready (MCR.NOTRDY)")
-                .WithFlag(28, out halt, name: "Halt FlexCAN (MCR.HALT)")
+                .WithFlag(27, FieldMode.Read, valueProviderCallback: _ => !Ready, name: "FlexCAN Not Ready (MCR.NOTRDY)")
+                .WithFlag(28, out halt, writeCallback: (_, value) =>
+                {
+                    if(!value && Freeze)
+                    {
+                        SetState(State.Normal);
+                    }
+                    else if(value && freezeEnable.Value && Normal)
+                    {
+                        SetState(State.Freeze);
+                    }
+                }, name: "Halt FlexCAN (MCR.HALT)")
                 .WithFlag(29, out legacyFifoEnable, name: "Legacy RX FIFO Enable (MCR.RFEN)")
-                .WithFlag(30, out freezeEnable,
-                    changeCallback: (_, value) => freeRunningTimer.Enabled = value, name: "Freeze Enable (MCR.FRZ)")
-                .WithFlag(31, out moduleDisable, name: "Module Disable (MCR.MDIS)")
-                .WithChangeCallback((_, __) => RunArbitrationProcess())
+                .WithFlag(30, out freezeEnable, name: "Freeze Enable (MCR.FRZ)")
+                .WithFlag(31, valueProviderCallback: (_) => Disable, writeCallback: (_, value) =>
+                {
+                    SetState(value ? State.Disable : State.Normal);
+                }, name: "Module Disable (MCR.MDIS)")
             ;
 
             Registers.Control1.Define(this, softResettable: false)
                 .WithTag("Propagation Segment (CTRL1.PROPSEG)", 0, 3)
-                .WithFlag(3, out listenOnly, name: "Listen-Only Mode (CTRL1.LOM)")
+                .WithFlag(3, valueProviderCallback: (_) => ListenOnly, writeCallback: (_, value) =>
+                {
+                    SetState(value ? State.ListenOnly : State.Normal);
+                }, name: "Listen-Only Mode (CTRL1.LOM)")
                 .WithFlag(4, out lowestBufferTransmittedFirst, name: "Lowest Buffer Transmitted First (CTRL1.LBUF)")
                 .WithTaggedFlag("Timer Sync (CTRL1.TSYN)", 5)
                 .WithTaggedFlag("Bus Off Recovery (CTRL1.BOFFREC)", 6)
@@ -567,7 +635,10 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithReservedBits(8, 2)
                 .WithTaggedFlag("RX Warning Interrupt Mask (CTRL1.RWRNMSK)", 10)
                 .WithTaggedFlag("TX Warning Interrupt Mask (CTRL1.TWRNMSK)", 11)
-                .WithFlag(12, out loopback, name: "Loopback Mode (CTRL1.LPB)")
+                .WithFlag(12, valueProviderCallback: (_) => LoopBack, writeCallback: (_, value) =>
+                {
+                    SetState(value ? State.LoopBack : State.Normal);
+                }, name: "Loopback Mode (CTRL1.LPB)")
                 .WithReservedBits(13, 1)
                 .WithTaggedFlag("Error Interrupt Mask (CTRL1.ERRMSK)", 14)
                 .WithTaggedFlag("Bus Off Interrupt Mask (CTRL1.BOFFMSK)", 15)
@@ -602,7 +673,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             ;
 
             Registers.ErrorAndStatus1.Define(this)
-                .WithReservedBits(0, 1)
+                .WithFlag(0, out selfWakeUpInterrupt, FieldMode.Read | FieldMode.WriteOneToClear, name: "Wake-Up Interrupt Flag (ESR1.WAKINT)")
                 .WithTaggedFlag("Error Interrupt Flag (ESR1.ERRINT)", 1)
                 .WithTaggedFlag("Bus Off Interrupt Flag (ESR1.BOFFINT)", 2)
                 .WithTaggedFlag("FlexCAN in Reception Flag (ESR1.RX)", 3)
@@ -975,18 +1046,30 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private uint Control2ResetValue => numberOfMessageBuffers > 64 ? 0x00600000U : 0x00800000U;
 
-        private bool Freeze => freezeEnable.Value && halt.Value;
+        private bool Freeze => moduleState == State.Freeze;
+
+        private bool Disable => moduleState == State.Disable;
+
+        private bool Doze => moduleState == State.Doze;
+
+        private bool Stop => moduleState == State.Stop;
+
+        private bool LoopBack => moduleState == State.LoopBack;
+
+        private bool ListenOnly => moduleState == State.ListenOnly;
+
+        private bool Normal => moduleState == State.Normal;
+
+        private bool Ready => !(Disable || Doze || Stop || Freeze);
 
         private IValueRegisterField lastMessageBufferIndex;
         private IEnumRegisterField<LegacyFilterFormat> legacyFilterFormat;
         private IFlagRegisterField selfReceptionDisable;
         private IFlagRegisterField abortEnable;
-        private IFlagRegisterField halt;
         private IFlagRegisterField legacyFifoEnable;
         private IFlagRegisterField freezeEnable;
-        private IFlagRegisterField moduleDisable;
-        private IFlagRegisterField listenOnly;
-        private IFlagRegisterField loopback;
+        private IFlagRegisterField selfWakeUpEnable;
+        private IFlagRegisterField halt;
         private IValueRegisterField transmissionArbitrationStartDelay;
         private IValueRegisterField numberOfLegacyRxFifoFilters;
         private IFlagRegisterField individualMaskingAndQueue;
@@ -995,7 +1078,10 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IValueRegisterField rxMessageBuffersGlobalMask;
         private IValueRegisterField rxMessageBuffer14Mask;
         private IValueRegisterField rxMessageBuffer15Mask;
-        private bool transmittingFrame = false;
+        private IFlagRegisterField selfWakeUpInterrupt;
+        private bool transmitInProgress = false;
+
+        private State moduleState = State.Freeze;
 
         // classic CAN rx -> legacy fifo or message buffer
         // CAN FD rx -> message buffer or enhanced fifo
@@ -1026,6 +1112,17 @@ namespace Antmicro.Renode.Peripherals.CAN
         private const int LegacyRxFifoInterruptFramesAvailable = 5;
         private const int LegacyRxFifoInterruptWarning = 6;
         private const int LegacyRxFifoInterruptOverflow = 7;
+
+        enum State
+        {
+            Normal,
+            LoopBack,
+            Freeze,
+            Doze,
+            Stop,
+            Disable,
+            ListenOnly
+        }
 
         public enum Registers
         {
