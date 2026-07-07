@@ -229,7 +229,7 @@ public class LPS25HB : II2CPeripheral, IProvidesRegisterCollection<WordRegisterC
     private void HandleTemperatureSampleEnded(TemperatureSample _, TimeInterval __)
     {
         Temperature = temperature;
-        temperatureFeederThread.Stop();
+        temperatureFeederThread?.Stop();
         temperatureFeederThread = null;
     }
 
@@ -237,7 +237,7 @@ public class LPS25HB : II2CPeripheral, IProvidesRegisterCollection<WordRegisterC
     private void HandlePressureSampleEnded(PressureSample _, TimeInterval __)
     {
         Pressure = pressure;
-        pressureFeederThread.Stop();
+        pressureFeederThread?.Stop();
         pressureFeederThread = null;
     }
 
