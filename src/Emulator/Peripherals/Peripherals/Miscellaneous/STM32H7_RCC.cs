@@ -5,202 +5,1856 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
 using System.Collections.Generic;
 
+using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
+    // Based on https://stm32-rs.github.io/stm32-rs/STM32H743.html#RCC
+    // Further implementation based on RM0433 Reference manual
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public sealed class STM32H7_RCC : IDoubleWordPeripheral, IKnownSize
+    public sealed class STM32H7_RCC : BasicDoubleWordPeripheral, IKnownSize, IRegisterablePeripheral<IPeripheral, EnumRegistrationPoint<STM32H7_RCC.RegistrationPeripheralAlias>>
     {
-        public STM32H7_RCC()
+        public STM32H7_RCC(IMachine machine, IHasDivisibleFrequency systick = null, ulong hseFrequency = DefaultHseFrequency,
+            ulong csiFrequency = FallbackCsiFrequency) : base(machine)
         {
-            //  Based on https://stm32-rs.github.io/stm32-rs/STM32H743.html#RCC
-            var registersMap = new Dictionary<long, DoubleWordRegister>
+            if(systick == null)
             {
-                {(long)Registers.ClockControl, new DoubleWordRegister(this, 0x83)
-                    .WithFlag(0, out var hsion, name: "HSION")
-                    .WithTag("HSIKERON", 1, 1)
-                    .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => hsion.Value, name: "HSIRDY")
-                    .WithTag("HSIDIV", 3, 2)
-                    .WithTag("HSIDIVF", 5, 1)
-                    .WithReservedBits(6, 1)
-                    .WithFlag(7, out var csion, name: "CSION")
-                    .WithFlag(8, FieldMode.Read, valueProviderCallback: _ => csion.Value, name: "CSIRDY")
-                    .WithTag("CSIKERON", 9, 1)
-                    .WithReservedBits(10, 2)
-                    .WithFlag(12, out var hsi48on, name: "HSI48ON")
-                    .WithFlag(13, FieldMode.Read, valueProviderCallback: _ => hsi48on.Value, name: "HSI48RDY")
-                    .WithTag("D1CKRDY", 14, 1)
-                    .WithTag("D2CKRDY", 15, 1)
-                    .WithFlag(16, out var hseon, name: "HSEON")
-                    .WithFlag(17, FieldMode.Read, valueProviderCallback: _ => hseon.Value, name: "HSERDY")
-                    .WithTag("HSEBYP", 18, 1)
-                    .WithTag("HSECSSON", 19, 1)
-                    .WithReservedBits(20, 4)
-                    .WithFlag(24, out var pll1on, name: "PLL1ON")
-                    .WithFlag(25, FieldMode.Read, valueProviderCallback: _ => pll1on.Value, name: "PLL1RDY")
-                    .WithFlag(26, out var pll2on, name: "PLL2ON")
-                    .WithFlag(27, FieldMode.Read, valueProviderCallback: _ => pll2on.Value, name: "PLL2RDY")
-                    .WithFlag(28, out var pll3on, name: "PLL3ON")
-                    .WithFlag(29, FieldMode.Read, valueProviderCallback: _ => pll3on.Value, name: "PLL3RDY")
-                    .WithReservedBits(30, 2)
-                },
-                {(long)Registers.ClockConfiguration, new DoubleWordRegister(this, 0x0)
-                    .WithValueField(0, 3, out var sw, name: "SW")
-                    .WithValueField(3, 3, FieldMode.Read, valueProviderCallback: _ => sw.Value, name: "SWS")
-                    .WithTaggedFlag("STOPWUCK", 6)
-                    .WithTaggedFlag("STOPKERWUCK", 7)
-                    .WithTag("RTCPRE", 8, 6)
-                    .WithTaggedFlag("HRTIMSEL", 14)
-                    .WithTaggedFlag("TIMPRE", 15)
-                    .WithReservedBits(16, 2)
-                    .WithTag("MCO1PRE", 18, 4)
-                    .WithTag("MCO1", 22, 3)
-                    .WithTag("MCO2PRE", 25, 4)
-                    .WithTag("MCO2", 29, 3)
-                },
-                {(long)Registers.PLLClockSourceSelect, new DoubleWordRegister(this, 0x02020200)
-                    .WithValueField(0, 2, name: "PLLSRC")
-                    .WithReservedBits(2, 2)
-                    .WithValueField(4, 6, name: "DIVM1")
-                    .WithReservedBits(10, 2)
-                    .WithValueField(12, 6, name: "DIVM2")
-                    .WithReservedBits(18, 2)
-                    .WithValueField(20, 6, name: "DIVM3")
-                    .WithReservedBits(26, 6)
-                },
-                {(long)Registers.PLLConfigurationRegister, new DoubleWordRegister(this, 0x01FF0000)
-                },
-                {(long)Registers.BackupDomainControl, new DoubleWordRegister(this)
-                    .WithFlag(0, out var lseon, name: "LSEON")
-                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lseon.Value, name: "LSERDY")
-                    .WithValueField(2, 1, name: "LSEBYP")
-                    .WithReservedBits(3, 5)
-                    .WithValueField(8, 2, name: "RTCSEL")
-                    .WithReservedBits(10, 5)
-                    .WithTaggedFlag("RTCEN", 15)
-                    .WithValueField(16, 1, name: "BDRST")
-                    .WithReservedBits(17, 15)
-                },
-                {(long)Registers.ClockControlAndStatus, new DoubleWordRegister(this, 0x0)
-                    .WithFlag(0, out var lsion, name: "LSION")
-                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lsion.Value, name: "LSIRDY")
-                    .WithReservedBits(2, 30)
-                },
-                // Value for normal power-on reset
-                // These fields are defined in reverse order so that the change callback can access the variables
-                {(long)Registers.ResetStatus, new DoubleWordRegister(this, 0x00FE0000)
-                    .WithTaggedFlag("LPWR2RSTF", 31)
-                    .WithTaggedFlag("LPWR1RSTF", 30)
-                    .WithTaggedFlag("WWDG2RSTF", 29)
-                    .WithTaggedFlag("WWDG1RSTF", 28)
-                    .WithTaggedFlag("IWDG2RSTF", 27)
-                    .WithTaggedFlag("IWDG1RSTF", 26)
-                    .WithTaggedFlag("SFT2RSTF", 25)
-                    .WithTaggedFlag("SFT1RSTF", 24)
-                    .WithFlag(23, out var porPdrReset, FieldMode.Read, name: "PORRSTF")
-                    .WithFlag(22, out var pinReset, FieldMode.Read, name: "PINRSTF")
-                    .WithFlag(21, out var borReset, FieldMode.Read, name: "BORRSTF")
-                    .WithFlag(20, out var d2Reset, FieldMode.Read, name: "D2RSTF")
-                    .WithFlag(19, out var d1Reset, FieldMode.Read, name: "D1RSTF")
-                    .WithFlag(18, out var cpu2Reset, FieldMode.Read, name: "C2RSTF")
-                    .WithFlag(17, out var cpu1Reset, FieldMode.Read, name: "C1RSTF")
-                    // Writing to this flag clears the whole register
-                    .WithFlag(16, FieldMode.WriteOneToClear, writeCallback: (_, v) =>
-                    {
-                        if(!v)
-                        {
-                            return;
-                        }
-                        cpu1Reset.Value = false;
-                        cpu2Reset.Value = false;
-                        d1Reset.Value = false;
-                        d2Reset.Value = false;
-                        borReset.Value = false;
-                        pinReset.Value = false;
-                        porPdrReset.Value = false;
-                    }, name: "RMVF")
-                    .WithReservedBits(0, 16)
-                },
-                {(long)Registers.AHB4Enable, new DoubleWordRegister(this, 0x0)
-                    .WithFlag(0, name: "GPIOAEN")
-                    .WithFlag(1, name: "GPIOBEN")
-                    .WithFlag(2, name: "GPIOCEN")
-                    .WithFlag(3, name: "GPIODEN")
-                    .WithFlag(4, name: "GPIOEEN")
-                    .WithFlag(5, name: "GPIOFEN")
-                    .WithFlag(6, name: "GPIOGEN")
-                    .WithFlag(7, name: "GPIOHEN")
-                    .WithFlag(8, name: "GPIOIEN")
-                    .WithFlag(9, name: "GPIOJEN")
-                    .WithFlag(10, name: "GPIOKEN")
-                    .WithReservedBits(11, 8)
-                    .WithFlag(19, name: "CRCEN")
-                    .WithReservedBits(20, 1)
-                    .WithFlag(21, name: "BDMAEN")
-                    .WithReservedBits(22, 2)
-                    .WithFlag(24, name: "ADC3EN")
-                    .WithFlag(25, name: "HSEMEN")
-                    .WithReservedBits(26, 2)
-                    .WithFlag(28, name: "BKPRAMEN")
-                    .WithReservedBits(29, 3)
-                }
-            };
-
-            for(var i = 0; i < 3; ++i)
-            {
-                registersMap.Add((long)Registers.PLL1FractionalDivider + i * 0x8, new DoubleWordRegister(this, 0x0)
-                    .WithReservedBits(0, 3)
-                    .WithValueField(3, 13, name: $"FRACN{i + 1}")
-                    .WithReservedBits(16, 16)
-                );
+                this.Log(LogLevel.Warning, "Systick not passed in the RCC constructor. Changes to the system clock will be ignored");
             }
 
-            registers = new DoubleWordRegisterCollection(this, registersMap);
+            this.systick = systick;
+            this.csiFrequency = csiFrequency;
+            this.hseFrequency = hseFrequency;
+            this.RegisteredPeripherals = new Dictionary<RegistrationPeripheralAlias, IPeripheral>();
+
+            DefineRegisters();
+            Reset();
         }
 
-        public uint ReadDoubleWord(long offset)
+        public void Register(IPeripheral peripheral, EnumRegistrationPoint<RegistrationPeripheralAlias> registrationPoint)
         {
-            return registers.Read(offset);
+            if(RegisteredPeripherals.ContainsValue(peripheral))
+            {
+                throw new RegistrationException("Cannot register the same device twice.");
+            }
+
+            RegisteredPeripherals.Add(registrationPoint.Name, peripheral);
         }
 
-        public void WriteDoubleWord(long offset, uint value)
+        public void Unregister(IPeripheral peripheral)
         {
-            registers.Write(offset, value);
+            foreach(var item in RegisteredPeripherals)
+            {
+                if(item.Value.Equals(peripheral))
+                {
+                    RegisteredPeripherals.Remove(item.Key);
+                    return;
+                }
+            }
+
+            throw new RegistrationException("Trying to unregister not registered device.");
         }
 
-        public void Reset()
+        public override void Reset()
         {
-            registers.Reset();
+            d1CpreDivider = 1;
+            d1PpreDivider = 1;
+            hpreDivider = 1;
+            d2Ppre1Divider = 1;
+            d2Ppre2Divider = 1;
+            d3PpreDivider = 1;
+            // See DIVN1 in RCC PLL1 dividers configuration register
+            divn1Multiplier = 0x081;
+            divp1Divider = 2;
+            pll1Prescaler = 1;
+
+            base.Reset();
+            PropagateClock();
+        }
+
+        // Returns the clock generated by PLL1 (pll1_p_ck) or returns null if:
+        // - No clock is configured to drive the DIVM1 divider (see PLLSRC),
+        // - DIVN1 is improperly configured (not in range 0x003 to 0x1FF)
+        // - DIVP1 has an odd division factor (with an exception of 1)
+        // This clock can be used to drive the sys_ck
+        public ulong? Pll1Frequecy
+        {
+            get
+            {
+                if(divn1Multiplier < 4 || divn1Multiplier > 512)
+                {
+                    return null;
+                }
+                if(divp1Divider % 2 == 1 && divp1Divider != 1)
+                {
+                    return null;
+                }
+
+                this.Log(LogLevel.Noisy, "{0} selected as clock source for PLLs", pll1Source.Value);
+
+                var ref1_ck = 0ul;
+                switch(pll1Source.Value)
+                {
+                case PllSourceSelection.Hsi:
+                    ref1_ck = HsiFrequency / pll1Prescaler;
+                    break;
+                case PllSourceSelection.Csi:
+                    ref1_ck = csiFrequency / pll1Prescaler;
+                    break;
+                case PllSourceSelection.Hse:
+                    ref1_ck = hseFrequency / pll1Prescaler;
+                    break;
+                case PllSourceSelection.NoSelection:
+                    return null;
+                default:
+                    throw new Exception("unreachable code");
+                }
+
+                if(ref1_ck < Ref1ClockMinimumFrequency && ref1_ck > Ref1ClockMaximumFrequency)
+                {
+                    this.Log(LogLevel.Warning, "Frequency of ref1_ck is not in valid range. Calculated frequency {0}", ref1_ck);
+                }
+
+                var vco = ref1_ck * divn1Multiplier;
+                return vco / divp1Divider;
+            }
         }
 
         public long Size => 0x400;
 
-        private readonly DoubleWordRegisterCollection registers;
+        private void DefineRegisters()
+        {
+            Registers.ClockControl.Define(this, 0x01)
+                .WithFlag(0, out hsion, name: "HSION",
+                    writeCallback: (previous, value) =>
+                    {
+                        if(!value && (IsSystemClockHsi || IsHsiDrivingSystemClockThroughPll1))
+                        {
+                            this.Log(LogLevel.Warning, "Cannot disable HSI while it is used to drive the sys_ck. Ignoring write.");
+                            hsion.Value = previous;
+                        }
+                    })
+                .WithTag("HSIKERON", 1, 1)
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => hsion.Value, name: "HSIRDY")
+                .WithEnumField<DoubleWordRegister, HsiFrequencySelection>(3, 2, out hsiFrequency, name: "HSIDIV", changeCallback: (previous, _) =>
+                {
+                    // The HSIDIV cannot be changed if the HSI is selected as reference clock for at least one enabled PLL.
+                    // However, it's completely ok when it's selected as the sys_ck
+                    if(pll1Source.Value == PllSourceSelection.Hsi && (pll1On.Value || pll2On.Value || pll3On.Value))
+                    {
+                        this.Log(LogLevel.Warning, "Cannot change HSIDIV value while it's selected as reference clock for at least one enabled PLL. Ignoring write.");
+                        hsiFrequency.Value = previous;
+                    }
+                })
+                .WithFlag(5, name: "HSIDIVF", valueProviderCallback: _ => true)
+                .WithReservedBits(6, 1)
+                .WithFlag(7, out csion, name: "CSION",
+                    writeCallback: (previous, value) =>
+                    {
+                        if(!value && (IsSystemClockCsi || IsCsiDrivingSystemClockThroughPll1))
+                        {
+                            this.Log(LogLevel.Warning, "Cannot disable CSI while it is used to drive the sys_ck. Ignoring write.");
+                            csion.Value = previous;
+                        }
+                    })
+                .WithFlag(8, FieldMode.Read, valueProviderCallback: _ => csion.Value, name: "CSIRDY")
+                .WithTag("CSIKERON", 9, 1)
+                .WithReservedBits(10, 2)
+                .WithFlag(12, out var hsi48on, name: "HSI48ON")
+                .WithFlag(13, FieldMode.Read, valueProviderCallback: _ => hsi48on.Value, name: "HSI48RDY")
+                .WithTag("D1CKRDY", 14, 1)
+                .WithTag("D2CKRDY", 15, 1)
+                .WithFlag(16, out hseon, name: "HSEON",
+                    writeCallback: (previous, value) =>
+                    {
+                        if(!value && (IsSystemClockHse || IsHseDrivingSystemClockThroughPll1))
+                        {
+                            this.Log(LogLevel.Warning, "Cannot disable HSE while it is used to drive the sys_ck. Ignoring write.");
+                            hseon.Value = previous;
+                        }
+                    })
+                .WithFlag(17, FieldMode.Read, valueProviderCallback: _ => hseon.Value, name: "HSERDY")
+                .WithTaggedFlag("HSEBYP", 18)
+                .WithFlag(19, FieldMode.Read | FieldMode.Set, name: "HSECSSON")
+                .WithReservedBits(20, 4)
+                .WithFlag(24, out pll1On, name: "PLL1ON", writeCallback: (_, value) =>
+                {
+                    if(!value && systemClockSwitch.Value == SystemClockSourceSelection.Pll)
+                    {
+                        this.Log(LogLevel.Warning, "Cannot disable PLL1 while it is used to drive the sys_ck. Ignoring write.");
+                        pll1On.Value = true;
+                    }
+                })
+                .WithFlag(25, FieldMode.Read, valueProviderCallback: _ => pll1On.Value, name: "PLL1RDY")
+                // We don't use PLL2/3 for any frequency configuration but we track their state for invalid configurations
+                .WithFlag(26, out pll2On, name: "PLL2ON")
+                .WithFlag(27, FieldMode.Read, valueProviderCallback: _ => pll2On.Value, name: "PLL2RDY")
+                .WithFlag(28, out pll3On, name: "PLL3ON")
+                .WithFlag(29, FieldMode.Read, valueProviderCallback: _ => pll3On.Value, name: "PLL3RDY")
+                .WithReservedBits(30, 2)
+                .WithChangeCallback((_, __) =>
+                {
+                    PropagateClock();
+                });
+            // This register is available only on revision Y devices
+            Registers.InternalClockSourceCalibration.Define(this, 0x40000000)
+                .WithTag("HSICAL", 0, 12)
+                .WithTag("HSITRIM", 12, 6)
+                .WithTag("CSICAL", 18, 8)
+                .WithTag("CSITRIM", 26, 5)
+                .WithReservedBits(31, 1);
+            Registers.ClockRecoveryRC.Define(this)
+                .WithTag("HSI48CAL", 0, 10)
+                .WithReservedBits(10, 22);
+            Registers.ClockConfiguration.Define(this)
+                .WithEnumField<DoubleWordRegister, SystemClockSourceSelection>(0, 3, out systemClockSwitch, name: "SW", writeCallback: (previous, value) =>
+                {
+                    if((int)value > 3)
+                    {
+                        systemClockSwitch.Value = previous;
+                    }
+                })
+                .WithValueField(3, 3, FieldMode.Read, valueProviderCallback: _ => (ulong)systemClockSwitch.Value, name: "SWS")
+                .WithTaggedFlag("STOPWUCK", 6)
+                .WithTaggedFlag("STOPKERWUCK", 7)
+                .WithTag("RTCPRE", 8, 6)
+                .WithTaggedFlag("HRTIMSEL", 14)
+                .WithFlag(15, out timersClocksPrescaler, name: "TIMPRE")
+                .WithReservedBits(16, 2)
+                .WithTag("MCO1PRE", 18, 4)
+                .WithTag("MCO1", 22, 3)
+                .WithTag("MCO2PRE", 25, 4)
+                .WithTag("MCO2", 29, 3)
+                .WithChangeCallback((_, __) =>
+                {
+                    PropagateClock();
+                });
+            Registers.Domain1ClockConfiguration.Define(this)
+                .WithValueField(0, 4, name: "HPRE", changeCallback: (_, value) => hpreDivider = BitHelper.IsBitSet(value, 3) ? (ulong)Math.Pow(2, ((0b111 & value) + 1)) : 1)
+                .WithValueField(4, 3, name: "D1PPRE", changeCallback: (_, value) => d1PpreDivider = BitHelper.IsBitSet(value, 2) ? (ulong)Math.Pow(2, ((0b11 & value) + 1)) : 1)
+                .WithReservedBits(7, 1)
+                .WithValueField(8, 4, name: "D1CPRE", changeCallback: (_, value) => d1CpreDivider = BitHelper.IsBitSet(value, 3) ? (ulong)Math.Pow(2, ((0b111 & value) + 1)) : 1)
+                .WithReservedBits(12, 20)
+                .WithChangeCallback((_, __) =>
+                {
+                    PropagateClock();
+                });
+            Registers.Domain2ClockConfiguration.Define(this)
+                .WithReservedBits(0, 4)
+                // 0xx means prescaler factor of 1
+                .WithValueField(4, 3, name: "D2PPRE1", changeCallback: (_, value) => d2Ppre1Divider = BitHelper.IsBitSet(value, 2) ? (ulong)Math.Pow(2, ((0b11 & value) + 1)) : 1)
+                .WithReservedBits(7, 1)
+                .WithValueField(8, 3, name: "D2PPRE2", changeCallback: (_, value) => d2Ppre2Divider = BitHelper.IsBitSet(value, 2) ? (ulong)Math.Pow(2, ((0b11 & value) + 1)) : 1)
+                .WithReservedBits(11, 21)
+                .WithChangeCallback((_, __) =>
+                {
+                    PropagateClock();
+                });
+            Registers.Domain3ClockConfiguration.Define(this)
+                .WithReservedBits(0, 4)
+                .WithValueField(4, 3, name: "D3PPRE", changeCallback: (_, value) => d3PpreDivider = BitHelper.IsBitSet(value, 2) ? (ulong)Math.Pow(2, ((0b11 & value) + 1)) : 1)
+                .WithReservedBits(7, 25);
+            Registers.PLLClockSourceSelect.Define(this, 0x02020200)
+                .WithEnumField<DoubleWordRegister, PllSourceSelection>(0, 2, out pll1Source, name: "PLLSRC", changeCallback: (previous, value) =>
+                {
+                    if(pll1On.Value || pll2On.Value || pll3On.Value)
+                    {
+                        this.Log(LogLevel.Warning, "Cannot modify PLLSRC while any of the PLLs is enabled. Ignoring write.");
+                        pll1Source.Value = previous;
+                    }
+                })
+                .WithReservedBits(2, 2)
+                .WithValueField(4, 6, name: "DIVM1", changeCallback: (_, value) =>
+                {
+                    if(pll1On.Value)
+                    {
+                        this.Log(LogLevel.Warning, "Cannot modify DIVM1 while PLL1 is enabled. Ignoring write.");
+                        return;
+                    }
+                    pll1Prescaler = value;
+                })
+                .WithReservedBits(10, 2)
+                .WithValueField(12, 6, name: "DIVM2")
+                .WithReservedBits(18, 2)
+                .WithValueField(20, 6, name: "DIVM3")
+                .WithReservedBits(26, 6);
+            Registers.PLLConfiguration.Define(this, 0x01FF0000)
+                .WithTaggedFlag("PLL1FRACEN", 0)
+                .WithTaggedFlag("PLL1VCOSEL", 1)
+                .WithTag("PLL1GRE", 2, 2)
+                .WithTaggedFlag("PLL2FRACEN", 4)
+                .WithFlag(5, name: "PLL2VCOSEL")
+                .WithTag("PLL2RGE", 6, 2)
+                .WithTaggedFlag("PLL3FRACEN", 8)
+                .WithTaggedFlag("PLL3VCOSEL", 9)
+                .WithTag("PLL3RGE", 10, 2)
+                .WithReservedBits(12, 4)
+                .WithTaggedFlag("DIVP1EN", 16)
+                .WithTaggedFlag("DIVQ1EN", 17)
+                .WithTaggedFlag("DIVR1EN", 18)
+                .WithTaggedFlag("DIVP2EN", 19)
+                .WithTaggedFlag("DIVQ2EN", 20)
+                .WithTaggedFlag("DIVR2EN", 21)
+                .WithTaggedFlag("DIVP3EN", 22)
+                .WithTaggedFlag("DIVQ3EN", 23)
+                .WithTaggedFlag("DIVR3EN", 24)
+                .WithReservedBits(25, 7);
+            Registers.PLL1DividersConfiguration.Define(this, 0x01010280)
+                .WithValueField(0, 9, name: "DIVN1",
+                    writeCallback: (_, value) =>
+                    {
+                        // Should only be in range from 0x003 to 0x1FF and other values are "wrong configurations"
+                        if(value < Divn1Min || value > Divn1Max)
+                        {
+                            this.Log(LogLevel.Warning, "Wrong configuration of DIVN1. Assigned value {0}", value);
+                        }
+                        if(pll1On.Value)
+                        {
+                            this.Log(LogLevel.Warning, "Cannot modify DIVN1 while PLL1 is enabled. Ignoring write.");
+                            return;
+                        }
 
-        private enum Registers
+                        divn1Multiplier = value + 1;
+                    },
+                    valueProviderCallback: _ => divn1Multiplier - 1)
+                .WithValueField(9, 7, name: "DIVP1",
+                    writeCallback: (_, value) =>
+                    {
+                        // The calculated division of this field can only be an even number (with an exception of
+                        // division by 1 which is "no division") and other values are not allowed.
+                        // In such cases we purposefully ignore the write.
+                        var division = value + 1;
+                        if(division % 2 == 1 && division != 1)
+                        {
+                            this.Log(LogLevel.Warning, "Illegal configuration of DIVP1, tried to assign value {0}. Ignoring write.", value);
+                            return;
+                        }
+                        if(pll1On.Value)
+                        {
+                            this.Log(LogLevel.Warning, "Cannot modify DIVP1 while PLL1 is enabled. Ignoring write.");
+                            return;
+                        }
+
+                        divp1Divider = division;
+                    },
+                    valueProviderCallback: _ => divp1Divider - 1)
+                .WithValueField(16, 7, out divq1, name: "DIVQ1", changeCallback: (previous, value) =>
+                {
+                    if(pll1On.Value)
+                    {
+                        this.Log(LogLevel.Warning, "Cannot modify DIVQ1 while PLL1 is enabled. Ignoring write.");
+                        divq1.Value = previous;
+                    }
+                })
+                .WithReservedBits(23, 1)
+                .WithValueField(24, 7, out divr1, name: "DIVR1", changeCallback: (previous, value) =>
+                {
+                    if(pll1On.Value)
+                    {
+                        this.Log(LogLevel.Warning, "Cannot modify DIVR1 while PLL1 is enabled. Ignoring write.");
+                        divr1.Value = previous;
+                    }
+                })
+                .WithReservedBits(31, 1);
+            Registers.PLL1FractionalDivider.Define(this)
+                .WithReservedBits(0, 3)
+                .WithTag("FRACN1", 3, 13)
+                .WithReservedBits(16, 16);
+            Registers.PLL2DividersConfiguration.Define(this, 0x01010280)
+                .WithValueField(0, 8, name: "DIVN2")
+                .WithValueField(9, 6, name: "DIVP2")
+                .WithValueField(16, 6, name: "DIVQ2")
+                .WithReservedBits(23, 1)
+                .WithValueField(24, 6, name: "DIVR2")
+                .WithReservedBits(31, 1);
+            Registers.PLL2FractionalDivider.Define(this)
+                .WithReservedBits(0, 3)
+                .WithTag("FRACN2", 3, 13)
+                .WithReservedBits(16, 16);
+            Registers.PLL3DividersConfiguration.Define(this, 0x01010280)
+                .WithValueField(0, 8, name: "DIVN3")
+                .WithValueField(9, 6, name: "DIVP3")
+                .WithValueField(16, 6, name: "DIVQ3")
+                .WithReservedBits(23, 1)
+                .WithValueField(24, 6, name: "DIVR3")
+                .WithReservedBits(31, 1);
+            Registers.PLL3FractionalDivider.Define(this)
+                .WithReservedBits(0, 3)
+                .WithTag("FRACN3", 3, 13)
+                .WithReservedBits(16, 16);
+            Registers.Domain1KernelClockConfiguration.Define(this)
+                .WithTag("FMCSEL", 0, 2)
+                .WithReservedBits(2, 2)
+                .WithTag("QSPISEL", 4, 2)
+                .WithReservedBits(6, 10)
+                .WithTaggedFlag("SDMMCSEL", 16)
+                .WithReservedBits(17, 10)
+                .WithTag("CKPERSEL", 28, 2)
+                .WithReservedBits(30, 2);
+            Registers.Domain2KernelClockConfigurationLow.Define(this)
+                .WithTag("SAI1SEL", 0, 2)
+                .WithReservedBits(3, 3)
+                .WithTag("SAI23SEL", 6, 3)
+                .WithReservedBits(9, 3)
+                .WithTag("SPI123SEL", 12, 3)
+                .WithReservedBits(15, 1)
+                .WithTag("SPI45SEL", 16, 3)
+                .WithReservedBits(19, 1)
+                .WithTag("SPDIFSEL", 20, 2)
+                .WithReservedBits(22, 2)
+                .WithTaggedFlag("DFSDM1SEL", 24)
+                .WithReservedBits(25, 3)
+                .WithTag("FDCANSEL", 28, 2)
+                .WithReservedBits(30, 1)
+                .WithTaggedFlag("SWPSEL", 31);
+            Registers.Domain2KernelClockConfigurationHigh.Define(this)
+                .WithTag("USART234578SEL", 0, 3)
+                .WithTag("USART16SEL", 3, 3)
+                .WithReservedBits(6, 2)
+                .WithTag("RNGSEL", 8, 2)
+                .WithReservedBits(10, 2)
+                .WithTag("I2C123SEL", 12, 2)
+                .WithReservedBits(14, 6)
+                .WithTag("USBSEL", 20, 2)
+                .WithTag("CECSEL", 22, 2)
+                .WithReservedBits(24, 4)
+                .WithTag("LPTIM1SEL", 28, 2)
+                .WithReservedBits(31, 1);
+            Registers.Domain3KernelClockConfiguration.Define(this)
+                .WithTag("LPUART1SEL", 0, 3)
+                .WithReservedBits(3, 5)
+                .WithTag("I2C4SEL", 8, 2)
+                .WithTag("LPTIM2SEL", 10, 3)
+                .WithTag("LPTIM345SEL", 13, 3)
+                .WithTag("ADCSEL", 16, 2)
+                .WithReservedBits(18, 3)
+                .WithTag("SAI4ASEL", 21, 3)
+                .WithTag("SAI4BSEL", 24, 3)
+                .WithReservedBits(27, 1)
+                .WithTag("SPI6SEL", 28, 2)
+                .WithReservedBits(31, 1);
+            Registers.ClockSourceInterruptEnable.Define(this)
+                .WithTaggedFlag("LSIRDYIE", 0)
+                .WithTaggedFlag("LSERDYIE", 1)
+                .WithTaggedFlag("HSIRDYIE", 2)
+                .WithTaggedFlag("HSERDYIE", 3)
+                .WithTaggedFlag("CSIRDYIE", 4)
+                .WithTaggedFlag("HSI48RDYIE", 5)
+                .WithTaggedFlag("PLL1RDYIE", 6)
+                .WithTaggedFlag("PLL2RDYIE", 7)
+                .WithTaggedFlag("PLL3RDYIE", 8)
+                .WithTaggedFlag("LSECSSIE", 9)
+                .WithReservedBits(10, 22);
+            Registers.ClockSourceInterruptFlag.Define(this)
+                .WithTaggedFlag("LSIRDYF", 0)
+                .WithTaggedFlag("LSERDYF", 1)
+                .WithTaggedFlag("HSIRDYF", 2)
+                .WithTaggedFlag("HSERDYF", 3)
+                .WithTaggedFlag("CSIRDYF", 4)
+                .WithTaggedFlag("HSI48RDYF", 5)
+                .WithTaggedFlag("PLL1RDYF", 6)
+                .WithTaggedFlag("PLL2RDYF", 7)
+                .WithTaggedFlag("PLL3RDYF", 8)
+                .WithTaggedFlag("LSECSSF", 9)
+                .WithTaggedFlag("HSECSSF", 10)
+                .WithReservedBits(11, 21);
+            Registers.ClockSourceInterruptClear.Define(this)
+                .WithTaggedFlag("LSIRDYC", 0)
+                .WithTaggedFlag("LSERDYC", 1)
+                .WithTaggedFlag("HSIRDYC", 2)
+                .WithTaggedFlag("HSERDYC", 3)
+                .WithTaggedFlag("CSIRDYC", 4)
+                .WithTaggedFlag("HSI48RDYC", 5)
+                .WithTaggedFlag("PLL1RDYC", 6)
+                .WithTaggedFlag("PLL2RDYC", 7)
+                .WithTaggedFlag("PLL3RDYC", 8)
+                .WithTaggedFlag("LSECSSC", 9)
+                .WithTaggedFlag("HSECSSC", 10)
+                .WithReservedBits(11, 21);
+            Registers.BackupDomainControl.Define(this)
+                .WithFlag(0, out var lseon, name: "LSEON")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lseon.Value, name: "LSERDY")
+                .WithValueField(2, 1, name: "LSEBYP")
+                .WithTag("LSEDRV", 3, 2)
+                .WithTaggedFlag("LSECSSON", 5)
+                .WithTaggedFlag("LSECSSD", 6)
+                .WithReservedBits(7, 1)
+                .WithValueField(8, 2, name: "RTCSEL")
+                .WithReservedBits(10, 5)
+                .WithFlag(15, name: "RTCEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.RTC, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.RTC))
+                .WithValueField(16, 1, name: "BDRST")
+                .WithReservedBits(17, 15);
+            Registers.ClockControlAndStatus.Define(this)
+                .WithFlag(0, out var lsion, name: "LSION")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lsion.Value, name: "LSIRDY")
+                .WithReservedBits(2, 30);
+            Registers.AHB3Reset.Define(this)
+                .WithFlag(0, name: "MDMARST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.MDMA); } })
+                .WithReservedBits(1, 3)
+                .WithFlag(4, name: "DMA2DRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.DMA2D); } })
+                .WithFlag(5, name: "JPGDECRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.JPGDEC); } })
+                .WithReservedBits(6, 6)
+                .WithFlag(12, name: "FMCRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.FMC); } })
+                .WithReservedBits(13, 1)
+                .WithFlag(14, name: "QSPIRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.QSPI); } })
+                .WithReservedBits(15, 1)
+                .WithFlag(16, name: "SDMMC1RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SDMMC1); } })
+                .WithReservedBits(17, 15);
+            Registers.AHB1Reset.Define(this)
+                .WithFlag(0, name: "DMA1RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.DMA1); } })
+                .WithFlag(1, name: "DMA2RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.DMA2); } })
+                .WithReservedBits(2, 2)
+                .WithFlag(5, name: "ADC12RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.ADC12); } })
+                .WithReservedBits(6, 9)
+                .WithFlag(15, name: "ETH1MACRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.ETH1MAC); } })
+                .WithReservedBits(16, 7)
+                .WithFlag(25, name: "USB1OTGRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.USB2OTGHS); } })
+                .WithReservedBits(26, 1)
+                .WithFlag(27, name: "USB2OTGRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.USB2OTGHS); } })
+                .WithReservedBits(28, 3);
+            Registers.AHB2Reset.Define(this)
+                .WithFlag(0, name: "CAMITFRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.DCMI); } })
+                .WithReservedBits(1, 3)
+                .WithFlag(4, name: "CRYPTRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.CRYPT); } })
+                .WithFlag(5, name: "HASHRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.HASH); } })
+                .WithFlag(6, name: "RNGRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.RNG); } })
+                .WithReservedBits(7, 2)
+                .WithFlag(9, name: "SDMMC2RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SDMMC2); } })
+                .WithReservedBits(10, 22);
+            Registers.AHB4Reset.Define(this)
+                .WithFlag(0, name: "GPIOARST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOA); } })
+                .WithFlag(1, name: "GPIOBRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOB); } })
+                .WithFlag(2, name: "GPIOCRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOC); } })
+                .WithFlag(3, name: "GPIODRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOD); } })
+                .WithFlag(4, name: "GPIOERST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOE); } })
+                .WithFlag(5, name: "GPIOFRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOF); } })
+                .WithFlag(6, name: "GPIOGRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOG); } })
+                .WithFlag(7, name: "GPIOHRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOH); } })
+                .WithFlag(8, name: "GPIOIRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOI); } })
+                .WithFlag(9, name: "GPIOJRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOJ); } })
+                .WithFlag(10, name: "GPIOKRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.GPIOK); } })
+                .WithReservedBits(11, 8)
+                .WithFlag(19, name: "CRCRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.CRC); } })
+                .WithReservedBits(20, 1)
+                .WithFlag(21, name: "BDMARST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.BDMA); } })
+                .WithReservedBits(22, 2)
+                .WithFlag(24, name: "ADC3RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.ADC3); } })
+                .WithFlag(25, name: "HSEMRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.HSEM); } })
+                .WithReservedBits(26, 6);
+            Registers.APB3Reset.Define(this)
+                .WithReservedBits(0, 3)
+                .WithFlag(3, name: "LTDCRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.LTDC); } })
+                .WithReservedBits(4, 28);
+            Registers.APB1ResetLow.Define(this)
+                .WithFlag(0, name: "TIM2RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM2); } })
+                .WithFlag(1, name: "TIM3RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM3); } })
+                .WithFlag(2, name: "TIM4RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM4); } })
+                .WithFlag(3, name: "TIM5RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM5); } })
+                .WithFlag(4, name: "TIM6RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM6); } })
+                .WithFlag(5, name: "TIM7RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM7); } })
+                .WithFlag(6, name: "TIM12RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM12); } })
+                .WithFlag(7, name: "TIM13RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM13); } })
+                .WithFlag(8, name: "TIM14RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM14); } })
+                .WithFlag(9, name: "LPTIM1RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.LPTIM1); } })
+                .WithReservedBits(10, 4)
+                .WithFlag(14, name: "SPI2RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SPI2); } })
+                .WithFlag(15, name: "SPI3RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SPI3); } })
+                .WithFlag(16, name: "SPDIFRXRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SPDIFRX); } })
+                .WithFlag(17, name: "USART2RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.USART2); } })
+                .WithFlag(18, name: "USART3RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.USART3); } })
+                .WithFlag(19, name: "UART4RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.UART4); } })
+                .WithFlag(20, name: "UART5RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.UART5); } })
+                .WithFlag(21, name: "I2C1RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.I2C1); } })
+                .WithFlag(22, name: "I2C2RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.I2C2); } })
+                .WithFlag(23, name: "I2C3RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.I2C3); } })
+                .WithReservedBits(24, 3)
+                .WithFlag(27, name: "CECRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.CEC); } })
+                .WithReservedBits(28, 1)
+                .WithFlag(29, name: "DAC12RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.DAC12); } })
+                .WithFlag(30, name: "UART7RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.UART7); } })
+                .WithFlag(31, name: "UART8RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.UART8); } });
+            Registers.APB1ResetHigh.Define(this)
+                .WithReservedBits(0, 1)
+                .WithFlag(1, name: "CRSRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.CRS); } })
+                .WithFlag(2, name: "SWPRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SWP); } })
+                .WithReservedBits(3, 1)
+                .WithFlag(4, name: "OPAMPRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.OPAMP); } })
+                .WithFlag(5, name: "MDIOSRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.MDIOS); } })
+                .WithReservedBits(6, 2)
+                .WithFlag(8, name: "FDCANRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.FDCAN); } })
+                .WithReservedBits(9, 23);
+            Registers.APB2Reset.Define(this)
+                .WithFlag(0, name: "TIM1RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM1); } })
+                .WithFlag(1, name: "TIM8RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM8); } })
+                .WithReservedBits(2, 2)
+                .WithFlag(4, name: "USART1RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.USART1); } })
+                .WithFlag(5, name: "USART6RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.USART6); } })
+                .WithReservedBits(6, 6)
+                .WithFlag(12, name: "SPI1RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SPI1); } })
+                .WithFlag(13, name: "SPI4RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SPI4); } })
+                .WithReservedBits(14, 2)
+                .WithFlag(16, name: "TIM15RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM15); } })
+                .WithFlag(17, name: "TIM16RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM16); } })
+                .WithFlag(18, name: "TIM17RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.TIM17); } })
+                .WithReservedBits(19, 1)
+                .WithFlag(20, name: "SPI5RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SPI5); } })
+                .WithReservedBits(21, 1)
+                .WithFlag(22, name: "SAI1RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SAI1); } })
+                .WithFlag(23, name: "SAI2RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SAI2); } })
+                .WithFlag(24, name: "SAI3RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SAI3); } })
+                .WithReservedBits(25, 3)
+                .WithFlag(28, name: "DFSDM1RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.DFSDM1); } })
+                .WithFlag(29, name: "HRTIMRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.HRTIM); } })
+                .WithReservedBits(30, 2);
+            Registers.APB4Reset.Define(this)
+                .WithReservedBits(0, 1)
+                .WithFlag(1, name: "SYSCFGRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SYSCFG); } })
+                .WithReservedBits(2, 1)
+                .WithFlag(3, name: "LPUART1EN", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.LPUART1); } })
+                .WithReservedBits(4, 1)
+                .WithFlag(5, name: "SPI6RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SPI6); } })
+                .WithReservedBits(6, 1)
+                .WithFlag(7, name: "I2C4RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.I2C4); } })
+                .WithReservedBits(8, 1)
+                .WithFlag(9, name: "LPTIM2RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.LPTIM2); } })
+                .WithFlag(10, name: "LPTIM3RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.LPTIM3); } })
+                .WithFlag(11, name: "LPTIM4RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.LPTIM4); } })
+                .WithFlag(12, name: "LPTIM5RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.LPTIM5); } })
+                .WithReservedBits(13, 1)
+                .WithFlag(14, name: "COMP12RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.COMP12); } })
+                .WithFlag(15, name: "VREFRST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.VREF); } })
+                .WithReservedBits(16, 5)
+                .WithFlag(21, name: "SAI4RST", writeCallback: (_, value) => { if(value) { ResetRegisteredPeripheral(RegistrationPeripheralAlias.SAI4); } })
+                .WithReservedBits(22, 9);
+            Registers.GlobalControl.Define(this)
+                .WithTaggedFlag("WW1RSC", 0)
+                .WithReservedBits(1, 31);
+            Registers.D3AutonomousMode.Define(this)
+                .WithTaggedFlag("BDMAAMEN", 0)
+                .WithReservedBits(1, 2)
+                .WithTaggedFlag("LPUART1AMEN", 3)
+                .WithReservedBits(4, 1)
+                .WithTaggedFlag("SPI6AMEN", 5)
+                .WithReservedBits(6, 1)
+                .WithTaggedFlag("I2C4AMEN", 7)
+                .WithReservedBits(8, 1)
+                .WithTaggedFlag("LPTIM2AMEN", 9)
+                .WithTaggedFlag("LPTIM3AMEN", 10)
+                .WithTaggedFlag("LPTIM4AMEN", 11)
+                .WithTaggedFlag("LPTIM5AMEN", 12)
+                .WithReservedBits(13, 1)
+                .WithTaggedFlag("COMP12AMEN", 14)
+                .WithTaggedFlag("VREFAMEN", 15)
+                .WithTaggedFlag("RTCAMEN", 16)
+                .WithReservedBits(17, 2)
+                .WithTaggedFlag("CRCAMEN", 19)
+                .WithReservedBits(20, 1)
+                .WithTaggedFlag("SAI4AMEN", 21)
+                .WithReservedBits(22, 2)
+                .WithTaggedFlag("ADC3AMEN", 24)
+                .WithReservedBits(25, 3)
+                .WithTaggedFlag("BKPRAMAMEN", 28)
+                .WithTaggedFlag("SRAM4AMEN", 29)
+                .WithReservedBits(30, 2);
+            // Value for normal power-on reset
+            // These fields are defined in reverse order so that the change callback can access the variables
+            Registers.ResetStatus.Define(this, 0x00FE0000)
+                .WithTaggedFlag("LPWR2RSTF", 31)
+                .WithTaggedFlag("LPWR1RSTF", 30)
+                .WithTaggedFlag("WWDG2RSTF", 29)
+                .WithTaggedFlag("WWDG1RSTF", 28)
+                .WithTaggedFlag("IWDG2RSTF", 27)
+                .WithTaggedFlag("IWDG1RSTF", 26)
+                .WithTaggedFlag("SFT2RSTF", 25)
+                .WithTaggedFlag("SFT1RSTF", 24)
+                .WithFlag(23, out var porPdrReset, FieldMode.Read, name: "PORRSTF")
+                .WithFlag(22, out var pinReset, FieldMode.Read, name: "PINRSTF")
+                .WithFlag(21, out var borReset, FieldMode.Read, name: "BORRSTF")
+                .WithFlag(20, out var d2Reset, FieldMode.Read, name: "D2RSTF")
+                .WithFlag(19, out var d1Reset, FieldMode.Read, name: "D1RSTF")
+                .WithFlag(18, out var cpu2Reset, FieldMode.Read, name: "C2RSTF")
+                .WithFlag(17, out var cpu1Reset, FieldMode.Read, name: "C1RSTF")
+                // Writing to this flag clears the whole register
+                .WithFlag(16, FieldMode.WriteOneToClear, writeCallback: (_, v) =>
+                {
+                    if(!v)
+                    {
+                        return;
+                    }
+                    cpu1Reset.Value = false;
+                    cpu2Reset.Value = false;
+                    d1Reset.Value = false;
+                    d2Reset.Value = false;
+                    borReset.Value = false;
+                    pinReset.Value = false;
+                    porPdrReset.Value = false;
+                }, name: "RMVF")
+                .WithReservedBits(0, 16);
+            Registers.AHB3Clock.Define(this)
+                .WithFlag(0, name: "MDMAEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.MDMA, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.MDMA))
+                .WithReservedBits(1, 3)
+                .WithFlag(4, name: "DMA2DEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.DMA2D, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.DMA2D))
+                .WithFlag(5, name: "JPGDECEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.JPGDEC, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.JPGDEC))
+                .WithReservedBits(6, 6)
+                .WithFlag(12, name: "FMCEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.FMC, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.FMC))
+                .WithReservedBits(13, 1)
+                .WithFlag(14, name: "QSPIEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.QSPI, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.QSPI))
+                .WithReservedBits(15, 1)
+                .WithFlag(16, name: "SDMMC1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SDMMC1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SDMMC1))
+                .WithReservedBits(17, 15);
+            Registers.AHB1Clock.Define(this)
+                .WithFlag(0, name: "DMA1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.DMA1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.DMA1))
+                .WithFlag(1, name: "DMA2EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.DMA2, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.DMA2))
+                .WithReservedBits(2, 2)
+                .WithFlag(5, name: "ADC12EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.ADC12, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.ADC12))
+                .WithReservedBits(6, 9)
+                .WithFlag(15, name: "ETH1MACEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.ETH1MAC, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.ETH1MAC))
+                .WithFlag(16, name: "ETH1TXEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.ETH1TX, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.ETH1TX))
+                .WithFlag(17, name: "ETH1RXEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.ETH1RX, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.ETH1RX))
+                .WithReservedBits(18, 7)
+                .WithFlag(25, name: "USB1OTGHSEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.USB1OTGHS, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.USB1OTGHS))
+                .WithFlag(26, name: "USB1OTGHSULPIEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.USB1OTGHSULPI, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.USB1OTGHSULPI))
+                .WithFlag(27, name: "USB2OTGHSEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.USB2OTGHS, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.USB2OTGHS))
+                .WithFlag(28, name: "USB2OTGHSULPIEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.USB2OTGHSULPI, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.USB2OTGHSULPI))
+                .WithReservedBits(29, 3);
+            Registers.AHB2Clock.Define(this)
+                .WithFlag(0, name: "DCMIEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.DCMI, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.DCMI))
+                .WithReservedBits(1, 3)
+                .WithFlag(4, name: "CRYPTEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.CRYPT, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.CRYPT))
+                .WithFlag(5, name: "HASHEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.HASH, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.HASH))
+                .WithFlag(6, name: "RNGEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.RNG, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.RNG))
+                .WithReservedBits(7, 2)
+                .WithFlag(9, name: "SDMMC2EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SDMMC2, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SDMMC2))
+                .WithReservedBits(10, 19)
+                .WithFlag(29, name: "SRAM1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SRAM1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SRAM1))
+                .WithFlag(30, name: "SRAM2EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SRAM2, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SRAM2))
+                .WithFlag(31, name: "SRAM3EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SRAM3, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SRAM3));
+            Registers.AHB4Clock.Define(this)
+                .WithFlag(0, name: "GPIOAEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOA, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOA))
+                .WithFlag(1, name: "GPIOBEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOB, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOB))
+                .WithFlag(2, name: "GPIOCEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOC, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOC))
+                .WithFlag(3, name: "GPIODEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOD, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOD))
+                .WithFlag(4, name: "GPIOEEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOE, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOE))
+                .WithFlag(5, name: "GPIOFEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOF, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOF))
+                .WithFlag(6, name: "GPIOGEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOG, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOG))
+                .WithFlag(7, name: "GPIOHEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOH, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOH))
+                .WithFlag(8, name: "GPIOIEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOI, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOI))
+                .WithFlag(9, name: "GPIOJEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOJ, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOJ))
+               .WithFlag(10, name: "GPIOKEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.GPIOK, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.GPIOK))
+                .WithReservedBits(11, 8)
+                .WithFlag(19, name: "CRCEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.CRC, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.CRC))
+                .WithReservedBits(20, 1)
+                .WithFlag(21, name: "BDMAEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.BDMA, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.BDMA))
+                .WithReservedBits(22, 2)
+                .WithFlag(24, name: "ADC3EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.ADC3, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.ADC3))
+                .WithFlag(25, name: "HSEMEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.HSEM, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.HSEM))
+                .WithReservedBits(26, 2)
+                .WithFlag(28, name: "BKPRAMEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.BKPRAM, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.BKPRAM))
+                .WithReservedBits(29, 3);
+            Registers.APB3Clock.Define(this)
+                .WithReservedBits(0, 2)
+                .WithFlag(3, name: "LTDCEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.LTDC, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.LTDC))
+                .WithReservedBits(4, 2)
+                .WithFlag(6, name: "WWDG1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.WWDG1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.WWDG1))
+                .WithReservedBits(7, 25);
+            Registers.APB1ClockLow.Define(this)
+                .WithFlag(0, name: "TIM2EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM2, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM2))
+                .WithFlag(1, name: "TIM3EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM3, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM3))
+                .WithFlag(2, name: "TIM4EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM4, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM4))
+                .WithFlag(3, name: "TIM5EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM5, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM5))
+                .WithFlag(4, name: "TIM6EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM6, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM6))
+                .WithFlag(5, name: "TIM7EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM7, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM7))
+                .WithFlag(6, name: "TIM12EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM12, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM12))
+                .WithFlag(7, name: "TIM13EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM13, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM13))
+                .WithFlag(8, name: "TIM14EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM14, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM14))
+                .WithFlag(9, name: "LPTIM1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.LPTIM1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.LPTIM1))
+                .WithReservedBits(10, 4)
+                .WithFlag(14, name: "SPI2EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SPI2, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SPI2))
+                .WithFlag(15, name: "SPI3EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SPI3, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SPI3))
+                .WithFlag(16, name: "SPDIFRXEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SPDIFRX, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SPDIFRX))
+                .WithFlag(17, name: "USART2EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.USART2, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.USART2))
+                .WithFlag(18, name: "USART3EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.USART3, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.USART3))
+                .WithFlag(19, name: "UART4EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.UART4, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.UART4))
+                .WithFlag(20, name: "UART5EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.UART5, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.UART5))
+                .WithFlag(21, name: "I2C1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.I2C1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.I2C1))
+                .WithFlag(22, name: "I2C2EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.I2C2, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.I2C2))
+                .WithFlag(23, name: "I2C3EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.I2C3, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.I2C3))
+                .WithReservedBits(24, 3)
+                .WithFlag(27, name: "CECEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.CEC, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.CEC))
+                .WithReservedBits(28, 1)
+                .WithFlag(29, name: "DAC12EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.DAC12, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.DAC12))
+                .WithFlag(30, name: "UART7EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.UART7, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.UART7))
+                .WithFlag(31, name: "UART8EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.UART8, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.UART8));
+            Registers.APB1ClockHigh.Define(this)
+                .WithReservedBits(0, 1)
+                .WithFlag(1, name: "CRSEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.CRS, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.CRS))
+                .WithFlag(2, name: "SWPEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SWP, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SWP))
+                .WithReservedBits(3, 1)
+                .WithFlag(4, name: "OPAMPEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.OPAMP, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.OPAMP))
+                .WithFlag(5, name: "MDIOSEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.MDIOS, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.MDIOS))
+                .WithReservedBits(6, 2)
+                .WithFlag(8, name: "FDCANEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.FDCAN, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.FDCAN))
+                .WithReservedBits(9, 23);
+            Registers.APB2Clock.Define(this)
+                .WithFlag(0, name: "TIM1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM1))
+                .WithFlag(1, name: "TIM8EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM8, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM8))
+                .WithReservedBits(2, 2)
+                .WithFlag(4, name: "USART1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.USART1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.USART1))
+                .WithFlag(5, name: "USART6EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.USART6, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.USART6))
+                .WithReservedBits(6, 6)
+                .WithFlag(12, name: "SPI1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SPI1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SPI1))
+                .WithFlag(13, name: "SPI4EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SPI4, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SPI4))
+                .WithReservedBits(14, 2)
+                .WithFlag(16, name: "TIM15EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM15, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM15))
+                .WithFlag(17, name: "TIM16EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM16, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM16))
+                .WithFlag(18, name: "TIM17EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.TIM17, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.TIM17))
+                .WithReservedBits(19, 1)
+                .WithFlag(20, name: "SPI5EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SPI5, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SPI5))
+                .WithReservedBits(21, 1)
+                .WithFlag(22, name: "SAI1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SAI1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SAI1))
+                .WithFlag(23, name: "SAI2EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SAI2, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SAI2))
+                .WithFlag(24, name: "SAI3EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SAI3, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SAI3))
+                .WithReservedBits(25, 3)
+                .WithFlag(28, name: "DFSDM1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.DFSDM1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.DFSDM1))
+                .WithFlag(29, name: "HRTIMEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.HRTIM, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.HRTIM))
+                .WithReservedBits(30, 2);
+            Registers.APB4Clock.Define(this, 0x00010000)
+                .WithReservedBits(0, 1)
+                .WithFlag(1, name: "SYSCFGEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SYSCFG, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SYSCFG))
+                .WithReservedBits(2, 1)
+                .WithFlag(3, name: "LPUART1EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.LPUART1, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.LPUART1))
+                .WithReservedBits(4, 1)
+                .WithFlag(5, name: "SPI6EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SPI6, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SPI6))
+                .WithReservedBits(6, 1)
+                .WithFlag(7, name: "I2C4EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.I2C4, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.I2C4))
+                .WithReservedBits(8, 1)
+                .WithFlag(9, name: "LPTIM2EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.LPTIM2, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.LPTIM2))
+                .WithFlag(10, name: "LPTIM3EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.LPTIM3, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.LPTIM3))
+                .WithFlag(11, name: "LPTIM4EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.LPTIM4, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.LPTIM4))
+                .WithFlag(12, name: "LPTIM5EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.LPTIM5, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.LPTIM5))
+                .WithReservedBits(13, 1)
+                .WithFlag(14, name: "COMP12EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.COMP12, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.COMP12))
+                .WithFlag(15, name: "VREFEN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.VREF, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.VREF))
+                .WithTaggedFlag("RTCAPBEN", 16)
+                .WithReservedBits(17, 4)
+                .WithFlag(21, name: "SAI4EN",
+                    writeCallback: (_, value) => EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias.SAI4, value),
+                    valueProviderCallback: _ => IsPeripheralEnabled(RegistrationPeripheralAlias.SAI4))
+                .WithReservedBits(22, 9);
+            Registers.AHB3SleepClock.Define(this, 0xF0015131)
+                .WithTaggedFlag("MDMALPEN", 0)
+                .WithReservedBits(1, 3)
+                .WithTaggedFlag("DMA2DLPEN", 4)
+                .WithTaggedFlag("JPGDECLPEN", 5)
+                .WithReservedBits(6, 2)
+                .WithTaggedFlag("FLASHLPEN", 8)
+                .WithReservedBits(9, 3)
+                .WithTaggedFlag("FMCLPEN", 12)
+                .WithReservedBits(13, 1)
+                .WithTaggedFlag("QSPILPEN", 14)
+                .WithReservedBits(15, 1)
+                .WithTaggedFlag("SDMMC1LPEN", 16)
+                .WithReservedBits(17, 11)
+                .WithTaggedFlag("D1DTCM1LPEN", 28)
+                .WithTaggedFlag("DTCM2LPEN", 29)
+                .WithTaggedFlag("ITCMLPEN", 30)
+                .WithTaggedFlag("AXISRAMLPEN", 31);
+            Registers.AHB1SleepClock.Define(this, 0x1E03C023)
+                .WithTaggedFlag("DMA1LPEN", 0)
+                .WithTaggedFlag("DMA2LPEN", 1)
+                .WithReservedBits(2, 3)
+                .WithTaggedFlag("ADC12LPEN", 5)
+                .WithReservedBits(6, 9)
+                .WithTaggedFlag("ETH1MACLPEN", 15)
+                .WithTaggedFlag("ETH1TXLPEN", 16)
+                .WithTaggedFlag("ETH1RXLPEN", 17)
+                .WithReservedBits(18, 7)
+                .WithTaggedFlag("USB1OTGHSLPEN", 25)
+                .WithTaggedFlag("USB1OTGHSULPILPEN", 26)
+                .WithTaggedFlag("USB2OTGHSLPEN", 27)
+                .WithTaggedFlag("USB2OTGHSULPILPEN", 28)
+                .WithReservedBits(29, 3);
+            Registers.AHB2SleepClock.Define(this, 0xE0000271)
+                .WithTaggedFlag("DCMILPEN", 0)
+                .WithReservedBits(1, 3)
+                .WithTaggedFlag("CRYPTLPEN", 4)
+                .WithTaggedFlag("HASHLPEN", 5)
+                .WithTaggedFlag("RNGLPEN", 6)
+                .WithReservedBits(7, 2)
+                .WithTaggedFlag("SDMMC2LPEN", 9)
+                .WithReservedBits(10, 19)
+                .WithTaggedFlag("SRAM1LPEN", 29)
+                .WithTaggedFlag("SRAM2LPEN", 30)
+                .WithTaggedFlag("SRAM3LPEN", 31);
+            Registers.AHB4SleepClock.Define(this, 0x312807FF)
+                .WithTaggedFlag("GPIOALPEN", 0)
+                .WithTaggedFlag("GPIOBLPEN", 1)
+                .WithTaggedFlag("GPIOCLPEN", 2)
+                .WithTaggedFlag("GPIODLPEN", 3)
+                .WithTaggedFlag("GPIOELPEN", 4)
+                .WithTaggedFlag("GPIOFLPEN", 5)
+                .WithTaggedFlag("GPIOGLPEN", 6)
+                .WithTaggedFlag("GPIOHLPEN", 7)
+                .WithTaggedFlag("GPIOILPEN", 8)
+                .WithTaggedFlag("GPIOJLPEN", 9)
+                .WithTaggedFlag("GPIOKLPEN", 10)
+                .WithReservedBits(11, 8)
+                .WithTaggedFlag("CRCLPEN", 19)
+                .WithReservedBits(20, 1)
+                .WithTaggedFlag("BDMALPEN", 21)
+                .WithReservedBits(22, 2)
+                .WithTaggedFlag("ADC3LPEN", 24)
+                .WithReservedBits(25, 3)
+                .WithTaggedFlag("BKPRAMLPEN", 28)
+                .WithTaggedFlag("SRAM4LPEN", 29)
+                .WithReservedBits(30, 2);
+            Registers.APB3SleepClock.Define(this, 0x00000058)
+                .WithReservedBits(0, 3)
+                .WithTaggedFlag("LTDCLPEN", 3)
+                .WithReservedBits(4, 2)
+                .WithTaggedFlag("WWDG1LPEN", 6)
+                .WithReservedBits(7, 25);
+            Registers.APB1LowSleepClock.Define(this, 0xE8FFCBFF)
+                .WithTaggedFlag("TIM2LPEN", 0)
+                .WithTaggedFlag("TIM3LPEN", 1)
+                .WithTaggedFlag("TIM4LPEN", 2)
+                .WithTaggedFlag("TIM5LPEN", 3)
+                .WithTaggedFlag("TIM6LPEN", 4)
+                .WithTaggedFlag("TIM7LPEN", 5)
+                .WithTaggedFlag("TIM12LPEN", 6)
+                .WithTaggedFlag("TIM13LPEN", 7)
+                .WithTaggedFlag("TIM14LPEN", 8)
+                .WithTaggedFlag("LPTIM1LPEN", 9)
+                .WithReservedBits(10, 4)
+                .WithTaggedFlag("SPI2LPEN", 14)
+                .WithTaggedFlag("SPI3LPEN", 15)
+                .WithTaggedFlag("SPDIFRXLPEN", 16)
+                .WithTaggedFlag("USART2LPEN", 17)
+                .WithTaggedFlag("USART3LPEN", 18)
+                .WithTaggedFlag("UART4LPEN", 19)
+                .WithTaggedFlag("UART5LPEN", 20)
+                .WithTaggedFlag("I2C1LPEN", 21)
+                .WithTaggedFlag("I2C2LPEN", 22)
+                .WithTaggedFlag("I2C3LPEN", 23)
+                .WithReservedBits(24, 3)
+                .WithTaggedFlag("CECLPEN", 27)
+                .WithReservedBits(28, 1)
+                .WithTaggedFlag("DAC12LPEN", 29)
+                .WithTaggedFlag("UART7LPEN", 30)
+                .WithTaggedFlag("UART8LPEN", 31);
+            Registers.APB1HighSleepClock.Define(this, 0x00000136)
+                .WithReservedBits(0, 1)
+                .WithTaggedFlag("CRSLPEN", 1)
+                .WithTaggedFlag("SWPLPEN", 2)
+                .WithReservedBits(3, 1)
+                .WithTaggedFlag("OPAMPLPEN", 4)
+                .WithTaggedFlag("MDIOSLPEN", 5)
+                .WithReservedBits(6, 2)
+                .WithTaggedFlag("FDCANLPEN", 8)
+                .WithReservedBits(9, 23);
+            Registers.APB2SleepClock.Define(this, 0x31D73033)
+                .WithTaggedFlag("TIM1LPEN", 0)
+                .WithTaggedFlag("TIM8LPEN", 1)
+                .WithReservedBits(2, 2)
+                .WithTaggedFlag("USART1LPEN", 4)
+                .WithTaggedFlag("USART6LPEN", 5)
+                .WithReservedBits(6, 6)
+                .WithTaggedFlag("SPI1LPEN", 12)
+                .WithTaggedFlag("SPI4LPEN", 13)
+                .WithReservedBits(14, 2)
+                .WithTaggedFlag("TIM15LPEN", 16)
+                .WithTaggedFlag("TIM16LPEN", 17)
+                .WithTaggedFlag("TIM17LPEN", 18)
+                .WithReservedBits(21, 1)
+                .WithTaggedFlag("SAI1LPEN", 22)
+                .WithTaggedFlag("SAI2LPEN", 23)
+                .WithTaggedFlag("SAI3LPEN", 24)
+                .WithReservedBits(25, 2)
+                .WithTaggedFlag("DFSDM1LPEN", 28)
+                .WithTaggedFlag("HRTIMLPEN", 29)
+                .WithReservedBits(30, 2);
+            Registers.APB4SleepClock.Define(this, 0x0421DEAA)
+                .WithReservedBits(0, 1)
+                .WithTaggedFlag("SYSCFGLPEN", 1)
+                .WithReservedBits(2, 1)
+                .WithTaggedFlag("LPUART1LPEN", 3)
+                .WithReservedBits(4, 1)
+                .WithTaggedFlag("SPI6LPEN", 5)
+                .WithReservedBits(6, 1)
+                .WithTaggedFlag("I2C4LPEN", 7)
+                .WithReservedBits(8, 1)
+                .WithTaggedFlag("LPTIM2LPEN", 9)
+                .WithTaggedFlag("LPTIM3LPEN", 10)
+                .WithTaggedFlag("LPTIM4LPEN", 11)
+                .WithTaggedFlag("LPTIM5LPEN", 12)
+                .WithReservedBits(13, 1)
+                .WithTaggedFlag("COMP12LPEN", 14)
+                .WithTaggedFlag("VREFLPEN", 15)
+                .WithTaggedFlag("RTCAPBLPEN", 16)
+                .WithReservedBits(17, 4)
+                .WithTaggedFlag("SAI4LPEN", 21)
+                .WithReservedBits(22, 10);
+
+            Registers.C1ResetStatus.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.ResetStatus));
+            Registers.C1AHB3Clock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.AHB3Clock));
+            Registers.C1AHB1Clock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.AHB1Clock));
+            Registers.C1AHB2Clock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.AHB2Clock));
+            Registers.C1AHB4Clock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.AHB4Clock));
+            Registers.C1APB3Clock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.APB3Clock));
+            Registers.C1APB1ClockLow.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.APB1ClockLow));
+            Registers.C1APB1ClockHigh.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.APB1ClockHigh));
+            Registers.C1APB2Clock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.APB2Clock));
+            Registers.C1APB4Clock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.APB4Clock));
+            Registers.C1AHB3SleepClock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.AHB3SleepClock));
+            Registers.C1AHB1SleepClock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.AHB1SleepClock));
+            Registers.C1AHB2SleepClock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.AHB2SleepClock));
+            Registers.C1AHB4SleepClock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.AHB4SleepClock));
+            Registers.C1APB3SleepClock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.APB3SleepClock));
+            Registers.C1APB1LowSleepClock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.APB1LowSleepClock));
+            Registers.C1APB1HighSleepClock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.APB1HighSleepClock));
+            Registers.C1APB2SleepClock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.APB2SleepClock));
+            Registers.C1APB4SleepClock.Define(this)
+                .WithValueField(0, 32, valueProviderCallback: _ => this.ReadDoubleWord((long)Registers.C1APB4SleepClock));
+        }
+
+        // List of all timer peripherals that are registered at APB1 bus. Their clock frequencies can be configured independently from APB2
+        private static readonly RegistrationPeripheralAlias[] APB1Timers = {
+            RegistrationPeripheralAlias.TIM2,
+            RegistrationPeripheralAlias.TIM3,
+            RegistrationPeripheralAlias.TIM4,
+            RegistrationPeripheralAlias.TIM5,
+            RegistrationPeripheralAlias.TIM6,
+            RegistrationPeripheralAlias.TIM7,
+            RegistrationPeripheralAlias.TIM12,
+            RegistrationPeripheralAlias.TIM13,
+            RegistrationPeripheralAlias.TIM14,
+        };
+
+        // List of all timer peripherals that are registered at APB2 bus. Their clock frequencies can be configured independently from APB1
+        private static readonly RegistrationPeripheralAlias[] APB2Timers = {
+            RegistrationPeripheralAlias.TIM1,
+            RegistrationPeripheralAlias.TIM8,
+            RegistrationPeripheralAlias.TIM15,
+            RegistrationPeripheralAlias.TIM16,
+            RegistrationPeripheralAlias.TIM17,
+        };
+
+        // This is a simplification of how these devices are clocked. Proper clock propagation requires future adjustments
+        private static readonly RegistrationPeripheralAlias[] APB1Peripherals = {
+            RegistrationPeripheralAlias.SPI2,
+            RegistrationPeripheralAlias.SPI3,
+            RegistrationPeripheralAlias.SPDIFRX,
+            RegistrationPeripheralAlias.USART2,
+            RegistrationPeripheralAlias.USART3,
+            RegistrationPeripheralAlias.UART4,
+            RegistrationPeripheralAlias.UART5,
+            RegistrationPeripheralAlias.I2C1,
+            RegistrationPeripheralAlias.I2C2,
+            RegistrationPeripheralAlias.I2C3,
+            RegistrationPeripheralAlias.CEC,
+            RegistrationPeripheralAlias.DAC12,
+            RegistrationPeripheralAlias.UART7,
+            RegistrationPeripheralAlias.UART8,
+            RegistrationPeripheralAlias.CRS,
+            RegistrationPeripheralAlias.SWP,
+            RegistrationPeripheralAlias.OPAMP,
+            RegistrationPeripheralAlias.MDIOS,
+            RegistrationPeripheralAlias.FDCAN,
+        };
+
+        private static readonly RegistrationPeripheralAlias[] APB2Peripherals = {
+            RegistrationPeripheralAlias.USART1,
+            RegistrationPeripheralAlias.USART6,
+            RegistrationPeripheralAlias.SPI1,
+            RegistrationPeripheralAlias.SPI4,
+            RegistrationPeripheralAlias.SPI5,
+            RegistrationPeripheralAlias.SAI1,
+            RegistrationPeripheralAlias.SAI2,
+            RegistrationPeripheralAlias.SAI3,
+            RegistrationPeripheralAlias.DFSDM1,
+        };
+
+        private static readonly RegistrationPeripheralAlias[] APB3Peripherals = {
+            RegistrationPeripheralAlias.LTDC,
+            RegistrationPeripheralAlias.WWDG1,
+        };
+
+        private static readonly RegistrationPeripheralAlias[] APB4Peripherals = {
+            RegistrationPeripheralAlias.SYSCFG,
+            RegistrationPeripheralAlias.LPUART1,
+            RegistrationPeripheralAlias.SPI6,
+            RegistrationPeripheralAlias.I2C4,
+            RegistrationPeripheralAlias.LPTIM2,
+            RegistrationPeripheralAlias.LPTIM3,
+            RegistrationPeripheralAlias.LPTIM4,
+            RegistrationPeripheralAlias.LPTIM5,
+            RegistrationPeripheralAlias.COMP12,
+            RegistrationPeripheralAlias.VREF,
+            RegistrationPeripheralAlias.SAI4,
+        };
+
+        private static readonly RegistrationPeripheralAlias[] AHB123Peripherals = {
+            // -- AHB1 --
+            RegistrationPeripheralAlias.DMA1,
+            RegistrationPeripheralAlias.DMA2,
+            RegistrationPeripheralAlias.ADC12,
+            RegistrationPeripheralAlias.ETH1MAC,
+            RegistrationPeripheralAlias.ETH1TX,
+            RegistrationPeripheralAlias.ETH1RX,
+            RegistrationPeripheralAlias.USB1OTGHS,
+            RegistrationPeripheralAlias.USB1OTGHSULPI,
+            RegistrationPeripheralAlias.USB2OTGHS,
+            RegistrationPeripheralAlias.USB2OTGHSULPI,
+            // -- AHB2 --
+            RegistrationPeripheralAlias.DCMI,
+            RegistrationPeripheralAlias.CRYPT,
+            RegistrationPeripheralAlias.HASH,
+            RegistrationPeripheralAlias.RNG,
+            RegistrationPeripheralAlias.SDMMC2,
+            RegistrationPeripheralAlias.SRAM1,
+            RegistrationPeripheralAlias.SRAM2,
+            RegistrationPeripheralAlias.SRAM3,
+            // -- AHB3 --
+            RegistrationPeripheralAlias.MDMA,
+            RegistrationPeripheralAlias.DMA2D,
+            RegistrationPeripheralAlias.JPGDEC,
+            RegistrationPeripheralAlias.FMC,
+            RegistrationPeripheralAlias.QSPI,
+            RegistrationPeripheralAlias.SDMMC1,
+            // -- AHB4 --
+            RegistrationPeripheralAlias.CRC,
+            RegistrationPeripheralAlias.BDMA,
+            RegistrationPeripheralAlias.ADC3,
+            RegistrationPeripheralAlias.HSEM,
+            RegistrationPeripheralAlias.BKPRAM,
+        };
+
+        private void EnableOrDisableRegisteredPeripheral(RegistrationPeripheralAlias peripheral, bool value)
+        {
+            if(!RegisteredPeripherals.TryGetValue(peripheral, out var peri))
+            {
+                this.Log(LogLevel.Noisy, "Cannot enable clock for {0}, peripheral not registered in RCC", peripheral);
+                return;
+            }
+
+            var what = value ? "Enabling" : "Disabling";
+            this.Log(LogLevel.Debug, "{0} {1}", what, peripheral);
+
+            sysbus.SetPeripheralEnabled(peri, value);
+        }
+
+        private bool IsPeripheralEnabled(RegistrationPeripheralAlias peripheral)
+        {
+            if(!RegisteredPeripherals.TryGetValue(peripheral, out var peri))
+            {
+                return false;
+            }
+
+            return sysbus.IsPeripheralEnabled(peri);
+        }
+
+        private void ResetRegisteredPeripheral(RegistrationPeripheralAlias peripheral)
+        {
+            if(RegisteredPeripherals.TryGetValue(peripheral, out var peri))
+            {
+                this.Log(LogLevel.Debug, "Resetting {0}", peripheral);
+                peri.Reset();
+            }
+        }
+
+        private void UpdateSystick()
+        {
+            if(systick == null)
+            {
+                return;
+            }
+
+            var old = systick.Frequency;
+            if(SysCkBaseFrequency is ulong freq)
+            {
+                // Figure 49 Core and bus clock generation
+                // We use the rcc_c_ck as the systick clock
+                systick.Frequency = freq / d1CpreDivider;
+            }
+            else
+            {
+                this.Log(LogLevel.Error, "Cannot update systick - invalid configuration of the sys_ck");
+            }
+
+            if(old != systick.Frequency)
+            {
+                this.Log(LogLevel.Debug, "systick clock frequency changed to {0}. Current effective frequency: {1}", systick.Frequency, systick.Frequency / systick.Divider);
+            }
+        }
+
+        // Update frequencies of all timers on APB1
+        private void UpdateAPB1Timers()
+        {
+            UpdatePeripheralsFrequency(APB1Timers, HclkAPB1FinalDivisor);
+        }
+
+        // Update frequencies of all timers on APB2
+        private void UpdateAPB2Timers()
+        {
+            UpdatePeripheralsFrequency(APB2Timers, HclkAPB2FinalDivisor);
+        }
+
+        private void UpdateAPB1Frequencies()
+        {
+            UpdatePeripheralsFrequency(APB1Peripherals, d2Ppre1Divider);
+        }
+
+        private void UpdateAPB2Frequencies()
+        {
+            UpdatePeripheralsFrequency(APB2Peripherals, d2Ppre2Divider);
+        }
+
+        private void UpdateAPB3Frequencies()
+        {
+            UpdatePeripheralsFrequency(APB3Peripherals, d1PpreDivider);
+        }
+
+        private void UpdateAPB4Frequencies()
+        {
+            UpdatePeripheralsFrequency(APB4Peripherals, d3PpreDivider);
+        }
+
+        // Update frequencies of AHB1, AHB2, AHB3 and AHB4 peripherals.
+        // All of them share the same clock (rcc_hclk[1:3])
+        private void UpdateAHBFrequencies()
+        {
+            UpdatePeripheralsFrequency(AHB123Peripherals, 1);
+        }
+
+        private void UpdatePeripheralsFrequency(RegistrationPeripheralAlias[] peripherals, ulong divider)
+        {
+            if(SysCkBaseFrequency is null)
+            {
+                return;
+            }
+            var frequency = (ulong)SysCkBaseFrequency;
+
+            foreach(var id in peripherals)
+            {
+                if(RegisteredPeripherals.TryGetValue(id, out var peri))
+                {
+                    var peripheral = peri as IHasFrequency;
+                    if(peripheral == null)
+                    {
+                        continue;
+                    }
+
+                    var old = peripheral.Frequency;
+                    peripheral.Frequency = frequency / (d1CpreDivider * hpreDivider * divider);
+                    if(old != peripheral.Frequency)
+                    {
+                        this.Log(LogLevel.Debug, "{0} peripheral frequency changed to {1} from {2}", id, peripheral.Frequency, old);
+                    }
+                }
+            }
+        }
+
+        // Looks up divisor that has to be applied to rcc_hclk1 to get rcc_timx_ker_ck or rcc_timy_ker_ck.
+        // The divisor depends on the current value (or in this case calculated divisor value) of D2PPRE1 or D2PPRE2,
+        // and value of TIMPRE. The lookup value is taken from "Table 57. Ratio between clock timer and pclk".
+        // This function takes divisor of D2 domain APB1 or APB2 (D2PPRE1 or D2PPRE2) as parameter and returns divisor value.
+        private ulong LookupHclkDivisorForTimersKernelClock(ulong d2Prescaler)
+        {
+            switch(d2Prescaler)
+            {
+            case 1:
+            case 2:
+                return 1ul;
+            case 4:
+                return timersClocksPrescaler.Value ? 1ul : 2;
+            case 8:
+                return timersClocksPrescaler.Value ? 2ul : 4;
+            case 16:
+                return timersClocksPrescaler.Value ? 4ul : 8;
+            // The only valid divisor values for D2 domain prescaler are 1, 2, 4, 8 or 16
+            default:
+                throw new Exception("unreachable code");
+            }
+        }
+
+        private void PropagateClock()
+        {
+            UpdateAPB1Timers();
+            UpdateAPB2Timers();
+            UpdateAPB1Frequencies();
+            UpdateAPB2Frequencies();
+            UpdateAPB3Frequencies();
+            UpdateAPB4Frequencies();
+            UpdateAHBFrequencies();
+            UpdateSystick();
+        }
+
+        // On success returns the base frequency (without any prescalers) of the sys_ck clock,
+        // that is - the main clock that drives all other clocks in RCC.
+        // Will return null if the frequency cannot be determined. This can happen when:
+        // - HSE is selected as the syc_ck but no HSE is configured or no frequency has been set
+        // - PLL1 is selected as `sys_ck` and HSE is selected to drive the PLL1 where HSE hasn't been configured
+        private ulong? SysCkBaseFrequency
+        {
+            get
+            {
+                switch(systemClockSwitch.Value)
+                {
+                case SystemClockSourceSelection.Hsi:
+                    return HsiFrequency;
+                case SystemClockSourceSelection.Csi:
+                    return csiFrequency;
+                case SystemClockSourceSelection.Hse:
+                    return hseFrequency;
+                case SystemClockSourceSelection.Pll:
+                    if(Pll1Frequecy is ulong freq)
+                    {
+                        return freq;
+                    }
+                    return null;
+                default:
+                    throw new Exception("unreachable code");
+                }
+            }
+        }
+
+        private ulong HsiFrequency
+        {
+            get
+            {
+                switch(hsiFrequency.Value)
+                {
+                case HsiFrequencySelection._64MHz:
+                    return 64000000;
+                case HsiFrequencySelection._32MHz:
+                    return 32000000;
+                case HsiFrequencySelection._16MHz:
+                    return 16000000;
+                case HsiFrequencySelection._8MHz:
+                    return 8000000;
+                default:
+                    throw new Exception("unreachable code");
+                }
+            }
+        }
+
+        // Final divisor that has to be applied to hcc_clk on APB1 to get the timers kernel clock (rcc_timx_ker_ck).
+        private ulong HclkAPB1FinalDivisor => LookupHclkDivisorForTimersKernelClock(d2Ppre1Divider);
+
+        // Final divisor that has to be applied to hcc_clk on APB2 to get the timers kernel clock (rcc_timy_ker_ck).
+        private ulong HclkAPB2FinalDivisor => LookupHclkDivisorForTimersKernelClock(d2Ppre2Divider);
+
+        private bool IsSystemClockHsi => systemClockSwitch.Value == SystemClockSourceSelection.Hsi;
+
+        private bool IsHsiDrivingSystemClockThroughPll1 => pll1Source.Value == PllSourceSelection.Hsi && systemClockSwitch.Value == SystemClockSourceSelection.Pll;
+
+        private bool IsSystemClockCsi => systemClockSwitch.Value == SystemClockSourceSelection.Csi;
+
+        private bool IsCsiDrivingSystemClockThroughPll1 => pll1Source.Value == PllSourceSelection.Csi && systemClockSwitch.Value == SystemClockSourceSelection.Pll;
+
+        private bool IsSystemClockHse => systemClockSwitch.Value == SystemClockSourceSelection.Hse;
+
+        private bool IsHseDrivingSystemClockThroughPll1 => pll1Source.Value == PllSourceSelection.Hse && systemClockSwitch.Value == SystemClockSourceSelection.Pll;
+
+        // Currently selected clock source for the sys_ck clock
+        private IEnumRegisterField<SystemClockSourceSelection> systemClockSwitch;
+        // PLL1 enable status
+        private IFlagRegisterField pll1On;
+        // PLL2 enable status
+        private IFlagRegisterField pll2On;
+        // PLL3 enable status
+        private IFlagRegisterField pll3On;
+        // PLL1 DIVQ division factor
+        private IValueRegisterField divq1;
+        // PLL1 DIVR division factor
+        private IValueRegisterField divr1;
+        // Timers clock prescaler selection
+        private IFlagRegisterField timersClocksPrescaler;
+        // Currently selected clock that drives PLL1
+        private IEnumRegisterField<PllSourceSelection> pll1Source;
+        // High-speed internal oscillator (hsi_(_ker)_ck), values for this can be any of 8, 16, 32 or 64 MHz
+        private IEnumRegisterField<HsiFrequencySelection> hsiFrequency;
+        private IFlagRegisterField hsion;
+        private IFlagRegisterField csion;
+        private IFlagRegisterField hseon;
+
+        // Divider of D1 domain Core prescaler (D1CPRE). Note this is not the register value
+        private ulong d1CpreDivider;
+        // Divider of D1 domain APB3 prescaler (D1PPRE). Note this is not the register value
+        private ulong d1PpreDivider;
+        // Divider of D1 domain AHB prescaler (HPRE). Note this is not the register value
+        private ulong hpreDivider;
+        // Divider of D2 domain APB1 prescaler (D2PPRE1). Note this is not the register value
+        private ulong d2Ppre1Divider;
+        // Divider of D2 domain APB2 prescaler (D2PPRE2). Note this is not the register value
+        private ulong d2Ppre2Divider;
+        // Divider of D3 domain APB4 prescaler (D3PPRE). Note this is not the register value
+        private ulong d3PpreDivider;
+        // Multiplication factor applied by DIVN1 register field. This should be in range of 0x003 to 0x1FF (other values are wrong configurations).
+        // It defaults to 0x080 after reset. Note this is not the field value
+        private ulong divn1Multiplier;
+        // Divider of DIVP1 register field. This should only should be even. Note this is not the field value
+        private ulong divp1Divider;
+        // Prescaler value for PLL1
+        private ulong pll1Prescaler;
+
+        private readonly Dictionary<RegistrationPeripheralAlias, IPeripheral> RegisteredPeripherals;
+
+        private readonly IHasDivisibleFrequency systick;
+        // Low-power internal oscillator
+        private readonly ulong csiFrequency;
+        // High-speed external oscillator, can be null if not configured
+        private readonly ulong hseFrequency;
+
+        private const ulong FallbackCsiFrequency = 4000000;
+        // The value of 8 MHz was picked as a default for HSE because
+        // this is the most common frequency among our platforms
+        private const ulong DefaultHseFrequency = 8000000;
+
+        private const ulong Ref1ClockMinimumFrequency = 1000000;
+        private const ulong Ref1ClockMaximumFrequency = 16000000;
+        private const ulong Divn1Min = 0x003;
+        private const ulong Divn1Max = 0x1FF;
+
+        // List of all peripherals that the RCC can interact with (not exhaustive)
+        public enum RegistrationPeripheralAlias
+        {
+            RTC,
+            SDMMC1,
+            QSPI,
+            FMC,
+            JPGDEC,
+            DMA2D,
+            MDMA,
+            USB2OTGHSULPI,
+            USB2OTGHS,
+            USB1OTGHSULPI,
+            USB1OTGHS,
+            ETH1RX,
+            ETH1TX,
+            ETH1MAC,
+            ADC12,
+            DMA2,
+            DMA1,
+            DCMI,
+            CRYPT,
+            HASH,
+            RNG,
+            GPIOA,
+            GPIOB,
+            GPIOC,
+            GPIOD,
+            GPIOE,
+            GPIOF,
+            GPIOG,
+            GPIOH,
+            GPIOI,
+            GPIOJ,
+            GPIOK,
+            CRC,
+            BDMA,
+            ADC3,
+            HSEM,
+            BKPRAM,
+            CRS,
+            SWP,
+            OPAMP,
+            MDIOS,
+            FDCAN,
+            LTDC,
+            WWDG1,
+            TIM1,
+            TIM2,
+            TIM3,
+            TIM4,
+            TIM5,
+            TIM6,
+            TIM7,
+            TIM8,
+            TIM12,
+            TIM13,
+            TIM14,
+            TIM15,
+            TIM16,
+            TIM17,
+            SPI1,
+            SPI2,
+            SPI3,
+            SPI4,
+            SPI5,
+            SPI6,
+            I2C1,
+            I2C2,
+            I2C3,
+            I2C4,
+            USART1,
+            USART2,
+            USART3,
+            UART4,
+            UART5,
+            USART6,
+            UART7,
+            UART8,
+            LPUART1,
+            SAI1,
+            SAI2,
+            SAI3,
+            DFSDM1,
+            HRTIM,
+            SAI4,
+            LPTIM1,
+            LPTIM2,
+            LPTIM3,
+            LPTIM4,
+            LPTIM5,
+            SYSCFG,
+            COMP12,
+            VREF,
+            SPDIFRX,
+            CEC,
+            DAC12,
+            SRAM1,
+            SRAM2,
+            SRAM3,
+            SDMMC2,
+        }
+
+        // Possible clocks that can be used as sys_ck
+        public enum SystemClockSourceSelection
+        {
+            Hsi,
+            Csi,
+            Hse,
+            // Represents pll1_p_ck
+            Pll
+        }
+
+        // Possible clocks that can drive the PLLs
+        public enum PllSourceSelection
+        {
+            Hsi,
+            Csi,
+            Hse,
+            // No clock send to DIVMx divider and PLLs
+            NoSelection,
+        }
+
+        // Possible values of HSI clock (hsi(_ker)_ck) after it gets divided by HSIDIV
+        public enum HsiFrequencySelection
+        {
+            _64MHz,
+            _32MHz,
+            _16MHz,
+            _8MHz,
+        }
+
+        public enum Registers
         {
             ClockControl = 0x0,
             InternalClockSourceCalibration = 0x4,
+            ClockRecoveryRC = 0x8,
+            // gap intentional
             ClockConfiguration = 0x10,
+            // gap intentional
+            Domain1ClockConfiguration = 0x18,
+            Domain2ClockConfiguration = 0x1C,
+            Domain3ClockConfiguration = 0x20,
+            // gap intentional
             PLLClockSourceSelect = 0x28,
-            PLLConfigurationRegister = 0x2c,
+            PLLConfiguration = 0x2c,
             PLL1DividersConfiguration = 0x30,
             PLL1FractionalDivider = 0x34,
             PLL2DividersConfiguration = 0x38,
             PLL2FractionalDivider = 0x3C,
             PLL3DividersConfiguration = 0x40,
             PLL3FractionalDivider = 0x44,
-            // ...
+            // gap intentional
+            Domain1KernelClockConfiguration = 0x4C,
+            Domain2KernelClockConfigurationLow = 0x50,
+            Domain2KernelClockConfigurationHigh = 0x54,
+            Domain3KernelClockConfiguration = 0x58,
+            // gap intentional
+            ClockSourceInterruptEnable = 0x60,
+            ClockSourceInterruptFlag = 0x64,
+            ClockSourceInterruptClear = 0x68,
+            // gap intentional
             BackupDomainControl = 0x70,
             ClockControlAndStatus = 0x74,
-            // ...
+            // gap intentional
+            AHB3Reset = 0x7c,
+            AHB1Reset = 0x80,
+            AHB2Reset = 0x84,
+            AHB4Reset = 0x88,
+            APB3Reset = 0x8C,
+            APB1ResetLow = 0x90,
+            APB1ResetHigh = 0x94,
+            APB2Reset = 0x98,
+            APB4Reset = 0x9C,
+            GlobalControl = 0xA0,
+            // gap intentional
+            D3AutonomousMode = 0xA8,
+            // gap intentional
             ResetStatus = 0xD0,
-            // ...
-            AHB4Enable = 0xE0
+            AHB3Clock = 0xD4,
+            AHB1Clock = 0xD8,
+            AHB2Clock = 0xDC,
+            AHB4Clock = 0xE0,
+            APB3Clock = 0xE4,
+            APB1ClockLow = 0xE8,
+            APB1ClockHigh = 0xEC,
+            APB2Clock = 0xF0,
+            APB4Clock = 0xF4,
+            // gap intentional
+            AHB3SleepClock = 0xFC,
+            AHB1SleepClock = 0x100,
+            AHB2SleepClock = 0x104,
+            AHB4SleepClock = 0x108,
+            APB3SleepClock = 0x10C,
+            APB1LowSleepClock = 0x110,
+            APB1HighSleepClock = 0x114,
+            APB2SleepClock = 0x118,
+            APB4SleepClock = 0x11C,
+            // gap intentional
+            C1ResetStatus = 0x130,
+            C1AHB3Clock = 0x134,
+            C1AHB1Clock = 0x138,
+            C1AHB2Clock = 0x13C,
+            C1AHB4Clock = 0x140,
+            C1APB3Clock = 0x144,
+            C1APB1ClockLow = 0x148,
+            C1APB1ClockHigh = 0x14C,
+            C1APB2Clock = 0x150,
+            C1APB4Clock = 0x154,
+            C1AHB3SleepClock = 0x15C,
+            C1AHB1SleepClock = 0x160,
+            C1AHB2SleepClock = 0x164,
+            C1AHB4SleepClock = 0x168,
+            C1APB3SleepClock = 0x16C,
+            C1APB1LowSleepClock = 0x170,
+            C1APB1HighSleepClock = 0x174,
+            C1APB2SleepClock = 0x178,
+            C1APB4SleepClock = 0x17C,
         }
     }
 }
