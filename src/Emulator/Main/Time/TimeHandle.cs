@@ -588,21 +588,12 @@ namespace Antmicro.Renode.Time
         {
             var timeout = TimeSpan.FromMilliseconds(millisecondsTimeout);
 
-            try
+            using(MonitorSmartLock.TryLock(innerLock, timeout, ref success))
             {
-                Monitor.TryEnter(innerLock, timeout, ref success);
                 if(success)
                 {
                     interrupt = true;
                     NotifyStateChanged();
-                }
-            }
-            finally
-            {
-                // Ensure that the lock is released.
-                if(success)
-                {
-                    Monitor.Exit(innerLock);
                 }
             }
         }
