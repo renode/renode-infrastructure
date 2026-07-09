@@ -38,25 +38,25 @@ namespace Antmicro.Renode.Peripherals.DMA
             ldmaXbarRegistersCollection = BuildLdmaXbarRegisters();
         }
 
-        [ConnectionRegionAttribute("ldma")]
+        [ConnectionRegion("ldma")]
         public void WriteDoubleWordToLdma(long offset, uint value)
         {
             Write<LdmaRegisters>(ldmaRegistersCollection, "Ldma", offset, value);
         }
 
-        [ConnectionRegionAttribute("ldma")]
+        [ConnectionRegion("ldma")]
         public uint ReadDoubleWordFromLdma(long offset)
         {
             return Read<LdmaRegisters>(ldmaRegistersCollection, "Ldma", offset);
         }
 
-        [ConnectionRegionAttribute("ldmaxbar")]
+        [ConnectionRegion("ldmaxbar")]
         public void WriteDoubleWordToLdmaXbar(long offset, uint value)
         {
             Write<LdmaXbarRegisters>(ldmaXbarRegistersCollection, "LdmaXbar", offset, value);
         }
 
-        [ConnectionRegionAttribute("ldmaxbar")]
+        [ConnectionRegion("ldmaxbar")]
         public uint ReadDoubleWordFromLdmaXbar(long offset)
         {
             return Read<LdmaXbarRegisters>(ldmaXbarRegistersCollection, "LdmaXbar", offset);

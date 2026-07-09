@@ -171,26 +171,26 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             registers.Write(offset, value);
         }
 
-        [ConnectionRegionAttribute("misc")]
+        [ConnectionRegion("misc")]
         public uint ReadDoubleWordFromMisc(long offset)
         {
             return miscRegisters.Read(offset);
         }
 
-        [ConnectionRegionAttribute("misc")]
+        [ConnectionRegion("misc")]
         public void WriteDoubleWordToMisc(long offset, uint value)
         {
             miscRegisters.Write(offset, value);
         }
 
-        [ConnectionRegionAttribute("iomux")]
+        [ConnectionRegion("iomux")]
         public uint ReadDoubleWordFromIOMux(long offset)
         {
             this.Log(LogLevel.Warning, "Read from unsupported iomux, offset 0x{0:X}", offset);
             return 0;
         }
 
-        [ConnectionRegionAttribute("iomux")]
+        [ConnectionRegion("iomux")]
         public void WriteDoubleWordToIOMux(long offset, uint value)
         {
             this.Log(LogLevel.Warning, "Write to unsupported iomux, offset 0x{0:X} value 0x{1:X}", offset, value);

@@ -50,13 +50,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             interruptManager.Reset();
         }
 
-        [ConnectionRegionAttribute("set")]
+        [ConnectionRegion("set")]
         public uint ReadDoubleWordSet(long offset)
         {
             return ReadDoubleWord(offset);
         }
 
-        [ConnectionRegionAttribute("set")]
+        [ConnectionRegion("set")]
         public void WriteDoubleWordSet(long offset, uint mask)
         {
             var value = ReadDoubleWord(offset);
@@ -64,13 +64,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             WriteDoubleWord(offset, value);
         }
 
-        [ConnectionRegionAttribute("clear")]
+        [ConnectionRegion("clear")]
         public uint ReadDoubleWordClear(long offset)
         {
             return ReadDoubleWord(offset);
         }
 
-        [ConnectionRegionAttribute("clear")]
+        [ConnectionRegion("clear")]
         public void WriteDoubleWordClear(long offset, uint mask)
         {
             var value = ReadDoubleWord(offset);
@@ -78,13 +78,13 @@ namespace Antmicro.Renode.Peripherals.Timers
             WriteDoubleWord(offset, value);
         }
 
-        [ConnectionRegionAttribute("toggle")]
+        [ConnectionRegion("toggle")]
         public uint ReadDoubleWordToggle(long offset)
         {
             return ReadDoubleWord(offset);
         }
 
-        [ConnectionRegionAttribute("toggle")]
+        [ConnectionRegion("toggle")]
         public void WriteDoubleWordToggle(long offset, uint mask)
         {
             var value = ReadDoubleWord(offset);

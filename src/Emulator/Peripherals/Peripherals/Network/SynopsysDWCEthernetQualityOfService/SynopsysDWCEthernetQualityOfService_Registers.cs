@@ -28,25 +28,25 @@ namespace Antmicro.Renode.Peripherals.Network
             Write<RegistersMacAndMmc>(macAndMmcRegisters, "MAC and MMC", offset, value);
         }
 
-        [ConnectionRegionAttribute("mtl")]
+        [ConnectionRegion("mtl")]
         public uint ReadDoubleWordFromMTL(long offset)
         {
             return Read<RegistersMTL>(mtlRegisters, "MTL", offset);
         }
 
-        [ConnectionRegionAttribute("mtl")]
+        [ConnectionRegion("mtl")]
         public void WriteDoubleWordToMTL(long offset, uint value)
         {
             Write<RegistersMTL>(mtlRegisters, "MTL", offset, value);
         }
 
-        [ConnectionRegionAttribute("dma")]
+        [ConnectionRegion("dma")]
         public uint ReadDoubleWordFromDMA(long offset)
         {
             return Read<RegistersDMA>(dmaRegisters, "DMA", offset);
         }
 
-        [ConnectionRegionAttribute("dma")]
+        [ConnectionRegion("dma")]
         public void WriteDoubleWordToDMA(long offset, uint value)
         {
             Write<RegistersDMA>(dmaRegisters, "DMA", offset, value);

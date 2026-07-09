@@ -118,7 +118,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             return registersCollection.Read(offset);
         }
 
-        [ConnectionRegionAttribute("xip")]
+        [ConnectionRegion("xip")]
         public uint XipReadDoubleWord(long offset)
         {
             if(!memioEnable.Value)
@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             registersCollection.Write(offset, value);
         }
 
-        [ConnectionRegionAttribute("xip")]
+        [ConnectionRegion("xip")]
         public void XipWriteDoubleWord(long offset, uint value)
         {
             this.Log(LogLevel.Warning, "Trying to write 0x{0:X} to XIP region at offset 0x{1:x}. Direct writing is not supported", value, offset);

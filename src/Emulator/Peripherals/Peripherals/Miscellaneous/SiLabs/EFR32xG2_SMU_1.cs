@@ -44,25 +44,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
         }
 
-        [ConnectionRegionAttribute("smu_s")]
+        [ConnectionRegion("smu_s")]
         public void WriteDoubleWordSecure(long offset, uint value)
         {
             Write<Registers>(secureRegistersCollection, "SmuSecure", offset, value);
         }
 
-        [ConnectionRegionAttribute("smu_s")]
+        [ConnectionRegion("smu_s")]
         public uint ReadDoubleWordSecure(long offset)
         {
             return Read<Registers>(secureRegistersCollection, "SmuSecure", offset);
         }
 
-        [ConnectionRegionAttribute("smu_ns")]
+        [ConnectionRegion("smu_ns")]
         public void WriteDoubleWordNonSecure(long offset, uint value)
         {
             Write<Registers>(nonSecureRegistersCollection, "SmuNonSecure", offset, value);
         }
 
-        [ConnectionRegionAttribute("smu_ns")]
+        [ConnectionRegion("smu_ns")]
         public uint ReadDoubleWordNonSecure(long offset)
         {
             return Read<Registers>(nonSecureRegistersCollection, "SmuNonSecure", offset);

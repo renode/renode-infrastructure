@@ -144,133 +144,133 @@ namespace Antmicro.Renode.Peripherals.Wireless
             InterferenceQueue.Subscribe(this);
         }
 
-        [ConnectionRegionAttribute("frc")]
+        [ConnectionRegion("frc")]
         public uint ReadDoubleWordFromFrameController(long offset)
         {
             return Read<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC)", offset);
         }
 
-        [ConnectionRegionAttribute("bufc_ns")]
+        [ConnectionRegion("bufc_ns")]
         public byte ReadByteFromBufferControllerNonSecure(long offset)
         {
             return ReadByte<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("bufc_ns")]
+        [ConnectionRegion("bufc_ns")]
         public uint ReadDoubleWordFromBufferControllerNonSecure(long offset)
         {
             return Read<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("bufc")]
+        [ConnectionRegion("bufc")]
         public void WriteByteToBufferController(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("bufc")]
+        [ConnectionRegion("bufc")]
         public void WriteDoubleWordToBufferController(long offset, uint value)
         {
             Write<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC)", offset, value);
         }
 
-        [ConnectionRegionAttribute("bufc")]
+        [ConnectionRegion("bufc")]
         public byte ReadByteFromBufferController(long offset)
         {
             return ReadByte<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC)", offset);
         }
 
-        [ConnectionRegionAttribute("bufc")]
+        [ConnectionRegion("bufc")]
         public uint ReadDoubleWordFromBufferController(long offset)
         {
             return Read<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC)", offset);
         }
 
-        [ConnectionRegionAttribute("rac_ns")]
+        [ConnectionRegion("rac_ns")]
         public void WriteByteToRadioControllerNonSecure(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("rac_ns")]
+        [ConnectionRegion("rac_ns")]
         public void WriteDoubleWordToRadioControllerNonSecure(long offset, uint value)
         {
             Write<RadioControllerRegisters>(radioControllerRegistersCollection, "Radio Controller (RAC_NS)", offset, value);
         }
 
-        [ConnectionRegionAttribute("rac_ns")]
+        [ConnectionRegion("rac_ns")]
         public byte ReadByteFromRadioControllerNonSecure(long offset)
         {
             return ReadByte<RadioControllerRegisters>(radioControllerRegistersCollection, "Radio Controller (RAC_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("rac_ns")]
+        [ConnectionRegion("rac_ns")]
         public uint ReadDoubleWordFromRadioControllerNonSecure(long offset)
         {
             return Read<RadioControllerRegisters>(radioControllerRegistersCollection, "Radio Controller (RAC_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("rac")]
+        [ConnectionRegion("rac")]
         public void WriteByteToRadioController(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("rac")]
+        [ConnectionRegion("rac")]
         public void WriteDoubleWordToRadioController(long offset, uint value)
         {
             Write<RadioControllerRegisters>(radioControllerRegistersCollection, "Radio Controller (RAC)", offset, value);
         }
 
-        [ConnectionRegionAttribute("rac")]
+        [ConnectionRegion("rac")]
         public uint ReadDoubleWordFromRadioController(long offset)
         {
             return Read<RadioControllerRegisters>(radioControllerRegistersCollection, "Radio Controller (RAC)", offset);
         }
 
-        [ConnectionRegionAttribute("protimer_ns")]
+        [ConnectionRegion("protimer_ns")]
         public void WriteByteToProtocolTimerNonSecure(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("protimer_ns")]
+        [ConnectionRegion("protimer_ns")]
         public void WriteDoubleWordToProtocolTimerNonSecure(long offset, uint value)
         {
             Write<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER_NS)", offset, value);
         }
 
-        [ConnectionRegionAttribute("protimer_ns")]
+        [ConnectionRegion("protimer_ns")]
         public byte ReadByteFromProtocolTimerNonSecure(long offset)
         {
             return ReadByte<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("protimer_ns")]
+        [ConnectionRegion("protimer_ns")]
         public uint ReadDoubleWordFromProtocolTimerNonSecure(long offset)
         {
             return Read<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("bufc_ns")]
+        [ConnectionRegion("bufc_ns")]
         public void WriteDoubleWordToBufferControllerNonSecure(long offset, uint value)
         {
             Write<BufferControllerRegisters>(bufferControllerRegistersCollection, "Buffer Controller (BUFC_NS)", offset, value);
         }
 
-        [ConnectionRegionAttribute("protimer")]
+        [ConnectionRegion("protimer")]
         public void WriteByteToProtocolTimer(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("bufc_ns")]
+        [ConnectionRegion("bufc_ns")]
         public void WriteByteToBufferControllerNonSecure(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("rfmailbox")]
+        [ConnectionRegion("rfmailbox")]
         public byte ReadByteFromRadioMailbox(long offset)
         {
             return ReadByte<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX)", offset);
@@ -779,349 +779,349 @@ namespace Antmicro.Renode.Peripherals.Wireless
             proTimer.Enabled = true;
         }
 
-        [ConnectionRegionAttribute("hostmailbox_ns")]
+        [ConnectionRegion("hostmailbox_ns")]
         public void WriteByteToHostMailboxNonSecure(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("hostmailbox_ns")]
+        [ConnectionRegion("hostmailbox_ns")]
         public void WriteDoubleWordToHostMailboxNonSecure(long offset, uint value)
         {
             Write<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX_NS)", offset, value);
         }
 
-        [ConnectionRegionAttribute("hostmailbox_ns")]
+        [ConnectionRegion("hostmailbox_ns")]
         public byte ReadByteFromHostMailboxNonSecure(long offset)
         {
             return ReadByte<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("hostmailbox_ns")]
+        [ConnectionRegion("hostmailbox_ns")]
         public uint ReadDoubleWordFromHostMailboxNonSecure(long offset)
         {
             return Read<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("hostmailbox")]
+        [ConnectionRegion("hostmailbox")]
         public void WriteByteToHostMailbox(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("hostmailbox")]
+        [ConnectionRegion("hostmailbox")]
         public void WriteDoubleWordToHostMailbox(long offset, uint value)
         {
             Write<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX)", offset, value);
         }
 
-        [ConnectionRegionAttribute("hostmailbox")]
+        [ConnectionRegion("hostmailbox")]
         public byte ReadByteFromHostMailbox(long offset)
         {
             return ReadByte<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX)", offset);
         }
 
-        [ConnectionRegionAttribute("hostmailbox")]
+        [ConnectionRegion("hostmailbox")]
         public uint ReadDoubleWordFromHostMailbox(long offset)
         {
             return Read<HostMailboxRegisters>(hostMailboxRegistersCollection, "Host Mailbox (HOSTMAILBOX)", offset);
         }
 
-        [ConnectionRegionAttribute("rfmailbox_ns")]
+        [ConnectionRegion("rfmailbox_ns")]
         public void WriteByteToRadioMailboxNonSecure(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("rfmailbox_ns")]
+        [ConnectionRegion("rfmailbox_ns")]
         public void WriteDoubleWordToRadioMailboxNonSecure(long offset, uint value)
         {
             Write<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX_NS)", offset, value);
         }
 
-        [ConnectionRegionAttribute("rfmailbox_ns")]
+        [ConnectionRegion("rfmailbox_ns")]
         public byte ReadByteFromRadioMailboxNonSecure(long offset)
         {
             return ReadByte<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("rfmailbox_ns")]
+        [ConnectionRegion("rfmailbox_ns")]
         public uint ReadDoubleWordFromRadioMailboxNonSecure(long offset)
         {
             return Read<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("rfmailbox")]
+        [ConnectionRegion("rfmailbox")]
         public void WriteByteToRadioMailbox(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("rfmailbox")]
+        [ConnectionRegion("rfmailbox")]
         public void WriteDoubleWordToRadioMailbox(long offset, uint value)
         {
             Write<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX)", offset, value);
         }
 
-        [ConnectionRegionAttribute("rfmailbox")]
+        [ConnectionRegion("rfmailbox")]
         public uint ReadDoubleWordFromRadioMailbox(long offset)
         {
             return Read<RadioMailboxRegisters>(radioMailboxRegistersCollection, "Radio Mailbox (RFMAILBOX)", offset);
         }
 
-        [ConnectionRegionAttribute("protimer")]
+        [ConnectionRegion("protimer")]
         public void WriteDoubleWordToProtocolTimer(long offset, uint value)
         {
             Write<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER)", offset, value);
         }
 
-        [ConnectionRegionAttribute("rac")]
+        [ConnectionRegion("rac")]
         public byte ReadByteFromRadioController(long offset)
         {
             return ReadByte<RadioControllerRegisters>(radioControllerRegistersCollection, "Radio Controller (RAC)", offset);
         }
 
-        [ConnectionRegionAttribute("protimer")]
+        [ConnectionRegion("protimer")]
         public uint ReadDoubleWordFromProtocolTimer(long offset)
         {
             return Read<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER)", offset);
         }
 
-        [ConnectionRegionAttribute("crc")]
+        [ConnectionRegion("crc")]
         public void WriteDoubleWordToCyclicRedundancyCheck(long offset, uint value)
         {
             Write<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC)", offset, value);
         }
 
-        [ConnectionRegionAttribute("crc")]
+        [ConnectionRegion("crc")]
         public byte ReadByteFromCyclicRedundancyCheck(long offset)
         {
             return ReadByte<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC)", offset);
         }
 
-        [ConnectionRegionAttribute("crc")]
+        [ConnectionRegion("crc")]
         public uint ReadDoubleWordFromCyclicRedundancyCheck(long offset)
         {
             return Read<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC)", offset);
         }
 
-        [ConnectionRegionAttribute("agc_ns")]
+        [ConnectionRegion("agc_ns")]
         public void WriteByteToAutomaticGainControllerNonSecure(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("agc_ns")]
+        [ConnectionRegion("agc_ns")]
         public void WriteDoubleWordToAutomaticGainControllerNonSecure(long offset, uint value)
         {
             Write<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC_NS)", offset, value);
         }
 
-        [ConnectionRegionAttribute("protimer")]
+        [ConnectionRegion("protimer")]
         public byte ReadByteFromProtocolTimer(long offset)
         {
             return ReadByte<ProtocolTimerRegisters>(protocolTimerRegistersCollection, "Protocol Timer (PROTIMER)", offset);
         }
 
-        [ConnectionRegionAttribute("agc_ns")]
+        [ConnectionRegion("agc_ns")]
         public uint ReadDoubleWordFromAutomaticGainControllerNonSecure(long offset)
         {
             return Read<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("agc")]
+        [ConnectionRegion("agc")]
         public void WriteByteToAutomaticGainController(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("crc")]
+        [ConnectionRegion("crc")]
         public void WriteByteToCyclicRedundancyCheck(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("agc")]
+        [ConnectionRegion("agc")]
         public void WriteDoubleWordToAutomaticGainController(long offset, uint value)
         {
             Write<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset, value);
         }
 
-        [ConnectionRegionAttribute("agc")]
+        [ConnectionRegion("agc")]
         public uint ReadDoubleWordFromAutomaticGainController(long offset)
         {
             return Read<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset);
         }
 
-        [ConnectionRegionAttribute("frc_ns")]
+        [ConnectionRegion("frc_ns")]
         public void WriteByteFromFrameControllerNonSecure(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("frc_ns")]
+        [ConnectionRegion("frc_ns")]
         public void WriteDoubleWordToFrameControllerNonSecure(long offset, uint value)
         {
             Write<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC_NS)", offset, value);
         }
 
-        [ConnectionRegionAttribute("frc_ns")]
+        [ConnectionRegion("frc_ns")]
         public byte ReadByteFromFrameControllerNonSecure(long offset)
         {
             return ReadByte<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("frc_ns")]
+        [ConnectionRegion("frc_ns")]
         public uint ReadDoubleWordFromFrameControllerNonSecure(long offset)
         {
             return Read<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("frc")]
+        [ConnectionRegion("frc")]
         public void WriteByteFromFrameController(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("frc")]
+        [ConnectionRegion("frc")]
         public void WriteDoubleWordToFrameController(long offset, uint value)
         {
             Write<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC)", offset, value);
         }
 
-        [ConnectionRegionAttribute("frc")]
+        [ConnectionRegion("frc")]
         public byte ReadByteFromFrameController(long offset)
         {
             return ReadByte<FrameControllerRegisters>(frameControllerRegistersCollection, "Frame Controller (FRC)", offset);
         }
 
-        [ConnectionRegionAttribute("agc")]
+        [ConnectionRegion("agc")]
         public byte ReadByteFromAutomaticGainController(long offset)
         {
             return ReadByte<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset);
         }
 
-        [ConnectionRegionAttribute("crc_ns")]
+        [ConnectionRegion("crc_ns")]
         public uint ReadDoubleWordFromCyclicRedundancyCheckNonSecure(long offset)
         {
             return Read<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("agc_ns")]
+        [ConnectionRegion("agc_ns")]
         public byte ReadByteFromAutomaticGainControllerNonSecure(long offset)
         {
             return ReadByte<AutomaticGainControlRegisters>(automaticGainControlRegistersCollection, "Automatic Gain Control (AGC)", offset);
         }
 
-        [ConnectionRegionAttribute("crc_ns")]
+        [ConnectionRegion("crc_ns")]
         public void WriteDoubleWordToCyclicRedundancyCheckNonSecure(long offset, uint value)
         {
             Write<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC_NS)", offset, value);
         }
 
-        [ConnectionRegionAttribute("synth_ns")]
+        [ConnectionRegion("synth_ns")]
         public byte ReadByteFromSynthesizerNonSecure(long offset)
         {
             return ReadByte<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("crc_ns")]
+        [ConnectionRegion("crc_ns")]
         public byte ReadByteFromCyclicRedundancyCheckNonSecure(long offset)
         {
             return ReadByte<CyclicRedundancyCheckRegisters>(cyclicRedundancyCheckRegistersCollection, "Cyclic Redundancy Check (CRC_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("synth_ns")]
+        [ConnectionRegion("synth_ns")]
         public uint ReadDoubleWordFromSynthesizerNonSecure(long offset)
         {
             return Read<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("synth")]
+        [ConnectionRegion("synth")]
         public void WriteByteToSynthesizer(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("synth")]
+        [ConnectionRegion("synth")]
         public void WriteDoubleWordToSynthesizer(long offset, uint value)
         {
             Write<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH)", offset, value);
         }
 
-        [ConnectionRegionAttribute("synth")]
+        [ConnectionRegion("synth")]
         public byte ReadByteFromSynthesizer(long offset)
         {
             return ReadByte<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH)", offset);
         }
 
-        [ConnectionRegionAttribute("synth_ns")]
+        [ConnectionRegion("synth_ns")]
         public void WriteDoubleWordToSynthesizerNonSecure(long offset, uint value)
         {
             Write<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH_NS)", offset, value);
         }
 
-        [ConnectionRegionAttribute("modem_ns")]
+        [ConnectionRegion("modem_ns")]
         public void WriteByteToModulatorAndDemodulatorNonSecure(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("synth")]
+        [ConnectionRegion("synth")]
         public uint ReadDoubleWordFromSynthesizer(long offset)
         {
             return Read<SynthesizerRegisters>(synthesizerRegistersCollection, "Synthesizer (SYNTH)", offset);
         }
 
-        [ConnectionRegionAttribute("modem_ns")]
+        [ConnectionRegion("modem_ns")]
         public byte ReadByteFromModulatorAndDemodulatorNonSecure(long offset)
         {
             return ReadByte<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("modem_ns")]
+        [ConnectionRegion("modem_ns")]
         public uint ReadDoubleWordFromModulatorAndDemodulatorNonSecure(long offset)
         {
             return Read<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM_NS)", offset);
         }
 
-        [ConnectionRegionAttribute("modem")]
+        [ConnectionRegion("modem")]
         public void WriteByteToModulatorAndDemodulator(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("modem")]
+        [ConnectionRegion("modem")]
         public void WriteDoubleWordToModulatorAndDemodulator(long offset, uint value)
         {
             Write<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM)", offset, value);
         }
 
-        [ConnectionRegionAttribute("modem")]
+        [ConnectionRegion("modem")]
         public byte ReadByteFromModulatorAndDemodulator(long offset)
         {
             return ReadByte<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM)", offset);
         }
 
-        [ConnectionRegionAttribute("modem")]
+        [ConnectionRegion("modem")]
         public uint ReadDoubleWordFromModulatorAndDemodulator(long offset)
         {
             return Read<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM)", offset);
         }
 
-        [ConnectionRegionAttribute("crc_ns")]
+        [ConnectionRegion("crc_ns")]
         public void WriteByteToCyclicRedundancyCheckNonSecure(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now
         }
 
-        [ConnectionRegionAttribute("modem_ns")]
+        [ConnectionRegion("modem_ns")]
         public void WriteDoubleWordToModulatorAndDemodulatorNonSecure(long offset, uint value)
         {
             Write<ModulatorAndDemodulatorRegisters>(modulatorAndDemodulatorRegistersCollection, "Modulator And Demodulator (MODEM_NS)", offset, value);
         }
 
-        [ConnectionRegionAttribute("synth_ns")]
+        [ConnectionRegion("synth_ns")]
         public void WriteByteToSynthesizerNonSecure(long _, byte __)
         {
             // TODO: Single byte writes not implemented for now

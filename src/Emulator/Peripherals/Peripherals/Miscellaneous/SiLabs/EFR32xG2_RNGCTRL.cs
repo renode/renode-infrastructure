@@ -43,49 +43,49 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             SoftwareReset = false;
         }
 
-        [ConnectionRegionAttribute("rngctrl_s")]
+        [ConnectionRegion("rngctrl_s")]
         public uint ReadDoubleWordRegisterSecure(long offset)
         {
             return ReadRegister(offset);
         }
 
-        [ConnectionRegionAttribute("rngctrl_ns")]
+        [ConnectionRegion("rngctrl_ns")]
         public uint ReadDoubleWordRegisterNonSecure(long offset)
         {
             return ReadRegister(offset);
         }
 
-        [ConnectionRegionAttribute("rngctrl_s")]
+        [ConnectionRegion("rngctrl_s")]
         public void WriteDoubleWordRegisterSecure(long offset, uint value)
         {
             WriteRegister(offset, value);
         }
 
-        [ConnectionRegionAttribute("rngctrl_ns")]
+        [ConnectionRegion("rngctrl_ns")]
         public void WriteDoubleWordRegisterNonSecure(long offset, uint value)
         {
             WriteRegister(offset, value);
         }
 
-        [ConnectionRegionAttribute("rngfifo_s")]
+        [ConnectionRegion("rngfifo_s")]
         public uint ReadDoubleWordFifoSecure(long offset)
         {
             return ReadFifo(offset);
         }
 
-        [ConnectionRegionAttribute("rngfifo_ns")]
+        [ConnectionRegion("rngfifo_ns")]
         public uint ReadDoubleWordFifoNonSecure(long offset)
         {
             return ReadFifo(offset);
         }
 
-        [ConnectionRegionAttribute("rngfifo_s")]
+        [ConnectionRegion("rngfifo_s")]
         public void WriteDoubleWordFifoSecure(long _, uint __)
         {
             // Writing not supported
         }
 
-        [ConnectionRegionAttribute("rngfifo_ns")]
+        [ConnectionRegion("rngfifo_ns")]
         public void WriteDoubleWordFifoNonSecure(long _, uint __)
         {
             // Writing not supported

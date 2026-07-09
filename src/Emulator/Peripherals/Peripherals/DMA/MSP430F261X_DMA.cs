@@ -25,13 +25,13 @@ namespace Antmicro.Renode.Peripherals.Memory
             DefineChannelRegisters();
         }
 
-        [ConnectionRegionAttribute("channelRegisters")]
+        [ConnectionRegion("channelRegisters")]
         public void WriteWordToChannelRegisters(long offset, ushort value)
         {
             ChannelRegisterCollections.Write(offset, value);
         }
 
-        [ConnectionRegionAttribute("channelRegisters")]
+        [ConnectionRegion("channelRegisters")]
         public ushort ReadWordFromChannelRegisters(long offset)
         {
             return ChannelRegisterCollections.Read(offset);

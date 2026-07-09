@@ -103,7 +103,7 @@ namespace Antmicro.Renode.Peripherals.Network
             UpdateEvents();
         }
 
-        [ConnectionRegionAttribute("buffer")]
+        [ConnectionRegion("buffer")]
         public uint ReadDoubleWordFromBuffer(long offset)
         {
             var slot = FindSlot(offset, out var slotOffset);
@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.Network
             return slot.ReadUInt32(slotOffset);
         }
 
-        [ConnectionRegionAttribute("buffer")]
+        [ConnectionRegion("buffer")]
         public void WriteDoubleWordToBuffer(long offset, uint value)
         {
             var slot = FindSlot(offset, out var slotOffset);
@@ -126,7 +126,7 @@ namespace Antmicro.Renode.Peripherals.Network
             }
         }
 
-        [ConnectionRegionAttribute("phy")]
+        [ConnectionRegion("phy")]
         public uint ReadDoubleWordOverMDIO(long offset)
         {
             this.Log(LogLevel.Noisy, "Reading from PHY: offset 0x{0:X}", offset);
@@ -144,7 +144,7 @@ namespace Antmicro.Renode.Peripherals.Network
             return 0;
         }
 
-        [ConnectionRegionAttribute("phy")]
+        [ConnectionRegion("phy")]
         public void WriteDoubleWordOverMDIO(long offset, uint value)
         {
             this.Log(LogLevel.Noisy, "Writing to PHY: offset 0x{0:X}, value 0x{1:X}", offset, value);

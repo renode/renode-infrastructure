@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             UpdateLimit(Interval.Default);
         }
 
-        [ConnectionRegionAttribute("interruptEnable")]
+        [ConnectionRegion("interruptEnable")]
         public void WriteByteToInterruptEnable(long offset, byte value)
         {
             if(offset != 0)
@@ -50,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             InterruptEnableRegister.Write(0, value);
         }
 
-        [ConnectionRegionAttribute("interruptEnable")]
+        [ConnectionRegion("interruptEnable")]
         public byte ReadByteFromInterruptEnable(long offset)
         {
             if(offset != 0)
@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             return InterruptEnableRegister.Read();
         }
 
-        [ConnectionRegionAttribute("interruptStatus")]
+        [ConnectionRegion("interruptStatus")]
         public void WriteByteToInterruptStatus(long offset, byte value)
         {
             if(offset != 0)
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             UpdateInterrupts();
         }
 
-        [ConnectionRegionAttribute("interruptStatus")]
+        [ConnectionRegion("interruptStatus")]
         public byte ReadByteFromInterruptStatus(long offset)
         {
             if(offset != 0)

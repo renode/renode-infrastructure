@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             return registersCollection.Read(offset);
         }
 
-        [ConnectionRegionAttribute("xip")]
+        [ConnectionRegion("xip")]
         public uint XipReadDoubleWord(long offset)
         {
             return (RegisteredPeripheral as IDoubleWordPeripheral)?.ReadDoubleWord(offset) ?? 0;
@@ -98,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             registersCollection.Write(offset, value);
         }
 
-        [ConnectionRegionAttribute("xip")]
+        [ConnectionRegion("xip")]
         public void XipWriteDoubleWord(long offset, uint value)
         {
             (RegisteredPeripheral as IDoubleWordPeripheral)?.WriteDoubleWord(offset, value);

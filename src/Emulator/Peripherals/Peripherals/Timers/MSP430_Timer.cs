@@ -64,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             DefineRegisters();
         }
 
-        [ConnectionRegionAttribute("interruptVector")]
+        [ConnectionRegion("interruptVector")]
         public void WriteWordToInterruptVector(long offset, ushort value)
         {
             if(offset != 0)
@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             WriteWord((long)Registers.InterruptVector, value);
         }
 
-        [ConnectionRegionAttribute("interruptVector")]
+        [ConnectionRegion("interruptVector")]
         public ushort ReadWordFromInterruptVector(long offset)
         {
             if(offset != 0)

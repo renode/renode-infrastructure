@@ -47,26 +47,26 @@ namespace Antmicro.Renode.Peripherals.UART
             UpdateInterrupts();
         }
 
-        [ConnectionRegionAttribute("interruptEnable")]
+        [ConnectionRegion("interruptEnable")]
         public void WriteByteToInterruptEnable(long offset, byte value)
         {
             InterruptEnableRegister.Write(offset, value);
         }
 
-        [ConnectionRegionAttribute("interruptEnable")]
+        [ConnectionRegion("interruptEnable")]
         public byte ReadByteFromInterruptEnable(long _)
         {
             return InterruptEnableRegister.Read();
         }
 
-        [ConnectionRegionAttribute("interruptStatus")]
+        [ConnectionRegion("interruptStatus")]
         public void WriteByteToInterruptStatus(long offset, byte value)
         {
             InterruptStatusRegister.Write(offset, value);
             UpdateInterrupts();
         }
 
-        [ConnectionRegionAttribute("interruptStatus")]
+        [ConnectionRegion("interruptStatus")]
         public byte ReadByteFromInterruptStatus(long _)
         {
             return InterruptStatusRegister.Read();
