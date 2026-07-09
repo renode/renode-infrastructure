@@ -160,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.UART
             );
 
             registersMap.Add(CommonRegistersOffset + (long)CommonRegs.Data, new DoubleWordRegister(this)
-                .WithValueField(0, 9, valueProviderCallback: _ =>
+                .WithValueField(0, 10, valueProviderCallback: _ =>
                     {
                         dmaReceivedData = ReceiveDmaState;
 
@@ -206,7 +206,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
                         UpdateGPIOOutputs();
                     })
-                .WithReservedBits(10, 1)
                 .WithTaggedFlag("IDLINE / Idle Line", 11)
                 .WithFlag(12, FieldMode.Read, valueProviderCallback: _ => BufferState == BufferState.Empty, name: "RXEMPT / Receive Buffer Empty")
                 .WithFlag(13, out transmitSpecialCharacter, name: "FRETSC / Frame Error / Transmit Special Character")
