@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,6 +12,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 
 namespace Antmicro.Renode.Peripherals.Sound
 {
@@ -226,6 +227,7 @@ namespace Antmicro.Renode.Peripherals.Sound
             LeftJustified = 2
         }
 
+        [RegistersDescription]
         protected enum Registers
         {
             EventStatus  = 0x000,

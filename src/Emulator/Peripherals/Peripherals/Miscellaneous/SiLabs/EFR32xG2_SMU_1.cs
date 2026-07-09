@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2022-2025 Silicon Labs
 //
 // This file is licensed under the MIT License.
@@ -13,6 +13,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
@@ -612,6 +613,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Ldma            = 4,
         }
 
+        [RegistersDescription("smu_s", "smu_ns")]
         private enum Registers : long
         {
             IpVersion                                 = 0x0000,

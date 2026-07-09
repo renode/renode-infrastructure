@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2022-2025 Silicon Labs
 //
 // This file is licensed under the MIT License.
@@ -13,6 +13,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Time;
 
 using Org.BouncyCastle.Crypto.Engines;
@@ -431,6 +432,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Unused      = 7,
         }
 
+        [RegistersDescription("rngctrl_s", "rngctrl_ns")]
         private enum Registers
         {
             RngControl                              = 0x000,

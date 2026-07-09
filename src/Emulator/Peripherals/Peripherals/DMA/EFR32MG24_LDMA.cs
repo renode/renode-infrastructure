@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2022-2025 Silicon Labs
 //
 // This file is licensed under the MIT License.
@@ -14,6 +14,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities.Packets;
@@ -1086,6 +1087,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             VDAC1    = 0x12,
         }
 
+        [RegistersDescription("ldma")]
         private enum LdmaRegisters : long
         {
             IPVERSION              = 0x0000,
@@ -1925,6 +1927,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             CH30_LINK_Tgl          = 0x3610,
         }
 
+        [RegistersDescription("ldmaxbar")]
         private enum LdmaXbarRegisters : long
         {
             XBAR_IPVERSION         = 0x0000,

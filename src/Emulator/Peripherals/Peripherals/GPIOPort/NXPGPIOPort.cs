@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,6 +12,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
@@ -357,6 +358,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             InterruptWhenHigh = 12,
         }
 
+        [RegistersDescription("gpio")]
         private enum GPIORegisters
         {
             DataOutput = 0x00,
@@ -368,6 +370,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             InputDisable = 0x18
         }
 
+        [RegistersDescription("port")]
         private enum Registers
         {
             PinControlRegisterStart = 0x00,

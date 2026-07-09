@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,6 +11,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
 
@@ -338,6 +339,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private static readonly uint[] ProgramEraseKeys = {0x8C9DAEBF, 0x13141516};
         private static readonly uint[] OptionByteKeys = {0xFBEAD9C8, 0x24252627};
 
+        [RegistersDescription]
         private enum Registers : long
         {
             AccessControl = 0x00,          // ACR
@@ -352,6 +354,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             WriteProtection2 = 0x80,       // WRPROT2
         }
 
+        [RegistersDescription("signature")]
         private enum SignatureRegisters : long
         {
             UniqueId1 = 0x50, // U_ID(31:0)

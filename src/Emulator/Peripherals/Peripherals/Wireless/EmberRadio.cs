@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -12,6 +12,7 @@ using System.Security.Cryptography;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Wireless
@@ -398,6 +399,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         // public event Action<string> SendPacket;
 
+        [RegistersDescription("encryptor")]
         private enum EncryptorRegister
         {
             Control = 0x0,

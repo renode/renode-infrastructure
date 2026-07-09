@@ -15,6 +15,7 @@ using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.IRQControllers.ARM_GenericInterruptControllerModel;
 using Antmicro.Renode.Utilities;
@@ -3566,6 +3567,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Group1
         }
 
+        [RegistersDescription("distributor")]
         public enum DistributorRegisters : long
         {
             Control = 0x0000, // GICD_CTLR
@@ -3665,6 +3667,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             PeripheralIdentification2_v3v4 = 0xFFE8, // GICR_PIDR2 for GICv3 and GICv4
         }
 
+        [RegistersDescription("cpuInterface")]
         public enum CPUInterfaceRegisters : long
         {
             Control = 0x0000, // GICC_CTLR

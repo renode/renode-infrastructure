@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,6 +11,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.Memory;
 
 namespace Antmicro.Renode.Peripherals.MTD
@@ -257,6 +258,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             public int Size { get; set; }
         }
 
+        [RegistersDescription]
         private enum Registers
         {
             AccessControl = 0x00,   // FLASH_ACR
@@ -267,6 +269,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             OptionControl = 0x14,   // FLASH_OPTCR
         }
 
+        [RegistersDescription("optionBytes")]
         private enum OptionBytesRegisters
         {
             ReadProtectionAndUser = 0x0,

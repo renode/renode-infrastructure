@@ -13,6 +13,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.Helpers;
 using Antmicro.Renode.Peripherals.SPI.Cadence_xSPICommands;
 using Antmicro.Renode.Utilities;
@@ -638,6 +639,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             Write = 0x1
         }
 
+        [RegistersDescription]
         private enum Registers : long
         {
             Command0 = 0x0000,
@@ -701,6 +703,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             DLLControl = 0x1034,
         }
 
+        [RegistersDescription("auxiliary")]
         private enum AuxiliaryRegisters : long
         {
             DQTiming = 0x0000,

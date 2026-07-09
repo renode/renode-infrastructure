@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,6 +11,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 
 namespace Antmicro.Renode.Peripherals.Memory
 {
@@ -230,6 +231,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             External,
         }
 
+        [RegistersDescription]
         private enum Registers
         {
             Control0 = 0x00,
@@ -237,6 +239,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             InterruptVector = 0x04,
         }
 
+        [RegistersDescription("channelRegisters")]
         private enum ChannelRegisters
         {
             ChannelControl0 = 0x00,

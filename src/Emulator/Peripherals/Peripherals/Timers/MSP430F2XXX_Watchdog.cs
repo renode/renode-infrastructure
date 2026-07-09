@@ -10,6 +10,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
@@ -194,6 +195,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Default = Interval._32768,
         }
 
+        [RegistersDescription]
         private enum Registers
         {
             Control = 0x00,

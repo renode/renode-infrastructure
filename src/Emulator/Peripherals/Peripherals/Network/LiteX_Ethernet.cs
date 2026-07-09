@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,6 +14,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -513,6 +514,7 @@ namespace Antmicro.Renode.Peripherals.Network
             private readonly byte[] buffer;
         }
 
+        [RegistersDescription]
         private enum Registers
         {
             WriterSlot         = 0x0,
@@ -538,6 +540,7 @@ namespace Antmicro.Renode.Peripherals.Network
             CrcErrors          = 0x68
         }
 
+        [RegistersDescription("phy")]
         private enum MDIORegisters
         {
             Reset = 0x0,

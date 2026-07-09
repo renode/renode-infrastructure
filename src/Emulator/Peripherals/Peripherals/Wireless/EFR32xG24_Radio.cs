@@ -14,6 +14,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Peripherals.Timers;
@@ -6877,6 +6878,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             FameDetection = 0x4,
         }
 
+        [RegistersDescription("frc", "frc_ns")]
         private enum FrameControllerRegisters : long
         {
             IpVersion                                                       = 0x0000,
@@ -7219,6 +7221,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             AhbConfiguration_Tgl                                            = 0x3180,
         }
 
+        [RegistersDescription("bufc", "bufc_ns")]
         private enum BufferControllerRegisters : long
         {
             IpVersion                                                       = 0x0000,
@@ -7501,6 +7504,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             AhbConfiguration_Tgl                                            = 0x3124,
         }
 
+        [RegistersDescription("modem", "modem_ns")]
         private enum ModulatorAndDemodulatorRegisters : long
         {
             IpVersion                                                       = 0x0000,
@@ -8347,6 +8351,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             Spare_Tgl                                                       = 0x3400,
         }
 
+        [RegistersDescription("agc", "agc_ns")]
         private enum AutomaticGainControlRegisters : long
         {
             IpVersion                                                       = 0x0000,
@@ -8690,6 +8695,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             ClearChannelAssessmentDebug_Tgl                                 = 0x3160,
         }
 
+        [RegistersDescription("crc", "crc_ns")]
         private enum CyclicRedundancyCheckRegisters : long
         {
             IpVersion                                                       = 0x0000,
@@ -8736,6 +8742,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             PolynomialValue_Tgl                                             = 0x3020,
         }
 
+        [RegistersDescription("protimer", "protimer_ns")]
         private enum ProtocolTimerRegisters : long
         {
             IpVersion                                                       = 0x0000,
@@ -9018,6 +9025,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             CaptureCompareChannel7WrapValue_Tgl                             = 0x317C,
         }
 
+        [RegistersDescription("rac", "rac_ns")]
         private enum RadioControllerRegisters : long
         {
             IpVersion                                                       = 0x0000,
@@ -9460,6 +9468,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             RadioFrequencyLock1_Tgl                                         = 0x37FC,
         }
 
+        [RegistersDescription("synth", "synth_ns")]
         private enum SynthesizerRegisters : long
         {
             IpVersion                                                       = 0x0000,
@@ -9610,6 +9619,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             SequencerInterruptEnable_Tgl                                    = 0x30BC,
         }
 
+        [RegistersDescription("hostmailbox", "hostmailbox_ns")]
         private enum HostMailboxRegisters : long
         {
             MessagePointer0                                                 = 0x0000,
@@ -9644,6 +9654,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             InterruptEnable_Tgl                                             = 0x3044,
         }
 
+        [RegistersDescription("rfmailbox", "rfmailbox_ns")]
         private enum RadioMailboxRegisters : long
         {
             MessagePointer0                                                 = 0x0000,

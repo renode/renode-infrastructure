@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,6 +12,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
@@ -124,6 +125,7 @@ namespace Antmicro.Renode.Peripherals.Video
         private readonly uint resetHres;
         private readonly uint resetVres;
 
+        [RegistersDescription("dma")]
         private enum DMARegisters
         {
             Base = 0x0,
@@ -131,6 +133,7 @@ namespace Antmicro.Renode.Peripherals.Video
             Enable = 0x8,
         }
 
+        [RegistersDescription("vtg")]
         private enum VTGRegisters
         {
             Enable = 0x0,

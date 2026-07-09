@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,6 +14,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.GPIOPort;
 using Antmicro.Renode.Utilities;
 
@@ -374,6 +375,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             private readonly int number;
         }
 
+        [RegistersDescription]
         private enum Registers
         {
             GPIOInterrupt = 0x0,
@@ -412,6 +414,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             M4MemoryAlwaysOnInterruptEnable = 0xA4,
         }
 
+        [RegistersDescription("misc")]
         private enum MiscRegisters
         {
             IOInput = 0,
