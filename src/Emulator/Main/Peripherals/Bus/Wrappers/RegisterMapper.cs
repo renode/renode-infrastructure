@@ -26,14 +26,12 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 
             var peripheralType = type;
             var types = peripheralType.GetAllNestedTypes();
-            var interestingEnums = new List<Type>();
+            var interestingEnums = types.Where(t => t.GetCustomAttributes(false).Any(x => x is RegistersDescriptionAttribute attr && attr.Contains(tag))).ToList();
 
-            var enumsWithAttribute = types.Where(t => t.GetCustomAttributes(false).Any(x => x is RegistersDescriptionAttribute attr && attr.Tag == tag));
-            if(enumsWithAttribute != null)
+            if(interestingEnums.Count == 0)
             {
-                interestingEnums.AddRange(enumsWithAttribute);
+                interestingEnums = types.Where(t => t.BaseType == typeof(Enum) && t.Name.Contains("register", StringComparison.CurrentCultureIgnoreCase)).ToList();
             }
-            interestingEnums.AddRange(types.Where(t => t.BaseType == typeof(Enum) && t.Name.IndexOf("register", StringComparison.CurrentCultureIgnoreCase) != -1));
 
             foreach(var interestingEnum in interestingEnums)
             {
@@ -89,12 +87,28 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         [AttributeUsage(AttributeTargets.Enum)]
         public class RegistersDescriptionAttribute : Attribute
         {
-            public RegistersDescriptionAttribute(string tag = null)
+            public RegistersDescriptionAttribute(params string[] tags) : this(tags.Length == 0, tags)
             {
-                Tag = tag;
             }
 
-            public string Tag { get; }
+            public RegistersDescriptionAttribute(bool isDefault, params string[] tags)
+            {
+                if(isDefault)
+                {
+                    Array.Resize(ref tags, tags.Length + 1);
+                    tags[^1] = null;
+                }
+                this.tags = tags;
+            }
+
+            public bool Contains(string tag)
+            {
+                return tags.Contains(tag);
+            }
+
+            public IEnumerable<string> Tag => tags;
+
+            private readonly string[] tags;
         }
     }
 }
