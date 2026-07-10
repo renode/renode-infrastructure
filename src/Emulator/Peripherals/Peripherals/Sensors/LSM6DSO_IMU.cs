@@ -223,6 +223,39 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("BOOT", 7)
                 ;
 
+            Registers.Control5.Define(this)
+                .WithTaggedFlag("ST0_XL", 0)
+                .WithTaggedFlag("ST1_XL", 1)
+                .WithTaggedFlag("ST0_G", 2)
+                .WithTaggedFlag("ST1_G", 3)
+                .WithReservedBits(4, 1)
+                .WithTaggedFlag("ROUNDING0", 5)
+                .WithTaggedFlag("ROUNDING1", 6)
+                .WithTaggedFlag("XL_ULP_EN", 7)
+                ;
+
+            Registers.Control6.Define(this)
+                .WithTaggedFlag("FTYPE_0", 0)
+                .WithTaggedFlag("FTYPE_1", 1)
+                .WithTaggedFlag("FTYPE_2", 2)
+                .WithTaggedFlag("USR_OFF_W", 3)
+                .WithTaggedFlag("XL_HM_MODE", 4)
+                .WithTaggedFlag("LVL2_EN", 5)
+                .WithTaggedFlag("LVL1_EN", 6)
+                .WithTaggedFlag("TRIG_EN", 7)
+                ;
+
+            Registers.Control7_Gyroscope.Define(this)
+                .WithTaggedFlag("OIS_ON", 0)
+                .WithTaggedFlag("USR_OFF_ON_OUT", 1)
+                .WithTaggedFlag("OIS_ON_EN", 2)
+                .WithReservedBits(3, 1)
+                .WithTaggedFlag("HPM_G_1", 4)
+                .WithTaggedFlag("HPM_G_2", 5)
+                .WithTaggedFlag("HP_EN_G", 6)
+                .WithTaggedFlag("G_HM_MODE", 7)
+                ;
+
             Registers.Control8_Accelerometer.Define(this)
                 .WithTaggedFlag("LOW_PASS_ON_6D", 0)
                 .WithFlag(1, out accelerationFullScaleMode, name: "XL_FS_MODE: Accelerometer full-scale management between UI chain and OIS chain",
@@ -231,6 +264,17 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("FASTSETTL_MODE_XL", 3)
                 .WithTaggedFlag("HP_REF_MODE_XL", 4)
                 .WithTag("HPCF_XL", 5, 3)
+                ;
+
+            Registers.Control9_Accelerometer.Define(this, resetValue: 0b11100000)
+                .WithReservedBits(0, 1)
+                .WithTaggedFlag("I3C_disable", 1)
+                .WithTaggedFlag("DEN_LH", 2)
+                .WithTaggedFlag("DEN_XL_EN", 3)
+                .WithTaggedFlag("DEN_XL_G", 4)
+                .WithTaggedFlag("DEN_Z", 5)
+                .WithTaggedFlag("DEN_Y", 6)
+                .WithTaggedFlag("DEN_X", 7)
                 ;
 
             Registers.TemperatureLow.Define(this)
@@ -333,6 +377,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("INT1_CNT_BDR", 6)
                 .WithTaggedFlag("DEN_DRDY", 7)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
+                ;
+
+            Registers.I3CBusAvailable.Define(this)
+                .WithTaggedFlag("PD_DIS_INT1", 0)
+                .WithReservedBits(1, 2)
+                .WithTaggedFlag("I3C_Bus_Avb_Sel0", 3)
+                .WithTaggedFlag("I3C_Bus_Avb_Sel1", 4)
+                .WithReservedBits(5, 3)
                 ;
         }
 
