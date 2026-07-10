@@ -13,8 +13,6 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
-using SDCardCommand = Antmicro.Renode.Peripherals.SD.SDCard.SdCardCommand;
-
 namespace Antmicro.Renode.Peripherals.SD
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
@@ -43,6 +41,10 @@ namespace Antmicro.Renode.Peripherals.SD
         public override void Reset()
         {
             RegistersCollection.Reset();
+            readData = null;
+            writeData = null;
+            readDataOffset = 0;
+            writeDataOffset = 0;
             UpdateInterrupts();
             RegisteredPeripheral?.Reset();
         }
@@ -88,7 +90,8 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithValueField(0, 32, out responseFields[3], FieldMode.Read, name: "CMDRSP3");
 
             Registers.DataBuff.Define(this)
-                .WithValueField(0, 32, name: "DATPORT");
+                .WithValueField(0, 32, valueProviderCallback: _ => ReadFromDataPort(),
+                    writeCallback: (_, value) => WriteToDataPort((uint)value), name: "DATPORT");
 
             Registers.PresState.Define(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "CIDHB")
@@ -98,8 +101,8 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithReservedBits(4, 3)
                 .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => !(forceSDCardClockEnable.Value || sdClockEnable.Value), name: "SDOFF")
                 .WithReservedBits(8, 2)
-                .WithFlag(10, FieldMode.Read, valueProviderCallback: _ => false, name: "BWEN")
-                .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => false, name: "BREN")
+                .WithFlag(10, FieldMode.Read, valueProviderCallback: _ => PioWritePending, name: "BWEN")
+                .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => PioReadPending, name: "BREN")
                 .WithReservedBits(12, 4)
                 .WithFlag(16, FieldMode.Read, valueProviderCallback: _ => RegisteredPeripheral != null, name: "CINS")
                 .WithReservedBits(17, 1)
@@ -134,7 +137,9 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithFlag(1, out transferCompleteStatus, FieldMode.Read | FieldMode.WriteOneToClear, name: "TC")
                 .WithFlag(2, valueProviderCallback: _ => false) // BGE interrupt not implemented
                 .WithFlag(3, out dmaInterruptStatus, FieldMode.Read | FieldMode.WriteOneToClear, name: "DINT")
-                .WithValueField(4, 12, valueProviderCallback: _ => 0) // Interrupts not implemented
+                .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => PioWritePending, name: "BWR")
+                .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => PioReadPending, name: "BRR")
+                .WithValueField(6, 10, valueProviderCallback: _ => 0)
                 .WithFlag(16, out commandTimeoutStatus, FieldMode.Read | FieldMode.WriteOneToClear, name: "CTOE")
                 .WithValueField(17, 15, valueProviderCallback: _ => 0) // Interrupts not implemented
                 .WithWriteCallback((_, __) => UpdateInterrupts());
@@ -147,7 +152,9 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithFlag(1, out transferCompleteStatusEnable, name: "TCSEN")
                 .WithReservedBits(2, 1)
                 .WithFlag(3, out dmaInterruptStatusEnable, name: "DINTSEN")
-                .WithReservedBits(4, 12)
+                .WithFlag(4, out bufferWriteReadyEnable, name: "BWRSEN")
+                .WithFlag(5, out bufferReadReadyEnable, name: "BRRSEN")
+                .WithReservedBits(6, 10)
                 .WithFlag(16, out commandTimeoutStatusEnable, name: "CTOESEN")
                 .WithReservedBits(17, 15)
                 .WithWriteCallback((_, __) => UpdateInterrupts());
@@ -169,7 +176,11 @@ namespace Antmicro.Renode.Peripherals.SD
                 .WithValueField(0, 32, name: "WML");
 
             Registers.MixCtrl.Define(this)
-                .WithValueField(0, 32, name: "MIXCTRL");
+                .WithFlag(0, out dmaEnable, name: "DMAEN")
+                .WithValueField(1, 3, name: "MIXCTRL_LOW")
+                .WithFlag(4, out dataDirectionRead, name: "DTDSEL")
+                .WithFlag(5, out multiBlock, name: "MSBSEL")
+                .WithValueField(6, 26, name: "MIXCTRL_HIGH");
 
             Registers.VendSpec.Define(this, resetValue: 0x20007809)
                 .WithTaggedFlag("EXT_DMA_EN", 0)
@@ -239,7 +250,7 @@ namespace Antmicro.Renode.Peripherals.SD
 
             if(dataPresentSelect.Value)
             {
-                ProcessDataCommand(sdCard, (SDCardCommand)commandIndex);
+                ProcessDataCommand(sdCard);
             }
         }
 
@@ -260,46 +271,96 @@ namespace Antmicro.Renode.Peripherals.SD
             responseFields[0].Value = (c1 << 24) | (c0 >> 8);  // RSP0: CSD[39:8]
         }
 
-        private void ProcessDataCommand(SDCard sdCard, SDCardCommand command)
+        private void ProcessDataCommand(SDCard sdCard)
         {
-            var size  = BlockSize;
-            var count = BlockCount;
-            var dest  = (ulong)dsAddr.Value;
-
-            switch(command)
+            var length = multiBlock.Value ? BlockSize * BlockCount : BlockSize;
+            if(dataDirectionRead.Value)
             {
-            case SDCardCommand.ReadSingleBlock_CMD17:
-                DmaRead(sdCard, dest, size);
-                break;
-            case SDCardCommand.ReadMultipleBlocks_CMD18:
-                DmaRead(sdCard, dest, size * count);
-                break;
-            case SDCardCommand.WriteSingleBlock_CMD24:
-                DmaWrite(sdCard, dest, size);
-                break;
-            case SDCardCommand.WriteMultipleBlocks_CMD25:
-                DmaWrite(sdCard, dest, size * count);
-                break;
-            default:
-                break;
+                ProcessRead(sdCard, length);
             }
-
-            transferCompleteStatus.Value = true;
-            dmaInterruptStatus.Value = true;
+            else
+            {
+                ProcessWrite(sdCard, length);
+            }
             UpdateInterrupts();
         }
 
-        private void DmaRead(SDCard sdCard, ulong dest, uint size)
+        private void ProcessRead(SDCard sdCard, uint size)
         {
-            var data = sdCard.ReadData(size);
-            sysbus.WriteBytes(data, dest);
+            if(dmaEnable.Value)
+            {
+                var data = sdCard.ReadData(size);
+                sysbus.WriteBytes(data, (ulong)dsAddr.Value);
+                transferCompleteStatus.Value = true;
+                dmaInterruptStatus.Value = true;
+            }
+            else
+            {
+                readDataOffset = 0;
+                readData = sdCard.ReadData(size);
+            }
         }
 
-        private void DmaWrite(SDCard sdCard, ulong dest, uint size)
+        private void ProcessWrite(SDCard sdCard, uint size)
         {
-            var buf = new byte[size];
-            sysbus.ReadBytes(dest, (int)size, buf, 0);
-            sdCard.WriteData(buf);
+            if(dmaEnable.Value)
+            {
+                var buf = new byte[size];
+                sysbus.ReadBytes((ulong)dsAddr.Value, (int)size, buf, 0);
+                sdCard.WriteData(buf);
+                transferCompleteStatus.Value = true;
+                dmaInterruptStatus.Value = true;
+            }
+            else
+            {
+                writeDataOffset = 0;
+                writeData = new byte[size];
+            }
+        }
+
+        private uint ReadFromDataPort()
+        {
+            if(!PioReadPending)
+            {
+                this.WarningLog("Read from data buffer port with no PIO read in progress");
+                return 0;
+            }
+
+            var word = 0u;
+            for(var i = 0; i < 4 && readDataOffset < readData.Length; i++)
+            {
+                word |= (uint)readData[readDataOffset++] << (8 * i);
+            }
+
+            if(readDataOffset >= readData.Length)
+            {
+                readData = null;
+                transferCompleteStatus.Value = true;
+            }
+            UpdateInterrupts();
+            return word;
+        }
+
+        private void WriteToDataPort(uint value)
+        {
+            if(!PioWritePending)
+            {
+                this.WarningLog("Write to data buffer port with no PIO write in progress");
+                return;
+            }
+
+            for(var i = 0; i < 4 && writeDataOffset < writeData.Length; i++)
+            {
+                writeData[writeDataOffset++] = (byte)(value >> (8 * i));
+            }
+
+            if(writeDataOffset >= writeData.Length)
+            {
+                RegisteredPeripheral?.WriteData(writeData);
+                writeData = null;
+                transferCompleteStatus.Value = true;
+            }
+            UpdateInterrupts();
         }
 
         private void UpdateInterrupts()
@@ -309,8 +370,14 @@ namespace Antmicro.Renode.Peripherals.SD
                 || (transferCompleteStatus.Value && transferCompleteStatusEnable.Value)
                 || (dmaInterruptStatus.Value && dmaInterruptStatusEnable.Value)
                 || (commandTimeoutStatus.Value && commandTimeoutStatusEnable.Value)
+                || (PioReadPending && bufferReadReadyEnable.Value)
+                || (PioWritePending && bufferWriteReadyEnable.Value)
             );
         }
+
+        private bool PioReadPending => readData != null && readDataOffset < readData.Length;
+
+        private bool PioWritePending => writeData != null && writeDataOffset < writeData.Length;
 
         private uint BlockSize => Math.Max(1u, (uint)transferBlockSize.Value);
 
@@ -329,6 +396,17 @@ namespace Antmicro.Renode.Peripherals.SD
         private IFlagRegisterField transferCompleteStatusEnable;
         private IFlagRegisterField dmaInterruptStatusEnable;
         private IFlagRegisterField commandTimeoutStatusEnable;
+        private IFlagRegisterField bufferReadReadyEnable;
+        private IFlagRegisterField bufferWriteReadyEnable;
+
+        private IFlagRegisterField dmaEnable;
+        private IFlagRegisterField dataDirectionRead;
+        private IFlagRegisterField multiBlock;
+
+        private byte[] readData;
+        private int readDataOffset;
+        private byte[] writeData;
+        private int writeDataOffset;
 
         private IValueRegisterField responseType;
         private IFlagRegisterField commandCrcCheckEnable;
