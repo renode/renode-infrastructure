@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -16,6 +16,28 @@ namespace Antmicro.Renode.Hooks
     public static class UartHooksExtensions
     {
         public static void AddCharHook(this IUART uart, Func<byte, bool> predicate, Action<byte> hook)
+        {
+            uart.CharReceived += x =>
+            {
+                if(predicate(x))
+                {
+                    hook(x);
+                }
+            };
+        }
+
+        public static void AddWordHook(this IUART<ushort> uart, Func<ushort, bool> predicate, Action<ushort> hook)
+        {
+            uart.CharReceived += x =>
+            {
+                if(predicate(x))
+                {
+                    hook(x);
+                }
+            };
+        }
+
+        public static void AddDoubleWordHook(this IUART<uint> uart, Func<uint, bool> predicate, Action<uint> hook)
         {
             uart.CharReceived += x =>
             {
