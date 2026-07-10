@@ -129,6 +129,10 @@ namespace Antmicro.Renode.Core
 
         public IManagedThread ObtainManagedThread(Action action, uint frequency, string name = "managed thread", IEmulationElement owner = null, Func<bool> stopCondition = null)
         {
+            if(frequency == 0)
+            {
+                throw new RecoverableException("Frequency must be higher than zero");
+            }
             return new ManagedThreadWrappingClockEntry(this, action, frequency, name, owner, stopCondition);
         }
 
