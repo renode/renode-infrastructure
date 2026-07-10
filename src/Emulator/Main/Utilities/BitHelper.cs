@@ -889,7 +889,7 @@ namespace Antmicro.Renode.Utilities
 
                 index = ~result;
                 return ((index == 0) || (fragments[index - 1].Offset + fragments[index - 1].Length <= f.Offset))
-                    && ((index == fragments.Count) || (f.Offset + f.Length <= fragments[index + 1].Offset));
+                    && ((index == fragments.Count) || (f.Offset + f.Length <= fragments[index].Offset));
             }
 
             private readonly List<Fragment> fragments;
