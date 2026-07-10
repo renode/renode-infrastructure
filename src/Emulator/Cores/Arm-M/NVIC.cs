@@ -986,10 +986,78 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(9, 1)
                 .WithTaggedFlag("PENDSVACT (Pend SV Active)", 10)
                 .WithTaggedFlag("SYSTICKACT (Sys Tick Active)", 11)
-                .WithTaggedFlag("USGFAULTPENDED (Usage Fault Pending)", 12)
-                .WithTaggedFlag("MEMFAULTPENDED (Mem Manage Pending)", 13)
-                .WithTaggedFlag("BUSFAULTPENDED (Bus Fault Pending)", 14)
-                .WithTaggedFlag("SVCALLPENDED (SV Call Pending)", 15)
+                .WithFlag(12,
+                    writeCallback: (_, value) =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.UsageFault_S : SystemException.UsageFault;
+                        if(value)
+                        {
+                            SetPendingIRQ((int)bank);
+                        }
+                        else
+                        {
+                            ClearPending((int)bank);
+                        }
+                    },
+                    valueProviderCallback: _ => irqs[(int)(isNextAccessSecure ? SystemException.UsageFault_S : SystemException.UsageFault)].HasFlag(IRQState.Pending),
+                    name: "USGFAULTPENDED (Usage Fault Pending)")
+                .WithFlag(13,
+                    writeCallback: (_, value) =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.MemManageFault_S : SystemException.MemManageFault;
+                        if(value)
+                        {
+                            SetPendingIRQ((int)bank);
+                        }
+                        else
+                        {
+                            ClearPending((int)bank);
+                        }
+                    },
+                    valueProviderCallback: _ => irqs[(int)(isNextAccessSecure ? SystemException.MemManageFault_S : SystemException.MemManageFault)].HasFlag(IRQState.Pending),
+                    name: "MEMFAULTPENDED (Mem Manage Pending)")
+                .WithFlag(14,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!isNextAccessSecure && !IsBFHFNMINSEnabled)
+                        {
+                            // This bit is RAZ/WI from Non-secure state if BusFault targets Secure state (AIRCR.BFHFNMINS is zero)
+                            return;
+                        }
+                        if(value)
+                        {
+                            SetPendingIRQ((int)SystemException.BusFault);
+                        }
+                        else
+                        {
+                            ClearPending((int)SystemException.BusFault);
+                        }
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure && !IsBFHFNMINSEnabled)
+                        {
+                            // This bit is RAZ/WI from Non-secure state if BusFault targets Secure state (AIRCR.BFHFNMINS is zero)
+                            return false;
+                        }
+                        return irqs[(int)SystemException.BusFault].HasFlag(IRQState.Pending);
+                    },
+                    name: "BUSFAULTPENDED (Bus Fault Pending)")
+                .WithFlag(15,
+                    writeCallback: (_, value) =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.SuperVisorCall_S : SystemException.SuperVisorCall;
+                        if(value)
+                        {
+                            SetPendingIRQ((int)bank);
+                        }
+                        else
+                        {
+                            ClearPending((int)bank);
+                        }
+                    },
+                    valueProviderCallback: _ => irqs[(int)(isNextAccessSecure ? SystemException.SuperVisorCall_S : SystemException.SuperVisorCall)].HasFlag(IRQState.Pending),
+                    name: "SVCALLPENDED (SV Call Pending)")
                 .WithFlag(16,
                     writeCallback: (_, value) =>
                     {
@@ -1053,8 +1121,63 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         return interruptEnabled[SystemException.SecureFault];
                     },
                     name: "SECUREFAULTENA (Secure Fault Enable)")
-                .WithTaggedFlag(name: "SECUREFAULTPENDED (Secure Fault Pending)", 20)
-                .WithTaggedFlag(name: "HARDFAULTPENDED (Hard Fault Pending)", 21)
+                .WithFlag(20,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!isNextAccessSecure)
+                        {
+                            // This bit is RAZ/WI from Non-secure state if BusFault targets Secure state (AIRCR.BFHFNMINS is zero)
+                            return;
+                        }
+                        if(value)
+                        {
+                            SetPendingIRQ((int)SystemException.SecureFault);
+                        }
+                        else
+                        {
+                            ClearPending((int)SystemException.SecureFault);
+                        }
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure)
+                        {
+                            // This bit is RAZ/WI from Non-secure state if BusFault targets Secure state (AIRCR.BFHFNMINS is zero)
+                            return false;
+                        }
+                        return irqs[(int)SystemException.SecureFault].HasFlag(IRQState.Pending);
+                    },
+                    name: "SECUREFAULTPENDED (Secure Fault Pending)")
+                .WithFlag(21,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!isNextAccessSecure && !IsBFHFNMINSEnabled)
+                        {
+                            // This bit is RAZ/WI from Non-secure state if HardFault can't target Non-secure state (AIRCR.BFHFNMINS is zero)
+                            return;
+                        }
+                        // For Secure-state use normal HardFault if Non-secure exception is disabled, and use secure one if it's enabled
+                        var bank = isNextAccessSecure ^ IsBFHFNMINSEnabled ? SystemException.HardFault : SystemException.HardFault_S;
+
+                        if(value)
+                        {
+                            SetPendingIRQ((int)bank);
+                        }
+                        else
+                        {
+                            ClearPending((int)bank);
+                        }
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure && !IsBFHFNMINSEnabled)
+                        {
+                            // This bit is RAZ/WI from Non-secure state if HardFault can't target Non-secure state (AIRCR.BFHFNMINS is zero)
+                            return false;
+                        }
+                        return irqs[(int)(isNextAccessSecure ^ IsBFHFNMINSEnabled ? SystemException.HardFault : SystemException.HardFault_S)].HasFlag(IRQState.Pending);
+                    },
+                    name: "HARDFAULTPENDED (Hard Fault Pending)")
                 .WithReservedBits(22, 10);
 
             Registers.HardFaultStatus.Define(RegisterCollection)
