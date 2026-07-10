@@ -9,7 +9,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 using Antmicro.Renode.Config;
 using Antmicro.Renode.Core;
@@ -148,7 +147,7 @@ namespace Antmicro.Renode.UserInterface.Commands
             public List<PeripheralJson> Children { get; set; } = new List<PeripheralJson>();
         }
 
-        private class PeripheralNode
+        private class PeripheralNode : ITreePrintNode
         {
             public PeripheralNode(KeyValuePair<PeripheralTreeEntry, IEnumerable<IRegistrationPoint>> rawNode)
             {
@@ -200,44 +199,6 @@ namespace Antmicro.Renode.UserInterface.Commands
                 };
 
                 writer.WriteLine(SimpleJson.PrettySerializeObject(document));
-            }
-
-            public void PrintTree(ICommandInteraction writer, TreeViewBlock[] pattern = null)
-            {
-                if(!PeripheralEntry.ShouldBePrinted)
-                {
-                    return;
-                }
-
-                if(pattern == null)
-                {
-                    pattern = new TreeViewBlock[0];
-                }
-                var indent = GetIndentString(pattern);
-                writer.WriteLine(String.Format("{0}{1} ({2})", indent, PeripheralEntry.Name, PeripheralEntry.Type.Name));
-
-                if(PeripheralEntry.Parent != null)
-                {
-                    var newIndent = GetIndentString(UpdatePattern(pattern, Children.Count > 0 ? TreeViewBlock.Straight : TreeViewBlock.Empty));
-                    if(!(PeripheralEntry.RegistrationPoint is ITheOnlyPossibleRegistrationPoint))
-                    {
-                        foreach(var registerPlace in RegistrationPoints)
-                        {
-                            writer.WriteLine(String.Format("{0}{1}", newIndent, registerPlace.PrettyString));
-                        }
-                    }
-                    writer.WriteLine(newIndent);
-                }
-                else
-                {
-                    writer.WriteLine(GetIndentString(new TreeViewBlock[] { TreeViewBlock.Straight }));
-                }
-
-                var lastChild = Children.LastOrDefault();
-                foreach(var child in Children)
-                {
-                    child.PrintTree(writer, UpdatePattern(pattern, child != lastChild ? TreeViewBlock.Full : TreeViewBlock.End));
-                }
             }
 
             public void ProcessTree(string searchString = null, RangeToken rangeToken = null)
@@ -298,55 +259,19 @@ namespace Antmicro.Renode.UserInterface.Commands
                 }
             }
 
-            private static String GetIndentString(TreeViewBlock[] rawSignPattern)
-            {
-                var indentBuilder = new StringBuilder(DefaultPadding);
-                foreach(var tmp in rawSignPattern)
-                {
-                    indentBuilder.Append(GetSingleIndentString(tmp));
-                }
-                return indentBuilder.ToString();
-            }
+            public string Name => $"{PeripheralEntry.Name} ({PeripheralEntry.Type.Name})";
 
-            private static String GetSingleIndentString(TreeViewBlock rawSignPattern)
-            {
-                switch(rawSignPattern)
-                {
-                case TreeViewBlock.Full:
-                    return "├── ";
-                case TreeViewBlock.End:
-                    return "└── ";
-                case TreeViewBlock.Straight:
-                    return "│   ";
-                case TreeViewBlock.Empty:
-                    return "    ";
-                default:
-                    throw new ArgumentException();
-                }
-            }
+            IEnumerable<ITreePrintNode> ITreePrintNode.Children => Children.Where(p => p.PeripheralEntry.ShouldBePrinted);
 
-            private static TreeViewBlock[] UpdatePattern(TreeViewBlock[] oldPattern, TreeViewBlock newSign)
+            public IEnumerable<string> Notes
             {
-                FixLastSign(oldPattern);
-                var newPattern = new TreeViewBlock[oldPattern.Length + 1];
-                Array.Copy(oldPattern, newPattern, oldPattern.Length);
-                newPattern[newPattern.Length - 1] = newSign;
-                return newPattern;
-            }
-
-            private static void FixLastSign(TreeViewBlock[] pattern)
-            {
-                if(pattern.Length < 1)
+                get
                 {
-                    return;
-                }
-                if(pattern[pattern.Length - 1] == TreeViewBlock.Full)
-                {
-                    pattern[pattern.Length - 1] = TreeViewBlock.Straight;
-                }
-                else if(pattern[pattern.Length - 1] == TreeViewBlock.End)
-                {
-                    pattern[pattern.Length - 1] = TreeViewBlock.Empty;
+                    if(PeripheralEntry.Parent == null || PeripheralEntry.RegistrationPoint is ITheOnlyPossibleRegistrationPoint)
+                    {
+                        return Enumerable.Empty<string>();
+                    }
+                    return RegistrationPoints.Select(rp => rp.PrettyString);
                 }
             }
 
@@ -377,8 +302,6 @@ namespace Antmicro.Renode.UserInterface.Commands
             private readonly HashSet<PeripheralNode> Children;
 
             private const String DefaultPadding = "  ";
-
-            internal enum TreeViewBlock { Empty, Straight, End, Full };
         }
     }
 }
