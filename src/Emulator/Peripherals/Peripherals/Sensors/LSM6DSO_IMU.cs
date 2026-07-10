@@ -12,6 +12,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Time;
@@ -20,7 +21,7 @@ using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensors
 {
-    public class LSM6DSO_IMU : BasicBytePeripheral, ISPIPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor, IUnderstandRESD
+    public class LSM6DSO_IMU : BasicBytePeripheral, ISPIPeripheral, II2CPeripheral, IProvidesRegisterCollection<ByteRegisterCollection>, ITemperatureSensor, IUnderstandRESD
     {
         public LSM6DSO_IMU(IMachine machine) : base(machine)
         {
@@ -115,19 +116,42 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 this.Log(LogLevel.Noisy, "Received 0x{0:X2}; setting commandInProgress to {1} and address to 0x{2:X2}", data, commandInProgress, address);
                 break;
             case CommandTypes.Read:
-                value = ReadByte(address);
-                this.Log(LogLevel.Noisy, "Read from 0x{0:X2} ({1}): returning 0x{2:X2}", address, (Registers)address, value);
-                TryIncrementAddress();
+                value = PerformRead(address);
                 break;
             case CommandTypes.Write:
-                this.Log(LogLevel.Noisy, "Write to 0x{0:X2} ({1}): 0x{2:X2}", address, (Registers)address, data);
-                WriteByte(address, data);
-                TryIncrementAddress();
+                PerformWrite(address, data);
                 break;
             default:
                 throw new ArgumentException($"Invalid commandInProgress: {commandInProgress}");
             }
             return value;
+        }
+
+        public void Write(byte[] data)
+        {
+            var byteIdx = 0;
+            if(commandInProgress == CommandTypes.None)
+            {
+                address = data[0];
+                byteIdx++;
+                commandInProgress = CommandTypes.ReceivedAddress;
+            }
+
+            for(var i = byteIdx; i < data.Length; i++)
+            {
+                PerformWrite(address, data[i]);
+            }
+        }
+
+        public byte[] Read(int count = 1)
+        {
+            var bytes = new byte[count];
+
+            for(var i = 0; i < count; i++)
+            {
+                bytes[i] = PerformRead(address);
+            }
+            return bytes;
         }
 
         public bool FifoOverrunStatus => commonFifo.OverrunOccurred;
@@ -756,6 +780,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
+        private byte PerformRead(long address)
+        {
+            var value = ReadByte(address);
+            this.Log(LogLevel.Noisy, "Read from 0x{0:X2} ({1}): returning 0x{2:X2}", address, (Registers)address, value);
+            TryIncrementAddress();
+            return value;
+        }
+
+        private void PerformWrite(long address, byte value)
+        {
+            WriteByte(address, value);
+            this.Log(LogLevel.Noisy, "Write to 0x{0:X2} ({1}): 0x{2:X2}", address, (Registers)address, value);
+            TryIncrementAddress();
+        }
+
         private decimal defaultAccelerationX;
         private decimal defaultAccelerationY;
         private decimal defaultAccelerationZ;
@@ -1112,6 +1151,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             Write = 0,
             Read = 1,
+            ReceivedAddress,
             None,
         }
 
