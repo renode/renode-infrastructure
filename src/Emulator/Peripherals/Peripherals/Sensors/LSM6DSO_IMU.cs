@@ -208,6 +208,11 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         protected override void DefineRegisters()
         {
+            Registers.RegistersAccessConfiguration.Define(this)
+                .WithReservedBits(0, 6)
+                .WithEnumField(6, 2, out selectedRegisterBank, name: "SHUB_REG_FUNC_CFG_ACCESS")
+                ;
+
             Registers.PinControl.Define(this)
                 // These bits are always set.
                 .WithValueField(0, 6, FieldMode.Read, valueProviderCallback: _ => 0x3F)
@@ -782,6 +787,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private byte PerformRead(long address)
         {
+            if(commandInProgress == CommandTypes.ReceivedAddress)
+            {
+                commandInProgress = CommandTypes.Read;
+            }
+            if(commandInProgress != CommandTypes.Read)
+            {
+                this.Log(LogLevel.Warning, "Tried to read in invalid state: {0}", commandInProgress);
+                return 0;
+            }
+            if(address != (long)Registers.RegistersAccessConfiguration && selectedRegisterBank.Value != RegisterBank.Default)
+            {
+                this.Log(LogLevel.Warning, "Unhandled read from 0x{0:X2}: unsupported {1} bank", address, selectedRegisterBank.Value);
+                return 0;
+            }
+
             var value = ReadByte(address);
             this.Log(LogLevel.Noisy, "Read from 0x{0:X2} ({1}): returning 0x{2:X2}", address, (Registers)address, value);
             TryIncrementAddress();
@@ -790,6 +810,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void PerformWrite(long address, byte value)
         {
+            if(commandInProgress == CommandTypes.ReceivedAddress)
+            {
+                commandInProgress = CommandTypes.Write;
+            }
+            if(commandInProgress != CommandTypes.Write)
+            {
+                this.Log(LogLevel.Warning, "Tried to write in invalid state: {0}", commandInProgress);
+                return;
+            }
+            if(address != (long)Registers.RegistersAccessConfiguration && selectedRegisterBank.Value != RegisterBank.Default)
+            {
+                this.Log(LogLevel.Warning, "Unhandled write to offset 0x{0:X2}. value 0x{1:X2}: unsupported {2} bank", address, value, selectedRegisterBank.Value);
+                return;
+            }
+
             WriteByte(address, value);
             this.Log(LogLevel.Noisy, "Write to 0x{0:X2} ({1}): 0x{2:X2}", address, (Registers)address, value);
             TryIncrementAddress();
@@ -826,7 +861,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IEnumRegisterField<DataRates> gyroscopeFifoBatchingDataRateSelection;
         private IEnumRegisterField<DataRates> gyroscopeOutputDataRateSelection;
         private IFlagRegisterField interrupt1EnableFifoOverrun;
-
+        private IEnumRegisterField<RegisterBank> selectedRegisterBank;
         private readonly LSM6DSO_FIFO commonFifo;
 
         private const int IOTypeFlagPosition = 7;
@@ -1203,6 +1238,14 @@ namespace Antmicro.Renode.Peripherals.Sensors
             SensorHubSlave3 = 0x11,
             StepCounter = 0x12,
             SensorHubNack = 0x19
+        }
+
+        private enum RegisterBank : byte
+        {
+            Default            = 0b00,
+            SensorHubRegisters = 0b01,
+            EmbeddedFunctions  = 0b10,
+            Illegal            = 0b11
         }
 
         private enum Registers : byte
