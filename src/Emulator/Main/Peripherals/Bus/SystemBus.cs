@@ -2329,7 +2329,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             lockedPeripherals = new HashSet<IPeripheral>();
             lockedRangesCollectionByContext = new ContextKeyDictionary<MinimalRangesCollection, IReadOnlyMinimalRangesCollection>(() => new MinimalRangesCollection());
             mappingsForPeripheral = new Dictionary<IBusPeripheral, List<MappedSegmentWrapper>>();
-            tags = new Dictionary<Range, TagEntry>();
+            tags = new SortedList<Range, TagEntry>(new RangeOrderedByStartAddressComparer());
             svdDevices = new List<SVDParser>();
             pausingTags = new HashSet<string>();
             PostDeserializationInitStructures();
@@ -2442,15 +2442,27 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private bool TryGetTag(ulong address, out TagEntry? foundTag)
         {
-            // The `return` inside is intentional; we just want to find the first tag.
-            // `FirstOrDefault` isn't used cause the default `Range` is a valid `<0, 0>` range.
-            // `Any` + `First` aren't used to avoid analyzing `tags` keys up to the matching one twice.
-            // `ToArray` isn't used to avoid analyzing all `tags` keys since we only use the first one.
-            foreach(var tag in tags.Where(x => x.Key.Contains(address)).Select(x => x.Value))
+            var tagIdx = tags.Keys.BinarySearch(r => address.CompareTo(r.StartAddress));
+            if(tagIdx >= 0)
             {
-                foundTag = tag;
+                // Direct hit - the address is the start address of a tag
+                foundTag = tags.Values[tagIdx];
                 return true;
             }
+            if(tagIdx == -1)
+            {
+                // The address is below the start address of the first tag, so it can't be in any tag
+                foundTag = null;
+                return false;
+            }
+            var earlierTagRange = tags.Keys[~tagIdx - 1];
+            if(earlierTagRange.Contains(address))
+            {
+                // The tag with the start address earlier than us contians us
+                foundTag = tags.Values[~tagIdx - 1];
+                return true;
+            }
+            // The earlier tag ends before the address
             foundTag = null;
             return false;
         }
@@ -2559,7 +2571,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private IEnumerable<PeripheralCollection> AllPeripherals => peripheralsCollectionByContext.GetAllDistinctValues();
 
-        private Dictionary<Range, TagEntry> tags;
+        private SortedList<Range, TagEntry> tags;
         private Dictionary<ICPU, SymbolLookup> localLookups;
         private SymbolLookup globalLookup;
         [Transient]
@@ -2700,6 +2712,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             private readonly ulong peripheralOffset;
             private readonly ulong usedSize;
             private readonly ICPUWithMappedMemory context;
+        }
+
+        public struct TagEntry
+        {
+            public string Name;
+            public ulong DefaultValue;
+            public bool Silent;
+            public bool OverridePeripheralAccesses;
         }
 
         private class ThreadLocalContext : IDisposable
@@ -2945,12 +2965,9 @@ namespace Antmicro.Renode.Peripherals.Bus
             public ulong SourceLength;
         }
 
-        private struct TagEntry
+        private struct RangeOrderedByStartAddressComparer : IComparer<Range>
         {
-            public string Name;
-            public ulong DefaultValue;
-            public bool Silent;
-            public bool OverridePeripheralAccesses;
+            public int Compare(Range a, Range b) => a.StartAddress.CompareTo(b.StartAddress);
         }
     }
 }
