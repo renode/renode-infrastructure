@@ -1041,6 +1041,7 @@ namespace Antmicro.Renode.UserInterface
             Commands.Add(new UsingCommand(this, () => usings));
             Commands.Add(new QuitCommand(this, x => CurrentMachine = x, () => Quitted));
             Commands.Add(new PeripheralsCommand(this, () => CurrentMachine));
+            Commands.Add(new TagsCommand(this, () => CurrentMachine));
             Commands.Add(new MonitorPathCommand(this, monitorPath));
             Commands.Add(new StartCommand(this, includeCommand));
             Commands.Add(new SetCommand(this, "set", "VARIABLE", (x, y) => SetVariable(x, y, variables), (x, y) => EnableStringEater(x, y, VariableType.Variable),

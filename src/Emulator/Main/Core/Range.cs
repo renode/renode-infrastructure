@@ -58,6 +58,13 @@ namespace Antmicro.Renode.Core
             return range.StartAddress >= StartAddress && range.EndAddress <= EndAddress;
         }
 
+        public Range ExpandUnchecked(Range range)
+        {
+            var startAddress = Math.Min(StartAddress, range.StartAddress);
+            var endAddress = Math.Max(EndAddress, range.EndAddress);
+            return startAddress.To(endAddress);
+        }
+
         /// <param name="range">
         /// <c>range</c> has to overlap or be adjacent to this <c>Range</c>
         /// which can be tested with <c>CanBeExpandedBy(range)</c>.
@@ -69,9 +76,7 @@ namespace Antmicro.Renode.Core
             {
                 throw new ArgumentException($"{this} can't be expanded by {range}.");
             }
-            var startAddress = Math.Min(StartAddress, range.StartAddress);
-            var endAddress = Math.Max(EndAddress, range.EndAddress);
-            return startAddress.To(endAddress);
+            return ExpandUnchecked(range);
         }
 
         /// <returns>Intersection if ranges overlap, <c>null</c> otherwise.</returns>

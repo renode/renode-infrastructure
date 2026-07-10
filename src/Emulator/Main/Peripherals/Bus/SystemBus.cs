@@ -1524,6 +1524,8 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
+        public IEnumerable<KeyValuePair<Range, TagEntry>> Tags => tags;
+
         public event Action<IMachine> OnSymbolsChanged;
 
         public const string TagNestSymbol = "->";
