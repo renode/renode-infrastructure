@@ -792,7 +792,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         SetPendingIRQ((int)(isNextAccessSecure ? SystemException.SysTick_S : SystemException.SysTick));
                     }
-                }, valueProviderCallback: _ => irqs[(int)SystemException.SysTick].HasFlag(IRQState.Pending), name: "PENDSTSET")
+                }, valueProviderCallback: _ => irqs[(int)(isNextAccessSecure ? SystemException.SysTick_S : SystemException.SysTick)].HasFlag(IRQState.Pending), name: "PENDSTSET")
                 .WithFlag(27, FieldMode.WriteOneToClear, writeCallback: (_, value) =>
                 {
                     if(value)
@@ -806,7 +806,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         SetPendingIRQ((int)(isNextAccessSecure ? SystemException.PendSV_S : SystemException.PendSV));
                     }
-                }, valueProviderCallback: _ => irqs[(int)SystemException.PendSV].HasFlag(IRQState.Pending), name: "PENDSVSET")
+                }, valueProviderCallback: _ => irqs[(int)(isNextAccessSecure ? SystemException.PendSV_S : SystemException.PendSV)].HasFlag(IRQState.Pending), name: "PENDSVSET")
                 .WithReservedBits(29, 1)
                 .WithFlag(30, FieldMode.WriteOneToClear, writeCallback: (_, value) =>
                 {
