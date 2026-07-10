@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             accelerometerResdStream = this.CreateRESDStream<AccelerationSample>(path, channel, sampleOffsetType, sampleOffsetTime);
             accelerometerFeederThread?.Stop();
             accelerometerFeederThread = accelerometerResdStream.StartSampleFeedThread(this,
-                DataRateToFrequency(accelerometerFifoBatchingDataRateSelection.Value),
+                DataRateToFrequency(AccelerometerODR),
                 startTime: startTime
             );
         }
@@ -67,7 +67,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             gyroResdStream = this.CreateRESDStream<AngularRateSample>(path, channel, sampleOffsetType, sampleOffsetTime);
             gyroFeederThread?.Stop();
             gyroFeederThread = gyroResdStream.StartSampleFeedThread(this,
-                DataRateToFrequency(gyroscopeFifoBatchingDataRateSelection.Value),
+                DataRateToFrequency(GyroscopeODR),
                 startTime: startTime
             );
         }
@@ -419,27 +419,27 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private IManagedThread CreateAccelerationDefaultSampleFeeder()
         {
-            if(accelerometerFifoBatchingDataRateSelection.Value == DataRates.Disabled)
+            if(AccelerometerODR == DataRates.Disabled)
             {
                 return null;
             }
 
             return CreateDefaultSampleFeeder(
                 () => commonFifo.FeedAccelerationSample(DefaultAccelerationX, DefaultAccelerationY, DefaultAccelerationZ),
-                DataRateToFrequency(accelerometerFifoBatchingDataRateSelection.Value),
+                DataRateToFrequency(AccelerometerODR),
                 "acceleration");
         }
 
         private IManagedThread CreateAngularRateDefaultSampleFeeder()
         {
-            if(gyroscopeFifoBatchingDataRateSelection.Value == DataRates.Disabled)
+            if(GyroscopeODR == DataRates.Disabled)
             {
                 return null;
             }
 
             return CreateDefaultSampleFeeder(
                 () => commonFifo.FeedAngularRateSample(DefaultAngularRateX, DefaultAngularRateY, DefaultAngularRateZ),
-                DataRateToFrequency(gyroscopeFifoBatchingDataRateSelection.Value),
+                DataRateToFrequency(GyroscopeODR),
                 "gyro");
         }
 
@@ -459,9 +459,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return;
             }
 
-            if(accelerometerFifoBatchingDataRateSelection.Value != DataRates.Disabled)
+            if(AccelerometerODR != DataRates.Disabled)
             {
-                var freq = DataRateToFrequency(accelerometerFifoBatchingDataRateSelection.Value);
+                var freq = DataRateToFrequency(AccelerometerODR);
                 accelerometerFeederThread.Frequency = freq;
                 accelerometerFeederThread.Start();
             }
@@ -478,9 +478,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return;
             }
 
-            if(gyroscopeFifoBatchingDataRateSelection.Value != DataRates.Disabled)
+            if(GyroscopeODR != DataRates.Disabled)
             {
-                var freq = DataRateToFrequency(gyroscopeFifoBatchingDataRateSelection.Value);
+                var freq = DataRateToFrequency(GyroscopeODR);
                 gyroFeederThread.Frequency = freq;
                 gyroFeederThread.Start();
             }
@@ -829,6 +829,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
             this.Log(LogLevel.Noisy, "Write to 0x{0:X2} ({1}): 0x{2:X2}", address, (Registers)address, value);
             TryIncrementAddress();
         }
+
+        private DataRates AccelerometerODR => IsAccelerometerDataBatchedInFifo ? accelerometerFifoBatchingDataRateSelection.Value : accelerometerOutputDataRateSelection.Value;
+
+        private DataRates GyroscopeODR => IsGyroscopeDataBatchedInFifo ? gyroscopeFifoBatchingDataRateSelection.Value : gyroscopeOutputDataRateSelection.Value;
 
         private decimal defaultAccelerationX;
         private decimal defaultAccelerationY;
