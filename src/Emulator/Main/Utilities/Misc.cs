@@ -1655,6 +1655,30 @@ namespace Antmicro.Renode.Utilities
             return enumerable.Concat(Enumerable.Range(start, stopIncluded - start + 1));
         }
 
+        public static int BinarySearch<T>(this IList<T> list, Func<T, int> comp)
+        {
+            int first = 0;
+            int last = list.Count;
+            while(first != last)
+            {
+                int idx = (first + last) / 2;
+                var compRes = comp(list[idx]);
+                if(compRes < 0)
+                {
+                    last = idx;
+                }
+                else if(compRes > 0)
+                {
+                    first = idx + 1;
+                }
+                else
+                {
+                    return idx;
+                }
+            }
+            return ~first;
+        }
+
         // MoreLINQ - Extensions to LINQ to Objects
         // Copyright (c) 2008 Jonathan Skeet. All rights reserved.
         public static IEnumerable<TSource> DistinctBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector,
