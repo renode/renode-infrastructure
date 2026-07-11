@@ -216,12 +216,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.BitSet, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Write,
-                        writeCallback: (_, val) => { if(val != 0) WriteOutputState((ushort)(BitHelper.GetValueFromBitsArray(outputLatch) | val)); },
-                        name: "GPIOx_BS")
                     .WithValueField(16, 16, FieldMode.Write,
                         writeCallback: (_, val) => { if(val != 0) WriteOutputState((ushort)(BitHelper.GetValueFromBitsArray(outputLatch) & ~val)); },
                         name: "GPIOx_BR")
+                    .WithValueField(0, 16, FieldMode.Write,
+                        writeCallback: (_, val) => { if(val != 0) WriteOutputState((ushort)(BitHelper.GetValueFromBitsArray(outputLatch) | val)); },
+                        name: "GPIOx_BS")
                 },
                 { (long)Registers.ConfigurationLock, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out var pendingLockPins, name: "LCK",

@@ -84,6 +84,19 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldPrioritizeSetWhenBitSetAndResetAreWrittenTogether()
+        {
+            using(var machine = new Machine())
+            {
+                var gpio = new STM32_GPIOPort(machine);
+
+                gpio.WriteDoubleWord(BitSetReset, (1u << Pin) | (1u << (Pin + 16)));
+
+                Assert.That(gpio.ReadDoubleWord(OutputData), Is.EqualTo(1u << Pin));
+            }
+        }
+
+        [Test]
         public void ShouldClearOutputLatchOnReset()
         {
             using(var machine = new Machine())
