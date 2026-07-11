@@ -149,6 +149,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        private void WriteBitSetReset(uint value)
+        {
+            var setMask = value & 0xFFFF;
+            var resetMask = value >> 16;
+            for(var i = 0; i < NumberOfPins; i++)
+            {
+                var pinMask = 1u << i;
+                if((setMask & pinMask) != 0)
+                {
+                    WriteOutputPin(i, true);
+                }
+                else if((resetMask & pinMask) != 0)
+                {
+                    WriteOutputPin(i, false);
+                }
+            }
+        }
+
         private void ChangeMode(int number, Mode newMode)
         {
             mode[number] = newMode;
@@ -216,12 +234,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.BitSet, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Write,
-                        writeCallback: (_, val) => { if(val != 0) WriteOutputState((ushort)(BitHelper.GetValueFromBitsArray(outputLatch) | val)); },
-                        name: "GPIOx_BS")
                     .WithValueField(16, 16, FieldMode.Write,
-                        writeCallback: (_, val) => { if(val != 0) WriteOutputState((ushort)(BitHelper.GetValueFromBitsArray(outputLatch) & ~val)); },
                         name: "GPIOx_BR")
+                    .WithValueField(0, 16, FieldMode.Write,
+                        name: "GPIOx_BS")
+                    .WithWriteCallback((_, value) => WriteBitSetReset(value))
                 },
                 { (long)Registers.ConfigurationLock, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out var pendingLockPins, name: "LCK",

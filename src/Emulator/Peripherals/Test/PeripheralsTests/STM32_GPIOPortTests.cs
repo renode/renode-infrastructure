@@ -84,6 +84,62 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldPrioritizeSetWhenBitSetAndResetAreWrittenTogether()
+        {
+            using(var machine = new Machine())
+            {
+                var gpio = new STM32_GPIOPort(machine);
+
+                gpio.WriteDoubleWord(BitSetReset, (1u << Pin) | (1u << (Pin + 16)));
+
+                Assert.That(gpio.ReadDoubleWord(OutputData), Is.EqualTo(1u << Pin));
+            }
+        }
+
+        [Test]
+        public void ShouldNotPulseOutputWhenBitSetAndResetAreWrittenTogether()
+        {
+            using(var machine = new Machine())
+            {
+                var gpio = new STM32_GPIOPort(machine);
+                gpio.WriteDoubleWord(Mode, OutputMode << (Pin * 2));
+                gpio.WriteDoubleWord(OutputData, 1u << Pin);
+
+                var transitionCount = 0;
+                ((IGPIOWithHooks)gpio.Connections[Pin]).AddStateChangedHook(_ => transitionCount++);
+
+                gpio.WriteDoubleWord(BitSetReset, (1u << Pin) | (1u << (Pin + 16)));
+
+                Assert.That(gpio.ReadDoubleWord(OutputData), Is.EqualTo(1u << Pin));
+                Assert.That(gpio.ReadDoubleWord(InputData), Is.EqualTo(1u << Pin));
+                Assert.That(gpio.Connections[Pin].IsSet, Is.True);
+                Assert.That(transitionCount, Is.Zero);
+            }
+        }
+
+        [Test]
+        public void ShouldNotRedriveUnrelatedPinsOnBitSetResetWrite()
+        {
+            using(var machine = new Machine())
+            {
+                var gpio = new STM32_GPIOPort(machine);
+                gpio.WriteDoubleWord(Mode, OutputMode << (Pin * 2));
+                gpio.WriteDoubleWord(OutputData, 1u << Pin);
+                gpio.OnGPIO(Pin, false);
+
+                var transitionCount = 0;
+                ((IGPIOWithHooks)gpio.Connections[Pin]).AddStateChangedHook(_ => transitionCount++);
+
+                gpio.WriteDoubleWord(BitSetReset, 1u << OtherPin);
+
+                Assert.That(gpio.ReadDoubleWord(OutputData), Is.EqualTo((1u << Pin) | (1u << OtherPin)));
+                Assert.That(gpio.ReadDoubleWord(InputData), Is.Zero);
+                Assert.That(gpio.Connections[Pin].IsSet, Is.False);
+                Assert.That(transitionCount, Is.Zero);
+            }
+        }
+
+        [Test]
         public void ShouldClearOutputLatchOnReset()
         {
             using(var machine = new Machine())
@@ -101,6 +157,7 @@ namespace Antmicro.Renode.UnitTests
         }
 
         private const int Pin = 2;
+        private const int OtherPin = 3;
         private const uint InputMode = 0;
         private const uint OutputMode = 1;
         private const uint AlternateFunctionMode = 2;
