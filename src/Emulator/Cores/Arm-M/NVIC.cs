@@ -612,6 +612,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             cpu.AddHookAtWfiStateChange(HandleWfiStateChange);
         }
 
+        public bool IsBFHFNMINSEnabled
+        {
+            get
+            {
+                return !cpu.TrustZoneEnabled || targetInterruptSecurityState[(int)SystemException.HardFault] == InterruptTargetSecurityState.NonSecure;
+            }
+        }
+
         [HideInMonitor]
         public byte BASEPRI_S
         {
@@ -943,7 +951,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         targetInterruptSecurityState[(int)excp] = sec;
                     }
-                }, name: "BFHFNMINS")
+                },
+                valueProviderCallback: _ => IsBFHFNMINSEnabled,
+                name: "BFHFNMINS")
                 .WithFlag(14, writeCallback: (_, value) =>
                 {
                     if(!isNextAccessSecure)
@@ -995,7 +1005,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithFlag(17,
                     writeCallback: (_, value) =>
                     {
-                        if(!isNextAccessSecure && !IsInterruptTargetNonSecure((int)SystemException.BusFault))
+                        if(!isNextAccessSecure && !IsBFHFNMINSEnabled)
                         {
                             // This bit is RAZ/WI from Non-secure state if BusFault targets Secure state
                             return;
@@ -1004,7 +1014,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     },
                     valueProviderCallback: _ =>
                     {
-                        if(!isNextAccessSecure && !IsInterruptTargetNonSecure((int)SystemException.BusFault))
+                        if(!isNextAccessSecure && !IsBFHFNMINSEnabled)
                         {
                             // This bit is RAZ/WI from Non-secure state if BusFault targets Secure state
                             return false;
@@ -1591,7 +1601,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             /* When escalating Secure targeted exception check if HardFault is banked, if not escalate to normal HardFault as it'll target Secure state anyway */
-            if(targetInterruptSecurityState[(int)SystemException.HardFault] == InterruptTargetSecurityState.NonSecure)
+            if(IsBFHFNMINSEnabled)
             {
                 return (int)SystemException.HardFault_S;
             }
@@ -1702,11 +1712,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 if(cpu.GetFaultmask(true) > 0 || cpu.GetFaultmask(false) > 0)
                 {
-                    // "BFHFNMINS" is 1
-                    bool isNSEnabled = GetTargetInterruptSecurityState((int)SystemException.HardFault) == InterruptTargetSecurityState.NonSecure;
                     if(cpu.GetFaultmask(true) > 0)
                     {
-                        if(isNSEnabled)
+                        if(IsBFHFNMINSEnabled)
                         {
                             return false;
                         }
@@ -1717,7 +1725,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     }
                     else if(cpu.GetFaultmask(false) > 0)
                     {
-                        if(isNSEnabled)
+                        if(IsBFHFNMINSEnabled)
                         {
                             // If Configurable exceptions target Non-secure mode, and PRIS is set, we boost current execution priority to 0x80
                             // which is the boundary between Secure and Non-secure priorities, so only Secure exceptions will pass.
@@ -1797,8 +1805,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return (interruptNo & BankedExcpSecureBit) == 0;
             }
             // HardFault is banked if "BFHFNMINS" is set
-            if((interruptNo == (int)SystemException.HardFault_S || interruptNo == (int)SystemException.HardFault)
-                && targetInterruptSecurityState[(int)SystemException.HardFault] == InterruptTargetSecurityState.NonSecure)
+            if((interruptNo == (int)SystemException.HardFault_S || interruptNo == (int)SystemException.HardFault) && IsBFHFNMINSEnabled)
             {
                 return (interruptNo & BankedExcpSecureBit) == 0;
             }
