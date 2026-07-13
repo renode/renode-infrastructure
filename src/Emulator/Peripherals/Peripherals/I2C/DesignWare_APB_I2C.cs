@@ -980,9 +980,9 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private int TargetAddress => TrimAddress(targetAddress.Value, use10BitTargetAddressing.Value);
 
-        private bool RxFull => (int)rxFifoThreshold.Value < rxFifo.Count;
+        private bool RxFull => (int)rxFifoThreshold.Value <= rxFifo.Count;
 
-        private bool TxEmpty => txFifo.Count < (int)txFifoThreshold.Value;
+        private bool TxEmpty => txFifo.Count <= (int)txFifoThreshold.Value;
 
         private IFlagRegisterField masterEnabled;
         private IEnumRegisterField<SpeedMode> speedMode;
