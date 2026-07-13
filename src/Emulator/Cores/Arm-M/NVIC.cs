@@ -976,16 +976,187 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithValueField(16, 16, valueProviderCallback: _ => VectKeyStat, name: "VECTKEYSTAT");
 
             Registers.SystemHandlerControlAndState.Define(RegisterCollection)
-                .WithTaggedFlag("MEMFAULTACT (Memory Manage Active)", 0)
-                .WithTaggedFlag("BUSFAULTACT (Bus Fault Active)", 1)
-                .WithReservedBits(2, 1)
-                .WithTaggedFlag("USGFAULTACT (Usage Fault Active)", 3)
-                .WithReservedBits(4, 3)
-                .WithTaggedFlag("SVCALLACT (SV Call Active)", 7)
+                .WithFlag(0,
+                    writeCallback: (_, value) =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.MemManageFault_S : SystemException.MemManageFault;
+                        if(value)
+                        {
+                            irqs[(int)bank] |= IRQState.Active;
+                        }
+                        else
+                        {
+                            irqs[(int)bank] &= ~IRQState.Active;
+                        }
+                    },
+                    valueProviderCallback: _ => irqs[(int)(isNextAccessSecure ? SystemException.MemManageFault_S : SystemException.MemManageFault)].HasFlag(IRQState.Active),
+                    name: "MEMFAULTACT (Memory Manage Active)")
+                .WithFlag(1,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!isNextAccessSecure && !IsBFHFNMINSEnabled)
+                        {
+                            // This bit is RAZ/WI from Non-secure state if BusFault targets Secure state (AIRCR.BFHFNMINS is zero)
+                            return;
+                        }
+                        if(value)
+                        {
+                            irqs[(int)SystemException.BusFault] |= IRQState.Active;
+                        }
+                        else
+                        {
+                            irqs[(int)SystemException.BusFault] &= ~IRQState.Active;
+                        }
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure && !IsBFHFNMINSEnabled)
+                        {
+                            // This bit is RAZ/WI from Non-secure state if BusFault targets Secure state (AIRCR.BFHFNMINS is zero)
+                            return false;
+                        }
+                        return irqs[(int)SystemException.BusFault].HasFlag(IRQState.Active);
+                    },
+                    name: "BUSFAULTACT (Bus Fault Active)")
+                .WithFlag(2,
+                    writeCallback: (_, value) =>
+                    {
+                        // Only allow write from Secure state or from monitor
+                        var isAccessAllowed = IsCurrentCPUInSecureState(out var currentCpu) || currentCpu == null;
+                        if(isNextAccessSecure || !isAccessAllowed)
+                        {
+                            // Can't modify Secure version of this register
+                            return;
+                        }
+
+                        if(!value)
+                        {
+                            irqs[(int)SystemException.HardFault] &= ~IRQState.Active;
+                        }
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure && !IsBFHFNMINSEnabled)
+                        {
+                            // If HardFault is not Non-secure enabled this field will just be 0
+                            return false;
+                        }
+                        return irqs[(int)(isNextAccessSecure ^ IsBFHFNMINSEnabled ? SystemException.HardFault : SystemException.HardFault_S)].HasFlag(IRQState.Active);
+                    },
+                    name: "HARDFAULTACT (Hard Fault Active)")
+                .WithFlag(3,
+                    writeCallback: (_, value) =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.UsageFault_S : SystemException.UsageFault;
+                        if(value)
+                        {
+                            irqs[(int)bank] |= IRQState.Active;
+                        }
+                        else
+                        {
+                            irqs[(int)bank] &= ~IRQState.Active;
+                        }
+                    },
+                    valueProviderCallback: _ => irqs[(int)(isNextAccessSecure ? SystemException.UsageFault_S : SystemException.UsageFault)].HasFlag(IRQState.Active),
+                    name: "USGFAULTACT (Usage Fault Active)")
+                .WithFlag(4,
+                    writeCallback: (_, value) =>
+                    {
+                        if(!isNextAccessSecure)
+                        {
+                            // This bit is RAZ/WI from Non-secure state
+                            return;
+                        }
+                        if(value)
+                        {
+                            irqs[(int)SystemException.SecureFault] |= IRQState.Active;
+                        }
+                        else
+                        {
+                            irqs[(int)SystemException.SecureFault] &= ~IRQState.Active;
+                        }
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure)
+                        {
+                            // This bit is RAZ/WI from Non-secure state
+                            return false;
+                        }
+                        return irqs[(int)SystemException.SecureFault].HasFlag(IRQState.Active);
+                    },
+                    name: "SECUREFAULTACT (Secure Fault Active)")
+                .WithFlag(5,
+                    writeCallback: (_, value) =>
+                    {
+                        var isAccessAllowed = IsCurrentCPUInSecureState(out var currentCpu) || currentCpu == null;
+                        if(isNextAccessSecure || !isAccessAllowed || !IsBFHFNMINSEnabled)
+                        {
+                            return;
+                        }
+                        if(!value)
+                        {
+                            irqs[(int)SystemException.NMI] &= ~IRQState.Active;
+                        }
+                    },
+                    valueProviderCallback: _ =>
+                    {
+                        if(!isNextAccessSecure && !IsBFHFNMINSEnabled)
+                        {
+                            // This bit is RAZ/WI from Non-secure state if NMI targets Secure state (AIRCR.BFHFNMINS is zero)
+                            return false;
+                        }
+                        return irqs[(int)SystemException.NMI].HasFlag(IRQState.Active);
+                    },
+                    name: "NMIACT (NMI Exception Active)")
+                .WithReservedBits(6, 1)
+                .WithFlag(7,
+                    writeCallback: (_, value) =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.SuperVisorCall_S : SystemException.SuperVisorCall;
+                        if(value)
+                        {
+                            irqs[(int)bank] |= IRQState.Active;
+                        }
+                        else
+                        {
+                            irqs[(int)bank] &= ~IRQState.Active;
+                        }
+                    },
+                    valueProviderCallback: _ => irqs[(int)(isNextAccessSecure ? SystemException.SuperVisorCall_S : SystemException.SuperVisorCall)].HasFlag(IRQState.Active),
+                    name: "SVCALLACT (SV Call Active)")
                 .WithTaggedFlag("MONITORACT (Monitor Active)", 8)
                 .WithReservedBits(9, 1)
-                .WithTaggedFlag("PENDSVACT (Pend SV Active)", 10)
-                .WithTaggedFlag("SYSTICKACT (Sys Tick Active)", 11)
+                .WithFlag(10,
+                    writeCallback: (_, value) =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.PendSV_S : SystemException.PendSV;
+                        if(value)
+                        {
+                            irqs[(int)bank] |= IRQState.Active;
+                        }
+                        else
+                        {
+                            irqs[(int)bank] &= ~IRQState.Active;
+                        }
+                    },
+                    valueProviderCallback: _ => irqs[(int)(isNextAccessSecure ? SystemException.PendSV_S : SystemException.PendSV)].HasFlag(IRQState.Active),
+                    name: "PENDSVACT (Pend SV Active)")
+                .WithFlag(11,
+                    writeCallback: (_, value) =>
+                    {
+                        var bank = isNextAccessSecure ? SystemException.SysTick_S : SystemException.SysTick;
+                        if(value)
+                        {
+                            irqs[(int)bank] |= IRQState.Active;
+                        }
+                        else
+                        {
+                            irqs[(int)bank] &= ~IRQState.Active;
+                        }
+                    },
+                    valueProviderCallback: _ => irqs[(int)(isNextAccessSecure ? SystemException.SysTick_S : SystemException.SysTick)].HasFlag(IRQState.Active),
+                    name: "SYSTICKACT (Sys Tick Active)")
                 .WithFlag(12,
                     writeCallback: (_, value) =>
                     {
