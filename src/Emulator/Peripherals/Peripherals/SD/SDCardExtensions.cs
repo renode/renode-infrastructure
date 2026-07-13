@@ -20,9 +20,9 @@ namespace Antmicro.Renode.Peripherals.SD
             machine.SetLocalName(card, name ?? "sdCard");
         }
 
-        public static void SdCardFromFile(this IMachine machine, string file, IRegisterablePeripheral<SDCard, NullRegistrationPoint> attachTo, long size, bool persistent = true, string name = null)
+        public static void SdCardFromFile(this IMachine machine, string file, IRegisterablePeripheral<SDCard, NullRegistrationPoint> attachTo, long size, bool persistent = true, string name = null, bool emmc = false, string bootPartition0Image = null, string bootPartition1Image = null)
         {
-            var card = new SDCard(file, size, persistent);
+            var card = new SDCard(file, size, persistent, emmc: emmc, bootPartition0Image: bootPartition0Image, bootPartition1Image: bootPartition1Image);
             attachTo.Register(card, NullRegistrationPoint.Instance);
             machine.SetLocalName(card, name ?? "sdCard");
         }
