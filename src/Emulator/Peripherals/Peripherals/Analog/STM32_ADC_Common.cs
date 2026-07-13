@@ -811,6 +811,19 @@ namespace Antmicro.Renode.Peripherals.Analog
                     .WithReservedBits(5, 1);
             }
 
+            var dataRegister = new DoubleWordRegister(this)
+                .WithValueField(0, 16, out data, FieldMode.Read, readCallback: (_, __) =>
+                    {
+                        endOfConversionFlag.Value = false;
+                        // This function call must be delayed to avoid deadlock on registers access
+                        if(sequenceInProgress)
+                        {
+                            machine.LocalTimeSource.ExecuteInNearestSyncedState((___) => SampleNextChannel());
+                        }
+                        UpdateInterrupts();
+                    }, name: "DATA")
+                .WithReservedBits(16, 16);
+
             var registers = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.InterruptAndStatus, isrRegister},
@@ -818,19 +831,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 {(long)Registers.Control, controlRegister},
                 {(long)Registers.Configuration1, configurationRegister1},
                 {(long)Registers.Configuration2, configurationRegister2},
-                {(long)Registers.DataRegister, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out data, FieldMode.Read, readCallback: (_, __) =>
-                        {
-                            endOfConversionFlag.Value = false;
-                            // This function call must be delayed to avoid deadlock on registers access
-                            if(sequenceInProgress)
-                            {
-                                machine.LocalTimeSource.ExecuteInNearestSyncedState((___) => SampleNextChannel());
-                            }
-                            UpdateInterrupts();
-                        }, name: "DATA")
-                    .WithReservedBits(16, 16)
-                },
+                {(long)Registers.DataRegister, dataRegister},
                 {(long)Registers.CommonConfiguration, commonConfigurationRegister},
             };
 
