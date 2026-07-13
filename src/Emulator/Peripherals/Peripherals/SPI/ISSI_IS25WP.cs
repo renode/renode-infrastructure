@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -32,9 +32,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                 throw new ConstructionException($"'{nameof(underlyingMemory)}' size should be a power of 2");
             }
 
-            if(underlyingMemory.Size % 64.KB() > 0)
+            var blockSizeBytes = (blockSize == BlockSize._256KB ? 256 : 64).KB();
+            if(underlyingMemory.Size % blockSizeBytes > 0)
             {
-                throw new ConstructionException($"'{nameof(underlyingMemory)}' size should be divisible by 64KB");
+                throw new ConstructionException($"'{nameof(underlyingMemory)}' size should be divisible by {Misc.NormalizeBinary(blockSizeBytes)}");
             }
 
             bankAddressRegister = new ByteRegister(this)
