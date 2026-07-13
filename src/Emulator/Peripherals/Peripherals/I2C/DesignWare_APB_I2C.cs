@@ -30,9 +30,11 @@ namespace Antmicro.Renode.Peripherals.I2C
     /// </summary>
     public class DesignWare_APB_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public DesignWare_APB_I2C(IMachine machine, IGPIOReceiver dma = null) : base(machine)
+        public DesignWare_APB_I2C(IMachine machine, IGPIOReceiver dma = null, int rxFifoSize = 32, int txFifoSize = 32) : base(machine)
         {
             this.dma = dma;
+            this.rxFifoSize = rxFifoSize;
+            this.txFifoSize = txFifoSize;
             txFifo = new Queue<byte>();
             transmission = new Queue<byte>();
             rxFifo = new Queue<byte>();
@@ -414,14 +416,15 @@ namespace Antmicro.Renode.Peripherals.I2C
             ;
 
             Registers.ReceiveFIFOThreshold.Define(this)
-                .WithValueField(0, 5, out rxFifoThreshold, name: "RX_TL")
-                .WithReservedBits(5, 27)
+                .WithValueField(0, 8, out rxFifoThreshold, name: "RX_TL")
+                .WithReservedBits(8, 24)
                 .WithChangeCallback((_, __) => UpdateInterrupts())
                 .WithWriteCallback((_, value) =>
                     {
-                        if(value >= FifoSize)
+                        if(value >= (ulong)rxFifoSize)
                         {
-                            rxFifoThreshold.Value = FifoSize - 1;
+                            this.WarningLog("Attempted to set receive FIFO threshold larger than max FIFO depth, value was truncated to fit");
+                            rxFifoThreshold.Value = value % (ulong)rxFifoSize;
                             UpdateInterrupts();
                         }
                     }
@@ -429,14 +432,15 @@ namespace Antmicro.Renode.Peripherals.I2C
             ;
 
             Registers.TransmitFIFOThreshold.Define(this)
-                .WithValueField(0, 5, out txFifoThreshold, name: "TX_TL")
-                .WithReservedBits(5, 27)
+                .WithValueField(0, 8, out txFifoThreshold, name: "TX_TL")
+                .WithReservedBits(8, 24)
                 .WithChangeCallback((_, __) => UpdateInterrupts())
                 .WithWriteCallback((_, value) =>
                     {
-                        if(value >= FifoSize)
+                        if(value >= (ulong)txFifoSize)
                         {
-                            txFifoThreshold.Value = FifoSize - 1;
+                            this.WarningLog("Attempted to set transmit FIFO threshold larger than max FIFO depth, value was truncated to fit");
+                            txFifoThreshold.Value = value % (ulong)txFifoSize;
                             UpdateInterrupts();
                         }
                     }
@@ -563,7 +567,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     valueProviderCallback: _ => bytesToReceive != 0 || transmission.Count != 0
                 )
                 .WithFlag(1, FieldMode.Read, name: "TFNF",
-                    valueProviderCallback: _ => txFifo.Count != FifoSize
+                    valueProviderCallback: _ => txFifo.Count != txFifoSize
                 )
                 .WithFlag(2, FieldMode.Read, name: "TFE",
                     valueProviderCallback: _ => txFifo.Count == 0
@@ -572,7 +576,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     valueProviderCallback: _ => rxFifo.Count != 0
                 )
                 .WithFlag(4, FieldMode.Read, name: "RFF",
-                    valueProviderCallback: _ => rxFifo.Count >= FifoSize
+                    valueProviderCallback: _ => rxFifo.Count >= rxFifoSize
                 )
                 .WithFlag(5, FieldMode.Read, name: "MST_ACTIVITY",
                     valueProviderCallback: _ => bytesToReceive != 0 || transmission.Count != 0
@@ -584,7 +588,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     valueProviderCallback: _ => txFifo.Count == 0 && !stop.Value
                 )
                 .WithFlag(8, FieldMode.Read, name: "MST_HOLD_RX_FIFO_FULL",
-                    valueProviderCallback: _ => rxFifo.Count > FifoSize
+                    valueProviderCallback: _ => rxFifo.Count > rxFifoSize
                 )
                 .WithFlag(9, FieldMode.Read, name: "SLV_HOLD_TX_FIFO_EMPTY",
                     valueProviderCallback: _ => false
@@ -611,7 +615,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                             // if software polls this register for RX then perform read
                             PerformReception();
                         }
-                        return (ulong)rxFifo.Count.Clamp(0, FifoSize);
+                        return (ulong)rxFifo.Count.Clamp(0, rxFifoSize);
                     }
                 )
                 .WithReservedBits(6, 26)
@@ -907,7 +911,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
             if(txBlocked.Value)
             {
-                if(txFifo.Count == FifoSize)
+                if(txFifo.Count == txFifoSize)
                 {
                     txOverflow.Value = true;
                     return;
@@ -1029,6 +1033,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         private bool dmaTxInProgress;
         private int bytesToReceive;
 
+        private readonly int rxFifoSize;
+        private readonly int txFifoSize;
         private readonly Queue<byte> txFifo;
         private readonly Queue<byte> transmission;
         private readonly Queue<byte> rxFifo;
@@ -1038,7 +1044,6 @@ namespace Antmicro.Renode.Peripherals.I2C
         private const uint StandardSpeedClockHighMaxCount = 65525;
         private const uint ClockLowMinCount = 8;
         private const uint MinSpikeLength = 1;
-        private const int FifoSize = 32;
         private const int DmaRxRequest = 6;
         private const int DmaTxRequest = 7;
 
