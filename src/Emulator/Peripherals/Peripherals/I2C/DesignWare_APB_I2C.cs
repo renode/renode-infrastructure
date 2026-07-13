@@ -1085,6 +1085,8 @@ namespace Antmicro.Renode.Peripherals.I2C
             EnableStatus = 0x9C,
             StandardSpeedAndFastSpeedSpikeSuppressionLmitSize = 0xA0,
             HighSpeedSpikeSuppressionLimitSize = 0xA4,
+            SCLTimeout = 0xAC,
+            SDATimeout = 0xB0,
         }
 
         private enum SpeedMode
