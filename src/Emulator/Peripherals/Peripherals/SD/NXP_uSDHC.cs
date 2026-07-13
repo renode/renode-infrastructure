@@ -230,6 +230,15 @@ namespace Antmicro.Renode.Peripherals.SD
 
             var response = sdCard.HandleCommand(commandIndex, commandArgument);
 
+            // i.MX 8M Plus: 10.3.6.1.14, INT_STATUS (offset 0x30) CTOE, set when "no response is returned within 64 SDCLK cycles"
+            // Lets eMMC reject the SD op-cond probe (CMD55/ACMD41) so mmc_get_op_cond() retries with CMD1
+            if(responseType != ResponseType.NoResponse && response.Length == 0)
+            {
+                commandTimeoutStatus.Value = true;
+                UpdateInterrupts();
+                return;
+            }
+
             switch(responseType)
             {
             case ResponseType.Response136:

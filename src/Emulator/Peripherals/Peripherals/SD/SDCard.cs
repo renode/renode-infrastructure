@@ -247,6 +247,14 @@ namespace Antmicro.Renode.Peripherals.SD
             {
                 result = ReadDataFromUnderlyingFile(readContext.Offset, checked((int)size));
                 readContext.Move(size);
+                // A block read ends back in Transfer state (JESD84-B51 section 6.6). The uSDHC reads
+                // the whole CMD17/18 at once then auto-stops (Auto CMD12, i.MX 8M Plus RM section
+                // 10.3.6), so no explicit CMD12 arrives; without returning to tran a following CMD6
+                // switch's CMD13 poll would time out. SPI streams per-block via spiContext.
+                if(!spiMode)
+                {
+                    state = SDCardState.Transfer;
+                }
             }
             return result;
         }
