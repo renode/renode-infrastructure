@@ -449,6 +449,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
     public static class QuadWordRegisterExtensions
     {
         /// <summary>
+        /// Fluent API for before read callback registration. For description see <see cref="QuadWordRegister.DefineBeforeReadCallback"/>.
+        /// </summary>
+        /// <returns>This register with a defined callback.</returns>
+        public static QuadWordRegister WithBeforeReadCallback(this QuadWordRegister register, Action<ulong> beforeReadCallback)
+        {
+            register.DefineBeforeReadCallback(beforeReadCallback);
+            return register;
+        }
+
+        /// <summary>
         /// Fluent API for read callback registration. For description see <see cref="QuadWordRegister.DefineReadCallback"/>.
         /// </summary>
         /// <returns>This register with a defined callback.</returns>
@@ -491,6 +501,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
     public static class DoubleWordRegisterExtensions
     {
+        /// <summary>
+        /// Fluent API for before read callback registration. For description see <see cref="DoubleWordRegister.DefineBeforeReadCallback"/>.
+        /// </summary>
+        /// <returns>This register with a defined callback.</returns>
+        public static DoubleWordRegister WithBeforeReadCallback(this DoubleWordRegister register, Action<uint> beforeReadCallback)
+        {
+            register.DefineBeforeReadCallback(beforeReadCallback);
+            return register;
+        }
+
         /// <summary>
         /// Fluent API for read callback registration. For description see <see cref="DoubleWordRegister.DefineReadCallback"/>.
         /// </summary>
@@ -535,6 +555,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
     public static class WordRegisterExtensions
     {
         /// <summary>
+        /// Fluent API for before read callback registration. For description see <see cref="WordRegister.DefineBeforeReadCallback"/>.
+        /// </summary>
+        /// <returns>This register with a defined callback.</returns>
+        public static WordRegister WithBeforeReadCallback(this WordRegister register, Action<ushort> beforeReadCallback)
+        {
+            register.DefineBeforeReadCallback(beforeReadCallback);
+            return register;
+        }
+
+        /// <summary>
         /// Fluent API for read callback registration. For description see <see cref="WordRegister.DefineReadCallback"/>.
         /// </summary>
         /// <returns>This register with a defined callback.</returns>
@@ -577,6 +607,16 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
     public static class ByteRegisterExtensions
     {
+        /// <summary>
+        /// Fluent API for before read callback registration. For description see <see cref="ByteRegister.DefineBeforeReadCallback"/>.
+        /// </summary>
+        /// <returns>This register with a defined callback.</returns>
+        public static ByteRegister WithBeforeReadCallback(this ByteRegister register, Action<byte> beforeReadCallback)
+        {
+            register.DefineBeforeReadCallback(beforeReadCallback);
+            return register;
+        }
+
         /// <summary>
         /// Fluent API for read callback registration. For description see <see cref="ByteRegister.DefineReadCallback"/>.
         /// </summary>

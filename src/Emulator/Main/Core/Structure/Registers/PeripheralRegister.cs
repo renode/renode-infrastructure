@@ -19,6 +19,20 @@ namespace Antmicro.Renode.Core.Structure.Registers
     public abstract class PeripheralRegister<T> : PeripheralRegister, IPeripheralRegister<T>
     {
         /// <summary>
+        /// Defines the callback that is invoked once before each register read, regardless of the number of defined register fields.
+        /// Note that it will also be called for unreadable registers.
+        /// After this callback completes, the <c>valueProviderCallback</c> of each register field is executed.
+        /// </summary>
+        /// <param name="beforeReadCallback">
+        /// The callback invoked whenever this register is read, before any field's <c>valueProviderCallback</c>.
+        /// The parameter contains the current value of the register before the read operation.
+        /// </param>
+        public void DefineBeforeReadCallback(Action<T> beforeReadCallback)
+        {
+            beforeReadCallbacks.Add(beforeReadCallback);
+        }
+
+        /// <summary>
         /// Defines the read callback that is called once on each read, regardles of the number of defined register fields.
         /// Note that it will also be called for unreadable registers.
         /// </summary>
@@ -83,6 +97,11 @@ namespace Antmicro.Renode.Core.Structure.Registers
             CallHandlers(changeCallbacks, FromUlong(oldValue), FromUlong(newValue));
         }
 
+        protected override void CallBeforeReadHandlers(ulong oldValue)
+        {
+            CallHandlers(beforeReadCallbacks, FromUlong(oldValue));
+        }
+
         protected override void CallReadHandlers(ulong oldValue, ulong newValue)
         {
             CallHandlers(readCallbacks, FromUlong(oldValue), FromUlong(newValue));
@@ -102,6 +121,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         protected abstract ulong ToUlong(T value);
 
+        private readonly List<Action<T>> beforeReadCallbacks = new List<Action<T>>();
         private readonly List<Action<T, T>> readCallbacks = new List<Action<T, T>>();
         private readonly List<Action<T, T>> writeCallbacks = new List<Action<T, T>>();
         private readonly List<Action<T, T>> changeCallbacks = new List<Action<T, T>>();
@@ -521,6 +541,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         protected ulong ReadInner()
         {
+            CallBeforeReadHandlers(UnderlyingValue);
             foreach(var registerField in registerFields)
             {
                 UnderlyingValue = registerField.CallValueProviderHandler(UnderlyingValue);
@@ -670,6 +691,14 @@ namespace Antmicro.Renode.Core.Structure.Registers
             }
         }
 
+        protected void CallHandlers<T>(List<Action<T>> handlers, T oldValue)
+        {
+            foreach(var handler in handlers)
+            {
+                handler(oldValue);
+            }
+        }
+
         protected void CallHandlers<T>(List<Action<T, T>> handlers, T oldValue, T newValue)
         {
             foreach(var handler in handlers)
@@ -679,6 +708,8 @@ namespace Antmicro.Renode.Core.Structure.Registers
         }
 
         protected abstract void CallWriteHandlers(ulong oldValue, ulong newValue);
+
+        protected abstract void CallBeforeReadHandlers(ulong oldValue);
 
         protected abstract void CallReadHandlers(ulong oldValue, ulong newValue);
 
