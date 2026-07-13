@@ -290,10 +290,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 if(cpu != null)
                 {
                     cpu.IsHalted = true;
+                    var pausedBeforeReset = cpu.IsPaused;
                     cpu.Reset();
                     foreach(var peripheral in pmu.registeredPeripherals[cpu])
                     {
                         peripheral.Reset();
+                    }
+                    if(!pausedBeforeReset)
+                    {
+                        cpu.Resume();
                     }
 
                     try
