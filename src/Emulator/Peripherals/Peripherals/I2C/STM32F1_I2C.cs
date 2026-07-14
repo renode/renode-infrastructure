@@ -111,55 +111,100 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithReservedBits(14, 1)
                 .WithTaggedFlag("SWRST", 15)
                 .WithReservedBits(16, 16)
-                .WithWriteCallback((_, __) =>
+                .WithWriteCallback((oldValue, newValue) =>
                 {
                     lock(updateLock)
                     {
                         var updateInterrupts = start.Value || stop.Value;
                         var restart = start.Value && dataState != DataState.Idle && dataState != DataState.WriteAddress;
-                        if(stop.Value || restart)
+                        if(stop.Value)
                         {
-                            if(dataDirection.Value == Direction.Transmit)
-                            {
-                                if(data.Count > 0)
-                                {
-                                    this.DebugLog("Writing to 0x{0:X}: {1}", address, Misc.PrettyPrintCollectionHex(data));
-                                    child?.Write(data.DequeueAll());
-                                }
-                                this.DebugLog("{0} transmission", stop.Value ? "Stopping" : "Restarting");
-                                child?.FinishTransmission();
-                                data.Clear();
-                                byteTransferFinished.Value = false;
-                                txDataEmpty.Value = false;
-                                stop.Value = false;
-                                dataState = DataState.Idle;
-                                UpdateIdle();
-                            }
-                            else
-                            {
-                                dataState = DataState.LastRead;
-                            }
-                            mode.Value = Mode.Slave;
+                            if(HandleStop(oldValue, newValue)) return;
                         }
+                        else if(restart)
+                        {
+                            HandleRestart();
+                        }
+
                         if(start.Value)
                         {
-                            if(!restart)
-                            {
-                                this.DebugLog("Starting transmission");
-                            }
-
-                            mode.Value = Mode.Master;
-                            startBit.Value = true;
-                            byteTransferFinished.Value = false;
-                            txDataEmpty.Value = false;
-                            dataDirection.Value = Direction.Default;
-                            dataState = DataState.WriteAddress;
-                            start.Value = false;
+                            HandleStart(restart);
                         }
                         if(updateInterrupts)
                         {
                             UpdateInterrupts();
                         }
+                    }
+
+                    bool HandleStop(ulong oldVal, ulong newVal)
+                    {
+                        if(dataDirection.Value == Direction.Transmit)
+                        {
+                            if(data.Count > 0)
+                            {
+                                this.DebugLog("Writing to 0x{0:X}: {1}", address, Misc.PrettyPrintCollectionHex(data));
+                                child?.Write(data.DequeueAll());
+                            }
+                            this.DebugLog("Stopping transmission");
+                            child?.FinishTransmission();
+                            data.Clear();
+                            byteTransferFinished.Value = false;
+                            txDataEmpty.Value = false;
+                            stop.Value = false;
+                            dataState = DataState.Idle;
+                            UpdateIdle();
+                        }
+                        else
+                        {
+                            bool wasStop = (oldValue & StopBitMask) != 0;
+                            bool isStop = (newValue & StopBitMask) != 0;
+                            // Single-byte case: For multi-byte reads, the last byte is readed by handleDataread()
+                            // with LastRead to end the transmission. Since this doesn't happen for a 
+                            // single-byte read, the processor attempts to restart transmission by setting the stop bit again
+                            if(wasStop && isStop)
+                            {
+                                this.DebugLog("Stopping transmission");
+                                child?.FinishTransmission();
+                                dataState = DataState.Idle;
+                                UpdateIdle();
+                                // Emulate the hardware behavior of clearing the STOP bit after the STOP condition is emitted
+                                stop.Value = false;
+                                return true;
+                            }
+
+                            dataState = DataState.LastRead;
+                        }
+                        mode.Value = Mode.Slave;
+                        return false;
+                    }
+
+                    void HandleRestart()
+                    {
+                        this.DebugLog("Restarting transmission");
+                        if(dataDirection.Value == Direction.Transmit && data.Count > 0)
+                        {
+                            this.DebugLog("Writing to 0x{0:X}: {1}", address, Misc.PrettyPrintCollectionHex(data));
+                            child?.Write(data.DequeueAll());
+                        }
+                        data.Clear();
+                        byteTransferFinished.Value = false;
+                        txDataEmpty.Value = false;
+                    }
+
+                    void HandleStart(bool isRestart)
+                    {
+                        if(!isRestart)
+                        {
+                            this.DebugLog("Starting transmission");
+                        }
+
+                        mode.Value = Mode.Master;
+                        startBit.Value = true;
+                        byteTransferFinished.Value = false;
+                        txDataEmpty.Value = false;
+                        dataDirection.Value = Direction.Default;
+                        dataState = DataState.WriteAddress;
+                        start.Value = false;
                     }
                 })
             ;
@@ -411,6 +456,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 case DataState.WriteData:
                     data.Enqueue(value);
                     txDataEmpty.Value = true;
+                    QueueUpdate(UpdateDataTransmission);
                     break;
                 default:
                     this.WarningLog("Writing data in improper state ({0}), ignoring", dataState);
@@ -567,6 +613,8 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private const ulong MinimalFrequency = 2;
         private const ulong MaximalFrequency = 42;
+
+        private const int StopBitMask = 1 << 9;
 
         public enum Registers
         {
