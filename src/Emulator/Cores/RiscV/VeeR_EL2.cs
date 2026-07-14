@@ -23,8 +23,8 @@ namespace Antmicro.Renode.Peripherals.CPU
     public class VeeR_EL2 : RiscV32
     {
         public VeeR_EL2(IMachine machine, IRiscVTimeProvider timeProvider = null, ulong timerFrequency = 600000000, uint hartId = 0, PrivilegedArchitecture privilegedArchitecture = PrivilegedArchitecture.Priv1_12,
-            Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imc_zicsr_zifencei_zba_zbb_zbc_zbs", PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineUser, bool allowUnalignedAccesses = true)
-            : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, endianness, allowUnalignedAccesses: allowUnalignedAccesses, privilegeLevels: privilegeLevels, pmpNumberOfAddrBits: 30)
+            Endianess endianness = Endianess.LittleEndian, string cpuType = "rv32imc_zicsr_zifencei_zba_zbb_zbc_zbs", PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineUser, bool allowUnalignedAccesses = true, uint pmpEntryCount = 64)
+            : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, endianness, allowUnalignedAccesses: allowUnalignedAccesses, privilegeLevels: privilegeLevels, pmpNumberOfAddrBits: 30, pmpEntryCount: pmpEntryCount)
         {
             internalTimers = new InternalTimerBlock(machine, this, timerFrequency, (uint)CustomInterrupt.InternalTimer0, (uint)CustomInterrupt.InternalTimer1,
                     (ushort)CustomCSR.InternalTimerCounter0, (ushort)CustomCSR.InternalTimerBound0, (ushort)CustomCSR.InternalTimerControl0,

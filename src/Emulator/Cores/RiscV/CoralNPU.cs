@@ -399,7 +399,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public class CoralNPU_RVV : RiscV32
         {
             public CoralNPU_RVV(IMachine machine, CoralNPU parent, MappedMemory memoryItcm, MappedMemory memoryDtcm, uint hartId = 0)
-                : base(machine, "rv32imfv_zve32x_zicsr_zifencei_zbb", hartId: hartId, privilegeLevels: PrivilegeLevels.Machine)
+                : base(machine, "rv32imfv_zve32x_zicsr_zifencei_zbb", hartId: hartId, privilegeLevels: PrivilegeLevels.Machine, pmpEntryCount: 0)
             {
                 this.parent = parent;
 

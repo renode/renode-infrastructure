@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -19,7 +19,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public class PicoRV32 : RiscV32
     {
-        public PicoRV32(IMachine machine, string cpuType, bool latchedIrqs = true, uint hartId = 0, uint resetVectorAddress = 0x10) : base(machine, cpuType, null, hartId, PrivilegedArchitecture.Priv1_09, Endianess.LittleEndian)
+        public PicoRV32(IMachine machine, string cpuType, bool latchedIrqs = true, uint hartId = 0, uint resetVectorAddress = 0x10)
+            : base(machine, cpuType, null, hartId, PrivilegedArchitecture.Priv1_09, Endianess.LittleEndian, pmpEntryCount: 0)
         {
             this.latchedIrqs = latchedIrqs;
 

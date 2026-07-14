@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Peripherals.CPU
     public class OpenTitan_BigNumberAcceleratorCore : RiscV32, IOpenTitan_BigNumberAcceleratorCore
     {
         public OpenTitan_BigNumberAcceleratorCore(OpenTitan_BigNumberAccelerator parent, OpenTitan_ScrambledMemory instructionsMemory, OpenTitan_ScrambledMemory dataMemory, IMachine machine)
-            : base(timeProvider: null, cpuType: "rv32im_zicsr", machine: machine, hartId: 0, privilegedArchitecture: PrivilegedArchitecture.Priv1_10, endianness: Endianess.LittleEndian, useMachineAtomicState: false)
+            : base(timeProvider: null, cpuType: "rv32im_zicsr", machine: machine, hartId: 0, privilegedArchitecture: PrivilegedArchitecture.Priv1_10, endianness: Endianess.LittleEndian, useMachineAtomicState: false, pmpEntryCount: 16)
         {
             this.parent = parent;
             this.instructionsMemory = instructionsMemory;

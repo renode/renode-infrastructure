@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -26,10 +26,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             bool allowUnalignedAccesses = false,
             uint pmpNumberOfAddrBits = 54,
             InterruptMode interruptMode = InterruptMode.Auto,
-            PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineSupervisorUser
+            PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineSupervisorUser,
+            uint pmpEntryCount = 64
         )
             : base(timeProvider, hartId, cpuType, machine, privilegedArchitecture, endianness, CpuBitness.Bits64, nmiVectorAddress, nmiVectorLength,
-                    allowUnalignedAccesses, interruptMode, privilegeLevels: privilegeLevels, pmpNumberOfAddrBits: pmpNumberOfAddrBits)
+                    allowUnalignedAccesses, interruptMode, privilegeLevels: privilegeLevels, pmpNumberOfAddrBits: pmpNumberOfAddrBits, pmpEntryCount: pmpEntryCount)
         {
         }
 

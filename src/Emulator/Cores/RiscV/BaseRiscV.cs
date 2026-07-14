@@ -284,6 +284,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             SetPCFromResetVector();
             TlibSetPmpaddrBits(PMPNumberOfAddrBits);
             TlibSetNapotGrain(MinimalPMPNapotInBytes);
+            TlibSetPmpEntryCount(PMPEntryCount);
         }
 
         public void Register(ExternalPMPBase externalPMP, NullRegistrationPoint registrationPoint)
@@ -452,6 +453,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public uint PMPNumberOfAddrBits { get; private set; }
 
+        public uint PMPEntryCount { get; }
+
         public IEnumerable<InstructionSet> ArchitectureSets => architectureDecoder.InstructionSets;
 
         public override Endianess DisassemblyHexFormatting => Endianess.LittleEndian;
@@ -490,10 +493,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             uint minimalPmpNapotInBytes = 8,
             uint pmpNumberOfAddrBits = 32,
             PrivilegeLevels privilegeLevels = PrivilegeLevels.MachineSupervisorUser,
-            bool useMachineAtomicState = true
+            bool useMachineAtomicState = true,
+            uint pmpEntryCount = 64
         )
             : base(hartId, cpuType, machine, endianness, bitness, useMachineAtomicState)
         {
+            if(pmpEntryCount != 0 && pmpEntryCount != 16 && pmpEntryCount != 64)
+            {
+                throw new ConstructionException($"Invalid PMP entry count ({pmpEntryCount}), only 0, 16, and 64 are allowed");
+            }
             HartId = hartId;
             this.timeProvider = timeProvider;
             this.privilegedArchitecture = privilegedArchitecture;
@@ -533,6 +541,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibSetPmpaddrBits(pmpNumberOfAddrBits);
             MinimalPMPNapotInBytes = minimalPmpNapotInBytes;
             TlibSetNapotGrain(minimalPmpNapotInBytes);
+            PMPEntryCount = pmpEntryCount;
+            TlibSetPmpEntryCount(PMPEntryCount);
 
             RegisterCSR((ushort)StandardCSR.Miselect, () => miselectValue, s => miselectValue = (uint)s, "miselect");
             for(ushort i = 0; i < 6; ++i)
@@ -1198,6 +1208,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<uint> TlibSetNapotGrain;
+
+        [Import]
+        private readonly Action<uint> TlibSetPmpEntryCount;
 
         [Import]
         private readonly Action<uint> TlibSetPmpaddrBits;

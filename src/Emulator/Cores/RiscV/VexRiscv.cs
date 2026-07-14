@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class VexRiscv : RiscV32
     {
-        public VexRiscv(IMachine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null, [NameAlias("privilegeArchitecture")] PrivilegedArchitecture privilegedArchitecture = PrivilegedArchitecture.Priv1_10, string cpuType = "rv32im_Zicsr_Zifencei", bool builtInIrqController = true) : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, Endianess.LittleEndian)
+        public VexRiscv(IMachine machine, uint hartId = 0, IRiscVTimeProvider timeProvider = null, [NameAlias("privilegeArchitecture")] PrivilegedArchitecture privilegedArchitecture = PrivilegedArchitecture.Priv1_10, string cpuType = "rv32im_Zicsr_Zifencei", bool builtInIrqController = true, uint pmpEntryCount = 16) : base(machine, cpuType, timeProvider, hartId, privilegedArchitecture, Endianess.LittleEndian, pmpEntryCount: pmpEntryCount)
         {
             this.builtInIrqController = builtInIrqController;
             if(builtInIrqController)
