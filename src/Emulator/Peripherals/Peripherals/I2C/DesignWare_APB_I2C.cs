@@ -1155,6 +1155,13 @@ namespace Antmicro.Renode.Peripherals.I2C
         private const int DmaRxRequest = 6;
         private const int DmaTxRequest = 7;
 
+        public enum SpeedMode
+        {
+            Standard = 1,
+            Fast = 2,
+            HighSpeed = 3,
+        }
+
         private enum Registers
         {
             Control = 0x0,
@@ -1204,13 +1211,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             ComponentParameter1 = 0xF4,
             ComponentVersion = 0xF8,
             ComponentType = 0xFC,
-        }
-
-        private enum SpeedMode
-        {
-            Standard = 1,
-            Fast = 2,
-            HighSpeed = 3,
         }
 
         private enum Command
