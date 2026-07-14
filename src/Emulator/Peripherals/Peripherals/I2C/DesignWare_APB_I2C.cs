@@ -168,6 +168,13 @@ namespace Antmicro.Renode.Peripherals.I2C
                         case SpeedMode.Standard:
                         case SpeedMode.Fast:
                         case SpeedMode.HighSpeed:
+                            if((ulong)value > (ulong)maxSpeedMode)
+                            {
+                                this.WarningLog("Attempted to set I2C_SPEED to unsupported value 0x{0:X}. Maximum supported value is {1} (0x{2:X}). Ignoring.",
+                                    value, maxSpeedMode, (int)maxSpeedMode);
+                                speedMode.Value = previousValue;
+                                return;
+                            }
                             break;
                         default:
                             this.Log(LogLevel.Warning, "Attempted write with reserved value to I2C_SPEED (0x{0:X}), ignoring", value);
