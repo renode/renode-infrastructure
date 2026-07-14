@@ -666,7 +666,10 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithTaggedFlag("ABRT_SLV_ARBLOST", 14)
                 .WithTaggedFlag("ABRT_SLVRD_INTX", 15)
                 .WithTaggedFlag("ABRT_USER_ABRT", 16)
-                .WithReservedBits(17, 15)
+                .WithTaggedFlag("ABRT_SDA_STUCK_AT_LOW", 17)
+                .WithTag("ABRT_DEVICE_WRITE", 18, 3)
+                .WithTag("IC_TX_ABRT_SOURCE", 21, 2)
+                .WithTag("TX_FLUSH_CNT", 23, 9)
             ;
 
             Registers.DMAControl.Define(this)
