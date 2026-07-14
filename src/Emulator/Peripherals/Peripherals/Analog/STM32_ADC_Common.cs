@@ -56,6 +56,7 @@ namespace Antmicro.Renode.Peripherals.Analog
     //    hasSeparateThresholdRegisters - Specifies whether watchdog threshold values are stored in ADC_AWDnTR registers or ADC_LTRn and ADC_HTRn registers.
     //    resolutionRange -- Specifies bit resolution range this peripheral supports.
     //    hasChannelPreselection - Specifies whether ADC requires preselecting channels to be sampled.
+    //    hasScanDirection ---- Specifies whether the ADC supports descending sequence scanning.
     //
     // * - Feature is either partially implemented, or not at all.
     public abstract class STM32_ADC_Common : IKnownSize, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IDoubleWordPeripheral, IWordPeripheral, IADC
@@ -63,7 +64,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         public STM32_ADC_Common(IMachine machine, double referenceVoltage, uint externalEventFrequency, int dmaChannel, IDMA dmaPeripheral,
             int watchdogCount, bool hasCalibration, int channelCount, bool hasPrescaler,
             bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasChannelSelect,
-            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection, bool hasSeparateThresholdRegisters, ResolutionRange resolutionRange, bool hasChannelPreselection)
+            bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection, bool hasSeparateThresholdRegisters, ResolutionRange resolutionRange, bool hasChannelPreselection, bool hasScanDirection)
         {
             if(dmaPeripheral == null)
             {
@@ -110,7 +111,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                                                                                  dualMode,
                                                                                  hasLinearityCalibration,
                                                                                  hasChannelInjection,
-                                                                                 hasSeparateThresholdRegisters));
+                                                                                 hasSeparateThresholdRegisters,
+                                                                                 hasScanDirection));
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
@@ -298,11 +300,11 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
             if(hasChannelSelect)
             {
-                currentChannel = (scanDirection.Value == ScanDirection.Ascending) ? 0 : ADCChannelCount - 1;
+                currentChannel = (scanDirection == ScanDirection.Ascending) ? 0 : ADCChannelCount - 1;
             }
             else
             {
-                sequenceCounter = (scanDirection.Value == ScanDirection.Ascending) ? 0 : (int)regularSequenceLength.Value;
+                sequenceCounter = (scanDirection == ScanDirection.Ascending) ? 0 : (int)regularSequenceLength.Value;
                 currentChannel = (int)regularSequence[sequenceCounter].Value;
             }
             sequenceInProgress = true;
@@ -455,13 +457,13 @@ namespace Antmicro.Renode.Peripherals.Analog
             bool iterationFinished;
             if(hasChannelSelect)
             {
-                currentChannel = (scanDirection.Value == ScanDirection.Ascending) ? currentChannel + 1 : currentChannel - 1;
+                currentChannel = (scanDirection == ScanDirection.Ascending) ? currentChannel + 1 : currentChannel - 1;
 
                 iterationFinished = currentChannel >= ADCChannelCount || currentChannel < 0;
             }
             else
             {
-                sequenceCounter = (scanDirection.Value == ScanDirection.Ascending) ? sequenceCounter + 1 : sequenceCounter - 1;
+                sequenceCounter = (scanDirection == ScanDirection.Ascending) ? sequenceCounter + 1 : sequenceCounter - 1;
                 if(sequenceCounter >= 0 && sequenceCounter <= (int)regularSequenceLength.Value)
                 {
                     currentChannel = (int)regularSequence[sequenceCounter].Value;
@@ -513,7 +515,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             return referencedValue;
         }
 
-        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection, bool hasSeparateThresholdRegisters)
+        private Dictionary<long, DoubleWordRegister> BuildRegistersMap(bool hasCalibration, bool hasPrescaler, bool hasVbatPin, bool hasChannelSequence, bool hasPowerRegister, bool hasOffset, bool hasDifferentialMode, SamplingTime samplingTime, bool dualMode, bool hasLinearityCalibration, bool hasChannelInjection, bool hasSeparateThresholdRegisters, bool hasScanDirection)
         {
             var isrRegister = new DoubleWordRegister(this)
                 .WithFlag(0, out adcReadyFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "ADRDY")
@@ -602,7 +604,6 @@ namespace Antmicro.Renode.Peripherals.Analog
                         }
                     }, name: "DMACFG")
                 // When fully configurable channel sequencer is available, the SCANDIR and RES fields are swapped
-                .WithEnumField<DoubleWordRegister, ScanDirection>(hasChannelSequence ? 4 : 2, 1, out scanDirection, name: "SCANDIR")
                 .WithEnumField<DoubleWordRegister, Resolution>(hasChannelSequence ? 2 : 3, 2, out resolution, name: "RES")
                 .WithEnumField<DoubleWordRegister, Align>(5, 1, out align, name: "ALIGN")
                 .WithTag("EXTSEL", 6, 2)
@@ -674,6 +675,21 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 configurationRegister1
                     .WithReservedBits(21, 1);
+            }
+
+            if(hasScanDirection)
+            {
+                // When fully configurable channel sequencer is available, the SCANDIR and RES fields are swapped
+                configurationRegister1
+                    .WithEnumField<DoubleWordRegister, ScanDirection>(hasChannelSequence ? 4 : 2, 1, writeCallback: (_, val) =>
+                        {
+                            scanDirection = val;
+                        }, name: "SCANDIR");
+            }
+            else
+            {
+                scanDirection = ScanDirection.Ascending;
+                configurationRegister1.WithReservedBits(hasChannelSequence ? 4 : 2, 1);
             }
 
             var configurationRegister2 = new DoubleWordRegister(this)
@@ -1169,7 +1185,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField endOfConversionInjectedInterruptEnable;
 
         private IFlagRegisterField dmaEnabled;
-        private IEnumRegisterField<ScanDirection> scanDirection;
+        private ScanDirection scanDirection;
         private IEnumRegisterField<Resolution> resolution;
         private IFlagRegisterField endOfSamplingFlag;
 

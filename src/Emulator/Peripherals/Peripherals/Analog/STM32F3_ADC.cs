@@ -37,7 +37,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 hasChannelInjection: false,
                 hasSeparateThresholdRegisters: false,
                 resolutionRange: ResolutionRange.Bits6_12,
-                hasChannelPreselection: false
+                hasChannelPreselection: false,
+                hasScanDirection: true
             )
         { }
     }
