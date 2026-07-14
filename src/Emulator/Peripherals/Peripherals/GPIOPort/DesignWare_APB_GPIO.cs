@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -33,7 +34,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             InterruptMask = new bool[numberOfGPIOS];
             interruptType = new InterruptTrigger[numberOfGPIOS];
             activeInterrupts = new bool[numberOfGPIOS];
-            IRQ = new GPIO();
             PrepareRegisters();
         }
 
@@ -60,6 +60,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     interruptType[i] = InterruptTrigger.ActiveLow;
                 }
                 IRQ.Unset();
+                foreach(var irq in IRQs)
+                {
+                    irq.Set(false);
+                }
                 registers.Reset();
             }
         }
@@ -88,7 +92,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 }
 
                 base.OnGPIO(number, value);
-                RefreshInterrupts();
+                UpdateInterrupts();
             }
         }
 
@@ -124,11 +128,84 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     interruptPolarityField.SetBit(pinId, false);
                     break;
                 }
-                RefreshInterrupts();
+                UpdateInterrupts();
             }
         }
 
-        public GPIO IRQ { get; private set; }
+        [DefaultInterrupt]
+        public GPIO IRQ { get; } = new GPIO();
+
+        public GPIO IRQ0 { get; } = new GPIO();
+
+        public GPIO IRQ1 { get; } = new GPIO();
+
+        public GPIO IRQ2 { get; } = new GPIO();
+
+        public GPIO IRQ3 { get; } = new GPIO();
+
+        public GPIO IRQ4 { get; } = new GPIO();
+
+        public GPIO IRQ5 { get; } = new GPIO();
+
+        public GPIO IRQ6 { get; } = new GPIO();
+
+        public GPIO IRQ7 { get; } = new GPIO();
+
+        public GPIO IRQ8 { get; } = new GPIO();
+
+        public GPIO IRQ9 { get; } = new GPIO();
+
+        public GPIO IRQ10 { get; } = new GPIO();
+
+        public GPIO IRQ11 { get; } = new GPIO();
+
+        public GPIO IRQ12 { get; } = new GPIO();
+
+        public GPIO IRQ13 { get; } = new GPIO();
+
+        public GPIO IRQ14 { get; } = new GPIO();
+
+        public GPIO IRQ15 { get; } = new GPIO();
+
+        public GPIO IRQ16 { get; } = new GPIO();
+
+        public GPIO IRQ17 { get; } = new GPIO();
+
+        public GPIO IRQ18 { get; } = new GPIO();
+
+        public GPIO IRQ19 { get; } = new GPIO();
+
+        public GPIO IRQ20 { get; } = new GPIO();
+
+        public GPIO IRQ21 { get; } = new GPIO();
+
+        public GPIO IRQ22 { get; } = new GPIO();
+
+        public GPIO IRQ23 { get; } = new GPIO();
+
+        public GPIO IRQ24 { get; } = new GPIO();
+
+        public GPIO IRQ25 { get; } = new GPIO();
+
+        public GPIO IRQ26 { get; } = new GPIO();
+
+        public GPIO IRQ27 { get; } = new GPIO();
+
+        public GPIO IRQ28 { get; } = new GPIO();
+
+        public GPIO IRQ29 { get; } = new GPIO();
+
+        public GPIO IRQ30 { get; } = new GPIO();
+
+        public GPIO IRQ31 { get; } = new GPIO();
+
+        public GPIO[] IRQs => new GPIO[]
+        {
+            IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7,
+            IRQ8, IRQ9, IRQ10, IRQ11, IRQ12, IRQ13, IRQ14, IRQ15,
+            IRQ16, IRQ17, IRQ18, IRQ19, IRQ20, IRQ21, IRQ22, IRQ23,
+            IRQ24, IRQ25, IRQ26, IRQ27, IRQ28, IRQ29, IRQ30, IRQ31
+        };
 
         public PinDirection[] PortDataDirection { get; private set; }
 
@@ -159,6 +236,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                             State[i] = bits[i];
                                         }
                                     }
+                                    UpdateInterrupts();
                     }, valueProviderCallback: _ => { return BitHelper.GetValueFromBitsArray(State); })
                                 .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
@@ -170,7 +248,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
                                 .WithValueField(0, numberOfGPIOS, writeCallback: (_, val) => {
                                             Array.Copy(BitHelper.GetBits((uint)val), InterruptEnable, numberOfGPIOS);
-                                            RefreshInterrupts();
+                                            UpdateInterrupts();
                                         },
                                     valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(InterruptEnable))
                                 .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
@@ -192,7 +270,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)Registers.InterruptMask, new DoubleWordRegister(this)
                                 .WithValueField(0, numberOfGPIOS, writeCallback: (_, val) => {
                                         Array.Copy(BitHelper.GetBits((uint)val), InterruptMask, numberOfGPIOS);
-                                        RefreshInterrupts();
+                                        UpdateInterrupts();
                                     },
                                     valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(InterruptMask))
                                 .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
@@ -208,7 +286,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                     {
                                         activeInterrupts[bit] = false;
                                     }
-                                    RefreshInterrupts();
+                                    UpdateInterrupts();
                                 })
                                 .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
@@ -235,76 +313,77 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     if(isBothEdgesSensitive[i])
                     {
                         interruptType[i] = InterruptTrigger.BothEdges;
+                        continue;
+                    }
+
+                    if(isEdgeSensitive[i])
+                    {
+                        interruptType[i] = isActiveHighOrRisingEdge[i]
+                            ? InterruptTrigger.RisingEdge
+                            : InterruptTrigger.FallingEdge;
                     }
                     else
                     {
-                        if(isEdgeSensitive[i])
-                        {
-                            interruptType[i] = isActiveHighOrRisingEdge[i]
-                                ? InterruptTrigger.RisingEdge
-                                : InterruptTrigger.FallingEdge;
-                        }
-                        else
-                        {
-                            interruptType[i] = isActiveHighOrRisingEdge[i]
-                                ? InterruptTrigger.ActiveHigh
-                                : InterruptTrigger.ActiveLow;
-                        }
+                        interruptType[i] = isActiveHighOrRisingEdge[i]
+                            ? InterruptTrigger.ActiveHigh
+                            : InterruptTrigger.ActiveLow;
                     }
                 }
-                RefreshInterrupts();
+                UpdateInterrupts();
             }
         }
 
-        private void RefreshInterrupts()
+        private bool IsInterruptTriggered(int i)
         {
-            var irqState = false;
+            var isEdge = State[i] != previousState[i];
+            switch(interruptType[i])
+            {
+            case InterruptTrigger.ActiveHigh:
+                return State[i];
+            case InterruptTrigger.ActiveLow:
+                return !State[i];
+            case InterruptTrigger.RisingEdge:
+                return isEdge && State[i];
+            case InterruptTrigger.FallingEdge:
+                return isEdge && !State[i];
+            case InterruptTrigger.BothEdges:
+                return isEdge;
+            default:
+                throw new UnreachableException();
+            }
+        }
+
+        private void UpdateInterrupts()
+        {
+            var wasIrqSet = false;
+            var anyIrqSet = false;
+            var irqs = IRQs;
+
             for(int i = 0; i < numberOfGPIOS; i++)
             {
-                if(!InterruptEnable[i])
+                if(!InterruptEnable[i] || PortDataDirection[i] == PinDirection.Output)
                 {
                     continue;
                 }
-                var isEdge = State[i] != previousState[i];
-                switch(interruptType[i])
+                activeInterrupts[i] |= IsInterruptTriggered(i);
+                var irqSet = activeInterrupts[i] && !InterruptMask[i];
+                anyIrqSet |= irqSet;
+
+                wasIrqSet = irqs[i].IsSet;
+                irqs[i].Set(irqSet);
+                if(wasIrqSet != irqSet)
                 {
-                case InterruptTrigger.ActiveHigh:
-                    irqState |= (State[i] && !InterruptMask[i]);
-                    break;
-                case InterruptTrigger.ActiveLow:
-                    irqState |= (!State[i] && !InterruptMask[i]);
-                    break;
-                case InterruptTrigger.RisingEdge:
-                    if(isEdge && State[i])
-                    {
-                        irqState |= !InterruptMask[i];
-                        activeInterrupts[i] = true;
-                    }
-                    break;
-                case InterruptTrigger.FallingEdge:
-                    if(isEdge && !State[i])
-                    {
-                        irqState |= !InterruptMask[i];
-                        activeInterrupts[i] = true;
-                    }
-                    break;
-                case InterruptTrigger.BothEdges:
-                    if(isEdge)
-                    {
-                        irqState |= !InterruptMask[i];
-                        activeInterrupts[i] = true;
-                    }
-                    break;
+                    this.NoisyLog("IRQ{0}: {1}set", i, wasIrqSet ? "un" : "");
                 }
             }
+
             Array.Copy(State, previousState, State.Length);
-            if(irqState)
+
+            wasIrqSet = IRQ.IsSet;
+            IRQ.Set(anyIrqSet);
+            if(wasIrqSet != anyIrqSet)
             {
-                IRQ.Set();
-            }
-            else if(!activeInterrupts.Any(x => x))
-            {
-                IRQ.Unset();
+                this.NoisyLog("IRQ: {0}set", wasIrqSet ? "un" : "");
             }
         }
 
