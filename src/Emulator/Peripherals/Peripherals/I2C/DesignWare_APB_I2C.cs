@@ -158,7 +158,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             Registers.Control.Define(this, 0x0000007f)
                 .WithFlag(0, out masterEnabled, name: "I2C_MASTER_MODE")
                 .WithEnumField<DoubleWordRegister, SpeedMode>(1, 2, out speedMode, name: "I2C_SPEED",
-                    changeCallback: (value, previousValue) =>
+                    changeCallback: (previousValue, value) =>
                     {
                         switch(value)
                         {
