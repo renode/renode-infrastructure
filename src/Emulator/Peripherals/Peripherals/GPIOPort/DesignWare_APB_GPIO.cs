@@ -10,23 +10,29 @@ using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    public sealed class DesignWare_APB_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IGPIOReceiver, IKnownSize
+    public sealed class DesignWare_APB_GPIO : BaseGPIOPort, IDoubleWordPeripheral, INumberedGPIOOutput, IGPIOReceiver, IKnownSize
     {
-        public DesignWare_APB_GPIO(IMachine machine) : base(machine, NumberOfGPIOS)
+        public DesignWare_APB_GPIO(IMachine machine, int numberOfGPIOS = 32) : base(machine, numberOfGPIOS)
         {
+            if(numberOfGPIOS > 32)
+            {
+                throw new ConstructionException($"`{nameof(numberOfGPIOS)}` cannnot be greater than 32");
+            }
+            this.numberOfGPIOS = numberOfGPIOS;
             internalLock = new object();
-            previousState = new bool[NumberOfGPIOS];
-            PortDataDirection = new PinDirection[NumberOfGPIOS];
-            InterruptEnable = new bool[NumberOfGPIOS];
-            InterruptMask = new bool[NumberOfGPIOS];
-            interruptType = new InterruptTrigger[NumberOfGPIOS];
-            activeInterrupts = new bool[NumberOfGPIOS];
+            previousState = new bool[numberOfGPIOS];
+            PortDataDirection = new PinDirection[numberOfGPIOS];
+            InterruptEnable = new bool[numberOfGPIOS];
+            InterruptMask = new bool[numberOfGPIOS];
+            interruptType = new InterruptTrigger[numberOfGPIOS];
+            activeInterrupts = new bool[numberOfGPIOS];
             IRQ = new GPIO();
             PrepareRegisters();
         }
@@ -44,7 +50,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             lock(internalLock)
             {
                 base.Reset();
-                for(int i = 0; i < NumberOfGPIOS; i++)
+                for(int i = 0; i < numberOfGPIOS; i++)
                 {
                     previousState[i] = false;
                     activeInterrupts[i] = false;
@@ -68,9 +74,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public override void OnGPIO(int number, bool value)
         {
-            if(number < 0 || number >= NumberOfGPIOS)
+            if(number < 0 || number >= numberOfGPIOS)
             {
-                throw new ArgumentOutOfRangeException(string.Format("Gpio #{0} called, but only {1} lines are available", number, NumberOfGPIOS));
+                throw new ArgumentOutOfRangeException(string.Format("Gpio #{0} called, but only {1} lines are available", number, numberOfGPIOS));
             }
 
             lock(internalLock)
@@ -142,7 +148,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             registers = new DoubleWordRegisterCollection(this, new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.PortAData, new DoubleWordRegister(this)
-                                .WithValueField(0, 32, writeCallback: (_, val) =>
+                                .WithValueField(0, numberOfGPIOS, writeCallback: (_, val) =>
                                 {
                                     var bits = BitHelper.GetBits((uint)val);
                                     for(int i = 0; i < bits.Length; i++)
@@ -154,41 +160,49 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                         }
                                     }
                     }, valueProviderCallback: _ => { return BitHelper.GetValueFromBitsArray(State); })
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
                 {(long)Registers.PortADataDirection, new DoubleWordRegister(this)
-                                .WithValueField(0, 32, writeCallback: (_, val) => Array.Copy(BitHelper.GetBits((uint)val).Select(x => x ? PinDirection.Output : PinDirection.Input).ToArray() , PortDataDirection, 32),
+                                .WithValueField(0, numberOfGPIOS, writeCallback: (_, val) => Array.Copy(BitHelper.GetBits((uint)val).Select(x => x ? PinDirection.Output : PinDirection.Input).ToArray() , PortDataDirection, numberOfGPIOS),
                                     valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(PortDataDirection.Select(x => x == PinDirection.Output)))
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
                 {(long)Registers.InterruptEnable, new DoubleWordRegister(this)
-                                .WithValueField(0, 32, writeCallback: (_, val) => {
-                                            Array.Copy(BitHelper.GetBits((uint)val), InterruptEnable, 32);
+                                .WithValueField(0, numberOfGPIOS, writeCallback: (_, val) => {
+                                            Array.Copy(BitHelper.GetBits((uint)val), InterruptEnable, numberOfGPIOS);
                                             RefreshInterrupts();
                                         },
                                     valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(InterruptEnable))
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
                 {(long)Registers.InterruptType, new DoubleWordRegister(this)
                                 // true = edge sensitive; false = level sensitive
-                                .WithValueField(0, 32, out interruptTypeField, writeCallback: (_, val) => CalculateInterruptTypes())
+                                .WithValueField(0, numberOfGPIOS, out interruptTypeField, writeCallback: (_, val) => CalculateInterruptTypes())
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
                 {(long)Registers.InterruptPolarity, new DoubleWordRegister(this)
                                 // true = rising edge / active high; false = falling edge / active low
-                                .WithValueField(0, 32, out interruptPolarityField, writeCallback: (_, val) => CalculateInterruptTypes())
+                                .WithValueField(0, numberOfGPIOS, out interruptPolarityField, writeCallback: (_, val) => CalculateInterruptTypes())
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
                 {(long)Registers.InterruptBothEdgeType, new DoubleWordRegister(this)
-                                .WithValueField(0, 32, out interruptBothEdgeField, writeCallback: (_, val) => CalculateInterruptTypes())
+                                .WithValueField(0, numberOfGPIOS, out interruptBothEdgeField, writeCallback: (_, val) => CalculateInterruptTypes())
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
                 {(long)Registers.InterruptMask, new DoubleWordRegister(this)
-                                .WithValueField(0, 32, writeCallback: (_, val) => {
-                                        Array.Copy(BitHelper.GetBits((uint)val), InterruptMask, 32);
+                                .WithValueField(0, numberOfGPIOS, writeCallback: (_, val) => {
+                                        Array.Copy(BitHelper.GetBits((uint)val), InterruptMask, numberOfGPIOS);
                                         RefreshInterrupts();
                                     },
                                     valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(InterruptMask))
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
                 {(long)Registers.PortAExternalPort, new DoubleWordRegister(this)
-                                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State))
+                                .WithValueField(0, numberOfGPIOS, FieldMode.Read, valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State))
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
                 {(long)Registers.ClearInterrupt, new DoubleWordRegister(this)
-                                .WithValueField(0, 32, FieldMode.Write, writeCallback: (_, val) =>
+                                .WithValueField(0, numberOfGPIOS, FieldMode.Write, writeCallback: (_, val) =>
                                 {
                                     foreach(var bit in BitHelper.GetSetBits(val))
                                     {
@@ -196,12 +210,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                                     }
                                     RefreshInterrupts();
                                 })
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
                 {(long)Registers.InterruptStatus, new DoubleWordRegister(this)
-                                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(activeInterrupts.Zip(InterruptMask, (isActive, isMasked) => isActive && !isMasked)))
+                                .WithValueField(0, numberOfGPIOS, FieldMode.Read, valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(activeInterrupts.Zip(InterruptMask, (isActive, isMasked) => isActive && !isMasked)))
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 },
                 {(long)Registers.RawInterruptStatus, new DoubleWordRegister(this)
-                                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(activeInterrupts))
+                                .WithValueField(0, numberOfGPIOS, FieldMode.Read, valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(activeInterrupts))
+                                .WithReservedBits(numberOfGPIOS, 32 - numberOfGPIOS)
                 }
             });
         }
@@ -242,7 +259,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private void RefreshInterrupts()
         {
             var irqState = false;
-            for(int i = 0; i < NumberOfGPIOS; i++)
+            for(int i = 0; i < numberOfGPIOS; i++)
             {
                 if(!InterruptEnable[i])
                 {
@@ -301,8 +318,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly bool[] previousState;
 
         private readonly object internalLock;
-
-        private const int NumberOfGPIOS = 32;
+        private readonly int numberOfGPIOS;
 
         public enum PinDirection
         {
