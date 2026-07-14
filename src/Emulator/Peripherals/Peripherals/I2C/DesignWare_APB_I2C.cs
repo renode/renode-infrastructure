@@ -37,7 +37,8 @@ namespace Antmicro.Renode.Peripherals.I2C
             this.txFifoSize = txFifoSize;
             txFifo = new Queue<byte>();
             transmission = new Queue<byte>();
-            rxFifo = new Queue<byte>();
+            rxFifo = new Queue<(byte, bool)>();
+            pendingReadTransactions = new List<int>(0);
             IRQ = new GPIO();
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();
@@ -94,7 +95,8 @@ namespace Antmicro.Renode.Peripherals.I2C
             switch(offset)
             {
             case (long)Registers.DataCommand:
-                return ReadData();
+                (readData, firstDataByte) = ReadData();
+                return readData;
             case (long)Registers.DataCommand + 1:
                 return dataCommandOffset1Shadow.Read();
             default:
@@ -131,6 +133,25 @@ namespace Antmicro.Renode.Peripherals.I2C
         public event Action<int> AddressChanged;
 
         public const int DefaultSlaveAddress = 0x55;
+
+        private static (byte Value, bool IsTransactionStart)[] MarkTransactionStarts(
+            byte[] readData,
+            IReadOnlyList<int> transactionLengths)
+        {
+            var result = readData
+                .Select(value => (Value: value, IsTransactionStart: false))
+                .ToArray();
+
+            var currentOffset = 0;
+
+            foreach(var transactionLength in transactionLengths)
+            {
+                result[currentOffset].IsTransactionStart = true;
+                currentOffset += transactionLength;
+            }
+
+            return result;
+        }
 
         private void DefineRegisters()
         {
@@ -208,18 +229,22 @@ namespace Antmicro.Renode.Peripherals.I2C
             ;
 
             Registers.DataCommand.Define(this)
-                .WithValueField(0, 8, out data, valueProviderCallback: _ => ReadData(), name: "I2C_DAT")
+                .WithBeforeReadCallback((_) => (readData, firstDataByte) = ReadData())
+                .WithValueField(0, 8, out data, valueProviderCallback: _ => readData, name: "I2C_DAT")
                 .WithEnumField<DoubleWordRegister, Command>(8, 1, out command, FieldMode.Write, name: "I2C_CMD")
                 .WithFlag(9, out stop, FieldMode.Write, name: "I2C_STOP")
                 .WithFlag(10, out restart, FieldMode.Write, name: "I2C_RESTART")
-                .WithReservedBits(11, 21)
+                .WithFlag(11, FieldMode.Read, valueProviderCallback: (_) => firstDataByte, name: "FIRST_DATA_BYTE")
+                .WithReservedBits(12, 20)
                 .WithWriteCallback((_, __) => WriteCommand())
             ;
 
             dataCommandOffset1Shadow = new ByteRegister(this)
                 .WithEnumField<ByteRegister, Command>(0, 1, FieldMode.Write, writeCallback: (_, value) => command.Value = value, name: "I2C_CMD")
                 .WithFlag(1, FieldMode.Write, writeCallback: (_, value) => stop.Value = value, name: "I2C_STOP")
-                .WithFlag(2, FieldMode.Write, writeCallback: (_, value) => restart.Value = value, name: "I2C_RESTART");
+                .WithFlag(2, FieldMode.Write, writeCallback: (_, value) => restart.Value = value, name: "I2C_RESTART")
+                .WithFlag(3, FieldMode.Read, valueProviderCallback: (_) => firstDataByte, name: "FIRST_DATA_BYTE")
+            ;
 
             Registers.StandardSpeedSCLHighCount.Define(this, 0x00000091)
                 .WithValueField(0, 16, out standardSpeedClockHighCount, name: "IC_SS_SCL_HCNT",
@@ -560,7 +585,7 @@ namespace Antmicro.Renode.Peripherals.I2C
 
             Registers.Status.Define(this, 0x00000006)
                 .WithFlag(0, FieldMode.Read, name: "I2C_ACTIVITY",
-                    valueProviderCallback: _ => bytesToReceive != 0 || transmission.Count != 0
+                    valueProviderCallback: _ => pendingReadTransactions.Count != 0 || transmission.Count != 0
                 )
                 .WithFlag(1, FieldMode.Read, name: "TFNF",
                     valueProviderCallback: _ => txFifo.Count != txFifoSize
@@ -575,7 +600,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                     valueProviderCallback: _ => rxFifo.Count >= rxFifoSize
                 )
                 .WithFlag(5, FieldMode.Read, name: "MST_ACTIVITY",
-                    valueProviderCallback: _ => bytesToReceive != 0 || transmission.Count != 0
+                    valueProviderCallback: _ => pendingReadTransactions.Count != 0 || transmission.Count != 0
                 )
                 .WithFlag(6, FieldMode.Read, name: "SLV_ACTIVITY",
                     valueProviderCallback: _ => false
@@ -767,21 +792,21 @@ namespace Antmicro.Renode.Peripherals.I2C
             UpdateInterrupts();
         }
 
-        private byte ReadData()
+        private (byte, bool) ReadData()
         {
             if(!controllerEnabled.Value)
             {
                 this.Log(LogLevel.Debug, "Attempted read from FIFO, but controller is not enabled");
-                return 0x0;
+                return (0x0, false);
             }
             if(!masterEnabled.Value)
             {
                 this.Log(LogLevel.Debug, "Attempted read from FIFO, but master mode is not enabled");
-                return 0x0;
+                return (0x0, false);
             }
-            var dataByte = HandleReadFromReceiveFIFO();
+            var (dataByte, firstDataByte) = HandleReadFromReceiveFIFO();
             UpdateInterrupts();
-            return dataByte;
+            return (dataByte, firstDataByte);
         }
 
         private void WriteCommand()
@@ -841,7 +866,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 // It is a kind of emulation's optimization to not transfer byte by byte.
                 // Instead track the number of bytes belonging to a transaction
                 // and perform a batch reception on STOP or RESTART condition.
-                bytesToReceive = checked(bytesToReceive + 1);
+                ExtendLastestTransaction();
                 if(stop.Value)
                 {
                     PerformReception();
@@ -856,7 +881,20 @@ namespace Antmicro.Renode.Peripherals.I2C
             CheckDMATriggers();
         }
 
-        private byte HandleReadFromReceiveFIFO()
+        private void ExtendLastestTransaction()
+        {
+            if(pendingReadTransactions.Count == 0)
+            {
+                pendingReadTransactions.Add(1);
+                return;
+            }
+            checked
+            {
+                ++pendingReadTransactions[^1];
+            }
+        }
+
+        private (byte, bool) HandleReadFromReceiveFIFO()
         {
             if(!rxFifo.TryDequeue(out var data))
             {
@@ -865,7 +903,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 if(!rxFifo.TryDequeue(out data))
                 {
                     rxUnderflow.Value = true;
-                    return 0x0;
+                    return (0x0, false);
                 }
             }
             return data;
@@ -873,10 +911,12 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void PerformReception()
         {
-            if(bytesToReceive == 0)
+            if(pendingReadTransactions.Count == 0)
             {
                 return;
             }
+
+            var bytesToReceive = pendingReadTransactions.Sum();
 
             if(!TryGetByAddress(TargetAddress, out var target))
             {
@@ -884,23 +924,24 @@ namespace Antmicro.Renode.Peripherals.I2C
                 return;
             }
 
-            var data = target.Read(bytesToReceive);
-            rxFifo.EnqueueRange(data);
+            var readData = target.Read(bytesToReceive);
+            var markedReadData = MarkTransactionStarts(readData, pendingReadTransactions);
+            rxFifo.EnqueueRange(markedReadData);
 
-            if(data.Length != bytesToReceive)
+            if(markedReadData.Length != bytesToReceive)
             {
-                this.Log(LogLevel.Noisy, "Attempted reading of {0} bytes, but received {1}", bytesToReceive, data.Length);
-                var bytesMissing = bytesToReceive - data.Length;
+                this.Log(LogLevel.Noisy, "Attempted reading of {0} bytes, but received {1}", bytesToReceive, readData.Length);
+                var bytesMissing = bytesToReceive - readData.Length;
                 if(bytesMissing > 0)
                 {
                     // read 0x0 bytes when slave doesn't return enough data
                     this.Log(LogLevel.Warning, "Padding data received from a slave with {0} zeros to match expected number of bytes", bytesMissing);
-                    rxFifo.EnqueueRange(Enumerable.Repeat<byte>(0x0, bytesMissing));
+                    rxFifo.EnqueueRange(Enumerable.Repeat<(byte, bool)>((0x0, false), bytesMissing));
                 }
             }
-            bytesToReceive = 0;
+            pendingReadTransactions.Clear();
 
-            this.Log(LogLevel.Debug, "Reading from a slave at 0x{0:X}, data: {1}", TargetAddress, data.ToLazyHexString());
+            this.Log(LogLevel.Debug, "Reading from a slave at 0x{0:X}, data: {1}", TargetAddress, readData.ToLazyHexString());
         }
 
         private void HandleWriteToTransmitFIFO(byte data)
@@ -1027,13 +1068,15 @@ namespace Antmicro.Renode.Peripherals.I2C
         private ByteRegister dataCommandOffset1Shadow;
         private bool dmaRxInProgress;
         private bool dmaTxInProgress;
-        private int bytesToReceive;
+        private byte readData;
+        private bool firstDataByte;
 
+        private readonly List<int> pendingReadTransactions;
         private readonly int rxFifoSize;
         private readonly int txFifoSize;
         private readonly Queue<byte> txFifo;
         private readonly Queue<byte> transmission;
-        private readonly Queue<byte> rxFifo;
+        private readonly Queue<(byte, bool)> rxFifo;
         private readonly IGPIOReceiver dma;
 
         private const uint ClockHighMinCount = 6;
