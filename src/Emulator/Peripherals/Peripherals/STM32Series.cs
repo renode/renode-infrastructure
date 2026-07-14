@@ -34,6 +34,11 @@ namespace Antmicro.Renode.Peripherals
          */
         H7,
 
+        /* For H5 series technical documentation and reference manuals, see
+         * https://www.st.com/en/microcontrollers-microprocessors/stm32h5-series/documentation.html
+         */
+        H5,
+
         /* For G0 series technical documentation and reference manuals, see
          * https://www.st.com/en/microcontrollers-microprocessors/stm32g0-series/documentation.html
          */
