@@ -230,6 +230,12 @@ namespace Antmicro.Renode.Peripherals.CAN
                 UpdateInterrupts();
 
                 ProcessQueue();
+
+                // Trigger state transition if all TX frames have been sent
+                if(!transmitInProgress && awaitingStateRequest.HasValue)
+                {
+                    SetState(awaitingStateRequest.Value);
+                }
             });
         }
 
@@ -553,6 +559,19 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 return;
             }
+
+            // Wait for all frames to move-out before transitioning to a new state
+            if(transmitInProgress)
+            {
+                this.Log(LogLevel.Debug, "Waiting for transmission to finish before changing to: {0}", requestedState);
+                awaitingStateRequest = requestedState;
+                return;
+            }
+            else
+            {
+                awaitingStateRequest = null;
+            }
+
             this.Log(LogLevel.Debug, "Changed state: {0} -> {1}", moduleState, requestedState);
 
             moduleState = requestedState;
@@ -1080,6 +1099,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IValueRegisterField rxMessageBuffer15Mask;
         private IFlagRegisterField selfWakeUpInterrupt;
         private bool transmitInProgress = false;
+        private State? awaitingStateRequest = null;
 
         private State moduleState = State.Freeze;
 
