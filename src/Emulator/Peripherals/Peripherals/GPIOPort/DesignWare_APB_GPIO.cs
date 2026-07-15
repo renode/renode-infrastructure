@@ -209,18 +209,18 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             IRQ24, IRQ25, IRQ26, IRQ27, IRQ28, IRQ29, IRQ30, IRQ31
         };
 
-        public PinDirection[] PortDataDirection { get; private set; }
+        public PinDirection[] PortDataDirection { get; }
 
-        public bool[] InterruptEnable { get; private set; }
+        public bool[] InterruptEnable { get; }
 
-        public IReadOnlyCollection<InterruptTrigger> InterruptType { get { return interruptType; } }
+        public IReadOnlyCollection<InterruptTrigger> InterruptType => interruptType;
 
-        public bool[] InterruptMask { get; private set; }
+        public bool[] InterruptMask { get; }
 
         // setting state using this array directly will not raise any interrupts!
-        public new bool[] State { get { return base.State; } }
+        public new bool[] State => base.State;
 
-        public long Size { get { return 0x78; } }
+        public long Size => 0x78;
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
