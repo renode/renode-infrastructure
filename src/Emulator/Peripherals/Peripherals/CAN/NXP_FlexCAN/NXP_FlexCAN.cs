@@ -16,6 +16,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
+using Antmicro.Renode.Peripherals.Timers;
 
 using Range = Antmicro.Renode.Core.Range;
 
@@ -47,6 +48,8 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             legacyRxFifo = new Queue<KeyValuePair<ushort, CANMessageFrame>>();
 
+            freeRunningTimer = new LimitTimer(machine.ClockSource, this.baudRate, this, nameof(freeRunningTimer), limit: UInt16.MaxValue, direction: Time.Direction.Ascending, enabled: true);
+
             DefineRegisters();
         }
 
@@ -59,6 +62,12 @@ namespace Antmicro.Renode.Peripherals.CAN
                 return;
             }
             OnFrameReceivedInner(message);
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            freeRunningTimer.Reset();
         }
 
         public override uint ReadDoubleWord(long offset)
@@ -235,6 +244,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             this.Log(LogLevel.Debug, "Found matching message buffer#{0}: {1}", messageBufferIndex, messageBuffer);
 
+            messageBuffer.Timestamp = (ushort)freeRunningTimer.Value;
             messageBuffer.FillReceivedFrame(messageBuffers, messageBufferOffset, frame);
             messageBufferInterrupt[messageBufferIndex].Value = true;
 
@@ -499,7 +509,8 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithFlag(27, FieldMode.Read, valueProviderCallback: _ => moduleDisable.Value || Freeze, name: "FlexCAN Not Ready (MCR.NOTRDY)")
                 .WithFlag(28, out halt, name: "Halt FlexCAN (MCR.HALT)")
                 .WithFlag(29, out legacyFifoEnable, name: "Legacy RX FIFO Enable (MCR.RFEN)")
-                .WithFlag(30, out freezeEnable, name: "Freeze Enable (MCR.FRZ)")
+                .WithFlag(30, out freezeEnable,
+                    changeCallback: (_, value) => freeRunningTimer.Enabled = value, name: "Freeze Enable (MCR.FRZ)")
                 .WithFlag(31, out moduleDisable, name: "Module Disable (MCR.MDIS)")
                 .WithChangeCallback((_, __) => RunArbitrationProcess())
             ;
@@ -525,7 +536,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             ;
 
             Registers.FreeRunningTimer.Define(this)
-                .WithTag("Timer Value (TIMER.TIMER)", 0, 16)
+                .WithValueField(0, 16, mode: FieldMode.Read, valueProviderCallback: _ => freeRunningTimer.Value, name: "Timer Value (TIMER.TIMER)")
                 .WithReservedBits(16, 16)
             ;
 
@@ -956,6 +967,8 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private readonly ArrayMemory messageBuffers;
         private readonly Queue<KeyValuePair<ushort, CANMessageFrame>> legacyRxFifo;
+        private readonly LimitTimer freeRunningTimer;
+
         private const int NumberOfLegacyMessageBuffers = 38;
         private const int MessageBufferRegionsCount = 3;
         private const int MessageBufferRegionSize = 0x200;
