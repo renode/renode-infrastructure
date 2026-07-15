@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,14 +12,13 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.Peripherals.GPIOPort;
 using Antmicro.Renode.Utilities;
 
-namespace Antmicro.Renode.Peripherals.X86
+namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    public sealed class Quark_GPIOController : BaseGPIOPort, IDoubleWordPeripheral, IGPIOReceiver, IKnownSize
+    public sealed class DesignWare_APB_GPIO : BaseGPIOPort, IDoubleWordPeripheral, IGPIOReceiver, IKnownSize
     {
-        public Quark_GPIOController(IMachine machine) : base(machine, NumberOfGPIOS)
+        public DesignWare_APB_GPIO(IMachine machine) : base(machine, NumberOfGPIOS)
         {
             internalLock = new object();
             previousState = new bool[NumberOfGPIOS];
@@ -320,7 +319,7 @@ namespace Antmicro.Renode.Peripherals.X86
             BothEdges
         }
 
-        internal enum Registers : long
+        public enum Registers
         {
             PortAData = 0x0,
             PortADataDirection = 0x4,

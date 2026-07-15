@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -9,14 +9,14 @@ using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.GPIOPort;
 using Antmicro.Renode.Peripherals.Timers;
-using Antmicro.Renode.Peripherals.X86;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class Quark_SystemControlSubsystem : IDoubleWordPeripheral
     {
-        public Quark_SystemControlSubsystem(IMachine machine, Quark_GPIOController gpioPort)
+        public Quark_SystemControlSubsystem(IMachine machine, DesignWare_APB_GPIO gpioPort)
         {
             this.gpioPort = gpioPort;
             this.alwaysOnCounter = new LimitTimer(machine.ClockSource, 32000, this, nameof(alwaysOnCounter), direction: Time.Direction.Ascending, enabled: true);
@@ -28,17 +28,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                 // These registers map directly to GPIO port. Only 6 LSBits are important. Offsets in SCSS are generally the same as in the gpio port + 0xB00,
                 // but we keep it here for clarity, logging purposes and ease of defining field modes.
-                {(long)Registers.PortAGPIOAlwaysOn, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.PortAData)},
-                {(long)Registers.PortAGPIOAlwaysOnDirection, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.PortADataDirection)},
-                {(long)Registers.InterruptEnable, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.InterruptEnable)},
-                {(long)Registers.InterruptMask, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.InterruptMask)},
-                {(long)Registers.InterruptType, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.InterruptType)},
-                {(long)Registers.InterruptPolarity, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.InterruptPolarity)},
-                {(long)Registers.InterruptStatus, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.InterruptStatus, FieldMode.Read)},
-                {(long)Registers.RawInterruptStatus, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.RawInterruptStatus, FieldMode.Read)},
-                {(long)Registers.ClearInterrupt, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.ClearInterrupt)},
-                {(long)Registers.PortAExternalPort, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.PortAExternalPort, FieldMode.Read)},
-                {(long)Registers.InterruptBothEdgeType, CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers.InterruptBothEdgeType)},
+                {(long)Registers.PortAGPIOAlwaysOn, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.PortAData)},
+                {(long)Registers.PortAGPIOAlwaysOnDirection, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.PortADataDirection)},
+                {(long)Registers.InterruptEnable, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.InterruptEnable)},
+                {(long)Registers.InterruptMask, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.InterruptMask)},
+                {(long)Registers.InterruptType, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.InterruptType)},
+                {(long)Registers.InterruptPolarity, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.InterruptPolarity)},
+                {(long)Registers.InterruptStatus, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.InterruptStatus, FieldMode.Read)},
+                {(long)Registers.RawInterruptStatus, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.RawInterruptStatus, FieldMode.Read)},
+                {(long)Registers.ClearInterrupt, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.ClearInterrupt)},
+                {(long)Registers.PortAExternalPort, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.PortAExternalPort, FieldMode.Read)},
+                {(long)Registers.InterruptBothEdgeType, CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers.InterruptBothEdgeType)},
             };
             registers = new DoubleWordRegisterCollection(this, registerMap);
             Reset();
@@ -60,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             registers.Write(offset, value);
         }
 
-        private DoubleWordRegister CreateAlwaysOnGPIORegister(Quark_GPIOController.Registers register, FieldMode fieldMode = FieldMode.Read | FieldMode.Write)
+        private DoubleWordRegister CreateAlwaysOnGPIORegister(DesignWare_APB_GPIO.Registers register, FieldMode fieldMode = FieldMode.Read | FieldMode.Write)
         {
             if(fieldMode.IsWritable())
             {
@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly LimitTimer alwaysOnCounter;
-        private readonly Quark_GPIOController gpioPort;
+        private readonly DesignWare_APB_GPIO gpioPort;
 
         private const int NumberOfGPIOs = 6;
         private const uint AlwaysOnGPIOMask = (1 << NumberOfGPIOs) - 1;
