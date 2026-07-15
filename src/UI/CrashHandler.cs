@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
 using Xwt;
@@ -21,6 +22,15 @@ namespace Antmicro.Renode.UI
     {
         public static void HandleCrash(Exception e)
         {
+            try
+            {
+                Logger.Flush();
+            }
+            catch(Exception)
+            {
+                // there is nothing to do here
+            }
+
             var message = GetFullStackTrace(e);
             SaveErrorToFile(TemporaryFilesManager.Instance.EmulatorTemporaryPath + TemporaryFilesManager.CrashSuffix, message);
             ShowErrorInConsole(message);
