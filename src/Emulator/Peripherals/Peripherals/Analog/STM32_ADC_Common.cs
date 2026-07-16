@@ -326,6 +326,21 @@ namespace Antmicro.Renode.Peripherals.Analog
             throw new UnreachableException("Watchdog count is checked in the constructor");
         }
 
+        private ulong ClampSample(uint sample, int width)
+        {
+            if(sample < (1u << width))
+            {
+                return sample;
+            }
+            else
+            {
+                var clampedSample = (ulong)(1 << width) - 1;
+                this.Log(LogLevel.Warning, "Sample value {0} is too big for ADC data register, clamping it to {1}",
+                         sample, clampedSample);
+                return clampedSample;
+            }
+        }
+
         private void SampleNextChannel()
         {
             // Exit when peripheral is not enabled
@@ -359,16 +374,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                     uint sample = GetSampleFromChannel(currentChannel);
                     if(!adcOverrunFlag.Value || overrunMode.Value)
                     {
-                        if(sample < (1 << data.Width))
-                        {
-                            data.Value = sample;
-                        }
-                        else
-                        {
-                            data.Value = (ulong)(1 << data.Width) - 1;
-                            this.Log(LogLevel.Warning, "Sample value {0} is too big for ADC data register, clamping it to {1}",
-                                     sample, data.Value);
-                        }
+                        data.Value = ClampSample(sample, data.Width);
                     }
                     if(dmaEnabled.Value && !adcOverrunFlag.Value)
                     {
