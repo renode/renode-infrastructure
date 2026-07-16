@@ -601,7 +601,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 Tag(new Range(range.EndAddress + 1, parentRangeAfterSplitSizeRight), parentName, parentDefaultValue, parentPausing, parentSilent);
             }
-            Tag(range, $"{parentName}/{tag}", defaultValue, pausing, silent, overridePeripheralAccesses);
+            Tag(range, $"{parentName}{TagNestSymbol}{tag}", defaultValue, pausing, silent, overridePeripheralAccesses);
         }
 
         public void ApplySVD(string path)
@@ -1525,6 +1525,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
 
         public event Action<IMachine> OnSymbolsChanged;
+
+        public const string TagNestSymbol = "->";
 
         private static void ThrowIfNotAllMemory(IEnumerable<PeripheralLookupResult> targets)
         {
