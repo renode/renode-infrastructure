@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             // The ticker reaches its limit at (wakeupTimerFrequency / (PREDIV_A + 1) / (PREDIV_S + 1)) Hz
             // The prediv values are usually chosen so that its frequency is 1 Hz but this is not required
-            ticker = new LimitTimer(machine.ClockSource, wakeupTimerFrequency, this, nameof(ticker), DefaultSynchronuousPrescaler + 1, direction: Direction.Descending, eventEnabled: true, divider: DefaultAsynchronuousPrescaler + 1);
+            ticker = new LimitTimer(machine.ClockSource, wakeupTimerFrequency, this, nameof(ticker), DefaultSynchronuousPrescaler + 1, direction: Direction.Descending, eventEnabled: true, divider: DefaultAsynchronuousPrescaler + 1, autoUpdate: true);
             ticker.LimitReached += UpdateState;
 
             // The fastTicker reaches its limit once for every increment of the ticker. It is used to
@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             fastTicker = new LimitTimer(machine.ClockSource, wakeupTimerFrequency, this, nameof(fastTicker), 1, direction: Direction.Ascending, eventEnabled: true, divider: DefaultAsynchronuousPrescaler + 1);
             fastTicker.LimitReached += UpdateAlarms;
 
-            wakeupTimer = new LimitTimer(machine.ClockSource, wakeupTimerFrequency, this, nameof(wakeupTimer), direction: Direction.Ascending);
+            wakeupTimer = new LimitTimer(machine.ClockSource, wakeupTimerFrequency, this, nameof(wakeupTimer), direction: Direction.Ascending, autoUpdate: true);
             wakeupTimer.LimitReached += delegate
             {
                 wakeupTimerFlag.Value = true; // reset by software
