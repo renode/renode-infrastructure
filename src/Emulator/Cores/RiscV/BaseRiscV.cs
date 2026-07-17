@@ -856,17 +856,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             foreach(var @set in architectureDecoder.InstructionSets)
             {
-                if(set == InstructionSet.G)
-                {
-                    //G is a wildcard denoting multiple instruction sets
-                    foreach(var gSet in new[] { InstructionSet.I, InstructionSet.M, InstructionSet.F, InstructionSet.D, InstructionSet.A })
-                    {
-                        TlibAllowFeature((uint)gSet);
-                    }
-                    TlibAllowAdditionalFeature((uint)StandardInstructionSetExtensions.ICSR);
-                    TlibAllowAdditionalFeature((uint)StandardInstructionSetExtensions.IFENCEI);
-                }
-                else if(set == InstructionSet.B)
+                if(set == InstructionSet.B)
                 {
                     //B is a wildcard denoting all bit manipulation instruction subsets
                     foreach(var gSet in new[] { StandardInstructionSetExtensions.BA, StandardInstructionSetExtensions.BB, StandardInstructionSetExtensions.BC, StandardInstructionSetExtensions.BS })
@@ -1351,7 +1341,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             U = 'U' - 'A',
             V = 'V' - 'A',
             B = 'B' - 'A',
-            G = 'G' - 'A',
         }
 
         public enum StandardInstructionSetExtensions
@@ -1443,8 +1432,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 this.parent = parent;
                 this.machine = machine;
-                instructionSets = new List<InstructionSet>();
-                standardExtensions = new List<StandardInstructionSetExtensions>();
+                instructionSets = new HashSet<InstructionSet>();
+                standardExtensions = new HashSet<StandardInstructionSetExtensions>();
 
                 Decode(architectureString);
                 DecodePrivilegeLevels(privilegeLevels);
@@ -1545,8 +1534,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                 case 'B':
                     instructionSets.Add(InstructionSet.B);
                     break;
-                case 'G':
-                    instructionSets.Add(InstructionSet.G);
+                case 'G': // Shorthand for IMAFD_Zicsr_Zifencei
+                    foreach(var x in "IMAFD")
+                    {
+                        if(!TryHandleSingleCharInstructionSetName(x))
+                        {
+                            throw new ConstructionException($"Failed to enable instruction set '{x}' as part of G extension");
+                        }
+                    }
+                    HandleLongInstructionSetName("ZICSR");
+                    HandleLongInstructionSetName("ZIFENCEI");
                     break;
                 case 'U':
                     parent.WarningLog("Enabling privilege level extension '{0}' using 'cpuType' is not supported. " +
@@ -1648,8 +1645,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
 
-            private readonly IList<StandardInstructionSetExtensions> standardExtensions;
-            private readonly IList<InstructionSet> instructionSets;
+            private readonly ISet<StandardInstructionSetExtensions> standardExtensions;
+            private readonly ISet<InstructionSet> instructionSets;
             private readonly BaseRiscV parent;
             private readonly IMachine machine;
         }
