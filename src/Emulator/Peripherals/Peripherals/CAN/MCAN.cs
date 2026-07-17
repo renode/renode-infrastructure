@@ -910,9 +910,17 @@ namespace Antmicro.Renode.Peripherals.CAN
                             // referencing this specific RxBuffer will not match.
                             continue;
                         }
+                        // M_CAN: a filter element set to "store into Rx Buffer or as a debug
+                        // message" (SFEC/EFEC == 7) ignores the SFT/EFT filter-type field and
+                        // matches the dedicated ID in ID1 (SFID1/EFID1). ID2 (SFID2/EFID2) holds
+                        // the target Rx Buffer index in this mode, not a second ID, so it must
+                        // not be handed to the range/dual/classic matcher.
+                        match = id == filter.ID1;
                     }
-
-                    match = MatchFilterElement(isExtended, id, filter);
+                    else
+                    {
+                        match = MatchFilterElement(isExtended, id, filter);
+                    }
 
                     if(!match)
                     {
