@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -213,7 +213,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {(long)Registers.SynopsisComponentVersion, new DoubleWordRegister(this)
                     .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0x3332332A, name: "SSI_COMP_VERSION")
                 },
-                {(long)Registers.DataRegister, new DoubleWordRegister(this)
+                {(long)Registers.Data, new DoubleWordRegister(this)
                     .WithReservedBits(16, 16)
                     .WithValueField(0, 16, valueProviderCallback: _ =>
                     {
@@ -523,6 +523,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             Control0 = 0x0,
             Control1 = 0x4,
             Enable = 0x8,
+            MicrowireControl = 0xC,
             SlaveSelect = 0x10,
             ClockDivider = 0x14,
             TransmitTreshold = 0x18,
@@ -538,9 +539,48 @@ namespace Antmicro.Renode.Peripherals.SPI
             ReceiveUnderflowInterruptClear = 0x40,
             MultiMasterContentionInterruptClear = 0x44,
             InterruptClear = 0x48,
+            DmaControl = 0x4C,
+            DmaTransmitData = 0x50,
+            DmaReceiveData = 0x54,
             DeviceIdentificationCode = 0x58,
             SynopsisComponentVersion = 0x5C,
-            DataRegister = 0x60,
+            Data = 0x60,
+            Data1 = 0x64,
+            Data2 = 0x68,
+            Data3 = 0x6C,
+            Data4 = 0x70,
+            Data5 = 0x74,
+            Data6 = 0x78,
+            Data7 = 0x7C,
+            Data8 = 0x80,
+            Data9 = 0x84,
+            Data10 = 0x88,
+            Data11 = 0x8C,
+            Data12 = 0x90,
+            Data13 = 0x94,
+            Data14 = 0x98,
+            Data15 = 0x9C,
+            Data16 = 0xA0,
+            Data17 = 0xA4,
+            Data18 = 0xA8,
+            Data19 = 0xAC,
+            Data20 = 0xB0,
+            Data21 = 0xB4,
+            Data22 = 0xB8,
+            Data23 = 0xBC,
+            Data24 = 0xC0,
+            Data25 = 0xC4,
+            Data26 = 0xC8,
+            Data27 = 0xCC,
+            Data28 = 0xD0,
+            Data29 = 0xD4,
+            Data30 = 0xD8,
+            Data31 = 0xDC,
+            Data32 = 0xE0,
+            Data33 = 0xE4,
+            Data34 = 0xE8,
+            Data35 = 0xEC,
+            ReceiveSampleDelay = 0xF0,
         }
     }
 }
