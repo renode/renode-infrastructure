@@ -373,7 +373,7 @@ namespace Antmicro.Renode.Peripherals.SD
                         ), name: "card command classes")
                     .DefineFragment(96, 3, (uint)TransferRate.Transfer10Mbit, name: "transfer rate unit")
                     .DefineFragment(99, 4, (uint)TransferMultiplier.Multiplier2_5, name: "transfer multiplier")
-                    .DefineFragment(126, 2, (uint)CSD.Version1, name: "CSD structure")
+                    .DefineFragment(126, 2, (uint)(emmc ? CSD.EmmcVersion1_2 : CSD.Version1), name: "CSD structure")
                 ;
             }
             else
@@ -389,7 +389,7 @@ namespace Antmicro.Renode.Peripherals.SD
                         ), name: "card command classes")
                     .DefineFragment(96, 3, (uint)TransferRate.Transfer10Mbit, name: "transfer rate unit")
                     .DefineFragment(99, 5, (uint)TransferMultiplier.Multiplier2_5, name: "transfer multiplier")
-                    .DefineFragment(126, 2, (uint)CSD.Version2, name: "CSD structure")
+                    .DefineFragment(126, 2, (uint)(emmc ? CSD.EmmcVersion1_2 : CSD.Version2), name: "CSD structure")
                 ;
             }
 
@@ -1300,7 +1300,8 @@ namespace Antmicro.Renode.Peripherals.SD
         private enum CSD
         {
             Version1 = 0,
-            Version2 = 1
+            Version2 = 1,
+            EmmcVersion1_2 = 2,
         }
     }
 }
