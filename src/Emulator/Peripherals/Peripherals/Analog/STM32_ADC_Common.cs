@@ -559,7 +559,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                             samplingThread.Stop();
                             sequenceInProgress = false;
                         }
-                        else if (startFlag.Value && !prevVal)
+                        else if(startFlag.Value && !prevVal)
                         {
                             this.Log(LogLevel.Warning, "Can set continuous mode only when ADSTART is 0");
                             continuous.Value = false;
