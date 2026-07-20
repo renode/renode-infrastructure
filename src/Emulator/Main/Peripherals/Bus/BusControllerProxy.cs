@@ -539,6 +539,8 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public virtual Endianess Endianess => ParentController.Endianess;
 
+        public UnhandledAccessBehaviour UnhandledAccessBehaviour { get => ParentController.UnhandledAccessBehaviour; set => ParentController.UnhandledAccessBehaviour = value; }
+
         protected virtual bool ValidateOperation(ref ulong address, BusAccessPrivileges accessType, IPeripheral context = null)
         {
             return true;

@@ -166,6 +166,8 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         Endianess Endianess { get; }
 
+        UnhandledAccessBehaviour UnhandledAccessBehaviour { get; set; }
+
         event Action<IMachine> OnSymbolsChanged;
 
         IDisposable SetLocalContext(IPeripheral context, ulong? initiatorState = null);
