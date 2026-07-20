@@ -142,6 +142,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(1, 31)
             ;
 
+            Registers.MicrowireControl.Define(this)
+                .WithTaggedFlag("MWMOD", 0)
+                .WithTaggedFlag("MDD", 1)
+                .WithTaggedFlag("MHS", 2)
+                .WithReservedBits(3, 29)
+            ;
+
             Registers.SlaveSelect.Define(this)
                 .WithEnumField<DoubleWordRegister, SlaveSelect>(0, 3, name: "SER",
                     writeCallback: (previousVal, val) =>
@@ -328,6 +335,22 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(1, 31)
             ;
 
+            Registers.DmaControl.Define(this)
+                .WithTaggedFlag("RDMAE", 0)
+                .WithTaggedFlag("TDMAE", 1)
+                .WithReservedBits(2, 30)
+            ;
+
+            Registers.DmaTransmitData.Define(this)
+                .WithTag("DMATDL", 0, 4)
+                .WithReservedBits(4, 28)
+            ;
+
+            Registers.DmaReceiveData.Define(this)
+                .WithTag("DMARDL", 0, 4)
+                .WithReservedBits(4, 28)
+            ;
+
             Registers.DeviceIdentificationCode.Define(this)
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0xFFFFFFFF, name: "IDCODE")
             ;
@@ -336,7 +359,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0x3332332A, name: "SSI_COMP_VERSION")
             ;
 
-            Registers.Data.Define(this)
+            Registers.Data.DefineMany(this, NumberOfDataRegisters, (reg, i) => reg
                 .WithValueField(0, 16, name: "DR",
                     valueProviderCallback: _ =>
                     {
@@ -366,6 +389,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                     }
                 )
                 .WithReservedBits(16, 16)
+            );
+
+            Registers.ReceiveSampleDelay.Define(this)
+                .WithTag("RSD", 0, 8)
+                .WithReservedBits(8, 24)
             ;
         }
 
@@ -557,6 +585,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly Queue<ushort> receiveBuffer;
         private readonly Queue<ushort> transmitBuffer;
         private readonly object innerLock = new object();
+
+        private const int NumberOfDataRegisters = 36;
 
         public enum TransferSize
         {
