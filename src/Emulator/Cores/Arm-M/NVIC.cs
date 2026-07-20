@@ -1001,6 +1001,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public bool DeepSleepEnabled { get; set; }
 
+        public const uint STIROffset = (uint)Registers.SoftwareTriggerInterrupt;
+
         private static int GetStartingInterrupt(long offset, bool externalInterrupt)
         {
             return (int)(offset + (externalInterrupt ? 16 : 0));

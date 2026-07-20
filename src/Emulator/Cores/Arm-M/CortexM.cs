@@ -8,6 +8,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 using Antmicro.Renode.Core;
@@ -1130,6 +1131,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         private uint HasEnabledTrustZone()
         {
             return TrustZoneEnabled ? 1u : 0u;
+        }
+
+        [Export]
+        private uint IsSTIRAddress(uint address)
+        {
+            return machine.SystemBus.GetRegistrationPoints(nvic)
+                .Where(p => address == p.Range.StartAddress + NVIC.STIROffset)
+                .Any() ? 1u : 0u;
         }
 
         [Export]

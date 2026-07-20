@@ -25,6 +25,7 @@ EXTERNAL_AS(int32_t, PendingMaskedIRQ, tlib_nvic_get_pending_masked_irq)
 EXTERNAL_AS(uint32_t, HasEnabledTrustZone, tlib_has_enabled_trustzone)
 EXTERNAL_AS(uint32_t, InterruptTargetsSecure, tlib_nvic_interrupt_targets_secure, int32_t)
 EXTERNAL_AS(int32_t, CustomIdauHandler, tlib_custom_idau_handler, voidptr, voidptr, voidptr)
+EXTERNAL_AS(uint32_t, IsSTIRAddress, tlib_nvic_is_stir_address, uint32_t)
 #endif
 
 EXTERNAL_AS(uint32_t, Read32CP15, tlib_read_cp15_32, uint32_t)
