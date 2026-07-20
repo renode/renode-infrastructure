@@ -19,13 +19,15 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class DesignWare_SPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public DesignWare_SPI(IMachine machine, uint transmitDepth, uint receiveDepth) : base(machine)
+        public DesignWare_SPI(IMachine machine, uint transmitDepth, uint receiveDepth, uint idCode = 0xFFFFFFFF, uint componentVersion = 0x3332332A) : base(machine)
         {
             transmitBuffer = new Queue<ushort>();
             receiveBuffer = new Queue<ushort>();
 
             this.transmitDepth = transmitDepth;
             this.receiveDepth = receiveDepth;
+            this.idCode = idCode;
+            this.componentVersion = componentVersion;
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();
         }
@@ -121,7 +123,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTaggedFlag("SRL", 11)
                 .WithTag("CFS", 12, 4)
                 .WithValueField(16, 4, FieldMode.Read, valueProviderCallback: _ => dataFrameSize.Value, name: "DFS_32")
-                .WithReservedBits(20, 12)
+                .WithTag("SPI_FRF", 21, 2)
+                .WithReservedBits(23, 1)
+                .WithTaggedFlag("SSTE", 24)
+                .WithTaggedFlag("SECONV", 25)
+                .WithReservedBits(26, 5)
+                .WithTaggedFlag("SPI_IS_MST", 31)
             ;
 
             Registers.Control1.Define(this)
@@ -185,7 +192,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             Registers.ClockDivider.Define(this)
                 .WithFlag(0, FieldMode.Read, name: "SCKDV_0") // it's always 0 to ensure that the divider is even
-                .WithValueField(1, 16, name: "SCKDV_15_1")
+                .WithValueField(1, 15, name: "SCKDV_15_1")
+                .WithReservedBits(16, 16)
             ;
 
             Registers.TransmitTreshold.Define(this)
@@ -270,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(0, out transmitEmpty, FieldMode.Read, name: "TXEIR")
                 .WithFlag(1, out transmitOverflow, FieldMode.Read, name: "TXOIR")
                 .WithFlag(2, out receiveUnderflow, FieldMode.Read, name: "RXUIR")
-                .WithFlag(3, out receiveOverflow, FieldMode.Read, name: "RXFOIR")
+                .WithFlag(3, out receiveOverflow, FieldMode.Read, name: "RXOIR")
                 .WithFlag(4, out receiveFull, FieldMode.Read, name: "RXFIR")
                 .WithFlag(5, out multiMasterContention, FieldMode.Read, name: "MSTIR")
                 .WithReservedBits(6, 26)
@@ -352,11 +360,11 @@ namespace Antmicro.Renode.Peripherals.SPI
             ;
 
             Registers.DeviceIdentificationCode.Define(this)
-                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0xFFFFFFFF, name: "IDCODE")
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => idCode, name: "IDCODE")
             ;
 
             Registers.SynopsysComponentVersion.Define(this)
-                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0x3332332A, name: "SSI_COMP_VERSION")
+                .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => componentVersion, name: "SSI_COMP_VERSION")
             ;
 
             Registers.Data.DefineMany(this, NumberOfDataRegisters, (reg, i) => reg
@@ -580,6 +588,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private readonly uint transmitDepth;
         private readonly uint receiveDepth;
+        private readonly uint idCode;
+        private readonly uint componentVersion;
 
         // a single frame can have up to 16-bits
         private readonly Queue<ushort> receiveBuffer;
