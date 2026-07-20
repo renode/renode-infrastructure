@@ -402,7 +402,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     path,
                     block.Channel,
                     RESDStreamSampleOffset.Specified,
-                    -(long)machine.ClockSource.CurrentValue.TotalNanoseconds + (long)block.StartTime - (init ? (long)startTime : 0),
+                    (long)machine.ClockSource.CurrentValue.TotalNanoseconds - (long)block.StartTime + (init ? (long)startTime : 0),
                     b => (b as ConstantFrequencySamplesDataBlock<AccelerationSample>)?.Frequency == sampleRate
                 );
                 resdStream.Owner = null; // turn off verbose internal RESD logging and use custom logs
