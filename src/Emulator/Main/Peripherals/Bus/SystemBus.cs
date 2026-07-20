@@ -2484,6 +2484,10 @@ namespace Antmicro.Renode.Peripherals.Bus
         private ulong ReportNonExistingRead(ulong address, TagEntry? tag, SysbusAccessWidth type)
         {
             Interlocked.Increment(ref unexpectedReads);
+            if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.ThrowException)
+            {
+                throw new BusAccessException(BusAccessError.AddressError);
+            }
             var tagged = tag is TagEntry;
             var defaultValue = tag?.DefaultValue ?? default(ulong);
             var silent = tag?.Silent ?? false;
@@ -2526,6 +2530,10 @@ namespace Antmicro.Renode.Peripherals.Bus
         private void ReportNonExistingWrite(ulong address, ulong value, TagEntry? tag, SysbusAccessWidth type)
         {
             Interlocked.Increment(ref unexpectedWrites);
+            if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.ThrowException)
+            {
+                throw new BusAccessException(BusAccessError.AddressError);
+            }
             if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.DoNotReport)
             {
                 return;

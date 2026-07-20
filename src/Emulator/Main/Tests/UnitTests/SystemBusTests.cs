@@ -46,6 +46,29 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldThrowBusAccessExceptionAtNonExistingDeviceWhenConfigured()
+        {
+            sysbus.UnhandledAccessBehaviour = UnhandledAccessBehaviour.ThrowException;
+
+            var readException = Assert.Throws<BusAccessException>(() => sysbus.ReadByte(0xABCD1234));
+            var writeException = Assert.Throws<BusAccessException>(() => sysbus.WriteByte(0xABCD1234, 0));
+
+            Assert.AreEqual(BusAccessError.AddressError, readException.Error);
+            Assert.AreEqual(BusAccessError.AddressError, writeException.Error);
+        }
+
+        [Test]
+        public void ShouldPropagateBusAccessExceptionFromPeripheral()
+        {
+            var expectedException = new BusAccessException(BusAccessError.CommandError);
+            var peripheral = new Mock<IDoubleWordPeripheral>();
+            peripheral.Setup(x => x.ReadDoubleWord(0)).Throws(expectedException);
+            sysbus.Register(peripheral.Object, 0x1000.By(0x100));
+
+            Assert.AreSame(expectedException, Assert.Throws<BusAccessException>(() => sysbus.ReadDoubleWord(0x1000)));
+        }
+
+        [Test]
         public void ShouldFindAfterRegistration()
         {
             var peripheral = new Mock<IDoubleWordPeripheral>();

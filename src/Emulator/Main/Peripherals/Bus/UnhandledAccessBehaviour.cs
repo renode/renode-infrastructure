@@ -13,6 +13,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         Report,
         ReportIfTagged,
         ReportIfNotTagged,
-        DoNotReport
+        DoNotReport,
+        ThrowException,
     }
 }

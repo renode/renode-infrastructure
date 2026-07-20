@@ -1223,13 +1223,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Byte))
+            try
             {
-                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
-                // duplicating the access' side effect.
-                return guard.InterruptTransaction
-                    ? 0
-                    : (ulong)machine.SystemBus.ReadByte(offset, this, cpuState);
+                using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Byte))
+                {
+                    // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                    // duplicating the access' side effect.
+                    return guard.InterruptTransaction
+                        ? 0
+                        : (ulong)machine.SystemBus.ReadByte(offset, this, cpuState);
+                }
+            }
+            catch(BusAccessException exception)
+            {
+                HandleBusAccessError(offset, SysbusAccessWidth.Byte, BusAccess.Operation.Read, exception.Error);
+                return 0;
             }
         }
 
@@ -1240,13 +1248,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Word))
+            try
             {
-                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
-                // duplicating the access' side effect.
-                return guard.InterruptTransaction
-                    ? 0
-                    : (ulong)machine.SystemBus.ReadWord(offset, this, cpuState);
+                using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.Word))
+                {
+                    // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                    // duplicating the access' side effect.
+                    return guard.InterruptTransaction
+                        ? 0
+                        : (ulong)machine.SystemBus.ReadWord(offset, this, cpuState);
+                }
+            }
+            catch(BusAccessException exception)
+            {
+                HandleBusAccessError(offset, SysbusAccessWidth.Word, BusAccess.Operation.Read, exception.Error);
+                return 0;
             }
         }
 
@@ -1257,13 +1273,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.DoubleWord))
+            try
             {
-                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
-                // duplicating the access' side effect.
-                return guard.InterruptTransaction
-                    ? 0
-                    : machine.SystemBus.ReadDoubleWord(offset, this, cpuState);
+                using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.DoubleWord))
+                {
+                    // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                    // duplicating the access' side effect.
+                    return guard.InterruptTransaction
+                        ? 0
+                        : machine.SystemBus.ReadDoubleWord(offset, this, cpuState);
+                }
+            }
+            catch(BusAccessException exception)
+            {
+                HandleBusAccessError(offset, SysbusAccessWidth.DoubleWord, BusAccess.Operation.Read, exception.Error);
+                return 0;
             }
         }
 
@@ -1274,13 +1298,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.QuadWord))
+            try
             {
-                // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
-                // duplicating the access' side effect.
-                return guard.InterruptTransaction
-                    ? 0
-                    : machine.SystemBus.ReadQuadWord(offset, this, cpuState);
+                using(var guard = ObtainPauseGuardForReading(offset, SysbusAccessWidth.QuadWord))
+                {
+                    // If the transaction was interrupted while handling a watchpoint, return 0 immediately to avoid
+                    // duplicating the access' side effect.
+                    return guard.InterruptTransaction
+                        ? 0
+                        : machine.SystemBus.ReadQuadWord(offset, this, cpuState);
+                }
+            }
+            catch(BusAccessException exception)
+            {
+                HandleBusAccessError(offset, SysbusAccessWidth.QuadWord, BusAccess.Operation.Read, exception.Error);
+                return 0;
             }
         }
 
@@ -1291,14 +1323,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Byte, value))
+            try
             {
-                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
-                // duplicating the access' side effect.
-                if(!guard.InterruptTransaction)
+                using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Byte, value))
                 {
-                    machine.SystemBus.WriteByte(offset, unchecked((byte)value), this, cpuState);
+                    // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                    // duplicating the access' side effect.
+                    if(!guard.InterruptTransaction)
+                    {
+                        machine.SystemBus.WriteByte(offset, unchecked((byte)value), this, cpuState);
+                    }
                 }
+            }
+            catch(BusAccessException exception)
+            {
+                HandleBusAccessError(offset, SysbusAccessWidth.Byte, BusAccess.Operation.Write, exception.Error);
             }
         }
 
@@ -1309,14 +1348,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Word, value))
+            try
             {
-                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
-                // duplicating the access' side effect.
-                if(!guard.InterruptTransaction)
+                using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.Word, value))
                 {
-                    machine.SystemBus.WriteWord(offset, unchecked((ushort)value), this, cpuState);
+                    // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                    // duplicating the access' side effect.
+                    if(!guard.InterruptTransaction)
+                    {
+                        machine.SystemBus.WriteWord(offset, unchecked((ushort)value), this, cpuState);
+                    }
                 }
+            }
+            catch(BusAccessException exception)
+            {
+                HandleBusAccessError(offset, SysbusAccessWidth.Word, BusAccess.Operation.Write, exception.Error);
             }
         }
 
@@ -1327,14 +1373,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.DoubleWord, value))
+            try
             {
-                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
-                // duplicating the access' side effect.
-                if(!guard.InterruptTransaction)
+                using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.DoubleWord, value))
                 {
-                    machine.SystemBus.WriteDoubleWord(offset, (uint)value, this, cpuState);
+                    // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                    // duplicating the access' side effect.
+                    if(!guard.InterruptTransaction)
+                    {
+                        machine.SystemBus.WriteDoubleWord(offset, (uint)value, this, cpuState);
+                    }
                 }
+            }
+            catch(BusAccessException exception)
+            {
+                HandleBusAccessError(offset, SysbusAccessWidth.DoubleWord, BusAccess.Operation.Write, exception.Error);
             }
         }
 
@@ -1345,15 +1398,28 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 TlibRestoreContext();
             }
-            using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.QuadWord, value))
+            try
             {
-                // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
-                // duplicating the access' side effect.
-                if(!guard.InterruptTransaction)
+                using(var guard = ObtainPauseGuardForWriting(offset, SysbusAccessWidth.QuadWord, value))
                 {
-                    machine.SystemBus.WriteQuadWord(offset, value, this, cpuState);
+                    // If the transaction was interrupted while handling a watchpoint, don't perform the write to avoid
+                    // duplicating the access' side effect.
+                    if(!guard.InterruptTransaction)
+                    {
+                        machine.SystemBus.WriteQuadWord(offset, value, this, cpuState);
+                    }
                 }
             }
+            catch(BusAccessException exception)
+            {
+                HandleBusAccessError(offset, SysbusAccessWidth.QuadWord, BusAccess.Operation.Write, exception.Error);
+            }
+        }
+
+        protected virtual void HandleBusAccessError(ulong address, SysbusAccessWidth width, BusAccess.Operation operation, BusAccessError error)
+        {
+            this.Log(LogLevel.Warning, "This CPU does not support handling bus access errors; ignoring {0} on a {1} access of width {2} at 0x{3:X}.",
+                error, operation, width, address);
         }
 
         protected ulong ReadByteFromBus(ulong offset)
