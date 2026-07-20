@@ -191,7 +191,7 @@ public class TagsCommand : Command
                 yield return Range.ToString();
                 if(DefaultValue != 0)
                 {
-                    yield return $"Default value: 0x{DefaultValue.ToString():X}";
+                    yield return $"Default value: 0x{DefaultValue:X}";
                 }
             }
         }
