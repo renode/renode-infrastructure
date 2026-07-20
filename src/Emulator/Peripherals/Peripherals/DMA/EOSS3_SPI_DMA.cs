@@ -1,10 +1,10 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using System.Diagnostics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -69,19 +69,19 @@ namespace Antmicro.Renode.Peripherals.DMA
                     switch(spi.FrameSize)
                     {
                     case DesignWare_SPI.TransferSize.SingleByte:
-                    {
                         bytesToHandle = 1;
                         break;
-                    }
 
                     case DesignWare_SPI.TransferSize.DoubleByte:
-                    {
                         bytesToHandle = 2;
                         break;
-                    }
+
+                    case DesignWare_SPI.TransferSize.QuadByte:
+                        this.ErrorLog($"'{nameof(EOSS3_SPI_DMA)}'' does not implement 32-bit SPI transfer handling");
+                        return;
 
                     default:
-                        throw new ArgumentException($"Unexpected transfer size {spi.FrameSize}");
+                        throw new UnreachableException($"Unexpected transfer size {spi.FrameSize}");
                     }
 
                     if(bytesToHandle > transferCount.Value)
@@ -94,18 +94,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                     switch(bytesToHandle)
                     {
                     case 1:
-                    {
                         this.Log(LogLevel.Noisy, "DMA transfer: writing byte 0x{0:X} at offset 0x{1:X}", data, destinationAddress.Value);
                         sysbus.WriteByte(destinationAddress.Value, (byte)data);
                         break;
-                    }
 
                     case 2:
-                    {
                         this.Log(LogLevel.Noisy, "DMA transfer: writing ushort 0x{0:X} at offset 0x{1:X}", data, destinationAddress.Value);
-                        sysbus.WriteWord(destinationAddress.Value, data);
+                        sysbus.WriteWord(destinationAddress.Value, (ushort)data);
                         break;
-                    }
                     }
 
                     // transferCount is in bytes

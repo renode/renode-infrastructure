@@ -4,8 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -19,15 +19,28 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class DesignWare_SPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public DesignWare_SPI(IMachine machine, uint transmitDepth, uint receiveDepth, uint idCode = 0xFFFFFFFF, uint componentVersion = 0x3332332A) : base(machine)
+        public DesignWare_SPI(IMachine machine, uint transmitDepth, uint receiveDepth, uint idCode = 0xFFFFFFFF, uint componentVersion = 0x3332332A, int maxTransferSize = 16) : base(machine)
         {
-            transmitBuffer = new Queue<ushort>();
-            receiveBuffer = new Queue<ushort>();
+            if(maxTransferSize != 16 && maxTransferSize != 32)
+            {
+                throw new ConstructionException($"Unsupported '{nameof(maxTransferSize)}' value ({maxTransferSize}), legal values: 16, 32");
+            }
+            if(transmitDepth >= MaxFifoDepth)
+            {
+                throw new ConstructionException($"Unsupported '{nameof(transmitDepth)}' value ({transmitDepth}), must be less than {MaxFifoDepth}");
+            }
+            if(receiveDepth >= MaxFifoDepth)
+            {
+                throw new ConstructionException($"Unsupported '{nameof(receiveDepth)}' value ({receiveDepth}), must be less than {MaxFifoDepth}");
+            }
+            transmitBuffer = new Queue<uint>();
+            receiveBuffer = new Queue<uint>();
 
             this.transmitDepth = transmitDepth;
             this.receiveDepth = receiveDepth;
             this.idCode = idCode;
             this.componentVersion = componentVersion;
+            this.maxTransferSize = maxTransferSize;
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();
         }
@@ -65,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             RegistersCollection.Write(offset, value);
         }
 
-        public bool TryDequeueFromReceiveBuffer(out ushort data)
+        public bool TryDequeueFromReceiveBuffer(out uint data)
         {
             if(!receiveBuffer.TryDequeue(out data))
             {
@@ -95,34 +108,32 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void DefineRegisters()
         {
-            Registers.Control0.Define(this, 0x7)
-                .WithValueField(0, 4, out dataFrameSize, name: "DFS",
-                    writeCallback: (_, val) =>
-                    {
-                        if(val == 7)
-                        {
-                            FrameSize = TransferSize.SingleByte;
-                        }
-                        else if(val == 15)
-                        {
-                            FrameSize = TransferSize.DoubleByte;
-                        }
-                        else
-                        {
-                            this.Log(LogLevel.Error, "Only 8/16-bit transfers are supported. Falling back to the default 8-bit mode");
-                            dataFrameSize.Value = 7;
-                            FrameSize = TransferSize.SingleByte;
-                        }
-                    }
-                )
+            Registers.Control0.Define(this, 0x80004000U | (maxTransferSize == 16 ? 0x7U : 0x70000U))
+                .If(maxTransferSize == 16)
+                    .Then(reg => reg
+                        .WithValueField(0, 4, out dataFrameSize, name: "DFS",
+                            writeCallback: HandleDataFrameSizeChange
+                        )
+                    )
+                    .Else(reg => reg
+                        .WithReservedBits(0, 4)
+                    )
                 .WithTag("FRF", 4, 2)
                 .WithTaggedFlag("SCPH", 6)
                 .WithTaggedFlag("SCPOL", 7)
-                .WithEnumField<DoubleWordRegister, TransferMode>(8, 2, out transferMode, name: "TMOD")
+                .WithEnumField(8, 2, out transferMode, name: "TMOD")
                 .WithTaggedFlag("SLV_OE", 10)
                 .WithTaggedFlag("SRL", 11)
                 .WithTag("CFS", 12, 4)
-                .WithValueField(16, 4, FieldMode.Read, valueProviderCallback: _ => dataFrameSize.Value, name: "DFS_32")
+                .If(maxTransferSize == 32)
+                    .Then(reg => reg
+                        .WithValueField(16, 5, out dataFrameSize, name: "DFS_32",
+                            writeCallback: HandleDataFrameSizeChange
+                        )
+                    )
+                    .Else(reg => reg
+                        .WithReservedBits(16, 5)
+                    )
                 .WithTag("SPI_FRF", 21, 2)
                 .WithReservedBits(23, 1)
                 .WithTaggedFlag("SSTE", 24)
@@ -196,8 +207,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(16, 16)
             ;
 
-            Registers.TransmitTreshold.Define(this)
-                .WithValueField(0, 8, name: "TFT",
+            var transmitThresholdBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)transmitDepth));
+            Registers.TransmitThreshold.Define(this)
+                .WithValueField(0, transmitThresholdBits, name: "TFT",
                     writeCallback: (_, val) =>
                     {
                         if(val <= transmitDepth)
@@ -211,11 +223,12 @@ namespace Antmicro.Renode.Peripherals.SPI
                     },
                     valueProviderCallback: _ => transmitThreshold
                 )
-                .WithReservedBits(8, 24)
+                .WithReservedBits(transmitTresholdBits, 32 - transmitTresholdBits)
             ;
 
-            Registers.ReceiveTreshold.Define(this)
-                .WithValueField(0, 8, name: "RFT",
+            var receiveThresholdBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)receiveDepth));
+            Registers.ReceiveThreshold.Define(this)
+                .WithValueField(0, receiveThresholdBits, name: "RFT",
                     writeCallback: (_, val) =>
                     {
                         if(val <= receiveDepth)
@@ -229,17 +242,19 @@ namespace Antmicro.Renode.Peripherals.SPI
                     },
                     valueProviderCallback: _ => receiveThreshold
                 )
-                .WithReservedBits(8, 24)
+                .WithReservedBits(receiveThresholdBits, 32 - receiveThresholdBits)
             ;
 
+            var transmitLeveldBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)transmitDepth + 1));
             Registers.TransmitLevel.Define(this)
-                .WithValueField(0, 3, FieldMode.Read, valueProviderCallback: _ => (uint)transmitBuffer.Count, name: "TXFLR")
-                .WithReservedBits(3, 29)
+                .WithValueField(0, transmitLeveldBits, FieldMode.Read, valueProviderCallback: _ => (uint)transmitBuffer.Count, name: "TXFLR")
+                .WithReservedBits(transmitLeveldBits, 32 - transmitLeveldBits)
             ;
 
+            var receiveLevelBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)receiveDepth + 1));
             Registers.ReceiveLevel.Define(this)
-                .WithValueField(0, 3, FieldMode.Read, valueProviderCallback: _ => (uint)receiveBuffer.Count, name: "RXFLR")
-                .WithReservedBits(3, 29)
+                .WithValueField(0, receiveLevelBits, FieldMode.Read, valueProviderCallback: _ => (uint)receiveBuffer.Count, name: "RXFLR")
+                .WithReservedBits(receiveLevelBits, 32 - receiveLevelBits)
             ;
 
             Registers.Status.Define(this)
@@ -350,13 +365,13 @@ namespace Antmicro.Renode.Peripherals.SPI
             ;
 
             Registers.DmaTransmitData.Define(this)
-                .WithTag("DMATDL", 0, 4)
-                .WithReservedBits(4, 28)
+                .WithTag("DMATDL", 0, receiveThresholdBits)
+                .WithReservedBits(receiveThresholdBits, 32 - receiveThresholdBits)
             ;
 
             Registers.DmaReceiveData.Define(this)
-                .WithTag("DMARDL", 0, 4)
-                .WithReservedBits(4, 28)
+                .WithTag("DMARDL", 0, receiveThresholdBits)
+                .WithReservedBits(receiveThresholdBits, 32 - receiveThresholdBits)
             ;
 
             Registers.DeviceIdentificationCode.Define(this)
@@ -368,7 +383,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             ;
 
             Registers.Data.DefineMany(this, NumberOfDataRegisters, (reg, i) => reg
-                .WithValueField(0, 16, name: "DR",
+                .WithValueField(0, maxTransferSize, name: "DR",
                     valueProviderCallback: _ =>
                     {
                         if(!enabled.Value)
@@ -393,10 +408,10 @@ namespace Antmicro.Renode.Peripherals.SPI
                             return;
                         }
 
-                        EnqueueToTransmitBuffer((ushort)val);
+                        EnqueueToTransmitBuffer((uint)val);
                     }
                 )
-                .WithReservedBits(16, 16)
+                .WithReservedBits(maxTransferSize, 32 - maxTransferSize)
             );
 
             Registers.ReceiveSampleDelay.Define(this)
@@ -418,6 +433,29 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             this.Log(LogLevel.Noisy, "Setting IRQ to {0}", value);
             IRQ.Set(value);
+        }
+
+        private void HandleDataFrameSizeChange(ulong previousValue, ulong newValue)
+        {
+            switch(newValue)
+            {
+            case 0x0:
+            case 0x1:
+            case 0x2:
+                this.WarningLog("Attempted write with illegal value (0x{0:X}), ignoring", newValue);
+                dataFrameSize.Value = previousValue;
+                break;
+            case 0x7:
+            case 0xf:
+            case 0x1f:
+                FrameSize = (TransferSize)((newValue + 1) >> 3);
+                break;
+            default:
+                this.Log(LogLevel.Error, "Only 8/16/32-bit transfers are supported, falling back to the default 8-bit mode");
+                FrameSize = TransferSize.SingleByte;
+                dataFrameSize.Value = 7;
+                break;
+            }
         }
 
         private bool TrySendData(int slaveAddress)
@@ -460,6 +498,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 // data bytes
                 DoTransfer(peripheral, bytesFromFrames, readFromFifo: false, writeToFifo: true);
                 break;
+            default:
+                throw new UnreachableException();
             }
 
             return true;
@@ -470,24 +510,16 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.Log(LogLevel.Noisy, "Doing an SPI transfer of size {0} bytes (reading from fifo: {1}, writing to fifo: {2})", size, readFromFifo, writeToFifo);
             for(var i = 0; i < size; i++)
             {
-                ushort dataFromSlave = 0;
-                var dataToSlave = readFromFifo ? transmitBuffer.Dequeue() : (ushort)0;
-                switch(FrameSize)
-                {
-                case TransferSize.SingleByte:
-                    dataFromSlave = peripheral.Transmit((byte)dataToSlave);
-                    break;
+                var dataFromSlave = 0U;
+                var dataToSlave = readFromFifo ? transmitBuffer.Dequeue() : 0U;
 
-                case TransferSize.DoubleByte:
+                var bytes = (int)FrameSize;
+                var bytesToSlave = new byte[bytes];
+                BitHelper.GetBytesFromValue(bytesToSlave, 0, dataToSlave, bytes);
+                for(var n = bytes - 1; n >= 0; --n)
                 {
-                    var responseHigh = peripheral.Transmit((byte)(dataToSlave >> 8));
-                    var responseLow = peripheral.Transmit((byte)dataToSlave);
-                    dataFromSlave = (ushort)((responseHigh << 8) | responseLow);
-                    break;
-                }
-
-                default:
-                    throw new ArgumentException($"Unexpected transfer size {FrameSize}");
+                    dataFromSlave <<= 8;
+                    dataFromSlave |= peripheral.Transmit(bytesToSlave[n]);
                 }
 
                 this.Log(LogLevel.Noisy, "Sent 0x{0:X}, received 0x{1:X}", dataToSlave, dataFromSlave);
@@ -509,7 +541,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void EnqueueToTransmitBuffer(ushort val)
+        private void EnqueueToTransmitBuffer(uint val)
         {
             if(transmitBuffer.Count == transmitDepth)
             {
@@ -590,18 +622,21 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly uint receiveDepth;
         private readonly uint idCode;
         private readonly uint componentVersion;
+        private readonly int maxTransferSize;
 
-        // a single frame can have up to 16-bits
-        private readonly Queue<ushort> receiveBuffer;
-        private readonly Queue<ushort> transmitBuffer;
+        // a single frame can have up to 32-bits
+        private readonly Queue<uint> receiveBuffer;
+        private readonly Queue<uint> transmitBuffer;
         private readonly object innerLock = new object();
 
         private const int NumberOfDataRegisters = 36;
+        private const int MaxFifoDepth = (1 << 16) - 1;
 
         public enum TransferSize
         {
-            SingleByte = 0,
-            DoubleByte = 1
+            SingleByte = 1,
+            DoubleByte = 2,
+            QuadByte = 4,
         }
 
         private enum TransferMode
@@ -628,8 +663,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             MicrowireControl = 0xC,
             SlaveSelect = 0x10,
             ClockDivider = 0x14,
-            TransmitTreshold = 0x18,
-            ReceiveTreshold = 0x1C,
+            TransmitThreshold = 0x18,
+            ReceiveThreshold = 0x1C,
             TransmitLevel = 0x20,
             ReceiveLevel = 0x24,
             Status = 0x28,
