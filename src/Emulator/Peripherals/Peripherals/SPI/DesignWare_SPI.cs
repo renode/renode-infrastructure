@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public long Size => 0x400;
 
-        public GPIO IRQ { get; private set; } = new GPIO();
+        public GPIO IRQ { get; } = new GPIO();
 
         public TransferSize FrameSize { get; private set; }
 
