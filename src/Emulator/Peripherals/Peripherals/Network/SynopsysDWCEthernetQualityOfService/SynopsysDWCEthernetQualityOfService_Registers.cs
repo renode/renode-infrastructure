@@ -1670,7 +1670,7 @@ namespace Antmicro.Renode.Peripherals.Network
 
         public enum RegisterSourceAddressOperation : byte
         {
-            MACAddressRegisterReserved0 = 0b000,
+            MACAddressFromInputSignals  = 0b000,
             MACAddressRegisterReserved1 = 0b001,
             MACAddressRegister0Insert   = 0b010,
             MACAddressRegister0Replace  = 0b011,

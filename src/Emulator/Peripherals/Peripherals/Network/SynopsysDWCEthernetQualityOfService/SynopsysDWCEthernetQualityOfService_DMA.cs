@@ -792,6 +792,16 @@ namespace Antmicro.Renode.Peripherals.Network
                             case RegisterSourceAddressOperation.MACAddressRegister1Replace:
                                 sourceAddress = parent.MAC1;
                                 break;
+                            case RegisterSourceAddressOperation.MACAddressFromInputSignals:
+                                if(!parent.externalMacAddress.HasValue)
+                                {
+                                    this.Log(LogLevel.Warning, "Attempted to use external MAC address, but no address was provied");
+                                }
+                                else
+                                {
+                                    sourceAddress = parent.externalMacAddress;
+                                }
+                                break;
                             default:
                                 this.Log(LogLevel.Error, "Using a reserved value in ETH_MACCR.SARC register.");
                                 break;
