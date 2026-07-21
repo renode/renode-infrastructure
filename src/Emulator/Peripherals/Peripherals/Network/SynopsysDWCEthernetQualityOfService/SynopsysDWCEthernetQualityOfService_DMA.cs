@@ -133,6 +133,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     {(long)RegistersDMAChannel.TxDescriptorListAddress  + offset, new DoubleWordRegister(parent)
                         .WithValueField(0, 32, out txDescriptorRingStart, writeCallback: (_, __) =>
                         {
+                            txDescriptorRingStart.Value &= DMAAddressMask;
                             txDescriptorRingCurrent.Value = txDescriptorRingStart.Value;
                         },
                         name: "DMACTxDLAR.TDESLA (Start of Transmit List)")
@@ -140,6 +141,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     {(long)RegistersDMAChannel.RxDescriptorListAddress + offset, new DoubleWordRegister(parent)
                         .WithValueField(0, 32, out rxDescriptorRingStart, writeCallback: (_, __) =>
                         {
+                            rxDescriptorRingStart.Value &= DMAAddressMask;
                             rxDescriptorRingCurrent.Value = rxDescriptorRingStart.Value;
                         },
                         name: "DMACRxDLAR.RDESLA (Start of Receive List)")
@@ -147,6 +149,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     {(long)RegistersDMAChannel.TxDescriptorTailPointer + offset, new DoubleWordRegister(parent)
                         .WithValueField(0, 32, out txDescriptorRingTail, writeCallback: (previousValue, _) =>
                         {
+                            txDescriptorRingTail.Value &= DMAAddressMask;
                             var clearTxFinishedRing = txDescriptorRingTail.Value != txDescriptorRingCurrent.Value;
                             if((txState & DMAState.Suspended) != 0 || clearTxFinishedRing)
                             {
@@ -159,6 +162,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     {(long)RegistersDMAChannel.RxDescriptorTailPointer + offset, new DoubleWordRegister(parent)
                         .WithValueField(0, 32, out rxDescriptorRingTail, writeCallback: (previousValue, _) =>
                         {
+                            rxDescriptorRingTail.Value &= DMAAddressMask;
                             var clearRxFinishedRing = rxDescriptorRingTail.Value != rxDescriptorRingCurrent.Value;
                             if((rxState & DMAState.Suspended) != 0 || clearRxFinishedRing)
                             {
@@ -988,6 +992,14 @@ namespace Antmicro.Renode.Peripherals.Network
             private ulong TxProgrammableBurstLength => txProgrammableBurstLength.Value * ProgrammableBurstLengthMultiplier;
 
             private ulong RxProgrammableBurstLength => rxProgrammableBurstLength.Value * ProgrammableBurstLengthMultiplier;
+
+            private ulong DMAAddressMask => parent.DMABusWidth switch
+            {
+                BusWidth.Bits32 => ~(ulong)0b111,
+                BusWidth.Bits64 => ~(ulong)0b1111,
+                BusWidth.Bits128 => ~(ulong)0b11111,
+                _ => throw new NotImplementedException()
+            };
 
             private IValueRegisterField maximumSegmentSize;
             private IFlagRegisterField programmableBurstLengthTimes8;
