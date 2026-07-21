@@ -180,6 +180,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        public void SetPendingSynchronousFault(int number)
+        {
+            lock(irqs)
+            {
+                this.NoisyLog("Synchronous fault {0}.", ExceptionToString(number));
+                SetPending(number, synchronous: true);
+                FindPendingInterrupt();
+            }
+        }
+
         public void CompleteIRQ(int number)
         {
             lock(irqs)
@@ -307,6 +317,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 // Key is OK, allow access to go through
                 goto default;
             case Registers.ConfigurableFaultStatus:
+                if(!CanAccessNonBankedFaultState(isSecure))
+                {
+                    value &= ~BusFaultStatusMask;
+                }
                 if(isSecure || !cpu.TrustZoneEnabled)
                 {
                     cpu.FaultStatus &= ~value;
@@ -525,11 +539,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case Registers.SystemHandlerPriority3:
                 return HandlePriorityRead(offset - 0xD14, false, isSecure);
             case Registers.ConfigurableFaultStatus:
-                return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FaultStatus, () => cpu.FaultStatusNonSecure);
+                var faultStatus = GetTrustZoneBankedRegisterValue(isSecure, () => cpu.FaultStatus, () => cpu.FaultStatusNonSecure);
+                return CanAccessNonBankedFaultState(isSecure) ? faultStatus : faultStatus & ~BusFaultStatusMask;
             case Registers.InterruptControllerType:
                 return 0b0111;
             case Registers.MemoryFaultAddress:
                 return GetTrustZoneBankedRegisterValue(isSecure, () => cpu.MemoryFaultAddress, () => cpu.MemoryFaultAddressNonSecure);
+            case Registers.BusFaultAddress:
+                return CanAccessNonBankedFaultState(isSecure) ? cpu.BusFaultAddress : 0;
             default:
                 lock(RegisterCollection)
                 {
@@ -568,6 +585,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             canResetOnlyFromSecure = false;
             deepSleepOnlyFromSecure = false;
             binaryPointPosition.Reset();
+            hardFaultForced = false;
         }
 
         [ConnectionRegion("NonSecure")]
@@ -1355,7 +1373,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(0, 1)
                 .WithTaggedFlag("VECTTBL", 1)
                 .WithReservedBits(2, 28)
-                .WithTaggedFlag("FORCED", 30)
+                .WithFlag(30, FieldMode.Read | FieldMode.WriteOneToClear,
+                    writeCallback: (_, value) =>
+                    {
+                        if(value && CanAccessNonBankedFaultState(isNextAccessSecure))
+                        {
+                            hardFaultForced = false;
+                        }
+                    },
+                    valueProviderCallback: _ => CanAccessNonBankedFaultState(isNextAccessSecure) && hardFaultForced,
+                    name: "FORCED")
                 .WithTaggedFlag("DEBUGEVT", 31);
 
             Registers.CacheSizeSelection.Define(RegisterCollection)
@@ -1856,10 +1883,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        private void SetPending(int i)
+        private void SetPending(int i, bool synchronous = false)
         {
             this.DebugLog("Set pending IRQ {0}.", ExceptionToString(i));
-            i = EscalateToHardFault(i);
+            i = EscalateToHardFault(i, synchronous);
             var before = irqs[i];
             irqs[i] |= IRQState.Pending;
             pendingIRQs.Add(i);
@@ -1879,16 +1906,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         /// Returns type of the interrupt.
         /// It can be one of the following: Secure HardFault, Non-secure HardFault or the original interruptNo if the escalation didn't happen.
         ///
-        /// Only escalates in case that interrupt is disabled. We don't implement escalation related to interrupt priority yet.
+        /// Synchronous faults are also escalated when their priority or the current masks prevent them from becoming active.
         /// </summary>
-        private int EscalateToHardFault(int interruptNo)
+        private int EscalateToHardFault(int interruptNo, bool synchronous)
         {
-            if(!interruptEnabled.TryGetValue((SystemException)interruptNo, out var isEnabled) || isEnabled)
+            // Rules RGNVS and RTKCW (Armv8-M ARM): synchronous exceptions that cannot
+            // become active immediately, and disabled configurable-priority faults, escalate to HardFault.
+            // TODO: RGNVS also requires Lockup if the resulting HardFault cannot be taken.
+            var isAlwaysEnabled = !interruptEnabled.TryGetValue((SystemException)interruptNo, out var isEnabled);
+            if((isAlwaysEnabled || isEnabled) && (!synchronous || CanSynchronousExceptionBecomeActive(interruptNo)))
             {
                 return interruptNo; /* Interrupt is enabled or is always enabled (not in dictionary), don't escalate to HardFault */
             }
 
             this.DebugLog("Escalating IRQ {0} to HardFault.", ExceptionToString(interruptNo));
+            // Rule RDQRR: escalation records HFSR.FORCED while retaining the
+            // original fault's return-address behavior.
+            hardFaultForced = true;
             if(IsInterruptTargetNonSecure(interruptNo))
             {
                 return (int)SystemException.HardFault;
@@ -1900,6 +1934,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return (int)SystemException.HardFault_S;
             }
             return (int)SystemException.HardFault;
+        }
+
+        private bool CanSynchronousExceptionBecomeActive(int interruptNo)
+        {
+            if(!IsCandidate(irqs[interruptNo] | IRQState.Pending, interruptNo) || !ShouldRaiseException(interruptNo))
+            {
+                return false;
+            }
+
+            if(activeIRQs.Count == 0)
+            {
+                return true;
+            }
+
+            var activeInterrupt = activeIRQs.Peek();
+            return DoesAPreemptB(AdjustPriority(interruptNo), AdjustPriority(activeInterrupt),
+                !IsInterruptTargetNonSecure(interruptNo), !IsInterruptTargetNonSecure(activeInterrupt));
         }
 
         private void ClearPending(int i)
@@ -2063,6 +2114,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private int AdjustPriority(int interruptNo)
         {
+            // Rule RCMTC (Armv8-M ARM) defines these fixed priorities. HardFault_S exists only when BFHFNMINS is set.
+            switch((SystemException)interruptNo)
+            {
+            case SystemException.Reset:
+                return -4;
+            case SystemException.HardFault_S:
+                return -3;
+            case SystemException.NMI:
+                return -2;
+            case SystemException.HardFault:
+                return -1;
+            }
+
             byte priority = priorities[interruptNo];
             if(!prioritizeSecureInterrupts)
             {
@@ -2106,6 +2170,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return targetInterruptSecurityState[interruptNo] == InterruptTargetSecurityState.NonSecure;
         }
 
+        private bool CanAccessNonBankedFaultState(bool isSecure)
+        {
+            // Rules IHGFM and ILRNV (Armv8-M ARM):
+            // BFHFNMINS selects the BusFault target state, and BFAR_NS reads as
+            // zero while BusFault targets Secure state. BFSR follows the same
+            // Non-secure RAZ/WI rule (BFSR register description in D1.2).
+            return !cpu.TrustZoneEnabled || isSecure || IsInterruptTargetNonSecure((int)SystemException.BusFault);
+        }
+
         private bool IsCandidate(IRQState state, int index)
         {
             const IRQState mask = IRQState.Pending | IRQState.Enabled | IRQState.Active;
@@ -2117,6 +2190,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private bool DoesAPreemptB(int priorityA, int priorityB, bool secureA, bool secureB)
         {
+            // Reset, NMI, and HardFault have fixed negative priorities and are
+            // not affected by priority grouping (see E2.1.120 ExceptionPriority pseudocode)
+            if(priorityA < 0 || priorityB < 0)
+            {
+                return priorityA < priorityB;
+            }
+
             var binaryPointMaskA = ~((1 << binaryPointPosition.Get(secureA) + 1) - 1);
             var binaryPointMaskB = ~((1 << binaryPointPosition.Get(secureB) + 1) - 1);
             return (priorityA & binaryPointMaskA) < (priorityB & binaryPointMaskB);
@@ -2196,6 +2276,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private CortexM cpu;
 
         private bool maskedInterruptPresent;
+        private bool hardFaultForced;
         private MPUVersion mpuVersion;
         private bool prioritizeSecureInterrupts;
         private bool deepSleepOnlyFromSecure;
@@ -2239,6 +2320,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int ClearPendingEnd      = 0x2C0;
 
         private const int BankedExcpSecureBit  = 1 << 30;
+        private const uint BusFaultStatusMask  = 0xFF00;
         private const uint InterruptProgramStatusRegisterMask = 0x1FF;
         private const int IRQCount             = 512 + 16 + 1;
         private const int ClearPendingStart    = 0x280;

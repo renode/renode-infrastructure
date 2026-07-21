@@ -1418,8 +1418,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected virtual void HandleBusAccessError(ulong address, SysbusAccessWidth width, BusAccess.Operation operation, BusAccessError error)
         {
-            this.Log(LogLevel.Warning, "This CPU does not support handling bus access errors; ignoring {0} on a {1} access of width {2} at 0x{3:X}.",
-                error, operation, width, address);
+            this.WarningLog("This CPU does not support handling bus access errors, ignoring {0} on a {1} access of width {2} at 0x{3:X}.", error, operation, width, address);
         }
 
         protected ulong ReadByteFromBus(ulong offset)

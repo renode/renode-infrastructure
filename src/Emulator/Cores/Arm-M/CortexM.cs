@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Utilities.Binding;
 
@@ -717,6 +718,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public UInt32 BusFaultAddress
+        {
+            get
+            {
+                return tlibGetBusFaultAddress();
+            }
+        }
+
         public UInt32 PmsaV8RbarAlias2
         {
             get
@@ -887,6 +896,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 InitPCAndSP();
             }
             base.OnResume();
+        }
+
+        protected override void HandleBusAccessError(ulong address, SysbusAccessWidth width, BusAccess.Operation operation, BusAccessError error)
+        {
+            tlibRaisePreciseBusFault(checked((uint)address));
         }
 
         protected override UInt32 BeforePCWrite(UInt32 value)
@@ -1091,6 +1105,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             nvic.SetPendingIRQ(number);
         }
 
+        [Export]
+        private void SetPendingSynchronousFault(int number)
+        {
+            nvic.SetPendingSynchronousFault(number);
+        }
+
         private void SetTrustZoneRelatedRegister(string registerName, Action<uint> setter, uint value)
         {
             if(!TrustZoneEnabled)
@@ -1223,6 +1243,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Func<uint, uint> tlibGetMemoryFaultAddress;
+
+        [Import]
+        private readonly Func<uint> tlibGetBusFaultAddress;
+
+        [Import]
+        private readonly Action<uint> tlibRaisePreciseBusFault;
 
         [Import]
         private readonly Func<uint> tlibGetSecureFaultAddress;
