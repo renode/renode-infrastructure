@@ -357,23 +357,13 @@ namespace Antmicro.Renode.Peripherals.Analog
                 return;
             }
 
-            Func<bool> iterationFinished = null;
-            if(hasChannelSelect)
-            {
-                iterationFinished = () => currentChannel >= ADCChannelCount || currentChannel < 0;
-            }
-            else
-            {
-                iterationFinished = () => sequenceCounter > (int)regularSequenceLength.Value || sequenceCounter < 0 || currentChannel < 0;
-            }
-
             // Skip disabled channels
-            while(hasChannelSelect && !iterationFinished() && !channelSelected[currentChannel])
+            while(hasChannelSelect && sequenceInProgress && !channelSelected[currentChannel])
             {
                 SwitchToNextChannel();
             }
 
-            if(!iterationFinished())
+            if(sequenceInProgress)
             {
                 uint sample = GetSampleFromChannel(currentChannel);
                 if(!adcOverrunFlag.Value || overrunMode.Value)
@@ -402,20 +392,11 @@ namespace Antmicro.Renode.Peripherals.Analog
                 SwitchToNextChannel();
             }
 
-            var didIterationFinish = iterationFinished();
-            if(didIterationFinish)
-            {
-                this.Log(LogLevel.Debug, "No more channels enabled");
-                endOfSequenceFlag.Value = true;
-                sequenceInProgress = false;
-                sequenceCounter = 0;
-                startFlag.Value = false;
-            }
             if(dmaEnabled.Value && !adcOverrunFlag.Value)
             {
                 SendDmaRequest();
             }
-            if(didIterationFinish && awaitingConversion)
+            if(!sequenceInProgress && awaitingConversion)
             {
                 awaitingConversion = false;
                 StartSampling();
@@ -461,9 +442,12 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private void SwitchToNextChannel()
         {
+            bool iterationFinished;
             if(hasChannelSelect)
             {
                 currentChannel = (scanDirection.Value == ScanDirection.Ascending) ? currentChannel + 1 : currentChannel - 1;
+
+                iterationFinished = currentChannel >= ADCChannelCount || currentChannel < 0;
             }
             else
             {
@@ -472,6 +456,17 @@ namespace Antmicro.Renode.Peripherals.Analog
                 {
                     currentChannel = (int)regularSequence[sequenceCounter].Value;
                 }
+
+                iterationFinished = sequenceCounter > (int)regularSequenceLength.Value || sequenceCounter < 0 || currentChannel < 0;
+            }
+
+            if(iterationFinished)
+            {
+                this.Log(LogLevel.Debug, "No more channels enabled");
+                endOfSequenceFlag.Value = true;
+                sequenceCounter = 0;
+                startFlag.Value = false;
+                sequenceInProgress = false;
             }
         }
 
