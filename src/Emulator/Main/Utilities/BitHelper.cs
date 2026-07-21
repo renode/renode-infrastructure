@@ -770,6 +770,21 @@ namespace Antmicro.Renode.Utilities
             return (bitsCount - 1) / BitsPerByte + 1;
         }
 
+        public static uint[] ToUInt32Array(byte[] data, bool littleEndian)
+        {
+            var res = new uint[(data.Length + 3) / 4];
+            for(var idx = 0; idx < data.Length / 4; idx += 1)
+            {
+                res[idx] = ToUInt32(data, idx * 4, 4, littleEndian);
+            }
+            // Handle partial value
+            if(data.Length % 4 != 0)
+            {
+                res[^1] = ToUInt32(data, data.Length & ~3, data.Length % 4, littleEndian);
+            }
+            return res;
+        }
+
         public const int BitsPerByte = 8;
 
         private static void AssertMaskParameters(int width, int position, int maxWidth)
