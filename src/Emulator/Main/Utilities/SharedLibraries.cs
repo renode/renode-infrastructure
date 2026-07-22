@@ -129,8 +129,15 @@ namespace Antmicro.Renode.Utilities
             }
             using(var elf = ELFUtils.LoadELF(path))
             {
-                var symtab = (ISymbolTable)elf.GetSection(".symtab");
-                return symtab.Entries.Select(x => x.Name);
+                // .symtab is removed when the library is stripped. To support this,
+                // .dynsym, which contains the subset of symbols from .symtab needed
+                // to support dynamic linking, can be used as a fallback.
+                if(elf.TryGetSection(".symtab", out var symtabSection))
+                {
+                    return ((ISymbolTable)symtabSection).Entries.Select(x => x.Name);
+                }
+                var dynsym = (ISymbolTable)elf.GetSection(".dynsym");
+                return dynsym.Entries.Select(x => x.Name);
             }
         }
 
