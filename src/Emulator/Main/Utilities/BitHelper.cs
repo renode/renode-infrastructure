@@ -650,6 +650,31 @@ namespace Antmicro.Renode.Utilities
             return value;
         }
 
+        public static uint SignTruncate(int value, int size)
+        {
+            return (uint)value & (size == 32 ? uint.MaxValue : (1u << size) - 1u);
+        }
+
+        public static ulong SignTruncate(long value, int size)
+        {
+            return (ulong)value & (size == 64 ? ulong.MaxValue : (1ul << size) - 1ul);
+        }
+
+        public static long MinSignedValue(int size)
+        {
+            return -(1L << (size - 1));
+        }
+
+        public static long MaxSignedValue(int size)
+        {
+            return (1L << (size - 1)) - 1;
+        }
+
+        public static ulong MaxUnsignedValue(int size)
+        {
+            return size == 64 ? ulong.MaxValue : (1UL << size) - 1;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint CalculateMask(int width, int position)
         {
