@@ -31,9 +31,10 @@ namespace Antmicro.Renode.Peripherals.CAN
             switch(series)
             {
             case STM32Series.L5:
+            case STM32Series.H5:
                 break;
             default:
-                throw new ConstructionException($"FDCAN model currently only supports the L5 series variant, {series} provided");
+                throw new ConstructionException($"FDCAN model currently only supports the L5 and H5 series variants, {series} provided");
             }
             this.messageRam = messageRam;
             Int0 = new GPIO();
