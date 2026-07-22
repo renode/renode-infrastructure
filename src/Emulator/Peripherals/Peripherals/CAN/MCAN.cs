@@ -898,8 +898,14 @@ namespace Antmicro.Renode.Peripherals.CAN
                     // matches the dedicated ID in ID1 (SFID1/EFID1). ID2 (SFID2/EFID2) holds
                     // the target Rx Buffer index in this mode, not a second ID, so it must
                     // not be handed to the range/dual/classic matcher.
+                    // For extended frames, the received ID is ANDed with the Extended ID
+                    // AND Mask (XIDAM) before the comparison, as acceptance filtering of
+                    // extended frames is always performed on the masked ID.
+                    var effectiveId = isExtended
+                        ? id & (uint)rv.ExtendedIdANDMask.ExtendedIDANDMask.Value
+                        : id;
                     match = filter.FilterElementConfiguration == FilterElementConfiguration.RxBufferOrDebugMessageOnMatch
-                        ? id == filter.ID1
+                        ? effectiveId == filter.ID1
                         : MatchFilterElement(isExtended, id, filter);
 
                     if(!match)
