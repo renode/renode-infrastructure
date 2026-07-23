@@ -416,10 +416,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             ;
 
             Registers.ReceiveFIFOThreshold.Define(this)
-                .WithValueField(0, 8, out rxFifoThreshold, name: "RX_TL")
-                .WithReservedBits(8, 24)
-                .WithChangeCallback((_, __) => UpdateInterrupts())
-                .WithWriteCallback((_, value) =>
+                .WithValueField(0, 8, out rxFifoThreshold, name: "RX_TL", writeCallback: (_, value) =>
                     {
                         if(value >= (ulong)rxFifoSize)
                         {
@@ -427,15 +424,13 @@ namespace Antmicro.Renode.Peripherals.I2C
                             rxFifoThreshold.Value = value % (ulong)rxFifoSize;
                             UpdateInterrupts();
                         }
-                    }
-                )
+                    })
+                .WithReservedBits(8, 24)
+                .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
 
             Registers.TransmitFIFOThreshold.Define(this)
-                .WithValueField(0, 8, out txFifoThreshold, name: "TX_TL")
-                .WithReservedBits(8, 24)
-                .WithChangeCallback((_, __) => UpdateInterrupts())
-                .WithWriteCallback((_, value) =>
+                .WithValueField(0, 8, out txFifoThreshold, name: "TX_TL", writeCallback: (_, value) =>
                     {
                         if(value >= (ulong)txFifoSize)
                         {
@@ -443,8 +438,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                             txFifoThreshold.Value = value % (ulong)txFifoSize;
                             UpdateInterrupts();
                         }
-                    }
-                )
+                    })
+                .WithReservedBits(8, 24)
+                .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
 
             Registers.ClearCombinedAndIndividualInterrupt.Define(this)
