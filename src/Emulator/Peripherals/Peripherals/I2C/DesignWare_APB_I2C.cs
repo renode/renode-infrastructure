@@ -30,11 +30,14 @@ namespace Antmicro.Renode.Peripherals.I2C
     /// </summary>
     public class DesignWare_APB_I2C : SimpleContainer<II2CPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IWordPeripheral, IBytePeripheral, IKnownSize
     {
-        public DesignWare_APB_I2C(IMachine machine, IGPIOReceiver dma = null, int rxFifoSize = 32, int txFifoSize = 32) : base(machine)
+        public DesignWare_APB_I2C(IMachine machine, IGPIOReceiver dma = null, int rxFifoSize = 32, int txFifoSize = 32, bool addEncodedParameters = false, SpeedMode maxSpeedMode = SpeedMode.HighSpeed, uint? componentVersion = null) : base(machine)
         {
             this.dma = dma;
+            this.maxSpeedMode = maxSpeedMode;
+            this.addEncodedParameters = addEncodedParameters;
             this.rxFifoSize = rxFifoSize;
             this.txFifoSize = txFifoSize;
+            this.componentVersion = componentVersion;
             txFifo = new Queue<byte>();
             transmission = new Queue<byte>();
             rxFifo = new Queue<(byte, bool)>();
@@ -743,6 +746,44 @@ namespace Antmicro.Renode.Peripherals.I2C
                 )
                 .WithReservedBits(8, 24)
             ;
+
+            Registers.RegisterTimeoutResetValue.Define(this, 0x0000008)
+                .WithValueField(0, 8, out resetTimeout, name: "REG_TIMEOUT_RST_rw", writeCallback: (prevValue, value) =>
+                {
+                    if(value < 4)
+                    {
+                        this.WarningLog("Attempted write with value lesser or equal to 4 to REG_TIMEOUT_RST_rw (0x{0:X}). Write ignored", value);
+                        resetTimeout.Value = prevValue;
+                    }
+                })
+                .WithReservedBits(8, 24)
+            ;
+
+            if(addEncodedParameters)
+            {
+                Registers.ComponentParameter1.Define(this)
+                    .WithValueField(0, 2, name: "APB_DATA_WIDTH", valueProviderCallback: _ => (ulong)AbpDataWidthMode)
+                    .WithValueField(2, 2, name: "MAX_SPEED_MODE", valueProviderCallback: _ => (ulong)maxSpeedMode)
+                    .WithFlag(4, name: "HC_COUNT_VALUES", valueProviderCallback: _ => AreCountValuesHardcoded)
+                    .WithFlag(5, name: "INTR_IO", valueProviderCallback: _ => AreINTsCombined)
+                    .WithFlag(6, name: "HAS_DMA", valueProviderCallback: _ => dma != null)
+                    .WithFlag(7, name: "ADD_ENCODED_PARAMS", valueProviderCallback: _ => addEncodedParameters)
+                    .WithValueField(8, 8, name: "RX_BUFFER_DEPTH", valueProviderCallback: _ => (ulong)rxFifoSize)
+                    .WithValueField(16, 8, name: "TX_BUFFER_DEPTH", valueProviderCallback: _ => (ulong)txFifoSize)
+                    .WithReservedBits(24, 8)
+                ;
+            }
+
+            if(componentVersion != null)
+            {
+                Registers.ComponentVersion.Define(this).
+                    WithValueField(0, 32, FieldMode.Read, name: "IC_COMP_VERSION", valueProviderCallback: (_) => (ulong)componentVersion)
+                ;
+            }
+
+            Registers.ComponentType.Define(this).
+                WithValueField(0, 32, FieldMode.Read, name: "IC_COMP_TYPE", valueProviderCallback: (_) => (ulong)ComponentType)
+            ;
         }
 
         private void UpdateInterrupts()
@@ -1028,12 +1069,22 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private bool TxEmpty => txFifo.Count <= (int)txFifoThreshold.Value;
 
+        private int AbpDataWidthMode =>
+            AbpDataWidth switch
+            {
+                32 => 0x2,
+                16 => 0x1,
+                8 => 0x0,
+                _ => 0x3
+            };
+
         private IFlagRegisterField masterEnabled;
         private IEnumRegisterField<SpeedMode> speedMode;
         private IFlagRegisterField use10BitSlaveAddressing;
         private IFlagRegisterField use10BitTargetAddressing;
         private IValueRegisterField targetAddress;
         private IValueRegisterField slaveAddress;
+        private IValueRegisterField resetTimeout;
         private IValueRegisterField standardSpeedClockHighCount;
         private IValueRegisterField standardSpeedClockLowCount;
         private IValueRegisterField fastSpeedClockHighCount;
@@ -1074,6 +1125,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte readData;
         private bool firstDataByte;
 
+        private readonly SpeedMode maxSpeedMode;
+        private readonly bool addEncodedParameters;
         private readonly List<int> pendingReadTransactions;
         private readonly int rxFifoSize;
         private readonly int txFifoSize;
@@ -1081,11 +1134,17 @@ namespace Antmicro.Renode.Peripherals.I2C
         private readonly Queue<byte> transmission;
         private readonly Queue<(byte, bool)> rxFifo;
         private readonly IGPIOReceiver dma;
+        private readonly uint? componentVersion;
 
+        private const bool AreCountValuesHardcoded = false;
+        private const bool AreINTsCombined = true;
         private const uint ClockHighMinCount = 6;
         private const uint StandardSpeedClockHighMaxCount = 65525;
         private const uint ClockLowMinCount = 8;
         private const uint MinSpikeLength = 1;
+        private const uint SynopsysIPNumber = 0x140;
+        private const uint ComponentType = (('D' << 24) | ('W' << 16) | SynopsysIPNumber);
+        private const int AbpDataWidth = 32;
         private const int DmaRxRequest = 6;
         private const int DmaTxRequest = 7;
 
@@ -1134,6 +1193,10 @@ namespace Antmicro.Renode.Peripherals.I2C
             HighSpeedSpikeSuppressionLimitSize = 0xA4,
             SCLTimeout = 0xAC,
             SDATimeout = 0xB0,
+            RegisterTimeoutResetValue = 0xF0,
+            ComponentParameter1 = 0xF4,
+            ComponentVersion = 0xF8,
+            ComponentType = 0xFC,
         }
 
         private enum SpeedMode
