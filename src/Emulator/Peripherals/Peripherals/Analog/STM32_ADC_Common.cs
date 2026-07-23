@@ -666,7 +666,6 @@ namespace Antmicro.Renode.Peripherals.Analog
                                 sequenceInProgress = false;
                             }
                         }, name: "ADSTP")
-                    .WithReservedBits(5, 11)
                     .WithFlag(28, out adcRegulatorEnable, name: "ADVREGEN")
                     .WithReservedBits(29, 2)
                     .WithTaggedFlag("ADCAL", 31);
@@ -674,6 +673,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(hasLinearityCalibration)
             {
                 controlRegister
+                    .WithReservedBits(5, 3)
+                    .WithFlags(8, 2, name: "BOOST")
+                    .WithReservedBits(10, 6)
                     .WithFlag(16, name: "ADCALLIN")
                     .WithReservedBits(17, 5)
                     .WithFlag(22, valueProviderCallback: _ => true, name: "LINCALRDYW1")
