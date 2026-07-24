@@ -69,6 +69,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             registers.Reset();
 
+            remainingBytes = 0;
             receiveFifo.Clear();
             transmitFifo.Clear();
             activeChipSelects.Clear();
@@ -138,7 +139,15 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithWriteCallback((_, __) => UpdateInterrupts());
 
             BaseRegisters.Control.Define(registers, name: "ECSPI_CONREG")
-                .WithFlag(0, out spiEnabled, name: "EN")
+                .WithFlag(0, out spiEnabled, name: "EN", changeCallback: (_, value) =>
+                {
+                    if(!value)
+                    {
+                        transmitFifo.Clear();
+                        receiveFifo.Clear();
+                        remainingBytes = 0;
+                    }
+                })
                 .WithFlag(1, name: "HT")
                 .WithFlag(2, name: "XCH", valueProviderCallback: (_) => false, writeCallback: (_, value) =>
                 {
@@ -227,25 +236,38 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithWriteCallback((_, __) => UpdateInterrupts());
         }
 
-        private void TransmitData(ISPIPeripheral peripheral)
+        private bool TransmitData(ISPIPeripheral peripheral)
         {
-            var burstBits = (uint)burstLength.Value + 1;
-            if(burstBits % 8 != 0)
+            if(remainingBytes == 0)
             {
-                this.Log(LogLevel.Warning, "Burst length of {0} bits is not byte-aligned", burstBits);
+                var burstBits = (uint)burstLength.Value + 1;
+                if(burstBits % 8 != 0)
+                {
+                    this.Log(LogLevel.Warning, "Burst length of {0} bits is not byte-aligned", burstBits);
+                }
+                remainingBytes = RoundUpDiv8(burstBits);
+                this.Log(LogLevel.Debug, "Starting burst of {0} byte(s); TX FIFO has {1} word(s)", remainingBytes, transmitFifo.Count);
             }
-            var remainingBytes = (int)RoundUpDiv8(burstBits);
-            this.Log(LogLevel.Noisy, "Starting burst of {0} byte(s); TX FIFO has {1} word(s)", remainingBytes, transmitFifo.Count);
+            else
+            {
+                this.Log(LogLevel.Debug, "Resuming burst, {0} byte(s) remaining; TX FIFO has {1} word(s)", remainingBytes, transmitFifo.Count);
+            }
 
             // The eCSPI shifts each FIFO word MSB-first. Burst data is right-justified across the words, so
             // when the burst isn't a multiple of 4 bytes the FIRST word is the partial one (carrying the
             // leading bytes in its low bytes); every following word holds a full 4 bytes.
             while(remainingBytes > 0)
             {
+                // Transfer stalled - waiting for FIFO
+                if(RxFifoFull || TxFifoEmpty)
+                {
+                    return false;
+                }
+
                 var wordBytes = (remainingBytes % 4 == 0) ? 4 : remainingBytes % 4;
-                var txWord = transmitFifo.Count > 0 ? transmitFifo.Dequeue() : 0;
+                var txWord = transmitFifo.Dequeue();
                 uint rxWord = 0;
-                for(var byteIndex = wordBytes - 1; byteIndex >= 0; byteIndex--)
+                for(var byteIndex = (int)wordBytes - 1; byteIndex >= 0; byteIndex--)
                 {
                     var txByte = (byte)(txWord >> (8 * byteIndex));
                     var rxByte = peripheral.Transmit(txByte);
@@ -255,6 +277,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 receiveFifo.Enqueue(rxWord);
                 remainingBytes -= wordBytes;
             }
+
+            // External CS: the controller only shifts data; FinishTransmission() runs when the GPIO line deasserts
+            if(!ExternalChipSelect)
+            {
+                peripheral.FinishTransmission();
+            }
+            return true;
         }
 
         private void TriggerSpiBurst()
@@ -273,30 +302,29 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return;
             }
 
-            // Chip-select boundaries depend on the CS source and SS_CTL waveform:
-            // External CS: the controller only shifts data; FinishTransmission() runs when the GPIO line deasserts
-            // Internal CS:
-            // - SingleBurst - one SPI burst per XCH/SMC trigger, sized by BURST_LENGTH (may consume several FIFO words when the length allows)
-            // - MultipleBurst - drain the TX FIFO in consecutive bursts; CS negates between bursts (each burst is still capped by BURST_LENGTH)
-            if(ExternalChipSelect)
-            {
-                TransmitData(peripheral);
-            }
-            else if(ssCtl.Value == SlaveSelectWaveform.MultipleBurst)
+            // SingleBurst - one SPI burst per XCH/SMC trigger, sized by BURST_LENGTH (may consume several FIFO words when the length allows)
+            // MultipleBurst - drain the TX FIFO in consecutive bursts; internal CS negates between bursts (each burst is still capped by BURST_LENGTH)
+            if(ssCtl.Value == SlaveSelectWaveform.MultipleBurst)
             {
                 while(transmitFifo.Count > 0)
                 {
-                    TransmitData(peripheral);
-                    peripheral.FinishTransmission();
+                    if(!TransmitData(peripheral))
+                    {
+                        break;
+                    }
                 }
             }
             else
             {
                 TransmitData(peripheral);
-                peripheral.FinishTransmission();
             }
 
-            transferCompletedInterruptStatus.Value = true;
+            if(remainingBytes == 0)
+            {
+                transferCompletedInterruptStatus.Value = true;
+            }
+
+            UpdateInterrupts();
         }
 
         private ISPIPeripheral GetSelectedPeripheral()
@@ -367,6 +395,8 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IValueRegisterField txThreshold;
         private IValueRegisterField rxThreshold;
         private IEnumRegisterField<SlaveSelectWaveform> ssCtl;
+
+        private uint remainingBytes;
 
         private readonly Queue<uint> receiveFifo = new Queue<uint>();
         private readonly Queue<uint> transmitFifo = new Queue<uint>();
