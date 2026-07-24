@@ -15,13 +15,25 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public class ZynqMP_DMA : BasicDoubleWordPeripheral, IKnownSize
+    public class ZynqMP_DMA : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
         public ZynqMP_DMA(IMachine machine, long numberOfChannels = 8) : base(machine)
         {
             NumberOfChannels = numberOfChannels;
             channels = Misc.Iterate(() => new Channel(this, machine)).Take((int)NumberOfChannels).ToArray();
+            Connections = channels
+                .Select((channel, index) => new { channel, index })
+                .ToDictionary(entry => entry.index, entry => (IGPIO)entry.channel.IRQ);
             Reset();
+        }
+
+        public override void Reset()
+        {
+            base.Reset();
+            foreach(var channel in channels)
+            {
+                channel.Reset();
+            }
         }
 
         public override uint ReadDoubleWord(long offset)
@@ -48,6 +60,8 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
 
         public long Size => ChannelSize * NumberOfChannels;
+
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         public long ChannelSize = 0x10000;
 
@@ -99,7 +113,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             public ulong From;
             public ulong To;
             public ulong Size;
-            public bool Int;
+            public bool SourceInterrupt;
+            public bool DestinationInterrupt;
             public Cmd Type;
         }
 
@@ -163,7 +178,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                         From = (ulong)srcDescriptor.AddressMSB << 8 * 4 | srcDescriptor.AddressLSB,
                         To = (ulong)dstDescriptor.AddressMSB << 8 * 4 | dstDescriptor.AddressLSB,
                         Size = srcDescriptor.Size,
-                        Int = srcDescriptor.INTR,
+                        SourceInterrupt = srcDescriptor.INTR,
+                        DestinationInterrupt = dstDescriptor.INTR,
                         Type = srcDescriptor.CMD,
                     };
                     nextSourceDescriptorAddress = (ulong)srcDescriptor.NextDescriptorAddrMSB << 32 | srcDescriptor.NextDescriptorAddrLSB;
@@ -175,6 +191,17 @@ namespace Antmicro.Renode.Peripherals.DMA
             public ZynqMP_DMA Parent { get; }
 
             public GPIO IRQ { get; } = new GPIO();
+
+            private static void IncrementInterruptAccounting(IValueRegisterField accounting, IFlagRegisterField overflow)
+            {
+                if(accounting.Value == MaximumInterruptAccountingValue)
+                {
+                    accounting.Value = 0;
+                    overflow.Value = true;
+                    return;
+                }
+                accounting.Value++;
+            }
 
             private void DefineRegisters()
             {
@@ -334,12 +361,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                 ;
 
                 Registers.CH_IRQ_SRC_ACCT.Define(this)
-                    .WithTag("CNT", 0, 8)
+                    .WithValueField(0, 8, out sourceInterruptAccounting, FieldMode.ReadToClear, name: "CNT")
                     .WithReservedBits(8, 24)
                 ;
 
                 Registers.CH_IRQ_DST_ACCT.Define(this)
-                    .WithTag("CNT", 0, 8)
+                    .WithValueField(0, 8, out destinationInterruptAccounting, FieldMode.ReadToClear, name: "CNT")
                     .WithReservedBits(8, 24)
                 ;
 
@@ -388,12 +415,15 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 totalByteCount.Value += (uint)descriptor.Size;
 
-                sourceDescriptorDone.Value = true;
-                destinationDescriptorDone.Value = true;
-
-                if(descriptor.Int)
+                if(descriptor.SourceInterrupt)
                 {
-                    dmaDone.Value = true;
+                    IncrementInterruptAccounting(sourceInterruptAccounting, sourceAccountingOverflow);
+                    sourceDescriptorDone.Value = true;
+                }
+                if(descriptor.DestinationInterrupt)
+                {
+                    IncrementInterruptAccounting(destinationInterruptAccounting, destinationAccountingOverflow);
+                    destinationDescriptorDone.Value = true;
                 }
 
                 UpdateInterrupts();
@@ -412,6 +442,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField isEnabled;
             private IFlagRegisterField pointType;
             private IValueRegisterField totalByteCount;
+            private IValueRegisterField sourceInterruptAccounting;
+            private IValueRegisterField destinationInterruptAccounting;
             private IFlagRegisterField invalidApbAccess;
             private IFlagRegisterField sourceDescriptorDone;
             private IFlagRegisterField destinationDescriptorDone;
@@ -436,6 +468,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField destinationDataWriteErrorMask;
             private IFlagRegisterField dmaDoneMask;
             private IFlagRegisterField dmaPauseMask;
+
+            private const byte MaximumInterruptAccountingValue = byte.MaxValue;
         }
 
         [LeastSignificantByteFirst]
