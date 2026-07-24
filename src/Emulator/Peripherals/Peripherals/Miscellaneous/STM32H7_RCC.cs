@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -90,6 +90,41 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lsion.Value, name: "LSIRDY")
                     .WithReservedBits(2, 30)
                 },
+                // Value for normal power-on reset
+                // These fields are defined in reverse order so that the change callback can access the variables
+                {(long)Registers.ResetStatus, new DoubleWordRegister(this, 0x00FE0000)
+                    .WithTaggedFlag("LPWR2RSTF", 31)
+                    .WithTaggedFlag("LPWR1RSTF", 30)
+                    .WithTaggedFlag("WWDG2RSTF", 29)
+                    .WithTaggedFlag("WWDG1RSTF", 28)
+                    .WithTaggedFlag("IWDG2RSTF", 27)
+                    .WithTaggedFlag("IWDG1RSTF", 26)
+                    .WithTaggedFlag("SFT2RSTF", 25)
+                    .WithTaggedFlag("SFT1RSTF", 24)
+                    .WithFlag(23, out var porPdrReset, FieldMode.Read, name: "PORRSTF")
+                    .WithFlag(22, out var pinReset, FieldMode.Read, name: "PINRSTF")
+                    .WithFlag(21, out var borReset, FieldMode.Read, name: "BORRSTF")
+                    .WithFlag(20, out var d2Reset, FieldMode.Read, name: "D2RSTF")
+                    .WithFlag(19, out var d1Reset, FieldMode.Read, name: "D1RSTF")
+                    .WithFlag(18, out var cpu2Reset, FieldMode.Read, name: "C2RSTF")
+                    .WithFlag(17, out var cpu1Reset, FieldMode.Read, name: "C1RSTF")
+                    // Writing to this flag clears the whole register
+                    .WithFlag(16, FieldMode.WriteOneToClear, writeCallback: (_, v) =>
+                    {
+                        if(!v)
+                        {
+                            return;
+                        }
+                        cpu1Reset.Value = false;
+                        cpu2Reset.Value = false;
+                        d1Reset.Value = false;
+                        d2Reset.Value = false;
+                        borReset.Value = false;
+                        pinReset.Value = false;
+                        porPdrReset.Value = false;
+                    }, name: "RMVF")
+                    .WithReservedBits(0, 16)
+                },
                 {(long)Registers.AHB4Enable, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0, name: "GPIOAEN")
                     .WithFlag(1, name: "GPIOBEN")
@@ -162,6 +197,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             // ...
             BackupDomainControl = 0x70,
             ClockControlAndStatus = 0x74,
+            // ...
+            ResetStatus = 0xD0,
             // ...
             AHB4Enable = 0xE0
         }
