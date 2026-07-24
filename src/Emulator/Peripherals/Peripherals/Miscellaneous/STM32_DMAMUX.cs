@@ -17,8 +17,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class STM32_DMAMUX : BasicDoubleWordPeripheral, IKnownSize, IGPIOReceiver, INumberedGPIOOutput, IDMA
     {
-        public STM32_DMAMUX(Machine machine, int numberOfOutputRequestChannels, int numberOfRequestGeneratorChannels) : base(machine)
+        public STM32_DMAMUX(Machine machine, int numberOfInputRequestChannels, int numberOfOutputRequestChannels, int numberOfRequestGeneratorChannels) : base(machine)
         {
+            nrOfInputRequestChannels = numberOfInputRequestChannels;
             nrOfOutputRequestChannels = numberOfOutputRequestChannels;
             nrOfRequestGeneratorChannels = numberOfRequestGeneratorChannels;
 
@@ -62,7 +63,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
-        public int NumberOfChannels { get => nrOfOutputRequestChannels; }
+        public int NumberOfChannels { get => nrOfInputRequestChannels; }
 
         private void DefineRegisters()
         {
@@ -112,6 +113,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private readonly IValueRegisterField[] requestId;
 
+        private readonly int nrOfInputRequestChannels;
         private readonly int nrOfOutputRequestChannels;
         private readonly int nrOfRequestGeneratorChannels;
 
