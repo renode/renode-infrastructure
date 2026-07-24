@@ -97,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(20, out continuingCommand, name: "CONTC - Continuing Command", valueProviderCallback: _ => currentCommand?.ContinuingCommand ?? false)
                 .WithFlag(21, out continuousTransfer, name: "CONT - Continuous Transfer", valueProviderCallback: _ => currentCommand?.Continuous ?? false)
                 .WithTaggedFlag("BYSW - Byte Swap", 22)
-                .WithTaggedFlag("LSBF - LSB First", 23)
+                .WithFlag(23, out lsbFirst, name: "LSBF - LSB First", valueProviderCallback: _ => currentCommand?.LsbFirst ?? false)
                 .WithValueField(24, 2, name: "PCS - Peripheral Chip Select", writeCallback: (_, value) =>
                 {
                     if(!TryGetByAddress((int)value, out selectedDevice))
@@ -119,7 +119,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                         TxMask = transmitDataMask.Value,
                         RxMask = receiveDataMask.Value,
                         Continuous = continuousTransfer.Value,
-                        ContinuingCommand = continuingCommand.Value
+                        ContinuingCommand = continuingCommand.Value,
+                        LsbFirst = lsbFirst.Value
                     });
                     UpdateTransmitter();
                 });
@@ -368,24 +369,36 @@ namespace Antmicro.Renode.Peripherals.SPI
                 dataMatcher.Match1 = (uint)match1.Value;
             }
 
-            // we can read up to 4 bytes at a time
-            var byteIdx = 0;
+            // We can transfer up to 4 bytes at a time.
+            var byteCount = (int)Math.Min(sizeLeft / 8, 4u);
             uint receivedWord = 0;
 
+            var lsbFirst = currentCommand.LsbFirst;
+
             this.Log(LogLevel.Debug, "Sending 0x{0:X} to the device", value);
-            while(sizeLeft != 0 && byteIdx < 4)
+            for(var i = 0; i < byteCount; i++)
             {
-                var resp = device.Transmit((byte)value);
+                var bytePos = lsbFirst ? i : byteCount - 1 - i;
 
-                receivedWord |= (uint)resp << (byteIdx * 8);
+                var txByte = (byte)(value >> (bytePos * 8));
+                if(lsbFirst)
+                {
+                    txByte = BitHelper.ReverseBits(txByte);
+                }
 
-                value >>= 8;
+                var resp = device.Transmit(txByte);
+                if(lsbFirst)
+                {
+                    resp = BitHelper.ReverseBits(resp);
+                }
+
+                receivedWord |= (uint)resp << (bytePos * 8);
+
                 sizeLeft -= 8;
-                byteIdx++;
             }
             this.Log(LogLevel.Debug, "Received response 0x{0:X} from the device", receivedWord);
 
-            if(!receiveDataMask.Value && dataMatcher.MatchAndPush(receiveFifo, receivedWord, byteIdx * 8, rxDataMatchOnly.Value))
+            if(!receiveDataMask.Value && dataMatcher.MatchAndPush(receiveFifo, receivedWord, byteCount * 8, rxDataMatchOnly.Value))
             {
                 dataMatch.Value = true;
             }
@@ -567,6 +580,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IValueRegisterField rxWatermark;
         private IFlagRegisterField continuingCommand;
         private IFlagRegisterField continuousTransfer;
+        private IFlagRegisterField lsbFirst;
         private IFlagRegisterField circularFifoEnabled;
 
         private IFlagRegisterField receiveDataInterruptEnable;
@@ -596,6 +610,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             public bool ContinuingCommand { get; set; }
 
             public bool ByteSwap { get; set; }
+
+            public bool LsbFirst { get; set; }
         }
 
         private class TCFifoData : TCFifoEntry
