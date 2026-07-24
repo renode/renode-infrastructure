@@ -21,6 +21,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         {
             NumberOfChannels = numberOfChannels;
             channels = Misc.Iterate(() => new Channel(this, machine)).Take((int)NumberOfChannels).ToArray();
+            dmaEngine = new DmaEngine(machine.GetSystemBus(this));
             Connections = channels
                 .Select((channel, index) => new { channel, index })
                 .ToDictionary(entry => entry.index, entry => (IGPIO)entry.channel.IRQ);
@@ -78,12 +79,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             return machine.GetSystemBus(this).ReadBytes(address, count, context: this);
         }
 
-        private void WriteBytes(byte[] data, ulong address)
-        {
-            machine.GetSystemBus(this).WriteBytes(data, address, context: this);
-        }
-
         private readonly Channel[] channels;
+        private readonly DmaEngine dmaEngine;
 
         public enum State
         {
@@ -410,8 +407,14 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private void Transfer(Descriptor descriptor)
             {
-                var data = Parent.ReadBytes(descriptor.From, (int)descriptor.Size);
-                Parent.WriteBytes(data, descriptor.To);
+                var request = new Request(
+                    descriptor.From,
+                    descriptor.To,
+                    (int)descriptor.Size,
+                    TransferType.Byte,
+                    TransferType.Byte
+                );
+                Parent.dmaEngine.IssueCopy(request, Parent);
 
                 totalByteCount.Value += (uint)descriptor.Size;
 
