@@ -437,6 +437,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             return pauseGuard.RequestTranslationBlockRestart(quiet);
         }
 
+        /// <summary>
+        /// Requests an abort of the currently executing instruction inside the
+        /// translation block. When <paramref name="excludeLastInstruction"/> is
+        /// true the CPU state is restored to the start of the faulting
+        /// instruction (PC points to it), modelling a synchronous precise fault
+        /// that can be retried.
+        /// </summary>
+        public void RequestTranslationBlockInterrupt(bool excludeLastInstruction)
+        {
+            TlibRequestTranslationBlockInterrupt(excludeLastInstruction ? 1 : 0);
+        }
+
         public uint AssembleBlock(ulong addr, string instructions, string triple = null, bool alternateDialect = false)
         {
             if(Assembler == null)
