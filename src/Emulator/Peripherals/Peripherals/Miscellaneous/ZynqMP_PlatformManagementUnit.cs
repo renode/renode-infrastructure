@@ -397,20 +397,33 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                 var response = IpiMessage.CreateSuccessResponse();
 
-                if(clock == Clock.Uart1Ref)
+                uint ctrlReg;
+                switch(clock)
                 {
-                    if(divider == ClockDivider.Div0)
-                    {
-                        response.Payload[0] = (CrlApbUart1RefCtrl >> ClockDivider0Shift) & ClockDividerMask;
-                    }
-                    else if(divider == ClockDivider.Div1)
-                    {
-                        response.Payload[0] = (CrlApbUart1RefCtrl >> ClockDivider1Shift) & ClockDividerMask;
-                    }
-                    else
-                    {
-                        return IpiMessage.CreateInvalidParamResponse();
-                    }
+                case Clock.Uart1Ref:
+                    ctrlReg = CrlApbUart1RefCtrl;
+                    break;
+                case Clock.I2C0Ref:
+                    ctrlReg = CrlApbI2CRefCtrl;
+                    break;
+                case Clock.I2C1Ref:
+                    ctrlReg = CrlApbI2CRefCtrl;
+                    break;
+                default:
+                    return response;
+                }
+
+                if(divider == ClockDivider.Div0)
+                {
+                    response.Payload[0] = (ctrlReg >> ClockDivider0Shift) & ClockDividerMask;
+                }
+                else if(divider == ClockDivider.Div1)
+                {
+                    response.Payload[0] = (ctrlReg >> ClockDivider1Shift) & ClockDividerMask;
+                }
+                else
+                {
+                    return IpiMessage.CreateInvalidParamResponse();
                 }
                 return response;
             }
@@ -495,12 +508,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             private const int ClockDivider0Shift = 8;
             private const int ClockDivider1Shift = 16;
             private const uint CrlApbUart1RefCtrl = 0x1001800;
+            // SRCSEL=0 (IOPLL), DIV1=0, DIV0=8, CLKACT=1 - same encoding/source
+            // as CrlApbUart1RefCtrl above, just a smaller divisor since cdns-i2c
+            // needs a higher reference clock than a UART baud generator to find
+            // a valid SCL divisor pair for both 100kHz and 400kHz targets
+            // (cdns_i2c_setclk rejects the "invalid SCL clock" if it can't find
+            // one). Not a real per-board register default (see pmu-firmware's
+            // psu_init, which programs the actual silicon value per board design
+            // and which Renode's ATF+U-Boot-only boot skips entirely) - just a
+            // plausible value verified empirically to let the driver probe.
+            private const uint CrlApbI2CRefCtrl = 0x1000800;
 
             // We only list clocks that we need.
             // This enum corresponds to XPmClock enum in PMU FW source code.
             private enum Clock
             {
-                Uart1Ref = 0x39
+                Uart1Ref = 0x39,
+                // Values match include/dt-bindings/clock/xlnx-zynqmp-clk.h in
+                // Linux (same enum space as PMUFW's XPmClock, by design - that's
+                // how the firmware clock provider binding works).
+                I2C0Ref = 0x3d,
+                I2C1Ref = 0x3e
             }
 
             private enum ClockDivider
