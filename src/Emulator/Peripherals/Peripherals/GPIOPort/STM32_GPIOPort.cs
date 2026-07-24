@@ -61,6 +61,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             mode = new Mode[NumberOfPins];
             outputSpeed = new OutputSpeed[NumberOfPins];
             pullUpPullDown = new PullUpPullDown[NumberOfPins];
+            outputLatch = new bool[NumberOfPins];
 
             this.modeResetValue = modeResetValue;
             this.outputSpeedResetValue = outputSpeedResetValue;
@@ -84,6 +85,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             lockedPins = 0;
             lockSequenceState = LockSequence.Idle;
+            Array.Clear(outputLatch, 0, outputLatch.Length);
 
             for(var i = 0; i < NumberOfPins; i++)
             {
@@ -127,12 +129,21 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             Connections[number].Set(value);
         }
 
-        private void WriteState(ushort value)
+        private void WriteOutputPin(int number, bool value)
+        {
+            outputLatch[number] = value;
+            if(mode[number] == Mode.Output)
+            {
+                WritePin(number, value);
+            }
+        }
+
+        private void WriteOutputState(ushort value)
         {
             for(var i = 0; i < NumberOfPins; i++)
             {
                 var state = ((value & 1u) == 1);
-                WritePin(i, state);
+                WriteOutputPin(i, state);
 
                 value >>= 1;
             }
@@ -142,6 +153,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             mode[number] = newMode;
             alternateFunctionOutputs[number].IsConnected = newMode == Mode.AlternateFunction;
+            if(newMode == Mode.Output)
+            {
+                WritePin(number, outputLatch[number]);
+            }
         }
 
         private void GuardPinAction(int number, string name, Action action)
@@ -197,16 +212,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.OutputData, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, writeCallback: (_, val) => WriteState((ushort)val), valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(State), name: "ODR")
+                    .WithValueField(0, 16, writeCallback: (_, val) => WriteOutputState((ushort)val), valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(outputLatch), name: "ODR")
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.BitSet, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Write,
-                        writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) | val)); },
-                        name: "GPIOx_BS")
                     .WithValueField(16, 16, FieldMode.Write,
-                        writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) & ~val)); },
+                        writeCallback: (_, val) => { if(val != 0) WriteOutputState((ushort)(BitHelper.GetValueFromBitsArray(outputLatch) & ~val)); },
                         name: "GPIOx_BR")
+                    .WithValueField(0, 16, FieldMode.Write,
+                        writeCallback: (_, val) => { if(val != 0) WriteOutputState((ushort)(BitHelper.GetValueFromBitsArray(outputLatch) | val)); },
+                        name: "GPIOx_BS")
                 },
                 { (long)Registers.ConfigurationLock, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out var pendingLockPins, name: "LCK",
@@ -278,7 +293,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 },
                 {(long)Registers.BitReset, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Write,
-                        writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(State) & ~val)); },
+                        writeCallback: (_, val) => { if(val != 0) WriteOutputState((ushort)(BitHelper.GetValueFromBitsArray(outputLatch) & ~val)); },
                         name: "GPIOx_BRR")
                     .WithReservedBits(16, 16)
                 },
@@ -292,6 +307,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private readonly Mode[] mode;
         private readonly OutputSpeed[] outputSpeed;
         private readonly PullUpPullDown[] pullUpPullDown;
+        private readonly bool[] outputLatch;
         private readonly HashSet<InvertedAFPin> invertedAFPins = new HashSet<InvertedAFPin>();
 
         private readonly uint modeResetValue;
