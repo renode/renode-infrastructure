@@ -43,9 +43,32 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         public override void Reset()
         {
             base.Reset();
+            UpdateClocks();
         }
 
         public long Size => 0x400;
+
+        // Clock propagation targets:
+        //   nvic   — HCLK, so SysTick (HAL_GetTick) follows the real clock tree
+        //   usart3 — PCLK1, for baud rate generation (wired in task 9.2 once STM32F7_USART
+        //            implements IHasFrequency; null until then — staged, not forgotten)
+        //
+        // Deliberately excluded:
+        //   IWDG — LSI-clocked at a fixed 32 kHz; its constructor frequency is already correct.
+
+        private static void TrySetFrequency(IHasFrequency peripheral, ulong frequency)
+        {
+            if(peripheral != null)
+            {
+                peripheral.Frequency = frequency;
+            }
+        }
+
+        private void UpdateClocks()
+        {
+            TrySetFrequency(nvic, HclkFrequency);
+            TrySetFrequency(usart3, Pclk1Frequency);
+        }
 
         private void DefineRegisters()
         {
@@ -60,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(0, out var hsiOn, name: "HSION")
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => hsiOn.Value, name: "HSIRDY")
                 .WithFlag(2, name: "HSIKERON")
-                .WithValueField(3, 2, name: "HSIDIV", writeCallback: (_, __) => { hsidivf.Value = true; })
+                .WithValueField(3, 2, out hsidiv, name: "HSIDIV", writeCallback: (_, __) => { hsidivf.Value = true; })
                 .WithFlag(5, out hsidivf, name: "HSIDIVF")
                 .WithReservedBits(6, 2)
                 .WithFlag(8, out var csiOn, name: "CSION")
@@ -82,7 +105,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(27, FieldMode.Read, valueProviderCallback: _ => pll2On.Value, name: "PLL2RDY")
                 .WithFlag(28, out var pll3On, name: "PLL3ON")
                 .WithFlag(29, FieldMode.Read, valueProviderCallback: _ => pll3On.Value, name: "PLL3RDY")
-                .WithReservedBits(30, 2);
+                .WithReservedBits(30, 2)
+                .WithChangeCallback((_, __) => UpdateClocks());
 
             Registers.HSICalibration.Define(this)
                 .WithTag("HSICFGR", 0, 32);
@@ -94,8 +118,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTag("CSICFGR", 0, 32);
 
             Registers.ClockConfiguration1.Define(this)
-                .WithValueField(0, 3, out var sw, name: "SW")
-                .WithValueField(3, 3, FieldMode.Read, valueProviderCallback: _ => sw.Value, name: "SWS")
+                .WithValueField(0, 3, out systemClockSwitch, name: "SW")
+                .WithValueField(3, 3, FieldMode.Read, valueProviderCallback: _ => systemClockSwitch.Value, name: "SWS")
                 .WithFlag(6, name: "STOPWUCK")
                 .WithFlag(7, name: "STOPKERWUCK")
                 .WithValueField(8, 6, name: "RTCPRE")
@@ -105,11 +129,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(18, 4, name: "MCO1PRE")
                 .WithValueField(22, 3, name: "MCO1")
                 .WithValueField(25, 4, name: "MCO2PRE")
-                .WithValueField(29, 3, name: "MCO2");
+                .WithValueField(29, 3, name: "MCO2")
+                .WithChangeCallback((_, __) => UpdateClocks());
 
             Registers.ClockConfiguration2.Define(this)
-                .WithValueField(0, 4, name: "HPRE")
-                .WithValueField(4, 3, name: "PPRE1")
+                .WithValueField(0, 4, out hpre, name: "HPRE")
+                .WithValueField(4, 3, out ppre1, name: "PPRE1")
                 .WithReservedBits(7, 1)
                 .WithValueField(8, 3, name: "PPRE2")
                 .WithReservedBits(11, 1)
@@ -122,20 +147,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(20, name: "APB1DIS")
                 .WithFlag(21, name: "APB2DIS")
                 .WithFlag(22, name: "APB3DIS")
-                .WithReservedBits(23, 9);
+                .WithReservedBits(23, 9)
+                .WithChangeCallback((_, __) => UpdateClocks());
 
             Registers.PLL1Configuration.Define(this)
-                .WithValueField(0, 2, name: "PLL1SRC")
+                .WithValueField(0, 2, out pll1Src, name: "PLL1SRC")
                 .WithValueField(2, 2, name: "PLL1RGE")
-                .WithFlag(4, name: "PLL1FRACEN")
+                .WithFlag(4, out pll1FracEn, name: "PLL1FRACEN")
                 .WithFlag(5, name: "PLL1VCOSEL")
                 .WithReservedBits(6, 2)
-                .WithValueField(8, 4, name: "PLL1M")
+                .WithValueField(8, 4, out pll1M, name: "PLL1M")
                 .WithReservedBits(12, 4)
                 .WithFlag(16, name: "PLL1PEN")
                 .WithFlag(17, name: "PLL1QEN")
                 .WithFlag(18, name: "PLL1REN")
-                .WithReservedBits(19, 13);
+                .WithReservedBits(19, 13)
+                .WithChangeCallback((_, __) => UpdateClocks());
 
             Registers.PLL2Configuration.Define(this)
                 .WithValueField(0, 2, name: "PLL2SRC")
@@ -164,17 +191,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(19, 13);
 
             Registers.PLL1Dividers.Define(this, 0x01010280)
-                .WithValueField(0, 9, name: "PLL1N")
-                .WithValueField(9, 7, name: "PLL1P")
+                .WithValueField(0, 9, out pll1N, name: "PLL1N")
+                .WithValueField(9, 7, out pll1P, name: "PLL1P")
                 .WithValueField(16, 7, name: "PLL1Q")
                 .WithReservedBits(23, 1)
                 .WithValueField(24, 7, name: "PLL1R")
-                .WithReservedBits(31, 1);
+                .WithReservedBits(31, 1)
+                .WithChangeCallback((_, __) => UpdateClocks());
 
             Registers.PLL1Fractional.Define(this)
                 .WithReservedBits(0, 3)
-                .WithValueField(3, 13, name: "PLL1FRACN")
-                .WithReservedBits(16, 16);
+                .WithValueField(3, 13, out pll1FracN, name: "PLL1FRACN")
+                .WithReservedBits(16, 16)
+                .WithChangeCallback((_, __) => UpdateClocks());
 
             Registers.PLL2Dividers.Define(this)
                 .WithValueField(0, 9, name: "PLL2N")
@@ -323,6 +352,73 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTag("PRIVCFGR", 0, 32);
         }
 
+        public ulong SysclkFrequency
+        {
+            get
+            {
+                switch((uint)systemClockSwitch.Value)
+                {
+                    case 0: // HSI
+                        return hsidivf.Value ? HsiFrequency >> (int)hsidiv.Value : HsiFrequency;
+                    case 1: // CSI
+                        return CsiFrequency;
+                    case 2: // HSE
+                        return hseFrequency;
+                    case 3: // PLL1P
+                        return ComputePll1PFrequency();
+                    default:
+                        return HsiFrequency;
+                }
+            }
+        }
+
+        public ulong HclkFrequency
+        {
+            get
+            {
+                return SysclkFrequency >> AHBPrescTable[(int)hpre.Value];
+            }
+        }
+
+        public ulong Pclk1Frequency
+        {
+            get
+            {
+                return HclkFrequency >> APBPrescTable[(int)ppre1.Value];
+            }
+        }
+
+        private ulong ComputePll1PFrequency()
+        {
+            var m = (uint)pll1M.Value;
+            if(m == 0)
+            {
+                return 0;
+            }
+
+            ulong source;
+            switch((uint)pll1Src.Value)
+            {
+                case 1: // HSI (after HSIDIV)
+                    source = hsidivf.Value ? HsiFrequency >> (int)hsidiv.Value : HsiFrequency;
+                    break;
+                case 2: // CSI
+                    source = CsiFrequency;
+                    break;
+                case 3: // HSE
+                    source = hseFrequency;
+                    break;
+                default: // 0 = no clock
+                    return 0;
+            }
+
+            var fracContribution = pll1FracEn.Value ? (ulong)pll1FracN.Value : 0UL;
+            var n = (ulong)pll1N.Value + (fracContribution * 1UL / 0x2000UL) + 1UL;
+            var p = (ulong)pll1P.Value + 1UL;
+
+            return (source / m) * n / p;
+        }
+
         private readonly IHasFrequency nvic;
         private readonly IHasFrequency usart3;
         private readonly ulong hseFrequency;
@@ -330,10 +426,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly ulong lsiFrequency;
 
         private IFlagRegisterField hsidivf;
+        private IValueRegisterField hsidiv;
+        private IValueRegisterField systemClockSwitch;
+        private IValueRegisterField hpre;
+        private IValueRegisterField ppre1;
+        private IValueRegisterField pll1Src;
+        private IFlagRegisterField pll1FracEn;
+        private IValueRegisterField pll1M;
+        private IValueRegisterField pll1N;
+        private IValueRegisterField pll1P;
+        private IValueRegisterField pll1FracN;
 
+        private const ulong HsiFrequency = 64000000;
+        private const ulong CsiFrequency = 4000000;
         private const ulong DefaultHseFrequency = 8000000;
         private const ulong DefaultLseFrequency = 32768;
         private const ulong DefaultLsiFrequency = 32000;
+
+        private static readonly int[] AHBPrescTable = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9 };
+        private static readonly int[] APBPrescTable = { 0, 0, 0, 0, 1, 2, 3, 4 };
 
         private enum Registers
         {
