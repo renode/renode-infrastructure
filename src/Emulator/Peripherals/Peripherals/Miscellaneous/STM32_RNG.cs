@@ -22,6 +22,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var supportedSeries = new List<STM32Series>{
                 STM32Series.F4,
                 STM32Series.F7,
+                STM32Series.H5,
                 STM32Series.H7,
                 STM32Series.L0,
                 STM32Series.L5,
@@ -32,24 +33,27 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
             this.series = series;
 
+            var hasExtendedControl = series == STM32Series.L5 || series == STM32Series.H5;
+
             var registerMap = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Control, new DoubleWordRegister(this)
                     .WithReservedBits(0, 2)
                     .WithFlag(2, out enable, changeCallback: (_, value) => Update(), name: "RNGEN")
                     .WithFlag(3, out interruptEnable, changeCallback: (_, value) => Update(), name: "IE")
-                    .If(series == STM32Series.L5)
+                    .If(hasExtendedControl)
                         .Then(reg => reg
                             .WithReservedBits(4, 1)
                             .WithTaggedFlag("CED", 5)
-                            .WithReservedBits(6, 2)
-                            .WithTag("RND_CONFIG3", 8, 4)
+                            .WithReservedBits(6, 1)
+                            .WithTaggedFlag("ARDIS", 7)
+                            .WithTag("RNG_CONFIG3", 8, 4)
                             .WithTaggedFlag("NISTC", 12)
-                            .WithTag("RND_CONFIG2", 13, 3)
+                            .WithTag("RNG_CONFIG2", 13, 3)
                             .WithTag("CLKDIV", 16, 4)
-                            .WithTag("RND_CONFIG1", 20, 6)
+                            .WithTag("RNG_CONFIG1", 20, 6)
                             .WithReservedBits(26, 4)
-                            .WithFlag(30, name: "CONDRST") //Nothing to do for the emulation
+                            .WithFlag(30, name: "CONDRST")
                             .WithTaggedFlag("CONFIGLOCK", 31)
                         )
                         .Else(reg => reg
@@ -79,17 +83,30 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }, name: "RNDATA")
                 },
             };
+            if(series == STM32Series.H5)
+            {
+                registerMap.Add((long)Registers.NoiseSourceControl, new DoubleWordRegister(this)
+                    .WithValueField(0, 18, name: "NSCR")
+                    .WithReservedBits(18, 14)
+                );
+            }
             if(series == STM32Series.L5)
             {
                 registerMap.Add((long)Registers.HealthTestControl, new DoubleWordRegister(this)
-                        .WithValueField(0, 32, writeCallback: (previous_value, new_value) =>
+                    .WithValueField(0, 32, writeCallback: (previous_value, new_value) =>
+                    {
+                        if(previous_value != HealthTestControlMagicL5 && new_value != HealthTestControlMagicL5)
                         {
-                            if(previous_value != HealthTestControlMagic && new_value != HealthTestControlMagic)
-                            {
-                                this.Log(LogLevel.Warning, "Magic value 0x{0:X} not written before 0x{1:X}", HealthTestControlMagic, new_value);
-                            }
+                            this.Log(LogLevel.Warning, "Magic value 0x{0:X} not written before 0x{1:X}", HealthTestControlMagicL5, new_value);
                         }
-                        ));
+                    })
+                );
+            }
+            else if(series == STM32Series.H5)
+            {
+                registerMap.Add((long)Registers.HealthTestControl, new DoubleWordRegister(this)
+                    .WithValueField(0, 32, name: "HTCR")
+                );
             }
             registers = new DoubleWordRegisterCollection(this, registerMap);
         }
@@ -124,13 +141,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly IFlagRegisterField interruptEnable;
         private readonly STM32Series series;
 
-        private const uint HealthTestControlMagic = 0x17590ABC;
+        private const uint HealthTestControlMagicL5 = 0x17590ABC;
 
         private enum Registers
         {
             Control = 0x0,
             Status = 0x4,
             Data = 0x8,
+            NoiseSourceControl = 0x0C,
             HealthTestControl = 0x10,
         }
     }
