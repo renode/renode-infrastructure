@@ -93,25 +93,27 @@ namespace Antmicro.Renode.Peripherals.MTD
                         }
                     })
                 .WithFlag(1, name: "PG")
-                .WithFlag(2, name: "SER")
-                .WithFlag(3, name: "BER")
+                .WithFlag(2, out sectorEraseRequest, name: "SER")
+                .WithFlag(3, out bankEraseRequest, name: "BER")
                 .WithFlag(4, name: "FW")
-                .WithFlag(5, name: "START")
-                .WithValueField(6, 7, name: "SNB")
+                .WithFlag(5, FieldMode.Read | FieldMode.Set, name: "START",
+                    valueProviderCallback: _ => false,
+                    writeCallback: (_, val) => { if(val) PerformErase(); })
+                .WithValueField(6, 7, out sectorNumber, name: "SNB")
                 .WithReservedBits(13, 2)
-                .WithFlag(15, name: "MER")
-                .WithFlag(16, name: "EOPIE")
-                .WithFlag(17, name: "WRPERRIE")
-                .WithFlag(18, name: "PGSERRIE")
-                .WithFlag(19, name: "STRBERRIE")
-                .WithFlag(20, name: "INCERRIE")
-                .WithFlag(21, name: "OBKERRIE")
-                .WithFlag(22, name: "OBKWERRIE")
-                .WithFlag(23, name: "OPTCHANGEERRIE")
+                .WithFlag(15, out massEraseRequest, name: "MER")
+                .WithFlag(16, out eopInterruptEnable, name: "EOPIE")
+                .WithFlag(17, out wrperrInterruptEnable, name: "WRPERRIE")
+                .WithFlag(18, out pgserrInterruptEnable, name: "PGSERRIE")
+                .WithFlag(19, out strberrInterruptEnable, name: "STRBERRIE")
+                .WithFlag(20, out incerrInterruptEnable, name: "INCERRIE")
+                .WithFlag(21, out obkerrInterruptEnable, name: "OBKERRIE")
+                .WithFlag(22, out obkwerrInterruptEnable, name: "OBKWERRIE")
+                .WithFlag(23, out optchangeerrInterruptEnable, name: "OPTCHANGEERRIE")
                 .WithReservedBits(24, 5)
                 .WithFlag(29, name: "INV")
                 .WithReservedBits(30, 1)
-                .WithFlag(31, name: "BKSEL");
+                .WithFlag(31, out bankSelect, name: "BKSEL");
 
             Registers.NonSecureClearControl.Define(this, 0x00000000)
                 .WithReservedBits(0, 16)
@@ -131,9 +133,70 @@ namespace Antmicro.Renode.Peripherals.MTD
                     writeCallback: (_, val) => { if(val) obkwerr.Value = false; })
                 .WithFlag(23, FieldMode.Write, name: "CLR_OPTCHANGEERR",
                     writeCallback: (_, val) => { if(val) optchangeerr.Value = false; })
-                .WithReservedBits(24, 8);
+                .WithReservedBits(24, 8)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
         }
 
+        private void PerformErase()
+        {
+            if(nonSecureLock.IsLocked)
+            {
+                this.Log(LogLevel.Warning, "Erase requested while flash is locked. Ignoring.");
+                return;
+            }
+
+            // MER (mass erase) has highest priority — erases both banks
+            if(massEraseRequest.Value)
+            {
+                this.Log(LogLevel.Debug, "Mass erase: erasing both banks (0x{0:X} bytes)", FlashSizeDefault);
+                flash.SetRange(0, FlashSizeDefault, 0xFF);
+                eop.Value = true;
+                UpdateInterrupts();
+            }
+            // BER (bank erase) — erase the bank selected by BKSEL
+            else if(bankEraseRequest.Value)
+            {
+                var bankOffset = bankSelect.Value ? FlashBankSize : 0;
+                this.Log(LogLevel.Debug, "Bank erase: bank {0}, offset 0x{1:X}, size 0x{2:X}",
+                    bankSelect.Value ? 1 : 0, bankOffset, FlashBankSize);
+                flash.SetRange(bankOffset, FlashBankSize, 0xFF);
+                eop.Value = true;
+                UpdateInterrupts();
+            }
+            // SER (sector erase) — erase the sector identified by BKSEL + SNB
+            else if(sectorEraseRequest.Value)
+            {
+                var bank = bankSelect.Value ? 1 : 0;
+                var snb = (long)sectorNumber.Value;
+                var sectorStartAddr = bank * FlashBankSize + snb * FlashSectorSize;
+                this.Log(LogLevel.Debug, "Sector erase: bank {0}, sector {1}, offset 0x{2:X}, size 0x{3:X}",
+                    bank, snb, sectorStartAddr, FlashSectorSize);
+                flash.SetRange(sectorStartAddr, FlashSectorSize, 0xFF);
+                eop.Value = true;
+                UpdateInterrupts();
+            }
+            else
+            {
+                this.Log(LogLevel.Warning,
+                    "START bit set but none of MER, BER, or SER are set. No erase performed.");
+            }
+        }
+
+        private void UpdateInterrupts()
+        {
+            var irqStatus = (eopInterruptEnable.Value && eop.Value)
+                || (wrperrInterruptEnable.Value && wrperr.Value)
+                || (pgserrInterruptEnable.Value && pgserr.Value)
+                || (strberrInterruptEnable.Value && strberr.Value)
+                || (incerrInterruptEnable.Value && incerr.Value)
+                || (obkerrInterruptEnable.Value && obkerr.Value)
+                || (obkwerrInterruptEnable.Value && obkwerr.Value)
+                || (optchangeerrInterruptEnable.Value && optchangeerr.Value);
+            this.DebugLog("Set IRQ: {0}", irqStatus);
+            IRQ.Set(irqStatus);
+        }
+
+        // NSSR status fields
         private IFlagRegisterField eop;
         private IFlagRegisterField wrperr;
         private IFlagRegisterField pgserr;
@@ -143,10 +206,32 @@ namespace Antmicro.Renode.Peripherals.MTD
         private IFlagRegisterField obkwerr;
         private IFlagRegisterField optchangeerr;
 
+        // NSCR control fields for erase operations
+        private IFlagRegisterField sectorEraseRequest;
+        private IFlagRegisterField bankEraseRequest;
+        private IFlagRegisterField massEraseRequest;
+        private IValueRegisterField sectorNumber;
+        private IFlagRegisterField bankSelect;
+
+        // NSCR interrupt enable fields
+        private IFlagRegisterField eopInterruptEnable;
+        private IFlagRegisterField wrperrInterruptEnable;
+        private IFlagRegisterField pgserrInterruptEnable;
+        private IFlagRegisterField strberrInterruptEnable;
+        private IFlagRegisterField incerrInterruptEnable;
+        private IFlagRegisterField obkerrInterruptEnable;
+        private IFlagRegisterField obkwerrInterruptEnable;
+        private IFlagRegisterField optchangeerrInterruptEnable;
+
         private readonly MappedMemory flash;
         private readonly LockRegister nonSecureLock;
 
         private static readonly uint[] NonSecureKeys = { 0x45670123, 0xCDEF89AB };
+
+        // Flash geometry: 2 MB total, 2 banks of 1 MB each, 128 sectors of 8 KB per bank
+        private const long FlashSizeDefault = 0x200000;       // 2 MB
+        private const long FlashBankSize = 0x100000;          // 1 MB
+        private const long FlashSectorSize = 0x2000;          // 8 KB
 
         private enum Registers : long
         {
