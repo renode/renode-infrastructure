@@ -17,7 +17,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public Macronix_MX25R(MappedMemory underlyingMemory)
             : base(underlyingMemory, manufacturerId: ManufacturerId, memoryType: MemoryType,
-                   writeStatusCanSetWriteEnable: false)
+                   writeStatusCanSetWriteEnable: false, useStatusRegisterStubs: false)
         {
             statusRegister
                 .WithValueField(2, 4,

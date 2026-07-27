@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             bool writeStatusCanSetWriteEnable = true, byte extendedDeviceId = DefaultExtendedDeviceID,
             byte deviceConfiguration = DefaultDeviceConfiguration, byte remainingIdBytes = DefaultRemainingIDBytes,
             // "Sector" here is the largest erasable memory unit. It's also named "block" by many flash memory vendors.
-            int sectorSizeKB = DefaultSectorSizeKB)
+            int sectorSizeKB = DefaultSectorSizeKB, bool useStatusRegisterStubs = true)
         {
             if(!Misc.IsPowerOfTwo((ulong)underlyingMemory.Size))
             {
@@ -48,6 +48,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "writeInProgress")
                 .WithFlag(1, out enable, writeStatusCanSetWriteEnable ? FieldMode.Read | FieldMode.Write : FieldMode.Read, name: "writeEnableLatch");
             configurationRegister = new WordRegister(this);
+            if(useStatusRegisterStubs)
+            {
+                // Most flash devices implement custom status registers with device-specific behavior.
+                // In most cases, a stubbed read-write implementation is sufficient for emulation.
+                statusRegister.WithValueField(2, 6, name: "STATUS");
+                configurationRegister.WithValueField(0, 16, name: "CONFIGURATION");
+            }
             flagStatusRegister = new ByteRegister(this)
                 .WithEnumField<ByteRegister, AddressingMode>(0, 1, FieldMode.Read, valueProviderCallback: _ => addressingMode.Value, name: "Addressing")
                 //other bits indicate either protection errors (not implemented) or pending operations (they already finished)
