@@ -47,7 +47,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTag("BDCR", 0, 32);
 
             Registers.DebugPortControl.Define(this)
-                .WithTag("DBPCR", 0, 32);
+                .WithFlag(0, name: "DBP")
+                .WithReservedBits(1, 31);
 
             Registers.BackupDomainStatus.Define(this)
                 .WithTag("BDSR", 0, 32);
