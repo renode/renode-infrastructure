@@ -93,7 +93,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         continue;
                     }
                     var currentIRQ = irqs[i];
-                    if(IsCandidate(currentIRQ, i) && AdjustPriority(i) < bestPriority)
+                    if(IsCandidate(currentIRQ) && AdjustPriority(i) < bestPriority)
                     {
                         result = i;
                         bestPriority = AdjustPriority(i);
@@ -371,20 +371,32 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 }
                 break;
             case Registers.SystemHandlerPriority1:
-                // 7th interrupt is ignored
-                priorities[(int)(isSecure ? SystemException.MemManageFault_S : SystemException.MemManageFault)] = (byte)value;
-                priorities[(int)SystemException.BusFault] = (byte)(value >> 8);
-                priorities[(int)(isSecure ? SystemException.UsageFault_S : SystemException.UsageFault)] = (byte)(value >> 16);
-                this.DebugLog("Priority of IRQs 4, 5, 6 set to 0x{0:X}, 0x{1:X}, 0x{2:X} respectively.", (byte)value, (byte)(value >> 8), (byte)(value >> 16));
+                lock(irqs)
+                {
+                    SetSystemHandlerPriority(SystemException.MemManageFault, (byte)value, isSecure);
+                    SetSystemHandlerPriority(SystemException.BusFault, (byte)(value >> 8), isSecure);
+                    SetSystemHandlerPriority(SystemException.UsageFault, (byte)(value >> 16), isSecure);
+                    SetSystemHandlerPriority(SystemException.SecureFault, (byte)(value >> 24), isSecure);
+                    FindPendingInterrupt();
+                }
+                this.DebugLog("Priority of IRQs 4, 5, 6, 7 set to 0x{0:X}, 0x{1:X}, 0x{2:X}, 0x{3:X} respectively.",
+                    (byte)value, (byte)(value >> 8), (byte)(value >> 16), (byte)(value >> 24));
                 break;
             case Registers.SystemHandlerPriority2:
-                // only 11th is not ignored
-                priorities[(int)(isSecure ? SystemException.SuperVisorCall_S : SystemException.SuperVisorCall)] = (byte)(value >> 24);
+                lock(irqs)
+                {
+                    SetSystemHandlerPriority(SystemException.SuperVisorCall, (byte)(value >> 24), isSecure);
+                    FindPendingInterrupt();
+                }
                 this.DebugLog("Priority of IRQ 11 set to 0x{0:X}.", (byte)(value >> 24));
                 break;
             case Registers.SystemHandlerPriority3:
-                priorities[(int)(isSecure ? SystemException.PendSV_S : SystemException.PendSV)] = (byte)(value >> 16);
-                priorities[(int)(isSecure ? SystemException.SysTick_S : SystemException.SysTick)] = (byte)(value >> 24);
+                lock(irqs)
+                {
+                    SetSystemHandlerPriority(SystemException.PendSV, (byte)(value >> 16), isSecure);
+                    SetSystemHandlerPriority(SystemException.SysTick, (byte)(value >> 24), isSecure);
+                    FindPendingInterrupt();
+                }
                 this.DebugLog("Priority of IRQs 14, 15 set to 0x{0:X}, 0x{1:X} respectively.", (byte)(value >> 16), (byte)(value >> 24));
                 break;
             case Registers.CoprocessorAccessControl:
@@ -698,11 +710,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 lock(irqs)
                 {
-                    if(value == basepri.SecureVal)
+                    var normalizedValue = (byte)(value & priorityMask);
+                    if(normalizedValue == basepri.SecureVal)
                     {
                         return;
                     }
-                    basepri.SecureVal = value;
+                    basepri.SecureVal = normalizedValue;
                     FindPendingInterrupt();
                 }
             }
@@ -717,11 +730,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 lock(irqs)
                 {
-                    if(value == basepri.NonSecureVal)
+                    var normalizedValue = (byte)(value & priorityMask);
+                    if(normalizedValue == basepri.NonSecureVal)
                     {
                         return;
                     }
-                    basepri.NonSecureVal = value;
+                    basepri.NonSecureVal = normalizedValue;
                     FindPendingInterrupt();
                 }
             }
@@ -1007,7 +1021,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(6, 2)
                 .WithValueField(8, 3, writeCallback: (_, value) =>
                 {
-                    binaryPointPosition.Get(isNextAccessSecure) = (int)value;
+                    if(binaryPointPosition.Get(isNextAccessSecure) != (int)value)
+                    {
+                        binaryPointPosition.Get(isNextAccessSecure) = (int)value;
+                        FindPendingInterrupt();
+                    }
                 }, name: "PRIGROUP")
                 .WithReservedBits(11, 2)
                 .WithFlag(13, writeCallback: (_, value) =>
@@ -1022,6 +1040,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     {
                         targetInterruptSecurityState[(int)excp] = sec;
                     }
+                    FindPendingInterrupt();
                 },
                 valueProviderCallback: _ => IsBFHFNMINSEnabled,
                 name: "BFHFNMINS")
@@ -1032,7 +1051,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         // This bit is RAZ/WI from Non-secure state.
                         return;
                     }
-                    prioritizeSecureInterrupts = value;
+                    if(prioritizeSecureInterrupts != value)
+                    {
+                        prioritizeSecureInterrupts = value;
+                        FindPendingInterrupt();
+                    }
                 }, valueProviderCallback: _ =>
                 {
                     if(!isNextAccessSecure)
@@ -1565,6 +1588,29 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             pendingIRQs.Clear();
         }
 
+        private void SetSystemHandlerPriority(SystemException exception, byte value, bool isSecure)
+        {
+            var architecturalNumber = (int)exception;
+            if(!isSecure && !IsInterruptTargetNonSecure(architecturalNumber))
+            {
+                this.WarningLog("Cannot set priority for IRQ {0}, since it targets Secure state, and the access is in Non-secure",
+                    ExceptionToString(architecturalNumber));
+                return;
+            }
+
+            var number = isSecure && bankedInterrupts.Contains(architecturalNumber)
+                ? architecturalNumber | BankedExcpSecureBit
+                : architecturalNumber;
+            var normalizedValue = (byte)(value & priorityMask);
+            if((value & ~priorityMask) != 0)
+            {
+                this.WarningLog("Trying to set the priority for interrupt {0} to 0x{1:X}, but it should be maskable with 0x{2:X}",
+                    ExceptionToString(number), value, priorityMask);
+            }
+            priorities[number] = normalizedValue;
+            this.DebugLog("Priority 0x{0:X} set for interrupt {1}.", normalizedValue, ExceptionToString(number));
+        }
+
         private void HandlePriorityWrite(long offset, bool externalInterrupt, uint value, bool isSecure)
         {
             lock(irqs)
@@ -1589,6 +1635,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     this.DebugLog("Priority 0x{0:X} set for interrupt {1}.", priorities[i], i);
                     value >>= 8;
                 }
+                FindPendingInterrupt();
             }
         }
 
@@ -2036,21 +2083,19 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return (int)SystemException.HardFault;
         }
 
-        private bool CanSynchronousExceptionBecomeActive(int interruptNo)
+        private bool CanSynchronousExceptionBecomeActive(int interruptNo, int? ignoredActiveException = null)
         {
-            if(!IsCandidate(irqs[interruptNo] | IRQState.Pending, interruptNo) || !ShouldRaiseException(interruptNo))
+            var state = irqs[interruptNo] | IRQState.Pending;
+            if(ignoredActiveException == interruptNo)
+            {
+                state &= ~IRQState.Active;
+            }
+            if(!IsCandidate(state))
             {
                 return false;
             }
 
-            if(activeIRQs.Count == 0)
-            {
-                return true;
-            }
-
-            var activeInterrupt = activeIRQs.Peek();
-            return DoesAPreemptB(AdjustPriority(interruptNo), AdjustPriority(activeInterrupt),
-                !IsInterruptTargetNonSecure(interruptNo), !IsInterruptTargetNonSecure(activeInterrupt));
+            return GetGroupPriority(interruptNo) < GetExecutionPriority(ignoredActiveException: ignoredActiveException);
         }
 
         private void ClearPending(int i)
@@ -2117,10 +2162,16 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     targetInterruptSecurityState[pos] = (value & mask) > 0 ? InterruptTargetSecurityState.NonSecure : InterruptTargetSecurityState.Secure;
                     mask <<= 1;
                 }
+                FindPendingInterrupt();
             }
         }
 
-        private bool ShouldRaiseException(int excp)
+        private int GetExecutionPriority(bool ignorePrimask = false, int? ignoredActiveException = null)
+        {
+            return Math.Min(GetRawExecutionPriority(ignoredActiveException), GetPriorityBoost(ignorePrimask));
+        }
+
+        private int GetPriorityBoost(bool ignorePrimask)
         {
             /* The intuition to understanding this:
              * PRIMASK is used to mask all exceptions, minus Reset, NMI and HardFault
@@ -2128,91 +2179,89 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
              * _NS variants will attempt to only disable NonSecure exceptions, but this can only happen if "PRIS" is set
              * here `BFHFNMINS` will also matter, since it retargets several exceptions (e.g. NMI), and enables HardFault banking
              */
+            var boostedPriority = 0x100;
             if(!cpu.TrustZoneEnabled)
             {
-                // These have prio below -1, so they are never maskable
-                if(excp == (int)SystemException.NMI || excp == (int)SystemException.Reset)
+                var basepriValue = basepri.NonSecureVal;
+                if(basepriValue != 0)
                 {
-                    return true;
+                    boostedPriority = ApplyPriorityGrouping(basepriValue, false);
                 }
-
-                if(cpu.PRIMASK == 0 && cpu.FAULTMASK == 0)
+                if(!ignorePrimask && cpu.GetPrimask(false) != 0)
                 {
-                    return true;
+                    boostedPriority = Math.Min(boostedPriority, 0);
                 }
-                else if(cpu.PRIMASK != 0 && cpu.FAULTMASK == 0)
+                if(cpu.GetFaultmask(false) != 0)
                 {
-                    // If only PRIMASK is set, HardFault always goes through
-                    return excp == (int)SystemException.HardFault;
+                    boostedPriority = Math.Min(boostedPriority, -1);
                 }
-                // Otherwise, if FAULTMASK is set, deny everything
+                return boostedPriority;
             }
-            else
+
+            var nonSecureBasepri = basepri.NonSecureVal;
+            if(nonSecureBasepri != 0)
             {
-                // Reset is not maskable
-                if(excp == (int)SystemException.Reset)
-                {
-                    return true;
-                }
-
-                if(cpu.GetFaultmask(true) > 0 || cpu.GetFaultmask(false) > 0)
-                {
-                    if(cpu.GetFaultmask(true) > 0)
-                    {
-                        if(IsBFHFNMINSEnabled)
-                        {
-                            return false;
-                        }
-                        else
-                        {
-                            return excp == (int)SystemException.HardFault_S || excp == (int)SystemException.NMI;
-                        }
-                    }
-                    else if(cpu.GetFaultmask(false) > 0)
-                    {
-                        if(IsBFHFNMINSEnabled)
-                        {
-                            // If Configurable exceptions target Non-secure mode, and PRIS is set, we boost current execution priority to 0x80
-                            // which is the boundary between Secure and Non-secure priorities, so only Secure exceptions will pass.
-                            // If PRIS is unset, we block everything (raise priotity to 0), but not HardFault (Secure and Non-Secure) and NMI.
-                            return (prioritizeSecureInterrupts && !IsInterruptTargetNonSecure(excp))
-                                || excp == (int)SystemException.NMI || excp == (int)SystemException.HardFault || excp == (int)SystemException.HardFault_S;
-                        }
-                        else
-                        {
-                            // Configurable exceptions target Secure mode only, so we raise execution priority to -1
-                            return excp == (int)SystemException.NMI;
-                        }
-                    }
-                }
-                // Secure PRIMASK is unset, so all pass, unless Non-secure is set
-                else if(cpu.GetPrimask(true) == 0)
-                {
-                    if(cpu.GetPrimask(false) == 0)
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        // If PRIMASK_NS is set, and PRIS is set, we boost current execution priority to 0x80
-                        // which is the boundary between Secure and Non-secure priorities, so only Secure exceptions will pass.
-                        // If PRIS is unset, we block everything (raise priotity to 0), but not HardFault and NMI.
-                        return (prioritizeSecureInterrupts && !IsInterruptTargetNonSecure(excp))
-                            || excp == (int)SystemException.NMI || excp == (int)SystemException.HardFault;
-                    }
-                }
-                // Secure PRIMASK is set - deny all, except HardFault and NMI (exec priority boosted to 0)
-                else if(cpu.GetPrimask(true) > 0)
-                {
-                    return excp == (int)SystemException.HardFault || excp == (int)SystemException.HardFault_S || excp == (int)SystemException.NMI;
-                }
+                var priority = ApplyPriorityGrouping(nonSecureBasepri, false);
+                boostedPriority = ApplyPriorityRestriction(priority, false);
             }
 
-            // Ignore exception otherwise
-            return false;
+            var secureBasepri = basepri.SecureVal;
+            if(secureBasepri != 0)
+            {
+                boostedPriority = Math.Min(boostedPriority, ApplyPriorityGrouping(secureBasepri, true));
+            }
+
+            var restrictedNonSecurePriority = prioritizeSecureInterrupts ? 0x80 : 0;
+            if(!ignorePrimask)
+            {
+                if(cpu.GetPrimask(false) != 0)
+                {
+                    boostedPriority = Math.Min(boostedPriority, restrictedNonSecurePriority);
+                }
+                if(cpu.GetPrimask(true) != 0)
+                {
+                    boostedPriority = Math.Min(boostedPriority, 0);
+                }
+            }
+            if(cpu.GetFaultmask(false) != 0)
+            {
+                boostedPriority = Math.Min(boostedPriority,
+                    IsBFHFNMINSEnabled ? -1 : restrictedNonSecurePriority);
+            }
+            if(cpu.GetFaultmask(true) != 0)
+            {
+                boostedPriority = Math.Min(boostedPriority, IsBFHFNMINSEnabled ? -3 : -1);
+            }
+            return boostedPriority;
+        }
+
+        private int GetRawExecutionPriority(int? ignoredActiveException = null)
+        {
+            var priority = 0x100;
+            var ignored = false;
+            foreach(var activeInterrupt in activeIRQs)
+            {
+                if(!ignored && ignoredActiveException.HasValue && activeInterrupt == ignoredActiveException.Value)
+                {
+                    ignored = true;
+                    continue;
+                }
+                priority = Math.Min(priority, GetGroupPriority(activeInterrupt));
+            }
+            return priority;
+        }
+
+        private int GetGroupPriority(int interruptNo)
+        {
+            return GetExceptionPriority(interruptNo, true);
         }
 
         private int AdjustPriority(int interruptNo)
+        {
+            return GetExceptionPriority(interruptNo, false);
+        }
+
+        private int GetExceptionPriority(int interruptNo, bool groupPriority)
         {
             // Rule RCMTC (Armv8-M ARM) defines these fixed priorities. HardFault_S exists only when BFHFNMINS is set.
             switch((SystemException)interruptNo)
@@ -2227,11 +2276,25 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 return -1;
             }
 
-            byte priority = priorities[interruptNo];
-            if(!prioritizeSecureInterrupts)
+            var secure = !IsInterruptTargetNonSecure(interruptNo);
+            var priority = (int)priorities[interruptNo];
+            if(groupPriority)
             {
-                return priority;
+                // ExceptionPriority(..., groupPri=TRUE) applies PRIGROUP
+                // before AIRCR.PRIS.
+                priority = ApplyPriorityGrouping(priority, secure);
             }
+            return ApplyPriorityRestriction(priority, secure);
+        }
+
+        private int ApplyPriorityGrouping(int priority, bool secure)
+        {
+            var binaryPointMask = ~((1 << binaryPointPosition.Get(secure) + 1) - 1);
+            return priority & binaryPointMask;
+        }
+
+        private int ApplyPriorityRestriction(int priority, bool secure)
+        {
             /* Rule: RWQWK (ARMv8-M Architecture Reference Manual)
              * When AIRCR.PRIS is 1, each Non-secure SHPRn_NS.PRI_n priority field value [7:0] has the following sequence
              * applied to it, it:
@@ -2243,7 +2306,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // It is a "byte" after all
             DebugHelper.Assert(priority <= 255);
 
-            if(IsInterruptTargetNonSecure(interruptNo))
+            if(prioritizeSecureInterrupts && !secure)
             {
                 // Divide by two, and set 7th bit. Since 255 is the lowest priority (highest number), this is fine
                 priority >>= 1;
@@ -2279,27 +2342,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return !cpu.TrustZoneEnabled || isSecure || IsInterruptTargetNonSecure((int)SystemException.BusFault);
         }
 
-        private bool IsCandidate(IRQState state, int index)
+        private bool IsCandidate(IRQState state)
         {
             const IRQState mask = IRQState.Pending | IRQState.Enabled | IRQState.Active;
             const IRQState candidate = IRQState.Pending | IRQState.Enabled;
 
-            return ((state & mask) == candidate) &&
-                   (basepri.Get(!IsInterruptTargetNonSecure(index)) == 0 || priorities[index] < basepri.Get(!IsInterruptTargetNonSecure(index)));
-        }
-
-        private bool DoesAPreemptB(int priorityA, int priorityB, bool secureA, bool secureB)
-        {
-            // Reset, NMI, and HardFault have fixed negative priorities and are
-            // not affected by priority grouping (see E2.1.120 ExceptionPriority pseudocode)
-            if(priorityA < 0 || priorityB < 0)
-            {
-                return priorityA < priorityB;
-            }
-
-            var binaryPointMaskA = ~((1 << binaryPointPosition.Get(secureA) + 1) - 1);
-            var binaryPointMaskB = ~((1 << binaryPointPosition.Get(secureB) + 1) - 1);
-            return (priorityA & binaryPointMaskA) < (priorityB & binaryPointMaskB);
+            return (state & mask) == candidate;
         }
 
         private uint GetPending(int offset, bool isSecure)
