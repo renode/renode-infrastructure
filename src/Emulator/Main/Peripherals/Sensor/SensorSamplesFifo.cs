@@ -256,6 +256,19 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 }
             }
 
+            public TimeInterval Period
+            {
+                // We assume, that all threads have the same period
+                get => threads[0].Period;
+                set
+                {
+                    foreach(var t in threads)
+                    {
+                        t.Period = value;
+                    }
+                }
+            }
+
             private readonly List<IManagedThread> threads = new List<IManagedThread>();
         }
 

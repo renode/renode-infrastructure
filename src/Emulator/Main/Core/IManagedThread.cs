@@ -5,6 +5,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using Antmicro.Renode.Time;
+
 namespace Antmicro.Renode.Core
 {
     public interface IManagedThread : ISimpleManagedThread
@@ -12,5 +14,7 @@ namespace Antmicro.Renode.Core
         void Restart();
 
         uint Frequency { get; set; }
+
+        TimeInterval Period { get; set; }
     }
 }

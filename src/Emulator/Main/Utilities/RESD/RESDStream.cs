@@ -88,6 +88,30 @@ namespace Antmicro.Renode.Utilities.RESD
             return stream;
         }
 
+        public static IManagedThread StartSampleFeedThread<T>(this RESDStream<T> @this, IUnderstandRESD owner, TimeInterval period,
+            ulong startTime = 0, string domain = null, bool shouldStop = true) where T : RESDSample, new()
+        {
+            Action<T, TimeInterval> beforeCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.BeforeStream, @this.Channel, domain);
+            Action<T, TimeInterval> currentCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
+            Action<T, TimeInterval> afterCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
+            Action<T, TimeInterval, RESDStreamStatus> sampleCallback = (sample, ts, status) =>
+            {
+                switch(status)
+                {
+                case RESDStreamStatus.BeforeStream:
+                    beforeCallback(sample, ts);
+                    break;
+                case RESDStreamStatus.OK:
+                    currentCallback(sample, ts);
+                    break;
+                case RESDStreamStatus.AfterStream:
+                    afterCallback(sample, ts);
+                    break;
+                }
+            };
+            return @this.StartSampleFeedThread(owner, period, sampleCallback, startTime, shouldStop);
+        }
+
         public static IManagedThread StartSampleFeedThread<T>(this RESDStream<T> @this, IUnderstandRESD owner, uint frequency,
             ulong startTime = 0, string domain = null, bool shouldStop = true) where T : RESDSample, new()
         {
@@ -436,6 +460,37 @@ namespace Antmicro.Renode.Utilities.RESD
             var thread = machine.ObtainManagedThread(feedSample, frequency, "RESD stream thread", owner, stopCondition);
             var delayInterval = TimeInterval.FromMicroseconds(startTime / 1000);
             Owner?.Log(LogLevel.Debug, "RESD: Starting samples feeding thread at frequency {0}Hz delayed by {1}us", frequency, delayInterval);
+            thread.StartDelayed(delayInterval);
+            managedThreads.Add(thread);
+            return thread;
+        }
+
+        public IManagedThread StartSampleFeedThread(IPeripheral owner, TimeInterval period, Action<T, TimeInterval, RESDStreamStatus> newSampleCallback, ulong startTime = 0, bool shouldStop = true)
+        {
+            var machine = owner.GetMachine();
+            Action feedSample = () =>
+            {
+                var status = TryGetCurrentSample(owner, out var sample, out var timestamp);
+                newSampleCallback(sample, timestamp, status);
+            };
+
+            Func<bool> stopCondition = () =>
+            {
+                if(blockEnumerator == null)
+                {
+                    if(shouldStop)
+                    {
+                        feedSample(); // invoke action to update timestamp and status before stopping thread
+                        Owner?.Log(LogLevel.Debug, "RESD: End of sample feeding thread detected");
+                    }
+                    return shouldStop;
+                }
+                return false;
+            };
+
+            var thread = machine.ObtainManagedThread(feedSample, period, "RESD stream thread", owner, stopCondition);
+            var delayInterval = TimeInterval.FromMicroseconds(startTime / 1000);
+            Owner?.Log(LogLevel.Debug, "RESD: Starting samples feeding thread at period {0} delayed by {1}us", period, delayInterval);
             thread.StartDelayed(delayInterval);
             managedThreads.Add(thread);
             return thread;

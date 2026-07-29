@@ -2241,6 +2241,16 @@ namespace Antmicro.Renode.Core
                 set => machine.ClockSource.ExchangeClockEntryWith(action, entry => entry.With(frequency: value));
             }
 
+            public TimeInterval Period
+            {
+                get
+                {
+                    var entry = machine.ClockSource.GetClockEntry(action);
+                    return TimeInterval.FromTicks(entry.Period * TimeInterval.TicksPerSecond / entry.Frequency);
+                }
+                set => machine.ClockSource.ExchangeClockEntryWith(action, entry => entry.With(period: value.Ticks, frequency: TimeInterval.TicksPerSecond));
+            }
+
             private ManagedThreadWrappingClockEntry(IMachine machine, Action action, Func<bool> stopCondition = null)
             {
                 this.action = () =>
