@@ -90,6 +90,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => lsion.Value, name: "LSIRDY")
                     .WithReservedBits(2, 30)
                 },
+                {(long)Registers.AHB3Reset, new DoubleWordRegister(this, 0x0)
+                    .WithFlag(0, name: "MDMARST")
+                    .WithReservedBits(1, 3)
+                    .WithFlag(4, name: "DMA2DRST")
+                    .WithFlag(5, name: "JPGDECRST")
+                    .WithReservedBits(6, 6)
+                    .WithFlag(12, name: "FMCRST")
+                    .WithReservedBits(13, 1)
+                    .WithFlag(14, name: "QSPIRST")
+                    .WithReservedBits(15, 1)
+                    .WithFlag(16, name: "SDMMC1RST")
+                    .WithReservedBits(17, 15)
+                },
                 {(long)Registers.AHB4Enable, new DoubleWordRegister(this, 0x0)
                     .WithFlag(0, name: "GPIOAEN")
                     .WithFlag(1, name: "GPIOBEN")
@@ -162,6 +175,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             // ...
             BackupDomainControl = 0x70,
             ClockControlAndStatus = 0x74,
+            AHB3Reset = 0x7C,
             // ...
             AHB4Enable = 0xE0
         }
