@@ -216,6 +216,23 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        public void EnterResetLockup(bool secure)
+        {
+            lock(irqs)
+            {
+                // Armv8-M ARM rule RBHVG and pseudocode operation TakeReset:
+                // a reset-vector BusFault makes the relevant HardFault active,
+                // clears its pending state, and enters Lockup with IPSR == 0.
+                hardFaultVectorTable.Value = true;
+                var hardFault = GetHardFaultForTargetSecurity(secure);
+                irqs[hardFault] |= IRQState.Active;
+                irqs[hardFault] &= ~IRQState.Pending;
+                pendingIRQs.Remove(hardFault);
+                activeIRQs.Push(hardFault);
+                FindPendingInterrupt();
+            }
+        }
+
         public void SetLockupState(bool value)
         {
             lock(irqs)
@@ -1447,7 +1464,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             Registers.HardFaultStatus.Define(RegisterCollection)
                 .WithReservedBits(0, 1)
-                .WithTaggedFlag("VECTTBL", 1)
+                .WithFlag(1, out hardFaultVectorTable, FieldMode.Read | FieldMode.WriteOneToClear, name: "VECTTBL")
                 .WithReservedBits(2, 28)
                 .WithFlag(30, FieldMode.Read | FieldMode.WriteOneToClear,
                     writeCallback: (_, value) =>
@@ -1575,6 +1592,9 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 irqs[i] = IRQState.Enabled;
             }
+            // AIRCR.BFHFNMINS creates a separate Secure HardFault instance.
+            // Like every fixed-priority HardFault, it is always enabled.
+            irqs[(int)SystemException.HardFault_S] = IRQState.Enabled;
             foreach(var i in bankedInterrupts)
             {
                 irqs[i] = IRQState.Enabled;
@@ -2070,13 +2090,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private int GetEscalatedHardFault(int interruptNo)
         {
-            if(IsInterruptTargetNonSecure(interruptNo))
-            {
-                return (int)SystemException.HardFault;
-            }
+            return GetHardFaultForTargetSecurity(!IsInterruptTargetNonSecure(interruptNo));
+        }
 
-            /* When escalating Secure targeted exception check if HardFault is banked, if not escalate to normal HardFault as it'll target Secure state anyway */
-            if(IsBFHFNMINSEnabled)
+        private int GetHardFaultForTargetSecurity(bool secure)
+        {
+            /* When targeting Secure state check if HardFault is banked, if not use normal HardFault as it'll target Secure state anyway */
+            if(secure && IsBFHFNMINSEnabled)
             {
                 return (int)SystemException.HardFault_S;
             }
@@ -2420,6 +2440,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private bool canResetOnlyFromSecure;
 
         private IFlagRegisterField sleepOnExitEnabled;
+        private IFlagRegisterField hardFaultVectorTable;
         private uint cpuId;
         private CortexM cpu;
 

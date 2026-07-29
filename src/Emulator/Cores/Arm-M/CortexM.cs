@@ -1063,8 +1063,19 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // stack pointer and program counter are being sent according
                 // to VTOR (vector table offset register)
                 var sysbus = machine.SystemBus;
-                var pc = sysbus.ReadDoubleWordWithState(VectorTableOffset + 4, this, secureState);
-                var sp = sysbus.ReadDoubleWordWithState(VectorTableOffset, this, secureState);
+                uint pc;
+                uint sp;
+                try
+                {
+                    pc = sysbus.ReadDoubleWordWithState(VectorTableOffset + 4, this, secureState);
+                    sp = sysbus.ReadDoubleWordWithState(VectorTableOffset, this, secureState);
+                }
+                catch(BusAccessException)
+                {
+                    EnterResetLockup();
+                    pcNotInitialized = false;
+                    return;
+                }
                 if(sysbus.WhatPeripheralIsAt(pc, this, secureState) == null || (pc == 0 && sp == 0))
                 {
                     this.Log(LogLevel.Error, "PC is in an unmapped region or PC and SP are equal to zero. CPU was halted.");
@@ -1075,6 +1086,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                 PC = pc;
                 SP = sp;
             }
+        }
+
+        private void EnterResetLockup()
+        {
+            // Armv8-M ARM rule RBHVG and pseudocode operation TakeReset:
+            // a BusFault reading the initial MSP or reset vector enters
+            // Lockup with HardFault active and HFSR.VECTTBL set.
+            nvic.EnterResetLockup(TrustZoneEnabled);
+            tlibEnterResetLockup();
         }
 
         /// <remarks>Use <see cref="GetTrustZoneRelatedRegister"/> and <see cref="SetTrustZoneRelatedRegister"/> to wrap accesses which have to succeed.</remarks>
@@ -1248,6 +1268,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<uint> tlibRaisePreciseBusFault;
+
+        [Import]
+        private readonly Action tlibEnterResetLockup;
 
         [Import]
         private readonly Func<uint> tlibIsLockedUp;
