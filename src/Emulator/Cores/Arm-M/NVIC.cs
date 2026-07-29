@@ -637,6 +637,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 throw new RecoverableException(TrustZoneNSRegionWarning);
             }
+            if(offset == (long)Registers.DebugHaltingControlAndStatus)
+            {
+                // D1.2.39: DHCSR_NS is visible only to Secure software.
+                var isSecure = IsCurrentCPUInSecureState(out var currentCpu);
+                if(currentCpu == null || !isSecure)
+                {
+                    return 0;
+                }
+            }
             return ReadDoubleWord(offset, false);
         }
 
@@ -1442,6 +1451,38 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithTaggedFlag("RA (Read Allocation Support)", 29)
                 .WithTaggedFlag("WB (Write Back Support)", 30)
                 .WithTaggedFlag("WT (Write Through Support)", 31);
+
+            // It is IMPLEMENTATION DEFINED whether this register is accessible only to the debugger and RES0 for
+            // software, we choose to make it accessible to software as well.
+            Registers.DebugHaltingControlAndStatus.Define(RegisterCollection)
+                .WithTaggedFlag("C_DEBUGEN (Debug Enable Control)", 0)
+                .WithTaggedFlag("C_HALT (Halt Control)", 1)
+                .WithTaggedFlag("C_STEP (Step Control)", 2)
+                .WithTaggedFlag("C_MASKINTS (Mask Interrupts Control)", 3)
+                .WithReservedBits(4, 1)
+                .WithTaggedFlag("C_SNAPSTALL (Snap Stall Control)", 5)
+                .WithTaggedFlag("C_PMOV (Halt On PMU Overflow Control)", 6)
+                .WithReservedBits(7, 9)
+                .WithTaggedFlag("S_REGRDY (Register Ready)", 16)
+                .WithTaggedFlag("S_HALT (Halted)", 17)
+                .WithFlag(18, FieldMode.Read, valueProviderCallback: _ => InSleep.IsSet, name: "S_SLEEP (Sleeping)")
+                .WithFlag(19, FieldMode.Read,
+                    valueProviderCallback: _ =>
+                    {
+                        IsCurrentCPUInSecureState(out var currentCpu);
+                        // DHCSR.S_LOCKUP reads as one only to a remote debugger
+                        // through the DAP. Software reads zero in either state.
+                        return currentCpu == null && Lockup.IsSet;
+                    },
+                    name: "S_LOCKUP (Lockup)")
+                .WithTaggedFlag("S_SDE (Secure Debug Enabled)", 20)
+                .WithTaggedFlag("S_NSUIDE (Non-secure Unprivileged Debug Enabled)", 21)
+                .WithTaggedFlag("S_SUIDE (Secure Unprivileged Debug Enabled)", 22)
+                .WithTaggedFlag("S_FPD (FP Registers Debuggable)", 23)
+                .WithTaggedFlag("S_RETIRE_ST (Retire Sticky Status)", 24)
+                .WithTaggedFlag("S_RESET_ST (Reset Sticky Status)", 25)
+                .WithTaggedFlag("S_RESTART_ST (Restart Sticky Status)", 26)
+                .WithReservedBits(27, 5);
 
             Registers.DebugExceptionAndMonitorControlRegister.Define(RegisterCollection)
                 .WithTaggedFlag("VC_CORERESET (Reset Vector Catch)", 0)
@@ -2710,6 +2751,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SAURegionLimitAddress = 0xDE0, // SAU_RLAR
             SecureFaultStatus = 0xDE4, // SAU_SFSR
             SecureFaultAddress = 0xDE8, // SAU_SFAR
+            DebugHaltingControlAndStatus = 0xDF0, // DHCSR
             DebugExceptionAndMonitorControlRegister = 0xDFC, // DEMCR
             SoftwareTriggerInterrupt = 0xF00, // STIR
             FPContextControl = 0xF34, // FPCCR
