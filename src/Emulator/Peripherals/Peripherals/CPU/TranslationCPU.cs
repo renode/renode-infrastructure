@@ -372,8 +372,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return;
             }
             disposed = true;
+            if(GuestProfilerEnabled)
+            {
+                DisableProfiler();
+            }
             base.Dispose();
-            profiler?.Dispose();
             localAtomicState?.Dispose();
             pauseGuard.TrueDispose();
         }
@@ -582,11 +585,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void Reset()
         {
             base.Reset();
+            profilerAdapter?.OnCpuReset();
             isInterruptLoggingEnabled = false;
             pendingTranslationCacheClearing = false;
             TlibReset();
             ResetOpcodesCounters();
-            profiler?.Reset();
             localAtomicState?.Reset();
         }
 

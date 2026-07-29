@@ -5,10 +5,11 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-using Antmicro.Renode.Logging;
+using Antmicro.Renode.Time;
 
 using PerfettoTraceWriter = Antmicro.Renode.Peripherals.CPU.GuestProfiling.ProtoBuf.PerfettoTraceWriter;
 
@@ -16,250 +17,110 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 {
     public class PerfettoProfiler : BaseProfiler
     {
-        public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly, bool enableMultipleTracks, long? fileSizeLimit = null, int? maximumNestedContexts = null)
-            : base(cpu, flushInstantly, maximumNestedContexts)
+        public PerfettoProfiler(TranslationCPU cpu, string filename, bool flushInstantly, ulong? fileSizeLimit = null, uint? maximumNestedContexts = null, bool enableMultipleTracks = false)
+            : base(cpu, filename, flushInstantly, fileSizeLimit, maximumNestedContexts)
         {
-            this.fileSizeLimit = fileSizeLimit;
             this.enableMultipleTracks = enableMultipleTracks;
-            lastInterruptExitTime = ulong.MaxValue;
-            fileStream = File.Open(filename, FileMode.OpenOrCreate);
             writer = new PerfettoTraceWriter();
-            currentTrack = MainTrack;
-            timeOffset = 0;
-            writer.CreateTrack(cpu.GetName(), currentTrack);
-        }
 
-        public override void Dispose()
-        {
-            base.Dispose();
-            fileStream.Close();
-        }
-
-        public override void Reset()
-        {
-            timeOffset = cpu.TimeHandle.TotalElapsedTime.TotalNanoseconds;
-            FinishCurrentStack(timeOffset, currentTrack);
-
-            base.Dispose();
-
-            currentContextId = 0;
-            currentTrack = MainTrack;
-            isFirstFrame = true;
-            blockFlush = false;
-            wholeExecution.Add(currentContextId, new ProfilerContext());
-            CheckAndFlush(timeOffset);
-        }
-
-        public override void StackFrameAdd(ulong currentAddress, ulong returnAddress, ulong instructionsCount)
-        {
-            var currentSymbol = GetSymbolName(currentAddress);
-            cpu.Log(LogLevel.Debug, "Profiler: Pushing new frame with symbol: {0}; returnAddress: 0x{1:X}; currentAddress: 0x{2:X}", currentSymbol, returnAddress, currentAddress);
-
-            if(isFirstFrame)
+            buffer = new MemoryStream();
+            if(enableMultipleTracks)
             {
-                isFirstFrame = false;
-                // We have to add the first frame, form which the first jump happened
-                // To infer this frame we use the current PC value, which should point to the jump instruction that triggered this event
-                var prevSymbol = GetSymbolName(cpu.PC.RawValue);
-                CurrentStack.Push(prevSymbol);
-                writer.CreateEventBegin(timeOffset, prevSymbol, currentTrack);
-            }
-
-            CurrentStack.Push(currentSymbol);
-            ulong time = InstructionCountToNsOffset(instructionsCount);
-            writer.CreateEventBegin(time, currentSymbol, currentTrack);
-            CheckAndFlush(time);
-        }
-
-        public override void StackFramePop(ulong currentAddress, ulong returnAddress, ulong instructionsCount)
-        {
-            cpu.Log(LogLevel.Debug, "Profiler: Trying to pop frame with returnAddress: 0x{0:X} ({1}); currentAddress: 0x{2:X}", returnAddress, GetSymbolName(returnAddress), currentAddress);
-            if(CurrentStack.Count == 0)
-            {
-                cpu.Log(LogLevel.Error, "Profiler: Trying to return from frame while internal stack tracking is empty");
-                return;
-            }
-
-            ulong time = InstructionCountToNsOffset(instructionsCount);
-            writer.CreateEventEnd(time, currentTrack);
-            CurrentStack.Pop();
-            CheckAndFlush(time);
-        }
-
-        public override void OnStackPointerChange(ulong address, ulong oldSPValue, ulong newSPValue, ulong instructionsCount)
-        {
-        }
-
-        public override void OnContextChange(ulong newContextId)
-        {
-            if(newContextId == currentContextId)
-            {
-                return;
-            }
-
-            cpu.Log(LogLevel.Debug, "Profiler: Changing context from: 0x{0:X} to 0x{1:X}", currentContextId, newContextId);
-
-            ulong track = enableMultipleTracks ? currentContextId : MainTrack;
-            ulong time = InstructionCountToNsOffset(cpu.ExecutedInstructions);
-
-            // End the current thread's stack frame
-            for(int i = 0; i < CurrentStack.Count; i++)
-            {
-                writer.CreateEventEnd(time, track);
-            }
-            PushCurrentContextSafe();
-
-            // Get the new thread's execution and restore the events
-            if(!wholeExecution.ContainsKey(newContextId))
-            {
-                wholeExecution.Add(newContextId, new ProfilerContext());
-                if(enableMultipleTracks)
-                {
-                    writer.CreateTrack($"Track: 0x{newContextId:X}", newContextId);
-                }
-            }
-
-            currentContextId = newContextId;
-
-            ulong newTrack = enableMultipleTracks ? newContextId : MainTrack;
-            if(CurrentContext.Count > 0)
-            {
-                CurrentContext.PopCurrentStack();
-                // Restore events from the previous visit to this context
-                foreach(var frame in CurrentStack.Reverse())
-                {
-                    writer.CreateEventBegin(time, frame, newTrack);
-                }
+                createdContexts = new HashSet<ulong>();
+                WriteNewContextIfNeeded(currentContextId);
             }
             else
             {
-                CurrentContext.PopCurrentStack();
-            }
-
-            currentTrack = newTrack;
-
-            CheckAndFlush(time);
-        }
-
-        public override void InterruptEnter(ulong interruptIndex)
-        {
-            ulong time = InstructionCountToNsOffset(cpu.ExecutedInstructions);
-            if(lastInterruptExitTime == time)
-            {
-                // If we entered another interrupt just after exiting the previous one
-                // We have to remove the start packets so the trace doesn't show a stack
-                // with the duration of 0
-                writer.RemoveLastNPackets(CurrentStack.Count);
-            }
-            else
-            {
-                // If there is no need to remove the events then we want to finish
-                // the current stack before creating a new one for the interrupt
-                FinishCurrentStack(time, currentTrack);
-            }
-
-            PushCurrentContextSafe();
-            cpu.Log(LogLevel.Debug, "Profiler: Interrupt entry (pc 0x{0:X})- saving the stack", cpu.PC);
-            CheckAndFlush(time);
-        }
-
-        public override void InterruptExit(ulong interruptIndex)
-        {
-            ulong time = InstructionCountToNsOffset(cpu.ExecutedInstructions);
-            FinishCurrentStack(time, currentTrack);
-            lastInterruptExitTime = time;
-            // We have to temporarily disable flushing to a file, since the next few packets can be removed
-            blockFlush = true;
-
-            cpu.Log(LogLevel.Debug, "Profiler: Interrupt exit - restoring the stack");
-            if(CurrentContext.Count > 0)
-            {
-                CurrentContext.PopCurrentStack();
-                // Restart functions on the current stack
-                foreach(var frame in CurrentStack.Reverse())
-                {
-                    writer.CreateEventBegin(time, frame, currentTrack);
-                }
-            }
-            else
-            {
-                CurrentContext.PopCurrentStack();
-            }
-            CheckAndFlush(time);
-        }
-
-        public override void FlushBuffer()
-        {
-            // DisableProfiler() calls Dispose() which calls FlushBuffer()
-            // `isDisposing` flag is required to prevent an infinite loop
-            if(blockFlush || isDisposing)
-            {
-                return;
-            }
-
-            lock(bufferLock)
-            {
-                // Write to MemoryStream first so we can check the serialized length against the limit
-                var memoryStream = new MemoryStream();
-                writer.FlushBuffer(memoryStream);
-
-                if(fileSizeLimit.HasValue && (fileStream.Length + memoryStream.Length) > fileSizeLimit)
-                {
-                    isDisposing = true;
-                    cpu.Log(LogLevel.Warning, "Profiler: Maximum file size exceeded, removing profiler");
-                    cpu.DisableProfiler();
-                    return;
-                }
-
-                memoryStream.WriteTo(fileStream);
+                writer.CreateTrack(cpu.GetName(), MainTrack);
             }
         }
 
-        private void FinishCurrentStack(ulong time, ulong trackId)
+        protected override void WriteAfterFramePush(ulong instructionsCount)
         {
-            for(int i = 0; i < CurrentStack.Count; i++)
+            var time = InstructionCountToNs(instructionsCount);
+            WriteNewContextIfNeeded(CurrentTrackId);
+            writer.CreateEventBegin(time, CurrentStack.Peek(), CurrentTrackId);
+        }
+
+        protected override void WriteBeforeFramePop(ulong instructionsCount)
+        {
+            var time = InstructionCountToNs(instructionsCount);
+            WriteNewContextIfNeeded(CurrentTrackId);
+            writer.CreateEventEnd(time, CurrentTrackId);
+        }
+
+        protected override void WriteStackLoad(ulong instructionsCount)
+        {
+            foreach(var frame in CurrentStack.Reverse())
             {
-                writer.CreateEventEnd(time, trackId);
+                WriteNewContextIfNeeded(CurrentTrackId);
+                writer.CreateEventBegin(InstructionCountToNs(instructionsCount), frame, CurrentTrackId);
             }
         }
 
-        private void CheckAndFlush(ulong time)
+        protected override void WriteStackFinish(ulong instructionsCount)
         {
-            if(blockFlush && time > lastInterruptExitTime)
+            foreach(var frame in CurrentStack)
             {
-                // If the time advanced pass the last interrupt exit the flushing can be turned back on
-                blockFlush = false;
+                WriteNewContextIfNeeded(CurrentTrackId);
+                writer.CreateEventEnd(InstructionCountToNs(instructionsCount), CurrentTrackId);
             }
+        }
 
-            if(flushInstantly || writer.PacketCount > BufferFlushLevel)
+        protected override void FlushToOutputStreamInner()
+        {
+            if(buffer.Length > 0)
             {
-                FlushBuffer();
+                buffer.WriteTo(outputStream);
+                buffer.SetLength(0);
+            }
+            if(writer.PacketCount > 0)
+            {
+                writer.FlushBuffer(outputStream);
+            }
+        }
+
+        protected override bool ShouldFlush => writer.PacketCount > BufferFlushLevel;
+
+        protected override ulong BytesPending
+        {
+            get
+            {
+                writer.FlushBuffer(buffer);
+                return (ulong)buffer.Length;
             }
         }
 
         private ulong InstructionCountToNs(ulong instructionCount)
         {
-            // 1 ins takes 1s / (MIPS * 10^6)
-            // So 1 ins = 10^9ns / (MIPS * 10^6) => (1000 / MIPS) ns
-            return (1000 * instructionCount) / cpu.PerformanceInMips;
+            return TimeInterval.FromCPUCycles(instructionCount, cpu.PerformanceInMips, out var _).TotalNanoseconds;
         }
 
-        private ulong InstructionCountToNsOffset(ulong instructionCount)
+        private void WriteNewContextIfNeeded(ulong id)
         {
-            return InstructionCountToNs(instructionCount) + timeOffset;
+            if(createdContexts != null && !createdContexts.Contains(id))
+            {
+                createdContexts.Add(id);
+                writer.CreateTrack($"Context {id}", id);
+            }
         }
 
-        private bool isDisposing;
-        private bool blockFlush;
-        private ulong lastInterruptExitTime;
-        private ulong currentTrack;
-        private ulong timeOffset;
+        private ulong CurrentTrackId
+        {
+            get
+            {
+                if(enableMultipleTracks)
+                {
+                    return currentContextId;
+                }
+                return MainTrack;
+            }
+        }
 
+        private readonly MemoryStream buffer;
+        private readonly HashSet<ulong> createdContexts;
         private readonly PerfettoTraceWriter writer;
         private readonly bool enableMultipleTracks;
-        private readonly FileStream fileStream;
-        private readonly long? fileSizeLimit;
-
         private const ulong MainTrack = 0;
         private const int BufferFlushLevel = 10000;
     }
