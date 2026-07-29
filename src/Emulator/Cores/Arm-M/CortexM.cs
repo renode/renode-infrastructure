@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 // Copyright (c) 2020-2021 Microsoft
 //
@@ -580,9 +580,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             set
             {
                 vtorInitialized = true;
-                if(!machine.SystemBus.IsMemory(value, this, secureState))
+                if(machine.SystemBus.WhatPeripheralIsAt(value, this, secureState) == null)
                 {
-                    this.Log(LogLevel.Warning, "Tried to set VTOR address at 0x{0:X} which does not lay in memory. Aborted.", value);
+                    this.Log(LogLevel.Warning, "Tried to set VTOR address at 0x{0:X} which is not mapped on the system bus. Aborted.", value);
                     return;
                 }
                 this.NoisyLog("VectorTableOffset set to 0x{0:X}.", value);
@@ -609,9 +609,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                     throw new RecoverableException("You need to enable TrustZone to use VTOR_NS");
                 }
                 vtorInitialized = true;
-                if(!machine.SystemBus.IsMemory(value, this))
+                if(machine.SystemBus.WhatPeripheralIsAt(value, this) == null)
                 {
-                    this.Log(LogLevel.Warning, "Tried to set VTOR_NS address at 0x{0:X} which does not lay in memory. Aborted.", value);
+                    this.Log(LogLevel.Warning, "Tried to set VTOR_NS address at 0x{0:X} which is not mapped on the system bus. Aborted.", value);
                     return;
                 }
                 this.NoisyLog("VectorTableOffset_NS set to 0x{0:X}.", value);
@@ -1063,9 +1063,9 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var sysbus = machine.SystemBus;
                 var pc = sysbus.ReadDoubleWordWithState(VectorTableOffset + 4, this, secureState);
                 var sp = sysbus.ReadDoubleWordWithState(VectorTableOffset, this, secureState);
-                if(!sysbus.IsMemory(pc, this, secureState) || (pc == 0 && sp == 0))
+                if(sysbus.WhatPeripheralIsAt(pc, this, secureState) == null || (pc == 0 && sp == 0))
                 {
-                    this.Log(LogLevel.Error, "PC does not lay in memory or PC and SP are equal to zero. CPU was halted.");
+                    this.Log(LogLevel.Error, "PC is in an unmapped region or PC and SP are equal to zero. CPU was halted.");
                     IsHalted = true;
                     return; // Keep PC and SP uninitialized in the case of error condition
                 }
