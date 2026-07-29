@@ -395,7 +395,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 this.NoisyLog("IRQ {0}, value {1}", number, value);
                 // as we are waiting for an interrupt we should, obviously, not mask it
-                if(started && (lastTlibResult == TlibExecutionResult.WaitingForInterrupt || !(DisableInterruptsWhileStepping && IsSingleStepMode)))
+                if(started && (lastTlibResult == TlibExecutionResult.WaitingForInterrupt || lastTlibResult == TlibExecutionResult.Lockup
+                    || !(DisableInterruptsWhileStepping && IsSingleStepMode)))
                 {
                     TlibSetIrqWrapped(number, value);
                     if(EmulationManager.Instance.CurrentEmulation.Mode != Emulation.EmulationMode.SynchronizedIO)
@@ -744,6 +745,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return ExecutionResult.Ok;
 
             case TlibExecutionResult.WaitingForInterrupt:
+                return ExecutionResult.WaitingForInterrupt;
+
+            case TlibExecutionResult.Lockup:
+                // Lockup behaves like WFI for scheduling but must not
+                // trigger WFI hooks.
                 return ExecutionResult.WaitingForInterrupt;
 
             case TlibExecutionResult.ExternalMmuFault:
@@ -1497,7 +1503,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 DeactivateHooks(PC);
                 return true;
             }
-            else if(result == ExecutionResult.WaitingForInterrupt)
+            else if(result == ExecutionResult.WaitingForInterrupt && lastTlibResult != TlibExecutionResult.Lockup)
             {
                 if(InDebugMode || neverWaitForInterrupt)
                 {
@@ -2541,6 +2547,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             StoppedAtWatchpoint = 0x10004,
             ReturnRequested = 0x10005,
             ExternalMmuFault = 0x10006,
+            Lockup = 0x10007,
         }
 
         protected enum Interrupt

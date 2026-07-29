@@ -48,6 +48,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SystemResetRequest = new GPIO();
             InSleep = new GPIO();
             InDeepSleep = new GPIO();
+            Lockup = new GPIO();
             resetMachine = machine.RequestReset;
             systick = new SecurityBanked<SysTick>
             {
@@ -87,6 +88,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 foreach(int i in pendingIRQs)
                 {
+                    if(isLockedUp && i != (int)SystemException.NMI)
+                    {
+                        continue;
+                    }
                     var currentIRQ = irqs[i];
                     if(IsCandidate(currentIRQ, i) && AdjustPriority(i) < bestPriority)
                     {
@@ -180,12 +185,47 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public void SetPendingSynchronousFault(int number)
+        public SynchronousFaultResult SetPendingSynchronousFault(int number)
         {
             lock(irqs)
             {
                 this.NoisyLog("Synchronous fault {0}.", ExceptionToString(number));
-                SetPending(number, synchronous: true);
+
+                if(!ShouldEscalateToHardFault(number, synchronous: true))
+                {
+                    SetPendingWithoutEscalation(number);
+                    FindPendingInterrupt();
+                    return SynchronousFaultResult.Pending;
+                }
+
+                var hardFault = GetEscalatedHardFault(number);
+                if(!CanSynchronousExceptionBecomeActive(hardFault))
+                {
+                    // Armv8-M ARM rule RXHMT and pseudocode operation CreateException:
+                    // instruction-time Lockup updates neither pending/active state nor HFSR.FORCED.
+                    this.DebugLog("Synchronous fault {0} cannot escalate to {1}, entering Lockup.",
+                        ExceptionToString(number), ExceptionToString(hardFault));
+                    return SynchronousFaultResult.Lockup;
+                }
+
+                this.DebugLog("Escalating IRQ {0} to HardFault.", ExceptionToString(number));
+                hardFaultForced = true;
+                SetPendingWithoutEscalation(hardFault);
+                FindPendingInterrupt();
+                return SynchronousFaultResult.Pending;
+            }
+        }
+
+        public void SetLockupState(bool value)
+        {
+            lock(irqs)
+            {
+                isLockedUp = value;
+                Lockup.Set(value);
+                if(value)
+                {
+                    IRQ.Unset();
+                }
                 FindPendingInterrupt();
             }
         }
@@ -579,6 +619,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             SystemResetRequest.Unset();
             InSleep.Unset();
             InDeepSleep.Unset();
+            Lockup.Unset();
+            isLockedUp = false;
             currentSevOnPending.Reset();
             mpuControlRegister = 0;
             HaltSystickOnDeepSleep = defaultHaltSystickOnDeepSleep;
@@ -713,6 +755,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public GPIO InSleep { get; private set; }
 
         public GPIO InDeepSleep { get; private set; }
+
+        public GPIO Lockup { get; private set; }
 
         public long Size
         {
@@ -1887,6 +1931,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             this.DebugLog("Set pending IRQ {0}.", ExceptionToString(i));
             i = EscalateToHardFault(i, synchronous);
+            SetPendingWithoutEscalation(i);
+        }
+
+        private void SetPendingWithoutEscalation(int i)
+        {
             var before = irqs[i];
             irqs[i] |= IRQState.Pending;
             pendingIRQs.Add(i);
@@ -1910,11 +1959,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         /// </summary>
         private int EscalateToHardFault(int interruptNo, bool synchronous)
         {
-            // Rules RGNVS and RTKCW (Armv8-M ARM): synchronous exceptions that cannot
-            // become active immediately, and disabled configurable-priority faults, escalate to HardFault.
-            // TODO: RGNVS also requires Lockup if the resulting HardFault cannot be taken.
-            var isAlwaysEnabled = !interruptEnabled.TryGetValue((SystemException)interruptNo, out var isEnabled);
-            if((isAlwaysEnabled || isEnabled) && (!synchronous || CanSynchronousExceptionBecomeActive(interruptNo)))
+            if(!ShouldEscalateToHardFault(interruptNo, synchronous))
             {
                 return interruptNo; /* Interrupt is enabled or is always enabled (not in dictionary), don't escalate to HardFault */
             }
@@ -1923,6 +1968,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // Rule RDQRR: escalation records HFSR.FORCED while retaining the
             // original fault's return-address behavior.
             hardFaultForced = true;
+            return GetEscalatedHardFault(interruptNo);
+        }
+
+        private bool ShouldEscalateToHardFault(int interruptNo, bool synchronous)
+        {
+            // Rules RGNVS and RTKCW (Armv8-M ARM): synchronous exceptions that cannot
+            // become active immediately, and disabled configurable-priority faults, escalate to HardFault.
+            var isAlwaysEnabled = !interruptEnabled.TryGetValue((SystemException)interruptNo, out var isEnabled);
+            return (!isAlwaysEnabled && !isEnabled)
+                || (synchronous && !CanSynchronousExceptionBecomeActive(interruptNo));
+        }
+
+        private int GetEscalatedHardFault(int interruptNo)
+        {
             if(IsInterruptTargetNonSecure(interruptNo))
             {
                 return (int)SystemException.HardFault;
@@ -2277,6 +2336,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private bool maskedInterruptPresent;
         private bool hardFaultForced;
+        private bool isLockedUp;
         private MPUVersion mpuVersion;
         private bool prioritizeSecureInterrupts;
         private bool deepSleepOnlyFromSecure;
@@ -2338,6 +2398,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int SysTickCalibration100Hz = 100;
         private const int SetPendingEnd        = 0x240;
         private const int SysTickMaxValue = (1 << 24) - 1;
+
+        public enum SynchronousFaultResult
+        {
+            Pending,
+            Lockup,
+        }
 
         public enum InterruptTargetSecurityState
         {

@@ -303,6 +303,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             set => VectorTableOffset = value;
         }
 
+        public bool IsLockedUp => tlibIsLockedUp() != 0;
+
         public bool IsUsingProcessSP
         {
             get
@@ -1097,9 +1099,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void SetPendingSynchronousFault(int number)
+        private int SetPendingSynchronousFault(int number)
         {
-            nvic.SetPendingSynchronousFault(number);
+            return (int)nvic.SetPendingSynchronousFault(number);
+        }
+
+        [Export]
+        private void OnLockupStateChange(int value)
+        {
+            nvic.SetLockupState(value != 0);
         }
 
         private void SetTrustZoneRelatedRegister(string registerName, Action<uint> setter, uint value)
@@ -1240,6 +1248,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<uint> tlibRaisePreciseBusFault;
+
+        [Import]
+        private readonly Func<uint> tlibIsLockedUp;
 
         [Import]
         private readonly Func<uint> tlibGetSecureFaultAddress;
