@@ -1125,6 +1125,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
+        private uint GetFpccrReadyBits(int originalException, int secure)
+        {
+            return nvic.GetFpccrReadyBits(originalException, secure != 0);
+        }
+
+        [Export]
+        private int SetPendingLazyFpFault(int number, uint fpccr)
+        {
+            return (int)nvic.SetPendingLazyFpFault(number, fpccr);
+        }
+
+        [Export]
         private void OnLockupStateChange(int value)
         {
             nvic.SetLockupState(value != 0);

@@ -216,6 +216,103 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        public uint GetFpccrReadyBits(int originalException, bool secure)
+        {
+            lock(irqs)
+            {
+                bool IsReady(int exception)
+                {
+                    return originalException != 0
+                        && activeIRQs.Count > 0
+                        && activeIRQs.Peek() == originalException
+                        ? CanSynchronousExceptionBecomeActiveBeforeOriginal(exception, originalException)
+                        : CanSynchronousExceptionBecomeActive(exception);
+                }
+
+                bool IsEnabledAndReady(int exception)
+                {
+                    return (!interruptEnabled.TryGetValue((SystemException)exception, out var enabled) || enabled)
+                        && IsReady(exception);
+                }
+
+                bool IsHardFaultReady()
+                {
+                    var ignoredActiveException = originalException != 0
+                        && activeIRQs.Count > 0
+                        && activeIRQs.Peek() == originalException
+                        ? originalException
+                        : (int?)null;
+                    return IsExecutionPriorityNonNegative(ignoredActiveException);
+                }
+
+                var result = 0u;
+                // UpdateFPCCR() defines HFRDY as ExecutionPriority() > -1,
+                // rather than as the readiness of either of the banked
+                // HardFaults. This matters for FAULTMASK_NS when BFHFNMINS is
+                // set, because HardFault is banked but the boosted execution
+                // priority is still -1.
+                BitHelper.SetBit(ref result, 4, IsHardFaultReady());
+                BitHelper.SetBit(ref result, 5, IsEnabledAndReady((int)(secure ? SystemException.MemManageFault_S : SystemException.MemManageFault)));
+                BitHelper.SetBit(ref result, 6, IsEnabledAndReady((int)SystemException.BusFault));
+                BitHelper.SetBit(ref result, 7, IsEnabledAndReady((int)SystemException.SecureFault));
+                // Architectural DebugMonitor state is not implemented, so
+                // CanPendMonitorOnEvent() is always false and MONRDY is zero.
+                BitHelper.SetBit(ref result, 10, IsEnabledAndReady((int)(secure ? SystemException.UsageFault_S : SystemException.UsageFault)));
+                return result;
+            }
+        }
+
+        public LazyFpFaultResult SetPendingLazyFpFault(int number, uint fpccr)
+        {
+            lock(irqs)
+            {
+                var architecturalNumber = number & ~BankedExcpSecureBit;
+                bool escalate;
+                switch((SystemException)architecturalNumber)
+                {
+                case SystemException.DebugMonitor:
+                    if(!BitHelper.IsBitSet(fpccr, 8))
+                    {
+                        return LazyFpFaultResult.Deferred;
+                    }
+                    escalate = false;
+                    break;
+                case SystemException.MemManageFault:
+                    escalate = !BitHelper.IsBitSet(fpccr, 5);
+                    break;
+                case SystemException.BusFault:
+                    escalate = !BitHelper.IsBitSet(fpccr, 6);
+                    break;
+                case SystemException.UsageFault:
+                    escalate = !BitHelper.IsBitSet(fpccr, 10);
+                    break;
+                case SystemException.SecureFault:
+                    escalate = !BitHelper.IsBitSet(fpccr, 7);
+                    break;
+                default:
+                    throw new ArgumentException($"Invalid lazy FP preservation fault: {number}");
+                }
+
+                var targetException = escalate ? GetEscalatedHardFault(number) : number;
+                var canPreemptNow = CanSynchronousExceptionBecomeActive(targetException);
+                if(!canPreemptNow && !BitHelper.IsBitSet(fpccr, 4))
+                {
+                    // Rule RRNKB and TakePreserveFPException(): Lockup uses
+                    // the saved HFRDY state and does not update FORCED or
+                    // pending/active exception state.
+                    return LazyFpFaultResult.Lockup;
+                }
+
+                if(escalate)
+                {
+                    hardFaultForced = true;
+                }
+                SetPendingWithoutEscalation(targetException);
+                FindPendingInterrupt();
+                return canPreemptNow ? LazyFpFaultResult.Taken : LazyFpFaultResult.Deferred;
+            }
+        }
+
         public void EnterResetLockup(bool secure)
         {
             lock(irqs)
@@ -2125,6 +2222,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return GetGroupPriority(interruptNo) < GetExecutionPriority(ignoredActiveException: ignoredActiveException);
         }
 
+        private bool IsExecutionPriorityNonNegative(int? ignoredActiveException = null)
+        {
+            return GetExecutionPriority(ignoredActiveException: ignoredActiveException) > -1;
+        }
+
+        private bool CanSynchronousExceptionBecomeActiveBeforeOriginal(int interruptNo, int originalException)
+        {
+            DebugHelper.Assert(activeIRQs.Count > 0 && activeIRQs.Peek() == originalException);
+
+            // The original exception is acknowledged early, but is not
+            // architecturally active at the PushStack() point. Exclude it
+            // from this priority query.
+            return CanSynchronousExceptionBecomeActive(interruptNo, originalException);
+        }
+
         private int? GetActiveFixedPriorityException()
         {
             switch(GetRawExecutionPriority())
@@ -2554,6 +2666,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         private const int SysTickCalibration100Hz = 100;
         private const int SetPendingEnd        = 0x240;
         private const int SysTickMaxValue = (1 << 24) - 1;
+
+        public enum LazyFpFaultResult
+        {
+            Deferred,
+            Taken,
+            Lockup,
+        }
 
         public enum SynchronousFaultResult
         {
