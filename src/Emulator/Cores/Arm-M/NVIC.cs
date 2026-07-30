@@ -82,7 +82,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             lock(irqs)
             {
-                var bestPriority = 0xFF + 1;
                 var preemptNeeded = activeIRQs.Count != 0;
                 int? result = null;
 
@@ -93,17 +92,17 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         continue;
                     }
                     var currentIRQ = irqs[i];
-                    if(IsCandidate(currentIRQ) && AdjustPriority(i) < bestPriority)
+                    // ComparePriorities() uses full priority, exception number,
+                    // and Security state when selecting between pending exceptions.
+                    if(IsCandidate(currentIRQ) && (result == null || DoesAPreemptB(i, result.Value)))
                     {
                         result = i;
-                        bestPriority = AdjustPriority(i);
                     }
                 }
                 if(preemptNeeded && result != null)
                 {
                     var activeTop = activeIRQs.Peek();
-                    var activePriority = AdjustPriority(activeTop);
-                    if(!DoesAPreemptB(bestPriority, activePriority, !IsInterruptTargetNonSecure(result.Value), !IsInterruptTargetNonSecure(activeTop)))
+                    if(GetGroupPriority(result.Value) >= GetRawExecutionPriority())
                     {
                         result = null;
                     }
@@ -115,19 +114,21 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
                 if(result == null)
                 {
+                    IRQ.Set(false);
                     maskedInterruptPresent = false;
                     return null;
                 }
 
-                if(ShouldRaiseException(result.Value))
-                {
-                    IRQ.Set(true);
-                }
+                var groupPriority = GetGroupPriority(result.Value);
+                var canBecomeActive = groupPriority < GetExecutionPriority();
+                // WFI ignores PRIMASK, but it must still account for active
+                // exceptions, BASEPRI, and FAULTMASK (rule RHRMJ).
+                var canWakeFromWfi = groupPriority < GetExecutionPriority(ignorePrimask: true);
+                IRQ.Set(canBecomeActive);
+
                 // This field has side-effects, and can cause Cortex-M CPU running in another thread to exit WFI immediately.
-                // Make absolutely sure to execute last, after signaling IRQ handler to run with `IRQ.Set`.
-                // Only this way the CPU will enter an exception handler immediately upon waking from WFI.
-                // This doesn't matter for async (HW) interrupts, arriving when the core is executing normally.
-                maskedInterruptPresent = true;
+                // Make absolutely sure to execute last, after updating `IRQ`.
+                maskedInterruptPresent = canWakeFromWfi;
 
                 return result;
             }
@@ -213,6 +214,85 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 SetPendingWithoutEscalation(hardFault);
                 FindPendingInterrupt();
                 return SynchronousFaultResult.Pending;
+            }
+        }
+
+        public SynchronousFaultResult SetPendingStackingFault(int number, int originalException)
+        {
+            lock(irqs)
+            {
+                // ExceptionEntry() performs PushStack() before ExceptionTaken().
+                // We acknowledged the original exception before stacking,
+                // so ignore the top active entry while reproducing the
+                // CreateException() decision at the point of the stack fault.
+                this.NoisyLog("Stacking fault {0} while entering {1}.",
+                    ExceptionToString(number), ExceptionToString(originalException));
+
+                var derivedException = number;
+                var escalated = ShouldEscalateStackingFault(number, originalException);
+                if(escalated)
+                {
+                    derivedException = GetEscalatedHardFault(number);
+                    if(!CanSynchronousExceptionBecomeActiveBeforeOriginal(derivedException, originalException))
+                    {
+                        // Rules RVKTX and RGJJG: the fault has updated its syndrome,
+                        // but creates no pending exception and does not set FORCED.
+                        this.DebugLog("Stacking fault {0} cannot escalate to {1}, entering Lockup.",
+                            ExceptionToString(number), ExceptionToString(derivedException));
+                        return SynchronousFaultResult.Lockup;
+                    }
+                }
+
+                if(escalated)
+                {
+                    hardFaultForced = true;
+                }
+
+                if(DoesAPreemptB(derivedException, originalException))
+                {
+                    // DerivedLateArrival(): the derived exception is taken using
+                    // the frame already allocated for the original exception.
+                    // Restore the original pending state which we cleared
+                    // during the early acknowledgement.
+                    RestoreAcknowledgedExceptionAsPending(originalException);
+                    SetPendingWithoutEscalation(derivedException);
+                    FindPendingInterrupt();
+                    return SynchronousFaultResult.Replaced;
+                }
+
+                // DerivedLateArrival() pends the derived exception even when
+                // it is the same exception as the original one. In that case
+                // the exception starts its handler Active+Pending.
+                SetPendingWithoutEscalation(derivedException);
+                FindPendingInterrupt();
+                return SynchronousFaultResult.Pending;
+            }
+        }
+
+        public SynchronousFaultResult SetPendingVectorFault(bool secure, int originalException)
+        {
+            lock(irqs)
+            {
+                // Armv8-M ARM rule RCTKP and pseudocode operation DerivedLateArrival:
+                // a terminal vector-table BusFault becomes HardFault with
+                // HFSR.VECTTBL set. We choose to have FORCED remain clear which is
+                // permitted on ARMv8.0-M and mandatory on ARMv8.1-M (RLLRP).
+                hardFaultVectorTable.Value = true;
+                var hardFault = GetHardFaultForTargetSecurity(secure);
+                if(!CanSynchronousExceptionBecomeActive(hardFault))
+                {
+                    this.DebugLog("Vector-table HardFault {0} cannot become active, entering Lockup.",
+                        ExceptionToString(hardFault));
+                    return SynchronousFaultResult.Lockup;
+                }
+
+                // A terminal vector fault prevents the original exception
+                // from being taken. DerivedLateArrival() restores its pending
+                // state and enters HardFault using the existing frame.
+                RestoreAcknowledgedExceptionAsPending(originalException);
+                SetPendingWithoutEscalation(hardFault);
+                FindPendingInterrupt();
+                return SynchronousFaultResult.Replaced;
             }
         }
 
@@ -2192,6 +2272,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 || (synchronous && !CanSynchronousExceptionBecomeActive(interruptNo));
         }
 
+        private bool ShouldEscalateStackingFault(int interruptNo, int originalException)
+        {
+            var isAlwaysEnabled = !interruptEnabled.TryGetValue((SystemException)interruptNo, out var isEnabled);
+            return (!isAlwaysEnabled && !isEnabled)
+                || !CanSynchronousExceptionBecomeActiveBeforeOriginal(interruptNo, originalException);
+        }
+
         private int GetEscalatedHardFault(int interruptNo)
         {
             return GetHardFaultForTargetSecurity(!IsInterruptTargetNonSecure(interruptNo));
@@ -2235,6 +2322,37 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             // architecturally active at the PushStack() point. Exclude it
             // from this priority query.
             return CanSynchronousExceptionBecomeActive(interruptNo, originalException);
+        }
+
+        private bool DoesAPreemptB(int exceptionA, int exceptionB)
+        {
+            // Armv8-M ARM pseudocode operation ComparePriorities(), with
+            // groupPri=FALSE.
+            var priorityA = AdjustPriority(exceptionA);
+            var priorityB = AdjustPriority(exceptionB);
+            if(priorityA != priorityB)
+            {
+                return priorityA < priorityB;
+            }
+
+            var numberA = exceptionA & ~BankedExcpSecureBit;
+            var numberB = exceptionB & ~BankedExcpSecureBit;
+            if(numberA != numberB)
+            {
+                return numberA < numberB;
+            }
+
+            var secureA = !IsInterruptTargetNonSecure(exceptionA);
+            var secureB = !IsInterruptTargetNonSecure(exceptionB);
+            return secureA && !secureB;
+        }
+
+        private void RestoreAcknowledgedExceptionAsPending(int originalException)
+        {
+            DebugHelper.Assert(activeIRQs.Count > 0 && activeIRQs.Peek() == originalException);
+            activeIRQs.Pop();
+            irqs[originalException] &= ~IRQState.Active;
+            SetPendingWithoutEscalation(originalException);
         }
 
         private int? GetActiveFixedPriorityException()
@@ -2678,6 +2796,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             Pending,
             Lockup,
+            Replaced,
         }
 
         public enum InterruptTargetSecurityState

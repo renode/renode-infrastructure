@@ -1125,6 +1125,18 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
+        private int SetPendingStackingFault(int number, int originalException)
+        {
+            return (int)nvic.SetPendingStackingFault(number, originalException);
+        }
+
+        [Export]
+        private int SetPendingVectorFault(int secure, int originalException)
+        {
+            return (int)nvic.SetPendingVectorFault(secure != 0, originalException);
+        }
+
+        [Export]
         private uint GetFpccrReadyBits(int originalException, int secure)
         {
             return nvic.GetFpccrReadyBits(originalException, secure != 0);
