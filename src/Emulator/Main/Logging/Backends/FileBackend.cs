@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Logging
             this.flushAfterEachWrite = flushAfterEachWrite;
         }
 
-        public override void Log(LogEntry entry)
+        public override void Log(LogEntry entry, Logger.TimestampType timestampType)
         {
             if(!ShouldBeLogged(entry))
             {
@@ -38,8 +38,8 @@ namespace Antmicro.Renode.Logging
                 }
 
                 var type = entry.Type;
-                var message = FormatLogEntry(entry);
-                output.WriteLine(string.Format("{0:HH:mm:ss.ffff} [{1}] {2}", CustomDateTime.Now, type, message));
+                var message = FormatLogEntry(entry, timestampType);
+                output.WriteLine($"{entry.GetTimestampString(timestampType)} [{type}] {message}");
                 if(flushAfterEachWrite)
                 {
                     output.Flush();

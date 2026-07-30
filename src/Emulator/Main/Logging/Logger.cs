@@ -475,16 +475,6 @@ namespace Antmicro.Renode.Logging
 
         public static readonly LogLevel DefaultLogLevel = LogLevel.Info;
 
-        internal static ILogger GetLogger()
-        {
-            var logger = new ActualLogger();
-            foreach(var backend in backends.Items)
-            {
-                backend.Reset();
-            }
-            return logger;
-        }
-
         private static string GetGenericName(object o)
         {
             if(Misc.IsPythonObject(o))
@@ -502,6 +492,26 @@ namespace Antmicro.Renode.Logging
 
         private static ulong nextEntryId = 0;
         private static LogLevel minLevel = DefaultLogLevel;
+
+        [Flags]
+        public enum TimestampType
+        {
+            None = 0b0,
+            Host = 0b01,
+            Virtual = 0b10,
+            Both = Host | Virtual,
+        }
+
+        internal static ILogger GetLogger()
+        {
+            var logger = new ActualLogger();
+            foreach(var backend in backends.Items)
+            {
+                backend.Reset();
+            }
+            return logger;
+        }
+
         private static readonly object backendsChangeLock = new object();
         private static readonly ConcurrentDictionary<string, ILoggerBackend> backendNames = new ConcurrentDictionary<string, ILoggerBackend>();
         private static readonly FastReadConcurrentCollection<ILoggerBackend> backends = new FastReadConcurrentCollection<ILoggerBackend>();
@@ -579,7 +589,9 @@ namespace Antmicro.Renode.Logging
                     message = string.Format(message, args);
                 }
 
-                var entry = new LogEntry(CustomDateTime.Now, type, message, sourceId, alwaysAppendMachineName, Thread.CurrentThread.ManagedThreadId);
+                var virtualTimestamp = EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ElapsedVirtualTime;
+                var hostTimestamp = CustomDateTime.Now;
+                var entry = new LogEntry(hostTimestamp, virtualTimestamp, type, message, sourceId, alwaysAppendMachineName, Thread.CurrentThread.ManagedThreadId);
 
                 if(SynchronousLogging)
                 {
@@ -769,7 +781,7 @@ namespace Antmicro.Renode.Logging
                 var allBackends = Logger.backends.Items;
                 for(var i = 0; i < allBackends.Length; i++)
                 {
-                    allBackends[i].Log(entry);
+                    allBackends[i].Log(entry, timestampType);
                 }
             }
 
@@ -812,6 +824,7 @@ namespace Antmicro.Renode.Logging
                 alwaysAppendMachineName = ConfigurationManager.Instance.Get("general", "always-log-machine-name", false);
                 aggregateLogs = ConfigurationManager.Instance.Get("general", "collapse-repeated-log-entries", true);
 
+                timestampType = ConfigurationManager.Instance.Get("general", "log-timestamps-type", Logger.TimestampType.Host);
                 EmulationManager.PreservableManager.RegisterPreservable(this, livesThroughEmulationChange: false);
 
                 if(!SynchronousLogging)
@@ -872,6 +885,9 @@ namespace Antmicro.Renode.Logging
             private Timer logAggregatorTimer;
             [Transient]
             private bool aggregateLogs;
+
+            [Transient]
+            private Logger.TimestampType timestampType;
 
             [Transient]
             private bool alwaysAppendMachineName;

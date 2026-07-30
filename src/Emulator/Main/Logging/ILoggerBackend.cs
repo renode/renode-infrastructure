@@ -12,7 +12,7 @@ namespace Antmicro.Renode.Logging
 {
     public interface ILoggerBackend : IDisposable
     {
-        void Log(LogEntry entry);
+        void Log(LogEntry entry, Logger.TimestampType timestampType);
 
         void SetLogLevel(LogLevel level, int sourceId = -1);
 

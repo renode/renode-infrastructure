@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Logging
 {
     public abstract class TextBackend : LoggerBackend
     {
-        protected virtual string FormatLogEntry(LogEntry entry)
+        protected virtual string FormatLogEntry(LogEntry entry, Logger.TimestampType timestamp)
         {
             var messageBuilder = new StringBuilder();
             var messages = entry.Message.Split('\n').GetEnumerator();

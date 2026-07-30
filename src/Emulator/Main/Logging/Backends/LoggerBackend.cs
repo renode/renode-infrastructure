@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Logging
             }
         }
 
-        public abstract void Log(LogEntry entry);
+        public abstract void Log(LogEntry entry, Logger.TimestampType timestampType);
 
         public virtual bool IsControllable { get { return true; } }
 

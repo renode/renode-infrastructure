@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Logging.Backends
             MaxCount = ConfigurationManager.Instance.Get("general", "log-history-limit", DefaultLimit);
         }
 
-        public override void Log(LogEntry entry)
+        public override void Log(LogEntry entry, Logger.TimestampType timestampType)
         {
             lock(locker)
             {
@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Logging.Backends
                     entries.Dequeue();
                 }
 
-                var memoryLogEntry = new MemoryLogEntry(entry, FormatLogEntry);
+                var memoryLogEntry = new MemoryLogEntry(entry, timestampType, FormatLogEntry);
                 entries.Enqueue(memoryLogEntry);
             }
         }
@@ -60,11 +60,11 @@ namespace Antmicro.Renode.Logging.Backends
 
     public class MemoryLogEntry
     {
-        public MemoryLogEntry(LogEntry entry, Func<LogEntry, string> formatter)
+        public MemoryLogEntry(LogEntry entry, Logger.TimestampType timestampType, Func<LogEntry, Logger.TimestampType, string> formatter)
         {
             DateTime = entry.Time;
             Type = entry.Type;
-            Message = formatter(entry);
+            Message = formatter(entry, timestampType);
         }
 
         public DateTime DateTime { get; }

@@ -9,18 +9,20 @@ using System;
 
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Logging
 {
     public sealed class LogEntry : ISpeciallySerializable
     {
-        public LogEntry(DateTime time, LogLevel level, string message, int sourceId = NoSource, bool forceMachineName = false, int? threadId = null)
+        public LogEntry(DateTime time, TimeInterval virtualTime, LogLevel level, string message, int sourceId = NoSource, bool forceMachineName = false, int? threadId = null)
         {
             Message = message;
             numericLogLevel = level.NumericLevel;
             SourceId = sourceId;
             Time = time;
             ThreadId = threadId;
+            VirtualTime = virtualTime;
             ForceMachineName = forceMachineName;
             Count = 1;
             GetNames();
@@ -57,6 +59,7 @@ namespace Antmicro.Renode.Logging
             SourceId = reader.ReadInt32();
             ThreadId = reader.ReadInt32();
             Time = new DateTime(reader.ReadInt64());
+            VirtualTime = TimeInterval.FromTicks(reader.ReadUInt64());
             numericLogLevel = reader.ReadInt32();
             Count = reader.ReadInt32();
             GetNames();
@@ -67,6 +70,17 @@ namespace Antmicro.Renode.Logging
             }
         }
 
+        public string GetTimestampString(Logger.TimestampType timestampType)
+        {
+            return timestampType switch
+            {
+                Logger.TimestampType.Host => $"[{Time:HH:mm:ss.ffff}] ",
+                Logger.TimestampType.Virtual => $"[{VirtualTime}] ",
+                Logger.TimestampType.Both => $"[host: {Time:HH:mm:ss.ffff} | virt: {VirtualTime}] ",
+                _ => "",
+            };
+        }
+
         public void Save(PrimitiveWriter writer)
         {
             writer.Write(Id);
@@ -74,6 +88,7 @@ namespace Antmicro.Renode.Logging
             writer.Write(SourceId);
             writer.Write(ThreadId ?? -1);
             writer.Write(Time.Ticks);
+            writer.Write(VirtualTime.Ticks);
             writer.Write(numericLogLevel);
             writer.Write(Count);
         }
@@ -85,6 +100,8 @@ namespace Antmicro.Renode.Logging
         public string Message { get; private set; }
 
         public int? ThreadId { get; private set; }
+
+        public TimeInterval VirtualTime { get; private set; }
 
         public DateTime Time { get; private set; }
 
