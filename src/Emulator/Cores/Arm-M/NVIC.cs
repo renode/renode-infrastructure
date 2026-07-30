@@ -269,7 +269,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public SynchronousFaultResult SetPendingVectorFault(bool secure, int originalException)
+        public SynchronousFaultResult SetPendingVectorFault(bool secure, int originalException, bool ignoreFaults)
         {
             lock(irqs)
             {
@@ -278,6 +278,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 // HFSR.VECTTBL set. We choose to have FORCED remain clear which is
                 // permitted on ARMv8.0-M and mandatory on ARMv8.1-M (RLLRP).
                 hardFaultVectorTable.Value = true;
+                if(ignoreFaults)
+                {
+                    // DerivedLateArrival() has already selected the original
+                    // exception with IgnoreFaults_ALL. Record only the syndrome.
+                    return SynchronousFaultResult.Ignored;
+                }
+
                 var hardFault = GetHardFaultForTargetSecurity(secure);
                 if(!CanSynchronousExceptionBecomeActive(hardFault))
                 {
@@ -2797,6 +2804,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Pending,
             Lockup,
             Replaced,
+            Ignored,
         }
 
         public enum InterruptTargetSecurityState

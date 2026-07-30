@@ -1131,9 +1131,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private int SetPendingVectorFault(int secure, int originalException)
+        private int SetPendingVectorFault(int secure, int originalException, int ignoreFaults)
         {
-            return (int)nvic.SetPendingVectorFault(secure != 0, originalException);
+            return (int)nvic.SetPendingVectorFault(secure != 0, originalException, ignoreFaults != 0);
         }
 
         [Export]
