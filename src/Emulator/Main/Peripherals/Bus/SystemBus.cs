@@ -1163,9 +1163,10 @@ namespace Antmicro.Renode.Peripherals.Bus
                 .FirstOrDefault(x => x.RegistrationPoint.Range.Contains(address));
         }
 
-        public IPeripheral WhatPeripheralIsAt(ulong address, IPeripheral context = null)
+        public IPeripheral WhatPeripheralIsAt(ulong address, IPeripheral context = null, ulong? initiatorState = null)
         {
-            var registered = WhatIsAt(address, context);
+            var registered = GetAccessiblePeripheralsForContext(context, initiatorState)
+                .FirstOrDefault(x => x.RegistrationPoint.Range.Contains(address));
             if(registered != null)
             {
                 return registered.Peripheral;

@@ -78,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         IBusRegistered<IBusPeripheral> WhatIsAt(ulong address, IPeripheral context = null);
 
-        IPeripheral WhatPeripheralIsAt(ulong address, IPeripheral context = null);
+        IPeripheral WhatPeripheralIsAt(ulong address, IPeripheral context = null, ulong? initiatorState = null);
 
         bool IsAddressRangeLocked(Range range, IPeripheral context = null);
 

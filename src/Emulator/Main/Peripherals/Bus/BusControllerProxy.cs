@@ -223,10 +223,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ParentController.WhatIsAt(address, context);
         }
 
-        public virtual IPeripheral WhatPeripheralIsAt(ulong address, IPeripheral context = null)
+        public virtual IPeripheral WhatPeripheralIsAt(ulong address, IPeripheral context = null, ulong? initiatorState = null)
         {
             ValidateOperation(ref address, BusAccessPrivileges.Other, context);
-            return ParentController.WhatPeripheralIsAt(address, context);
+            return ParentController.WhatPeripheralIsAt(address, context, initiatorState);
         }
 
         public virtual IEnumerable<ICPU> GetCPUs()
