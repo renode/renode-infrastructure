@@ -994,9 +994,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [Export]
-        private void CompleteIRQ(int number)
+        private int CompleteIRQ(int number)
         {
-            nvic.CompleteIRQ(number);
+            return nvic.CompleteIRQ(number) ? 1 : 0;
         }
 
         [Export]

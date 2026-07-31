@@ -247,38 +247,45 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
-        public void CompleteIRQ(int number)
+        public bool CompleteIRQ(int number)
         {
             lock(irqs)
             {
                 var currentIRQ = irqs[number];
-                if((currentIRQ & IRQState.Active) == 0)
+                var isActive = (currentIRQ & IRQState.Active) != 0;
+                var isTopActive = activeIRQs.Count > 0 && activeIRQs.Peek() == number;
+                if(!isActive || !isTopActive)
                 {
-                    this.Log(LogLevel.Error, "Trying to complete not active IRQ {0}.", ExceptionToString(number));
-                    return;
+                    if(!isActive)
+                    {
+                        this.Log(LogLevel.Error, "Trying to complete not active IRQ {0}.", ExceptionToString(number));
+                    }
+                    else if(activeIRQs.Count == 0)
+                    {
+                        this.ErrorLog("Trying to complete IRQ {0}, but the active exception stack is empty.", ExceptionToString(number));
+                    }
+                    else
+                    {
+                        this.Log(LogLevel.Error, "Trying to complete IRQ {0} that was not the last active. Last active was {1}.", ExceptionToString(number), ExceptionToString(activeIRQs.Peek()));
+                    }
+
+                    // ValidateExceptionReturn() still calls DeActivate() when
+                    // corrupted return metadata selects an inactive exception.
+                    // DeActivate() clears the active fixed-priority exception
+                    // selected by RawExecutionPriority(), rather than trusting
+                    // the corrupted IPSR/EXC_RETURN Security-state selection.
+                    var fixedPriorityException = GetActiveFixedPriorityException();
+                    if(fixedPriorityException.HasValue)
+                    {
+                        DeactivateIRQ(fixedPriorityException.Value);
+                        FindPendingInterrupt();
+                    }
+                    return false;
                 }
-                irqs[number] &= ~IRQState.Active;
-                var activeIRQ = activeIRQs.Pop();
-                if(activeIRQ != number)
-                {
-                    this.Log(LogLevel.Error, "Trying to complete IRQ {0} that was not the last active. Last active was {1}.", ExceptionToString(number), ExceptionToString(activeIRQ));
-                    return;
-                }
-                if((currentIRQ & IRQState.Running) > 0)
-                {
-                    this.NoisyLog("Completed IRQ {0} active -> pending.", ExceptionToString(number));
-                    irqs[number] |= IRQState.Pending;
-                    pendingIRQs.Add(number);
-                }
-                else if((currentIRQ & IRQState.Pending) != 0)
-                {
-                    this.NoisyLog("Completed IRQ {0} active -> pending.", number);
-                }
-                else
-                {
-                    this.NoisyLog("Completed IRQ {0} active -> inactive.", ExceptionToString(number));
-                }
+
+                DeactivateIRQ(number);
                 FindPendingInterrupt();
+                return true;
             }
         }
 
@@ -2116,6 +2123,45 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
 
             return GetGroupPriority(interruptNo) < GetExecutionPriority(ignoredActiveException: ignoredActiveException);
+        }
+
+        private int? GetActiveFixedPriorityException()
+        {
+            switch(GetRawExecutionPriority())
+            {
+            case -3:
+                return (int)SystemException.HardFault_S;
+            case -2:
+                return (int)SystemException.NMI;
+            case -1:
+                return (int)SystemException.HardFault;
+            default:
+                return null;
+            }
+        }
+
+        private void DeactivateIRQ(int number)
+        {
+            DebugHelper.Assert(activeIRQs.Count > 0 && activeIRQs.Peek() == number);
+            var currentIRQ = irqs[number];
+            DebugHelper.Assert((currentIRQ & IRQState.Active) != 0);
+
+            irqs[number] &= ~IRQState.Active;
+            activeIRQs.Pop();
+            if((currentIRQ & IRQState.Running) > 0)
+            {
+                this.NoisyLog("Completed IRQ {0} active -> pending.", ExceptionToString(number));
+                irqs[number] |= IRQState.Pending;
+                pendingIRQs.Add(number);
+            }
+            else if((currentIRQ & IRQState.Pending) != 0)
+            {
+                this.NoisyLog("Completed IRQ {0} active -> pending.", number);
+            }
+            else
+            {
+                this.NoisyLog("Completed IRQ {0} active -> inactive.", ExceptionToString(number));
+            }
         }
 
         private void ClearPending(int i)

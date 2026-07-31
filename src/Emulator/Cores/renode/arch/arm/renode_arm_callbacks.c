@@ -11,7 +11,7 @@
 
 #ifdef TARGET_PROTO_ARM_M
 EXTERNAL_AS(int32_t, AcknowledgeIRQ, tlib_nvic_acknowledge_irq)
-EXTERNAL_AS(void, CompleteIRQ, tlib_nvic_complete_irq, int32_t)
+EXTERNAL_AS(int32_t, CompleteIRQ, tlib_nvic_complete_irq, int32_t)
 EXTERNAL_AS(void, SetPendingIRQ, tlib_nvic_set_pending_irq, int32_t)
 EXTERNAL_AS(int32_t, SetPendingSynchronousFault, tlib_nvic_set_pending_synchronous_fault, int32_t)
 EXTERNAL_AS(void, OnLockupStateChange, tlib_on_lockup_state_change, int32_t)
