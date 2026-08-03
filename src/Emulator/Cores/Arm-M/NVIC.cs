@@ -1074,7 +1074,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             Registers.InterruptControlState.Define(RegisterCollection)
                 .WithValueField(0, 9, FieldMode.Read, valueProviderCallback: _ => (uint)(activeIRQs.Count == 0 ? 0 : activeIRQs.Peek()), name: "VECTACTIVE")
                 .WithReservedBits(9, 2)
-                .WithTaggedFlag("RETTOBASE", 11)
+                .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => activeIRQs.Intersect(Enum.GetValues(typeof(SystemException)).Cast<int>()).Count() <= 1, name: "RETTOBASE")
                 .WithValueField(12, 9, FieldMode.Read, valueProviderCallback: _ => (ulong)(FindPendingInterrupt() ?? 0), name: "VECTPENDING")
                 .WithReservedBits(21, 1)
                 .WithTaggedFlag("ISRPENDING", 22)
