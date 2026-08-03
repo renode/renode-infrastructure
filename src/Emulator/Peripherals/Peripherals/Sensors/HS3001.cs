@@ -190,7 +190,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal Temperature
         {
-            get => GetSampleFromRESDStream(ref resdTemperatureStream, (sample) => sample.Temperature / 1000, temperature);
+            get
+            {
+                if(TryGetSampleFromRESDStream(ref resdTemperatureStream, (sample) => sample.Temperature / 1000, out var newTemperature))
+                {
+                    temperature = newTemperature;
+                }
+                return temperature;
+            }
+
             set
             {
                 resdTemperatureStream?.Dispose();
@@ -201,7 +209,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public decimal Humidity
         {
-            get => GetSampleFromRESDStream(ref resdHumidityStream, (sample) => sample.Humidity / 1000, humidity);
+            get
+            {
+                if(TryGetSampleFromRESDStream(ref resdHumidityStream, (sample) => sample.Humidity / 1000, out var newHumidity))
+                {
+                    humidity = newHumidity;
+                }
+                return humidity;
+            }
+
             set
             {
                 resdHumidityStream?.Dispose();
@@ -210,24 +226,28 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        private decimal GetSampleFromRESDStream<T>(ref RESDStream<T> stream, Func<T, decimal> transformer, decimal defaultValue)
+        private bool TryGetSampleFromRESDStream<T>(ref RESDStream<T> stream, Func<T, decimal> transformer, out decimal newValue)
             where T : RESDSample, new()
         {
+            newValue = 0;
+
             if(stream == null)
             {
-                return defaultValue;
+                return false;
             }
 
             switch(stream.TryGetCurrentSample(this, transformer, out var sample, out _))
             {
             case RESDStreamStatus.OK:
-                return sample;
+                newValue = sample;
+                return true;
             case RESDStreamStatus.BeforeStream:
-                return defaultValue;
+                return false;
             case RESDStreamStatus.AfterStream:
                 stream.Dispose();
                 stream = null;
-                return sample;
+                newValue = sample;
+                return true;
             default:
                 throw new Exception("Unreachable");
             }
