@@ -1098,13 +1098,6 @@ namespace Antmicro.Renode.Peripherals.CPU
                     pcNotInitialized = false;
                     return;
                 }
-                if(sysbus.WhatPeripheralIsAt(pc, this, secureState) == null || (pc == 0 && sp == 0))
-                {
-                    this.Log(LogLevel.Error, "PC is in an unmapped region or PC and SP are equal to zero. Entering Lockup.");
-                    EnterResetLockup();
-                    pcNotInitialized = false;
-                    return;
-                }
                 this.Log(LogLevel.Info, "Setting initial values: PC = 0x{0:X}, SP = 0x{1:X}.", pc, sp);
                 // Armv8-M ARM rule RKSCH and TakeReset(): reset vector bit[0]
                 // initializes EPSR.T. Bypass the Thumb-forcing patch in
