@@ -411,7 +411,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                 );
 
                 registers.AddConditionalRegister((long)Registers.CaptureOrCompare1 + (j * 0x4), new DoubleWordRegister(this)
-                    .WithValueField(0, timerCounterLengthInBits, valueProviderCallback: _ => channels[j].CapturedValue, name: String.Format("Capture/compare value {0} (CCR{0})", j + 1))
+                    .WithValueField(0, timerCounterLengthInBits, valueProviderCallback: _ =>
+                    {
+                        channels[j].InterruptFlag = false;
+                        UpdateInterrupts();
+                        return channels[j].CapturedValue;
+                    }, name: String.Format("Capture/compare value {0} (CCR{0})", j + 1))
                     .WithReservedBits(timerCounterLengthInBits, 32 - timerCounterLengthInBits)
                     , () => channels[j].IsInputMode
                 );
