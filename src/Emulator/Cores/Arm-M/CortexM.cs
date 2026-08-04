@@ -1078,9 +1078,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 if(sysbus.WhatPeripheralIsAt(pc, this, secureState) == null || (pc == 0 && sp == 0))
                 {
-                    this.Log(LogLevel.Error, "PC is in an unmapped region or PC and SP are equal to zero. CPU was halted.");
-                    IsHalted = true;
-                    return; // Keep PC and SP uninitialized in the case of error condition
+                    this.Log(LogLevel.Error, "PC is in an unmapped region or PC and SP are equal to zero. Entering Lockup.");
+                    EnterResetLockup();
+                    pcNotInitialized = false;
+                    return;
                 }
                 this.Log(LogLevel.Info, "Setting initial values: PC = 0x{0:X}, SP = 0x{1:X}.", pc, sp);
                 PC = pc;
