@@ -136,6 +136,12 @@ namespace Antmicro.Renode.Peripherals.Network
 
             var frame = rxFifo.Dequeue();
             rxFifoSize -= frame.Bytes.Length;
+            if(crcStrippingForTypeFrames.Value)
+            {
+                // Since EthernetFrame is a reference type, its CRC can only be stripped after dequeueing (or cloning) the frame,
+                // otherwise the in-FIFO frame would be mutated and rxFifoSize would no longer match the amount of queued bytes
+                frame.StripCRC();
+            }
             this.Log(LogLevel.Noisy, $"Receiving packet, length: {frame.Bytes.Length}");
             var descriptor = new DMADescriptor(this, (uint)dmaCurrentReceiveDescriptorAddress.Value);
             descriptor.Fetch();
@@ -383,7 +389,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     .WithTaggedFlag(position: 22, name: "MACCR.JD (Jabber disable)")
                     .WithTaggedFlag(position: 23, name: "MACCR.WD (Watchdog disable)")
                     .WithReservedBits(24, 1)
-                    .WithTaggedFlag(position: 25, name: "MACCR.CSTF (CRC stripping for Type frames)")
+                    .WithFlag(position: 25, name: "MACCR.CSTF (CRC stripping for Type frames)", flagField: out crcStrippingForTypeFrames)
                     .WithReservedBits(26, 6)
                 },
                 {(long)Registers.MACFrameFilter, new DoubleWordRegister(this, 0x0)
@@ -640,6 +646,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private IFlagRegisterField dmaEarlyTransmitInterruptEnable;
         private IFlagRegisterField dmaFatalBusErrorInterruptEnable;
         private IValueRegisterField dmaDescriptorSkipLengthWords;
+        private IFlagRegisterField crcStrippingForTypeFrames;
         private readonly SynopsysEthernetVersion version;
         private readonly object dmaLock;
         private readonly Queue<EthernetFrame> rxFifo;
