@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -87,6 +87,11 @@ namespace Antmicro.Renode.Network
         public EthernetFrame Clone()
         {
             return new EthernetFrame(UnderlyingPacket.Bytes.ToArray(), crc?.ToArray());
+        }
+
+        public void StripCRC()
+        {
+            this.crc = null;
         }
 
         public override string ToString()
