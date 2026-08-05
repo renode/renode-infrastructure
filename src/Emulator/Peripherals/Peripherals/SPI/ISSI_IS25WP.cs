@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core.Structure.Registers;
@@ -78,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 sectorsNum = underlyingMemory.Size / 256.KB(); // Memory is uniformly divided in 256KB blocks
                 break;
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
 
             blockConfiguration = Misc.Iterate(BlockConfiguration.Create)
@@ -190,7 +191,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             default:
                 // NOTE: This is not possible as we have already checked that register is defined in InternalRegisters
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
         }
 
@@ -250,7 +251,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             default:
                 // NOTE: This is not possible as we have already checked that register is defined in InternalRegisters
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
 
             if(currentRegisterValue?.TryDequeue(out var data) ?? false)
@@ -358,7 +359,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             default:
                 // NOTE: This is not possible as we have already checked that firstByte is defined in InternalCommands
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
         }
 
@@ -398,7 +399,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return (int)(address / 256.KB());
 
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
         }
 

@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -334,7 +335,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             case AccessWidth._8bit: return 8;
             case AccessWidth._16bit: return 16;
             case AccessWidth._20bit: return 20;
-            default: throw new Exception("unreachable");
+            default: throw new UnreachableException();
             }
         }
 
@@ -396,7 +397,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return 0x0008;
 
                 default:
-                    throw new Exception("unreachable");
+                    throw new UnreachableException();
                 }
             case Registers.R3:
                 switch(addressingMode)
@@ -414,7 +415,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return 0xFFFFF;
 
                 default:
-                    throw new Exception("unreachable");
+                    throw new UnreachableException();
                 }
             case Registers.R4:
                 return R4;
@@ -560,7 +561,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return 0xFFFFF;
 
                 default:
-                    throw new Exception("unreachable");
+                    throw new UnreachableException();
                 }
             }
 
@@ -622,7 +623,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
         }
 
@@ -1457,7 +1458,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 break;
 
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
 
             return true;
@@ -1491,7 +1492,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 break;
 
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
         }
 
@@ -1524,7 +1525,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 break;
 
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
 
             return true;
@@ -1557,7 +1558,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return value;
 
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
         }
 
@@ -1593,7 +1594,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     case AccessWidth._20bit:
                         return SysbusAccessWidth.DoubleWord;
                     default:
-                        throw new Exception("unreachable");
+                        throw new UnreachableException();
                     }
                 }
             }

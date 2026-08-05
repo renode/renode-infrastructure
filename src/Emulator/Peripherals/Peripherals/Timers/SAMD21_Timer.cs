@@ -4,7 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using System.Diagnostics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Extensions;
@@ -357,7 +357,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             case Prescaler.Div1024:
                 return 1024;
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
         }
 

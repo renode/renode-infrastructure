@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -926,7 +927,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 }
                 break;
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
             UpdateInterrupts();
             CheckDMATriggers();

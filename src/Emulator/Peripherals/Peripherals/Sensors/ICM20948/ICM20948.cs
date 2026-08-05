@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -256,7 +257,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             case 3:
                 return ((GyroAccelUserBank3Registers)register).ToString();
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
         }
 

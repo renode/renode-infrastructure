@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -379,7 +380,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             case MessageBufferSize._64bytes:
                 return 8 + 64;
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
         }
 

@@ -5,7 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -163,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 mainTimer.Limit = timerCompare[0].Value;
                 break;
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
 
             mainTimer.Enabled = true;

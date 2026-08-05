@@ -4,7 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -57,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 incrementSign = -1;
                 break;
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
 
             return incrementSign * (byteTransfer ? 1 : 2);

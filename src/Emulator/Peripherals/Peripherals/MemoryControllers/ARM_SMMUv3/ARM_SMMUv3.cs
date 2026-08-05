@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 
@@ -381,7 +382,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                     return null;
                 }
             }
-            throw new Exception("Unreachable");
+            throw new UnreachableException();
         }
 
         public void SignalPermissionFaultEvent(IPeripheral initiator, ulong address, AccessType accessType)

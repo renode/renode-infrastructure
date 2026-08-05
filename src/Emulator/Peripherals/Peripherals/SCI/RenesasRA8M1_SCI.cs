@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Migrant;
@@ -352,7 +353,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             // No need to update the interrupts - in IIC mode we just blink the Tx interrupt
                             return;
                         default:
-                            throw new Exception("unreachable");
+                            throw new UnreachableException();
                         }
 
                         UpdateInterrupts();
@@ -807,7 +808,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 }
                 break;
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
         }
 

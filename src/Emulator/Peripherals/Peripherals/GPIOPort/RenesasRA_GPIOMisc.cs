@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System;
+using System.Diagnostics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -40,7 +41,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 case Version.RA8:
                     return 0x20;
                 default:
-                    throw new Exception("unreachable");
+                    throw new UnreachableException();
                 }
             }
         }
@@ -56,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 DefineRegistersRA8();
                 break;
             default:
-                throw new Exception("unreachable");
+                throw new UnreachableException();
             }
         }
 

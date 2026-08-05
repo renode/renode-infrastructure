@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -555,7 +556,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     parent.WarningLog("{0} clock source is unimplemented", Enum.GetName<ClockSelection>(clockSelected));
                     break;
                 default:
-                    throw new Exception("unreachable");
+                    throw new UnreachableException();
                 }
                 cTimer.Frequency = timer.Frequency;
                 cTimer.Divider = timer.Divider;
@@ -586,7 +587,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         timer.Limit = valueC;
                         break;
                     default:
-                        throw new Exception("unreachable");
+                        throw new UnreachableException();
                     }
                 }
 
@@ -678,7 +679,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         ChangeDirection();
                         break;
                     default:
-                        throw new Exception("unreachable");
+                        throw new UnreachableException();
                     }
                 }
                 UpdateCTimer();

@@ -1,12 +1,12 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -124,7 +124,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                         state = State.Idle;
                         break;
                     default:
-                        throw new Exception("Unreachable");
+                        throw new UnreachableException();
                     }
                 })
             ;
@@ -489,7 +489,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 }
                 break;
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
             UpdateInterrupts();
         }

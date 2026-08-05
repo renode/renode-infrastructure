@@ -1,11 +1,12 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -429,7 +430,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // Not implemented
                 return false;
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
 
             transmitterBufferOffset += (int)transferType * count;
@@ -478,7 +479,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 parent.ErrorLog("Perent peripheral doesn't implement ISamPdcQuadWordPeripheral, but QuadWord transfer was selected");
                 return;
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
             transmitterBufferOffset += (int)transferType;
             if(transmitterBufferOffset == transmitterBuffer.Length)
@@ -506,7 +507,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // Not implemented
                 return false;
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
 
             if(data == null)
@@ -558,7 +559,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 parent.ErrorLog("Perent peripheral doesn't implement ISamPdcQuadWordPeripheral, but QuadWord transfer was selected");
                 return false;
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
 
             if(data == null)

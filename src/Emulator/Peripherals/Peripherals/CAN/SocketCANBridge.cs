@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -183,7 +184,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 if(maximumTransmissionUnit - buffer.Count <= 0)
                 {
-                    throw new Exception("Unreachable");
+                    throw new UnreachableException();
                 }
 
                 var data = LibCWrapper.Read(canSocket, maximumTransmissionUnit - buffer.Count, ReadSocketTimeout, isCancellationRequested);

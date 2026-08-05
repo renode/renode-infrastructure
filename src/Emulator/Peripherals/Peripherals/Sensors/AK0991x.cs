@@ -4,7 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
+using System.Diagnostics;
 
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -133,7 +133,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             case Direction.Z:
                 return DefaultMagneticFluxDensityZ;
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
         }
 
@@ -148,7 +148,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             case Direction.Z:
                 return sample.MagneticFluxDensityZ;
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
         }
 
@@ -177,7 +177,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 this.Log(LogLevel.Noisy, "RESD after stream status, setting last sample: {0}", sample);
                 return GetMagneticSampleValue(sample, d);
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
         }
 

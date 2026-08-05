@@ -6,12 +6,12 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals.Timers;
@@ -948,7 +948,7 @@ namespace Antmicro.Renode.Peripherals.Network
                     }
                     else
                     {
-                        throw new RecoverableException("Unreachable");
+                        throw new UnreachableException();
                     }
                     descriptor.Write();
                     IncreaseTxDescriptorPointer();

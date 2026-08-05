@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 
@@ -414,7 +415,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 case RESDStreamStatus.BeforeStream:
                 // fall-through
                 default:
-                    throw new Exception("Unreachable");
+                    throw new UnreachableException();
                 }
             }
 

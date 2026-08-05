@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Diagnostics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -371,7 +372,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 case TriggerLevel.TwoLessThanFull:
                     return ReceiveFIFOSize - 2;
                 default:
-                    throw new Exception("Unreachable");
+                    throw new UnreachableException();
                 }
             }
         }

@@ -5,7 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
+using System.Diagnostics;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     frequency = 205000000;
                     break;
                 default:
-                    throw new Exception("Unreachable");
+                    throw new UnreachableException();
                 }
 
                 return frequency / DecodeClockDivider(rootClockDivider.Value);
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             case 0x6:
                 return 16;
             default:
-                throw new Exception("Unreachable");
+                throw new UnreachableException();
             }
         }
 
