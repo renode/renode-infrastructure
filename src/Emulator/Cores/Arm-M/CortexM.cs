@@ -87,16 +87,20 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override void Reset()
         {
-            var isCpuWaitSet = CpuWaitSignal.IsSet;
-            if(isCpuWaitSet && releaseFromResetPending)
+            lock(reset)
             {
-                machine.LocalTimeSource.CancelActionToExecuteInSyncedState(releaseFromResetCancellationToken);
-                releaseFromResetPending = false;
+                var isCpuWaitSet = CpuWaitSignal.IsSet;
+
+                if(isCpuWaitSet && releaseFromResetPending)
+                {
+                    machine.LocalTimeSource.CancelActionToExecuteInSyncedState(releaseFromResetCancellationToken);
+                    releaseFromResetPending = false;
+                }
+
+                InnerReset();
+
+                IsHalted = isCpuWaitSet;
             }
-
-            InnerReset();
-
-            IsHalted = isCpuWaitSet;
         }
 
         public override void OnGPIO(int number, bool value)
@@ -951,12 +955,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                     Resume();
                 }
             }
-
-            if(!state)
+            lock(reset)
             {
-                var now = new TimeStamp(machine.LocalTimeSource.ElapsedVirtualTime, machine.LocalTimeSource.Domain);
-                releaseFromResetCancellationToken = machine.LocalTimeSource.ExecuteInSyncedState(releaseFromReset, now);
-                releaseFromResetPending = true;
+                if(!state)
+                {
+                    var now = new TimeStamp(machine.LocalTimeSource.ElapsedVirtualTime, machine.LocalTimeSource.Domain);
+                    releaseFromResetCancellationToken = machine.LocalTimeSource.ExecuteInSyncedState(releaseFromReset, now);
+                    releaseFromResetPending = true;
+                }
             }
         }
 
@@ -1186,6 +1192,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool vtorInitialized;
         private bool releaseFromResetPending;
         private ulong releaseFromResetCancellationToken;
+        private readonly object reset = new object();
 
 #pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
