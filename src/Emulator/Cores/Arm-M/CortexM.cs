@@ -15,6 +15,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.IRQControllers;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities.Binding;
 
 using ELFSharp.ELF;
@@ -87,6 +88,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override void Reset()
         {
             var isCpuWaitSet = CpuWaitSignal.IsSet;
+            if(isCpuWaitSet && releaseFromResetPending)
+            {
+                machine.LocalTimeSource.CancelActionToExecuteInSyncedState(releaseFromResetCancellationToken);
+                releaseFromResetPending = false;
+            }
 
             InnerReset();
 
@@ -937,10 +943,20 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void UpdateCPUWait(bool state)
         {
-            if(!state && EmulationState == EmulationCPUState.InReset)
+            void releaseFromReset(TimeStamp _)
             {
-                IsHalted = false;
-                Resume();
+                if(EmulationState == EmulationCPUState.InReset)
+                {
+                    IsHalted = false;
+                    Resume();
+                }
+            }
+
+            if(!state)
+            {
+                var now = new TimeStamp(machine.LocalTimeSource.ElapsedVirtualTime, machine.LocalTimeSource.Domain);
+                releaseFromResetCancellationToken = machine.LocalTimeSource.ExecuteInSyncedState(releaseFromReset, now);
+                releaseFromResetPending = true;
             }
         }
 
@@ -1168,6 +1184,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private CortexMImplementationDefinedAttributionUnit idau;
         private bool pcNotInitialized = true;
         private bool vtorInitialized;
+        private bool releaseFromResetPending;
+        private ulong releaseFromResetCancellationToken;
 
 #pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null
