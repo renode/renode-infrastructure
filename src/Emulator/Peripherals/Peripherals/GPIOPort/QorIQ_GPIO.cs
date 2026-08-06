@@ -150,7 +150,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                             interruptEnabled[NumberOfPins - 1 - id] = val;
                     },
                     valueProviderCallback: (id,_) => interruptEnabled[NumberOfPins - 1 - id])
-                    .WithWriteCallback((_,_) => UpdateIRQ())
                 },
                 {(long)Registers.InterruptControl, new DoubleWordRegister(this)
                     .WithFlags(0, NumberOfPins, name: "GPICR / GPIO interrupt control register",
