@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -1139,6 +1140,11 @@ namespace Antmicro.Renode.Utilities
         public static uint AlignUpToMultipleOf(this uint value, uint unit)
         {
             return value.DivCeil(unit) * unit;
+        }
+
+        public static T AlignDownToMultipleOf<T>(this T value, T unit) where T : IBinaryInteger<T>
+        {
+            return value / unit * unit;
         }
 
         public static string PrettyPrintFlagsEnum(Enum enumeration)
