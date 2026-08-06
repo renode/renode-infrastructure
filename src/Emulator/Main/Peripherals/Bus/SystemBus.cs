@@ -1257,6 +1257,11 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public void Register(IBusPeripheral peripheral, BusRangeRegistration registrationPoint)
         {
+            if(peripheral is IHasBusRegistrationConstraints constraints)
+            {
+                registrationPoint.RegisterForEachContext(context => constraints.ValidateRegistrationPoint(registrationPoint, context));
+            }
+
             if(!peripheralAccessLocks.TryGetValue(peripheral.GetHashCode(), out var lockObject))
             {
                 lockObject = new object();
@@ -1330,6 +1335,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             if(IsAddressRangeLocked(newRegistration.Range, context))
             {
                 throw new RecoverableException("Moving a peripheral to a locked address range is not supported");
+            }
+            if(peripheral is IHasBusRegistrationConstraints constraints)
+            {
+                constraints.ValidateRegistrationPoint(newRegistration, context);
             }
 
             var busRegisteredEntries = peripheralsCollectionByContext[context].Peripherals.Where(x => x.Peripheral == peripheral && x.RegistrationPoint.Initiator == context).ToList();
