@@ -14,43 +14,6 @@ namespace Antmicro.Renode.Peripherals.I3C
 
         partial void Init()
         {
-            I3cBase_HciVersion.VERSION.ValueProviderCallback = _ => 0x120;
-            I3cBase_DctSectionOffset.TABLE_OFFSET.ValueProviderCallback = _ => 0x800;
-            I3cBase_DctSectionOffset.TABLE_SIZE.ValueProviderCallback = _ => 0x7F;
-            I3cBase_PioSectionOffset.SECTION_OFFSET.ValueProviderCallback = _ => 0x80;
-            I3cBase_ExtCapsSectionOffset.SECTION_OFFSET.ValueProviderCallback = _ => 0x100;
-            I3cBase_IntCtrlCmdsEn.ICC_SUPPORT.ValueProviderCallback = _ => true;
-            I3cBase_IntCtrlCmdsEn.MIPI_CMDS_SUPPORTED.ValueProviderCallback = _ => 0x35;
-            PiOControl_QueueSize.CR_QUEUE_SIZE.ValueProviderCallback = _ => 0x40;
-            PiOControl_AltQueueSize.ALT_RESP_QUEUE_SIZE.ValueProviderCallback = _ => 0x40;
-            PiOControl_AltQueueSize.ALT_RESP_QUEUE_EN.ValueProviderCallback = _ => false;
-            PiOControl_AltQueueSize.EXT_IBI_QUEUE_EN.ValueProviderCallback = _ => false;
-
-            CreateInterruptForceCallback(
-                I3cBase_IntrForce.HC_INTERNAL_ERR_FORCE,
-                I3cBase_IntrStatus.HC_INTERNAL_ERR_STAT,
-                I3cBase_IntrStatusEnable.HC_INTERNAL_ERR_STAT_EN);
-
-            CreateInterruptForceCallback(
-                I3cBase_IntrForce.HC_SEQ_CANCEL_FORCE,
-                I3cBase_IntrStatus.HC_SEQ_CANCEL_STAT,
-                I3cBase_IntrStatusEnable.HC_SEQ_CANCEL_STAT_EN);
-
-            CreateInterruptForceCallback(
-                I3cBase_IntrForce.HC_WARN_CMD_SEQ_STALL_FORCE,
-                I3cBase_IntrStatus.HC_WARN_CMD_SEQ_STALL_STAT,
-                I3cBase_IntrStatusEnable.HC_WARN_CMD_SEQ_STALL_STAT_EN);
-
-            CreateInterruptForceCallback(
-                I3cBase_IntrForce.HC_ERR_CMD_SEQ_TIMEOUT_FORCE,
-                I3cBase_IntrStatus.HC_ERR_CMD_SEQ_TIMEOUT_STAT,
-                I3cBase_IntrStatusEnable.HC_ERR_CMD_SEQ_TIMEOUT_STAT_EN);
-
-            CreateInterruptForceCallback(
-                I3cBase_IntrForce.SCHED_CMD_MISSED_TICK_FORCE,
-                I3cBase_IntrStatus.SCHED_CMD_MISSED_TICK_STAT,
-                I3cBase_IntrStatusEnable.SCHED_CMD_MISSED_TICK_STAT_EN);
-
             CreateInterruptForceCallback(
                 I3cEc_Tti_InterruptForce.RX_DESC_STAT_FORCE,
                 I3cEc_Tti_InterruptStatus.RX_DESC_STAT,
@@ -59,7 +22,22 @@ namespace Antmicro.Renode.Peripherals.I3C
             CreateInterruptForceCallback(
                 I3cEc_Tti_InterruptForce.TX_DESC_STAT_FORCE,
                 I3cEc_Tti_InterruptStatus.TX_DESC_STAT,
-                I3cEc_Tti_InterruptEnable.TX_DESC_THLD_STAT_EN);
+                I3cEc_Tti_InterruptEnable.TX_DESC_STAT_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_Tti_InterruptForce.RX_DESC_TIMEOUT_FORCE,
+                I3cEc_Tti_InterruptStatus.RX_DESC_TIMEOUT,
+                I3cEc_Tti_InterruptEnable.RX_DESC_TIMEOUT_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_Tti_InterruptForce.TX_DESC_TIMEOUT_FORCE,
+                I3cEc_Tti_InterruptStatus.TX_DESC_TIMEOUT,
+                I3cEc_Tti_InterruptEnable.TX_DESC_TIMEOUT_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_Tti_InterruptForce.TX_DATA_THLD_FORCE,
+                I3cEc_Tti_InterruptStatus.TX_DATA_THLD_STAT,
+                I3cEc_Tti_InterruptEnable.TX_DATA_THLD_STAT_EN);
 
             CreateInterruptForceCallback(
                 I3cEc_Tti_InterruptForce.RX_DATA_THLD_FORCE,
@@ -72,9 +50,79 @@ namespace Antmicro.Renode.Peripherals.I3C
                 I3cEc_Tti_InterruptEnable.RX_DESC_THLD_STAT_EN);
 
             CreateInterruptForceCallback(
+                I3cEc_Tti_InterruptForce.RX_DESC_THLD_FORCE,
+                I3cEc_Tti_InterruptStatus.RX_DESC_THLD_STAT,
+                I3cEc_Tti_InterruptEnable.RX_DESC_THLD_STAT_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_Tti_InterruptForce.IBI_THLD_FORCE,
+                I3cEc_Tti_InterruptStatus.IBI_THLD_STAT,
+                I3cEc_Tti_InterruptEnable.IBI_THLD_STAT_EN);
+
+            CreateInterruptForceCallback(
                 I3cEc_Tti_InterruptForce.IBI_DONE_FORCE,
                 I3cEc_Tti_InterruptStatus.IBI_DONE,
                 I3cEc_Tti_InterruptEnable.IBI_DONE_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_Tti_InterruptForce.TRANSFER_ABORT_STAT_FORCE,
+                I3cEc_Tti_InterruptStatus.TRANSFER_ABORT_STAT,
+                I3cEc_Tti_InterruptEnable.TRANSFER_ABORT_STAT_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_Tti_InterruptForce.TX_DESC_COMPLETE_FORCE,
+                I3cEc_Tti_InterruptStatus.TX_DESC_COMPLETE,
+                I3cEc_Tti_InterruptEnable.TX_DESC_COMPLETE_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_Tti_InterruptForce.TRANSFER_ERR_STAT_FORCE,
+                I3cEc_Tti_InterruptStatus.TRANSFER_ERR_STAT,
+                I3cEc_Tti_InterruptEnable.TRANSFER_ERR_STAT_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_StdbyCtrlMode_StbyCrIntrForce.CRR_RESPONSE_FORCE,
+                I3cEc_StdbyCtrlMode_StbyCrIntrStatus.CRR_RESPONSE_STAT,
+                I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable.CRR_RESPONSE_SIGNAL_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_StdbyCtrlMode_StbyCrIntrForce.STBY_CR_DYN_ADDR_FORCE,
+                I3cEc_StdbyCtrlMode_StbyCrIntrStatus.STBY_CR_DYN_ADDR_STAT,
+                I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable.STBY_CR_DYN_ADDR_SIGNAL_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_StdbyCtrlMode_StbyCrIntrForce.STBY_CR_ACCEPT_NACKED_FORCE,
+                I3cEc_StdbyCtrlMode_StbyCrIntrStatus.STBY_CR_ACCEPT_NACKED_STAT,
+                I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable.STBY_CR_ACCEPT_NACKED_SIGNAL_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_StdbyCtrlMode_StbyCrIntrForce.STBY_CR_ACCEPT_OK_FORCE,
+                I3cEc_StdbyCtrlMode_StbyCrIntrStatus.STBY_CR_ACCEPT_OK_STAT,
+                I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable.STBY_CR_ACCEPT_OK_SIGNAL_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_StdbyCtrlMode_StbyCrIntrForce.STBY_CR_ACCEPT_ERR_FORCE,
+                I3cEc_StdbyCtrlMode_StbyCrIntrStatus.STBY_CR_ACCEPT_ERR_STAT,
+                I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable.STBY_CR_ACCEPT_ERR_SIGNAL_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_StdbyCtrlMode_StbyCrIntrForce.STBY_CR_OP_RSTACT_FORCE,
+                I3cEc_StdbyCtrlMode_StbyCrIntrStatus.STBY_CR_OP_RSTACT_STAT,
+                I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable.STBY_CR_OP_RSTACT_SIGNAL_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_StdbyCtrlMode_StbyCrIntrForce.CCC_PARAM_MODIFIED_FORCE,
+                I3cEc_StdbyCtrlMode_StbyCrIntrStatus.CCC_PARAM_MODIFIED_STAT,
+                I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable.CCC_PARAM_MODIFIED_SIGNAL_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_StdbyCtrlMode_StbyCrIntrForce.CCC_UNHANDLED_NACK_FORCE,
+                I3cEc_StdbyCtrlMode_StbyCrIntrStatus.CCC_UNHANDLED_NACK_STAT,
+                I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable.CCC_UNHANDLED_NACK_SIGNAL_EN);
+
+            CreateInterruptForceCallback(
+                I3cEc_StdbyCtrlMode_StbyCrIntrForce.CCC_FATAL_RSTDAA_ERR_FORCE,
+                I3cEc_StdbyCtrlMode_StbyCrIntrStatus.CCC_FATAL_RSTDAA_ERR_STAT,
+                I3cEc_StdbyCtrlMode_StbyCrIntrSignalEnable.CCC_FATAL_RSTDAA_ERR_SIGNAL_EN);
         }
 
         private void CreateInterruptForceCallback(IFlagRegisterField force, IFlagRegisterField status, IFlagRegisterField enabled)
