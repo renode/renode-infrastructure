@@ -82,7 +82,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             lock(locker)
             {
-                var previousState = State[number];
+                var previousState = data[NumberOfPins - 1 - number];
+                data[NumberOfPins - 1 - number] = value; 
+
                 base.OnGPIO(number, value);
 
                 UpdateSingleInterruptRequest(number, previousState, value);
@@ -101,10 +103,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             {
                 {(long)Registers.Direction, new DoubleWordRegister(this)
                     .WithFlags(0, NumberOfPins, name: "GPDIR / GPIO direction register",
+                        // When switching from in to out, value stored in data register is outputted per doc ; driver does a reset to 0 before switching
+                        // When switching from out to in, new value is set by OnGPIO and will be reflected on GPDAT register ; at switch time, nothing happens
                         writeCallback: (id, _, val) => {
                             this.NoisyLog("Write to GPDIR (direction) register with pin {0} and value {1}", NumberOfPins - 1 - id, val);
                             directionOutNotIn[NumberOfPins - 1 - id] = val;
-                        }, // /!\ Nothing is done when changing direction - data stays the same so input value might be driven out and vice versa
+                        },
                         valueProviderCallback: (id, _) => directionOutNotIn[NumberOfPins - 1 - id])
                 },
                 {(long)Registers.OpenDrain, new DoubleWordRegister(this)
@@ -117,17 +121,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithWriteCallback((_,_) => UpdateConnections())
                 },
                 {(long)Registers.Data, new DoubleWordRegister(this)
-                    .WithFlags(0, NumberOfPins, name: "GPDAT / GPIO data register",
+                    .WithFlags(0, NumberOfPins, name: "GPDAT / GPIO data register", // Data register reflects the state of the line, whatever the mode
                         writeCallback: (id, _, val) => {
                             this.NoisyLog("Write to GPDAT register with pin {0} and value {1}", NumberOfPins - 1 - id, val);
                             data[NumberOfPins - 1 - id] = val;
                         },
-                        valueProviderCallback: (id, _) =>
-                        {
-                            return (directionOutNotIn[NumberOfPins - 1 - id])
-                                ? data[NumberOfPins - 1 - id]
-                                : State[NumberOfPins - 1 - id];
-                        })
+                        valueProviderCallback: (id, _) => data[NumberOfPins - 1 - id])
                     .WithWriteCallback((_, __) => UpdateConnections())
                 },
                 {(long)Registers.Event, new DoubleWordRegister(this)
@@ -196,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
             else
             {
-                interruptRequest[i] = (oldState != currentState);
+                interruptRequest[i] |= (oldState != currentState);
             }
             UpdateIRQ();
         }
