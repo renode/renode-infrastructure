@@ -1,9 +1,16 @@
+//
+// Copyright (c) 2010-2026 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
 using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+
 using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
@@ -61,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public override void OnGPIO(int number, bool value)
         {
-            this.DebugLog($"In OnGPIO function with GPIO value {number} and value {value}");
+            this.NoisyLog("OnGPIO - GPIO {0}, value {1}", number, value);
             if(!CheckPinNumber(number))
             {
                 return;
@@ -69,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             if(directionOutNotIn[number]) //We are driving this GPIO so we don't want something else driving it
             {
-                this.Log(LogLevel.Warning, "gpio {0} is set to output, signal ignored.", number);
+                this.Log(LogLevel.Warning, "GPIO {0} is set to output, signal ignored", number);
                 return;
             }
 
@@ -95,31 +102,31 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {(long)Registers.Direction, new DoubleWordRegister(this)
                     .WithFlags(0, NumberOfPins, name: "GPDIR / GPIO direction register",
                         writeCallback: (id, _, val) => {
-                            this.DebugLog($"Write to GPDIR (direction) register with pin {NumberOfPins - 1 -id} and value {val}");
-                            directionOutNotIn[NumberOfPins - 1 -id] = val; 
+                            this.NoisyLog("Write to GPDIR (direction) register with pin {0} and value {1}", NumberOfPins - 1 - id, val);
+                            directionOutNotIn[NumberOfPins - 1 - id] = val;
                         }, // /!\ Nothing is done when changing direction - data stays the same so input value might be driven out and vice versa
-                        valueProviderCallback: (id, _) => directionOutNotIn[NumberOfPins - 1 -id])
+                        valueProviderCallback: (id, _) => directionOutNotIn[NumberOfPins - 1 - id])
                 },
                 {(long)Registers.OpenDrain, new DoubleWordRegister(this)
                     .WithFlags(0, NumberOfPins, name:"GPODR / GPIO Open Drain register",
                         writeCallback: (id,_,val) => {
-                            this.DebugLog($"Write to GPODR (drain) register with pin {NumberOfPins - 1 -id} and value {val}");
-                            openDrain[NumberOfPins - 1 -id] = val;
+                            this.NoisyLog("Write to GPODR (drain) register with pin {0} and value {1}", NumberOfPins - 1 - id, val);
+                            openDrain[NumberOfPins - 1 - id] = val;
                         },
-                        valueProviderCallback: (id, _) => openDrain[NumberOfPins - 1 -id]) 
+                        valueProviderCallback: (id, _) => openDrain[NumberOfPins - 1 - id])
                     .WithWriteCallback((_,_) => UpdateConnections())
                 },
                 {(long)Registers.Data, new DoubleWordRegister(this)
                     .WithFlags(0, NumberOfPins, name: "GPDAT / GPIO data register",
-                        writeCallback: (id, _, val) => { 
-                            this.DebugLog($"Write to GPDAT register with pin {NumberOfPins - 1 -id} and value {val}");
-                            data[NumberOfPins - 1 -id] = val; 
+                        writeCallback: (id, _, val) => {
+                            this.NoisyLog("Write to GPDAT register with pin {0} and value {1}", NumberOfPins - 1 - id, val);
+                            data[NumberOfPins - 1 - id] = val;
                         },
                         valueProviderCallback: (id, _) =>
                         {
-                            return (directionOutNotIn[NumberOfPins - 1 -id])
-                                ? data[NumberOfPins - 1 -id]
-                                : State[NumberOfPins - 1 -id];
+                            return (directionOutNotIn[NumberOfPins - 1 - id])
+                                ? data[NumberOfPins - 1 - id]
+                                : State[NumberOfPins - 1 - id];
                         })
                     .WithWriteCallback((_, __) => UpdateConnections())
                 },
@@ -127,32 +134,32 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithFlags(0, NumberOfPins, FieldMode.Read | FieldMode.WriteOneToClear, name: "GPIER / GPIO interrupt event register",
                         writeCallback: (id, old, val) =>
                         {
-                            this.DebugLog($"Write (clear) to GPIER register with pin {NumberOfPins - 1 -id} and value {val}");
+                            this.NoisyLog("Write (clear) to GPIER register with pin {0} and value {1}", NumberOfPins - 1 - id, val);
                             if(val) //Write one to clear
                             {
-                                interruptRequest[NumberOfPins - 1 -id] = false;
-                                UpdateSingleInterruptRequest(NumberOfPins - 1 -id, old, val);
+                                interruptRequest[NumberOfPins - 1 - id] = false;
+                                UpdateSingleInterruptRequest(NumberOfPins - 1 - id, old, val);
                             }
                         },
-                        valueProviderCallback: (id, _) => interruptRequest[NumberOfPins - 1 -id])
+                        valueProviderCallback: (id, _) => interruptRequest[NumberOfPins - 1 - id])
                     .WithWriteCallback((_, __) => UpdateIRQ())
                 },
                 {(long)Registers.Mask, new DoubleWordRegister(this)
                     .WithFlags(0, NumberOfPins, name: "GPIMR / GPIO Interrupt mask register",
                     writeCallback: (id, _, val) => {
-                            this.DebugLog($"Write to GPIMR (mask, 1 if interruptions are enabled) register with pin {NumberOfPins - 1 -id} and value {val}");
-                            interruptEnabled[NumberOfPins - 1 -id] = val;
+                            this.NoisyLog("Write to GPIMR (mask, 1 if interruptions are enabled) register wwith pin {0} and value {1}", NumberOfPins - 1 - id, val);
+                            interruptEnabled[NumberOfPins - 1 - id] = val;
                     },
-                    valueProviderCallback: (id,_) => interruptEnabled[NumberOfPins - 1 -id])
+                    valueProviderCallback: (id,_) => interruptEnabled[NumberOfPins - 1 - id])
                     .WithWriteCallback((_,_) => UpdateIRQ())
                 },
                 {(long)Registers.InterruptControl, new DoubleWordRegister(this)
                     .WithFlags(0, NumberOfPins, name: "GPICR / GPIO interrupt control register",
                     writeCallback: (id, _, val) => {
-                            this.DebugLog($"Write to GPICR register with pin {NumberOfPins - 1 -id} and value {val}");
-                            interruptControl[NumberOfPins - 1 -id] = val;
+                            this.NoisyLog("Write to GPICR register with pin {0} and value {1}", NumberOfPins - 1 - id, val);
+                            interruptControl[NumberOfPins - 1 - id] = val;
                     },
-                    valueProviderCallback: (id, _) => interruptControl[NumberOfPins - 1 -id])
+                    valueProviderCallback: (id, _) => interruptControl[NumberOfPins - 1 - id])
                 }
             };
             return registersDictionary;
@@ -160,12 +167,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private void UpdateIRQ()
         {
-            this.DebugLog($"In Update IRQ");
+            this.NoisyLog("Update IRQ");
             var flag = false;
             for(var i = 0; i < NumberOfPins; ++i)
             {
                 flag |= interruptEnabled[i] && interruptRequest[i];
-                this.DebugLog($"Interrupt {i} is on: {interruptRequest[i]} and not masked: {interruptEnabled[i]}. As a result, flag is now {flag}");
             }
             IRQ.Set(flag);
         }
@@ -174,8 +180,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             for(var i = 0; i < NumberOfPins; ++i)
             {
-                if (!directionOutNotIn[i]) continue; // Do not set input signals
-                if (openDrain[i] && data[i]) continue; // Do not set the line to true if it is open drain
+                if(!directionOutNotIn[i]) continue; // Do not set input signals
+                if(openDrain[i] && data[i]) continue; // Do not set the line to true if it is open drain
                 Connections[i].Set(data[i]);
             }
             UpdateIRQ();
@@ -183,7 +189,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private void UpdateSingleInterruptRequest(int i, bool oldState, bool currentState)
         {
-            this.DebugLog($"In UpdateSingleInterruptRequest for line {i}, old value {oldState} -> new value {currentState}");
+            this.NoisyLog("In UpdateSingleInterruptRequest for line {0}, old value {1} -> new value {2}", i, oldState, currentState);
             if(interruptControl[i])
             {
                 interruptRequest[i] |= (oldState && !currentState);
