@@ -905,12 +905,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void WriteBytes(byte[] bytes, ulong address, long count, bool onlyMemory = false, IPeripheral context = null)
+        public void WriteBytes(byte[] bytes, ulong address, long count, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null)
         {
-            WriteBytes(bytes, address, 0, count, onlyMemory, context);
+            WriteBytes(bytes, address, 0, count, onlyMemory, context, cpuState);
         }
 
-        public void WriteBytes(byte[] bytes, ulong address, int startingIndex, long count, bool onlyMemory = false, IPeripheral context = null)
+        public void WriteBytes(byte[] bytes, ulong address, int startingIndex, long count, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null)
         {
             if(context is BaseCPU cpu && cpu.CheckExternalPermissions(address) == 0)
             {
@@ -922,7 +922,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
                 var targets = FindTargets(address, checked((ulong)count), context);
                 if(onlyMemory)
@@ -947,16 +947,16 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         for(var i = 0UL; i < target.SourceLength; ++i)
                         {
-                            WriteByte(target.Offset + i, bytes[target.SourceIndex + (ulong)startingIndex + i]);
+                            WriteByte(target.Offset + i, bytes[target.SourceIndex + (ulong)startingIndex + i], context, cpuState);
                         }
                     }
                 }
             }
         }
 
-        public void WriteBytes(byte[] bytes, ulong address, bool onlyMemory = false, IPeripheral context = null)
+        public void WriteBytes(byte[] bytes, ulong address, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null)
         {
-            WriteBytes(bytes, address, bytes.Length, onlyMemory, context);
+            WriteBytes(bytes, address, bytes.Length, onlyMemory, context, cpuState);
         }
 
         public byte[] ReadBytes(long offset, int count, IPeripheral context = null)
@@ -964,14 +964,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             return ReadBytes((ulong)offset, count, context: context);
         }
 
-        public byte[] ReadBytes(ulong address, int count, bool onlyMemory = false, IPeripheral context = null)
+        public byte[] ReadBytes(ulong address, int count, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null)
         {
             var result = new byte[count];
-            ReadBytes(address, count, result, 0, onlyMemory, context);
+            ReadBytes(address, count, result, 0, onlyMemory, context, cpuState);
             return result;
         }
 
-        public void ReadBytes(ulong address, int count, byte[] destination, int startIndex, bool onlyMemory = false, IPeripheral context = null)
+        public void ReadBytes(ulong address, int count, byte[] destination, int startIndex, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null)
         {
             if(context is BaseCPU cpu && cpu.CheckExternalPermissions(address) == 0)
             {
@@ -983,7 +983,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                 return;
             }
 
-            using(SetLocalContext(context))
+            using(SetLocalContext(context, cpuState))
             {
                 var targets = FindTargets(address, checked((ulong)count), context);
                 if(onlyMemory)
@@ -1004,7 +1004,7 @@ namespace Antmicro.Renode.Peripherals.Bus
                     {
                         for(var i = 0UL; i < target.SourceLength; ++i)
                         {
-                            destination[checked((ulong)startIndex) + target.SourceIndex + i] = ReadByte(target.Offset + i, context);
+                            destination[checked((ulong)startIndex) + target.SourceIndex + i] = ReadByte(target.Offset + i, context, cpuState);
                         }
                     }
                 }

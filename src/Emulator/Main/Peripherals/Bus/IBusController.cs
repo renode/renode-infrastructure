@@ -58,19 +58,19 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         void WriteQuadWordWithState(ulong address, ulong value, IPeripheral context, IContextState stateObj);
 
-        void ReadBytes(ulong address, int count, byte[] destination, int startIndex, bool onlyMemory = false, IPeripheral context = null);
+        void ReadBytes(ulong address, int count, byte[] destination, int startIndex, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null);
 
-        byte[] ReadBytes(ulong address, int count, bool onlyMemory = false, IPeripheral context = null);
+        byte[] ReadBytes(ulong address, int count, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null);
 
         ulong[] FindBytes(byte[] pattern, ulong startAddress = 0, ulong? endAddress = null, IPeripheral context = null);
 
         ulong[] FindBytes(string hexString, ulong startAddress = 0, ulong? endAddress = null, IPeripheral context = null);
 
-        void WriteBytes(byte[] bytes, ulong address, bool onlyMemory = false, IPeripheral context = null);
+        void WriteBytes(byte[] bytes, ulong address, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null);
 
-        void WriteBytes(byte[] bytes, ulong address, int startingIndex, long count, bool onlyMemory = false, IPeripheral context = null);
+        void WriteBytes(byte[] bytes, ulong address, int startingIndex, long count, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null);
 
-        void WriteBytes(byte[] bytes, ulong address, long count, bool onlyMemory = false, IPeripheral context = null);
+        void WriteBytes(byte[] bytes, ulong address, long count, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null);
 
         void ZeroRange(Range range, IPeripheral context = null);
 
