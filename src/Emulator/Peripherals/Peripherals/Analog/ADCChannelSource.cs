@@ -13,7 +13,7 @@ using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class ADCChannelSource : IRESDSampleSource<VoltageSample>
+    public class ADCChannelSource : IFloatingVoltageSource
     {
         public ADCChannelSource(VoltageSample sample)
         {
@@ -96,11 +96,26 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
+        public bool IsFloating
+        {
+            get => isFloating;
+            set
+            {
+                if(isFloating != value)
+                {
+                    isFloating = value;
+                    NewSample?.Invoke(Sample);
+                }
+            }
+        }
+
         public event Action<VoltageSample> NewSample;
 
         private RESDStream<VoltageSample> resdStream;
 
         private VoltageSample defaultSample;
+
+        private bool isFloating;
 
         private readonly VoltageSample resetSample;
     }
