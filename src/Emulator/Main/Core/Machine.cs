@@ -113,10 +113,7 @@ namespace Antmicro.Renode.Core
             (LocalTimeSource as SlaveTimeSource)?.Dispose();
             this.Log(LogLevel.Info, "Disposed.");
             var disposed = StateChanged;
-            if(disposed != null)
-            {
-                disposed(this, new MachineStateChangedEventArgs(MachineStateChangedEventArgs.State.Disposed));
-            }
+            StateChanged?.Invoke(this, new MachineStateChangedEventArgs(MachineStateChangedEventArgs.State.Disposed));
             Profiler?.Dispose();
             Profiler = null;
 
@@ -1076,12 +1073,9 @@ namespace Antmicro.Renode.Core
         {
             lock(pausingSync)
             {
-                switch(state)
+                if(State != MachineState.Started)
                 {
-                case State.Paused:
                     return;
-                case State.NotStarted:
-                    goto case State.Paused;
                 }
                 (LocalTimeSource as SlaveTimeSource)?.Pause();
                 foreach(var ownLife in ownLifes.OrderBy(x => x is ICPU ? 0 : 1))
@@ -1091,12 +1085,7 @@ namespace Antmicro.Renode.Core
                     ownLife.Pause();
                     this.NoisyLog("{0} paused.", ownLifeName);
                 }
-                state = State.Paused;
-                var machinePaused = StateChanged;
-                if(machinePaused != null)
-                {
-                    machinePaused(this, new MachineStateChangedEventArgs(MachineStateChangedEventArgs.State.Paused));
-                }
+                State = MachineState.Paused;
                 this.Log(LogLevel.Info, "Machine paused.");
             }
         }
@@ -1231,6 +1220,17 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        public void Abort()
+        {
+            if(State == MachineState.Aborted)
+            {
+                return;
+            }
+            this.ErrorLog("This machine has aborted. Emulation cannot continue until this machine is removed.");
+            Pause();
+            State = MachineState.Aborted;
+        }
+
         public string PreservableName => $"Machine:{this.ToString()}";
 
         public DateTime RealTimeClockStart
@@ -1313,15 +1313,9 @@ namespace Antmicro.Renode.Core
 
         public Platform Platform { get; set; }
 
-        public bool IsPaused
-        {
-            get
-            {
-                // locking on pausingSync can cause a deadlock (when mach.Start() and AllMachineStarted are called together)
-                var stateCopy = state;
-                return stateCopy == State.Paused || stateCopy == State.NotStarted;
-            }
-        }
+        public bool IsPaused => State != MachineState.Started;
+
+        public bool IsAborted => State == MachineState.Aborted;
 
         public IPeripheralsGroupsManager PeripheralsGroups { get; private set; }
 
@@ -1483,6 +1477,14 @@ namespace Antmicro.Renode.Core
             return string.Format("{0}{1}{2}", parent, string.IsNullOrEmpty(parent) ? string.Empty : PathSeparator.ToString(), child);
         }
 
+        private static MachineStateChangedEventArgs.State ToEventState(MachineState state) => state switch
+        {
+            MachineState.Paused => MachineStateChangedEventArgs.State.Paused,
+            MachineState.Started => MachineStateChangedEventArgs.State.Started,
+            MachineState.Aborted => MachineStateChangedEventArgs.State.Aborted,
+            _ => throw new ArgumentOutOfRangeException(nameof(state), $"Unexpected value: {state}")
+        };
+
         private string GetNameForOwnLife(IHasOwnLife ownLife)
         {
             var peripheral = ownLife as IPeripheral;
@@ -1499,11 +1501,14 @@ namespace Antmicro.Renode.Core
         {
             lock(pausingSync)
             {
-                switch(state)
+                switch(State)
                 {
-                case State.Started:
+                case MachineState.Aborted:
+                    this.WarningLog("Machine is aborted, cannot start");
                     return;
-                case State.Paused:
+                case MachineState.Started:
+                    return;
+                case MachineState.Paused:
                     Resume();
                     return;
                 }
@@ -1526,12 +1531,7 @@ namespace Antmicro.Renode.Core
                 }
                 (LocalTimeSource as SlaveTimeSource)?.Resume();
                 this.Log(LogLevel.Info, "Machine started.");
-                state = State.Started;
-                var machineStarted = StateChanged;
-                if(machineStarted != null)
-                {
-                    machineStarted(this, new MachineStateChangedEventArgs(MachineStateChangedEventArgs.State.Started));
-                }
+                State = MachineState.Started;
             }
         }
 
@@ -1546,12 +1546,7 @@ namespace Antmicro.Renode.Core
                     ownLife.Resume();
                 }
                 this.Log(LogLevel.Info, "Machine resumed.");
-                state = State.Started;
-                var machineStarted = StateChanged;
-                if(machineStarted != null)
-                {
-                    machineStarted(this, new MachineStateChangedEventArgs(MachineStateChangedEventArgs.State.Started));
-                }
+                State = MachineState.Started;
             }
         }
 
@@ -1824,7 +1819,7 @@ namespace Antmicro.Renode.Core
                     if(ownLife != null)
                     {
                         ownLifes.Add(ownLife);
-                        if(state == State.Paused)
+                        if(State == MachineState.Paused)
                         {
                             executeAfterLock = delegate
                             {
@@ -1917,13 +1912,26 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        private MachineState State
+        {
+            get => innerState;
+            set
+            {
+                if(value == innerState)
+                {
+                    return;
+                }
+                StateChanged?.Invoke(this, new MachineStateChangedEventArgs(ToEventState(value)));
+                innerState = value;
+            }
+        }
+
         private bool wasDeserialized;
         private int currentStampLevel;
         private bool alreadyDisposed;
         private Action<string> userStateHook;
         private string userState;
-        private State state;
-
+        private MachineState innerState;
         private RealTimeClockMode realTimeClockMode;
         private List<IPeripheral> currentStamp;
         private TimeSourceBase localTimeSource;
@@ -2263,11 +2271,12 @@ namespace Antmicro.Renode.Core
             public IDictionary<int, ISet<Tuple<ulong, BreakpointType>>> Breakpoints;
         }
 
-        private enum State
+        private enum MachineState
         {
             NotStarted,
             Started,
-            Paused
+            Paused,
+            Aborted
         }
     }
 }

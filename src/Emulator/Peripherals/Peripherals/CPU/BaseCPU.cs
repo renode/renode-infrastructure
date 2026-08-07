@@ -832,6 +832,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         this.Trace(result.ToString());
                         isAborted = true;
+                        machine.Abort();
                         break;
                     }
                     else if(result == ExecutionResult.Interrupted || result == ExecutionResult.StoppedAtWatchpoint)

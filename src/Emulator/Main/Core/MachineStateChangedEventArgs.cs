@@ -20,7 +20,8 @@ namespace Antmicro.Renode.Core
         {
             Started,
             Paused,
-            Disposed
+            Disposed,
+            Aborted
         }
     }
 }

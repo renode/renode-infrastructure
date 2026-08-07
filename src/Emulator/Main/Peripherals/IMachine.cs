@@ -142,6 +142,8 @@ namespace Antmicro.Renode.Core
 
         void ExchangeRegistrationPointForPeripheral(IPeripheral parent, IPeripheral child, IRegistrationPoint oldPoint, IRegistrationPoint newPoint);
 
+        void Abort();
+
         IPeripheral this[string name] { get; }
 
         IntPtr AtomicMemoryStatePointer { get; }
@@ -169,6 +171,8 @@ namespace Antmicro.Renode.Core
         Platform Platform { get; set; }
 
         bool IsPaused { get; }
+
+        bool IsAborted { get; }
 
         TimeStamp ElapsedVirtualTime { get; }
 
