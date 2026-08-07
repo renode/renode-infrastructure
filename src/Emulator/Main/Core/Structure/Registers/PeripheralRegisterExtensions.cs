@@ -317,6 +317,18 @@ namespace Antmicro.Renode.Core.Structure.Registers
 
         /// <summary>
         /// Fluent API for packet field creation. For parameters see <see cref="PeripheralRegister.DefinePacketField"/>.
+        /// </summary>
+        /// <returns>This register with a defined packet field.</returns>
+        public static R WithPacketField<R, T>(this R register, int position, int width, FieldMode mode = FieldMode.Read | FieldMode.Write, Action<T, T> readCallback = null,
+            Action<T, T> writeCallback = null, Action<T, T> changeCallback = null, Func<T, T> valueProviderCallback = null, Action<T, T> shadowReloadCallback = null, bool softResettable = true, string name = null) where R : PeripheralRegister
+            where T : struct
+        {
+            register.DefinePacketField<T>(position, width, mode, readCallback, writeCallback, changeCallback, valueProviderCallback, shadowReloadCallback, softResettable, name);
+            return register;
+        }
+
+        /// <summary>
+        /// Fluent API for packet field creation. For parameters see <see cref="PeripheralRegister.DefinePacketField"/>.
         /// This overload allows you to retrieve the created field via <c>packetField</c> parameter.
         /// </summary>
         /// <returns>This register with a defined packet field.</returns>
