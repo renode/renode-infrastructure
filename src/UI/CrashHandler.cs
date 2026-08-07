@@ -22,6 +22,16 @@ namespace Antmicro.Renode.UI
     {
         public static void HandleCrash(Exception e)
         {
+            var message = GetFullStackTrace(e);
+            try
+            {
+                Logger.Log(LogLevel.Error, message);
+            }
+            catch(Exception ex)
+            {
+                ShowErrorInConsole(message);
+                Console.Error.WriteLine("Also failed to write to logs: {0}", ex);
+            }
             try
             {
                 Logger.Flush();
@@ -31,9 +41,7 @@ namespace Antmicro.Renode.UI
                 // there is nothing to do here
             }
 
-            var message = GetFullStackTrace(e);
             SaveErrorToFile(TemporaryFilesManager.Instance.EmulatorTemporaryPath + TemporaryFilesManager.CrashSuffix, message);
-            ShowErrorInConsole(message);
             try
             {
                 if(CommandLineInterface.UsingXwtUI)
