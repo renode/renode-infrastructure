@@ -11,7 +11,6 @@ using System.Text;
 using System.Threading;
 
 using Antmicro.Migrant;
-using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Core
@@ -21,17 +20,17 @@ namespace Antmicro.Renode.Core
         public PseudorandomNumberGenerator()
         {
             locker = new object();
-            InitializeGenerator();
         }
 
         public void ResetSeed(int newSeed)
         {
             lock(locker)
             {
-                if(generator.Values.Count != 0)
+                if(generators.Count != 0)
                 {
                     Logger.Log(LogLevel.Warning, "Pseudorandom Number Generator has already been used with seed {0}. Next time it will use a new one {1}. It won't be possible to repeat this exact execution.", baseSeed, newSeed);
-                    InitializeGenerator();
+                    generator = new();
+                    generators.Clear();
                 }
                 baseSeed = newSeed;
             }
@@ -81,15 +80,6 @@ namespace Antmicro.Renode.Core
 
         private static int baseSeed = new Random().Next();
 
-        private RandomGenerator GetGeneratorForCurentThread()
-        {
-            return new RandomGenerator
-            {
-                Random = new Random(GetSeedForThread()),
-                ThreadName = Thread.CurrentThread.Name
-            };
-        }
-
         private int GetSeedForThread()
         {
             if(Thread.CurrentThread.IsThreadPoolThread)
@@ -109,49 +99,31 @@ namespace Antmicro.Renode.Core
         {
             lock(locker)
             {
-                if(generator.Values.Count == 0 && serializedGenerators.Count == 0)
+                if(generator.Value != null)
+                {
+                    return generator.Value;
+                }
+                var threadName = Thread.CurrentThread.Name;
+                if(generators.TryGetValue(threadName, out var rand))
+                {
+                    generator.Value = rand;
+                    return rand;
+                }
+                if(generators.Count == 0)
                 {
                     Logger.Log(LogLevel.Info, "Pseudorandom Number Generator was created with seed: {0}", baseSeed);
                 }
-                if(!generator.IsValueCreated && serializedGenerators.Count > 0)
-                {
-                    var possibleGenerator = serializedGenerators.FirstOrDefault(x => x.ThreadName == Thread.CurrentThread.Name);
-                    if(possibleGenerator != null)
-                    {
-                        //this is a small optimization so we don't fall in this `if` after we deserialize all entries
-                        serializedGenerators.Remove(possibleGenerator);
-                        generator.Value = possibleGenerator;
-                    }
-                }
-                return generator.Value.Random;
+                rand = new Random(GetSeedForThread());
+                generators[threadName] = rand;
+                generator.Value = rand;
+                return rand;
             }
         }
 
-        [PreSerialization]
-        private void BeforeSerialization()
-        {
-            foreach(var randomGenerator in generator.Values)
-            {
-                serializedGenerators.Add(randomGenerator);
-            }
-        }
+        [Constructor]
+        private ThreadLocal<Random> generator = new();
 
-        [PostDeserialization]
-        private void InitializeGenerator()
-        {
-            generator = new ThreadLocal<RandomGenerator>(() => GetGeneratorForCurentThread(), true);
-        }
-
-        [Transient]
-        private ThreadLocal<RandomGenerator> generator;
-
-        private readonly HashSet<RandomGenerator> serializedGenerators = new HashSet<RandomGenerator>(); // we initialize the collection to simplify the rest of the code
+        private readonly Dictionary<string, Random> generators = new();
         private readonly object locker;
-
-        private class RandomGenerator
-        {
-            public Random Random;
-            public string ThreadName;
-        }
     }
 }
