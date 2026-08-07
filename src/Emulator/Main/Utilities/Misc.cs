@@ -1122,22 +1122,16 @@ namespace Antmicro.Renode.Utilities
             }
         }
 
-        public static int DivCeil(this int dividend, int divisor)
+        public static T DivCeil<T>(this T dividend, T divisor) where T : IBinaryInteger<T>
         {
-            return (dividend + divisor - 1) / divisor;
+            var quotient = dividend / divisor;
+            var remainder = dividend % divisor;
+
+            var roundUp = remainder != T.Zero && ((remainder > T.Zero) == (divisor > T.Zero));
+            return roundUp ? quotient + T.One : quotient;
         }
 
-        public static uint DivCeil(this uint dividend, uint divisor)
-        {
-            return (dividend + divisor - 1) / divisor;
-        }
-
-        public static int AlignUpToMultipleOf(this int value, int unit)
-        {
-            return value.DivCeil(unit) * unit;
-        }
-
-        public static uint AlignUpToMultipleOf(this uint value, uint unit)
+        public static T AlignUpToMultipleOf<T>(this T value, T unit) where T : IBinaryInteger<T>
         {
             return value.DivCeil(unit) * unit;
         }

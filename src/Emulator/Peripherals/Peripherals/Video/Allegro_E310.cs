@@ -685,7 +685,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 h = (h + MessageHeaderSize) % Size;
 
                 var body = ReadBytes(h, header.BodySize);
-                h = (h + header.BodySize).AlignUpToMultipleOf(4) % Size;
+                h = (h + header.BodySize).AlignUpToMultipleOf(4u) % Size;
 
                 head.Value = h;
 
