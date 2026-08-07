@@ -6,10 +6,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
-using Antmicro.Renode.Exceptions;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
             portControllers = new GPIOController[numberOfGpioBanks];
             IRQ = new GPIO(); // NEW - support of IRQs. Per the doc there is 1 interrupt line for all banks
-            for(uint i = 0; i < numberOfGpioBanks; i++)
+            for(uint i = 0 ; i < numberOfGpioBanks ; i++)
             {
                 portControllers[i] = new GPIOController(this, i);
             }
@@ -160,10 +160,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             switch((RegistersOffsets)offset)
             {
             case RegistersOffsets.MaskableOutputData0Low:
-                // Maskable writes might be faulty: bits that are not written should keep their old value, which is not the case here
-                // Problem: how to determine if a bit was written 0 or was not written?
-                // Maybe need to see Xilinx GPIOPS for that
-
                 InputData0 = (OutputData0 & 0xFFFF0000) | (value & 0xFFFF);
                 this.UpdateInterrupts(0, OutputData0, InputData0);
                 OutputData0 = InputData0;
@@ -414,7 +410,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private void DoPinOperation(int portNumber, uint value, uint mask)
         {
             /* Compute port length based on portOffset array (that has been extended with the end of the port range as well) */
-            var portLength = portOffsets[portNumber+1] - portOffsets[portNumber];
+            var portLength = portOffsets[portNumber + 1] - portOffsets[portNumber];
             var outputEnabled = portControllers[portNumber].OutputEnabled();
             for(int i = 0; i < portLength; i++)
             {
@@ -465,8 +461,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             if(interrupt != 0)
             {
                 this.Log(LogLevel.Info, "Conditions for interrupt on bank {0} have been met. Rising interrupt....", bank);
-                this.Log(LogLevel.Debug, "Before value : {0} ; After value : {1}", before, after);
-                this.Log(LogLevel.Debug, "Level Low : {0} ; Level High : {1} ; Rising Edge {2}, Falling Edge {3}", assert_low, assert_high, rising_edge, falling_edge);
+                this.Log(LogLevel.Noisy, "Before value : {0} ; After value : {1}", before, after);
+                this.Log(LogLevel.Noisy, "Level Low : {0} ; Level High : {1} ; Rising Edge {2}, Falling Edge {3}", assert_low, assert_high, rising_edge, falling_edge);
 
                 portController.SetInterruptStatus(interrupt);
             }
@@ -592,7 +588,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             public uint LevelLowInterrupt()
             {
-                parentClass.Log(LogLevel.Debug, "Interrupt type is 0x{0:X}, Interrupt polarity is 0x{1:X}, mask is 0x{2:X}", InterruptType, InterruptPolarity, InterruptMask);
+                parentClass.Log(LogLevel.Noisy, "Interrupt type is 0x{0:X}, Interrupt polarity is 0x{1:X}, mask is 0x{2:X}", InterruptType, InterruptPolarity, InterruptMask);
                 return (uint)(~InterruptType & ~InterruptPolarity & InterruptMask);
             }
 
@@ -627,7 +623,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             private uint OutputEnable = 0x00;
             private uint InterruptMask = 0x00; // After Linux tests, seems like masked is 0 and 1 is not masked ; all interrupts are masked on reset
             private uint InterruptStatus = 0x00; // No interrupt has happened on reset
-            private uint InterruptType =0xFFFFFFFF; // 0 is level-sensitive ; 1 is edge-sensitive
+            private uint InterruptType = 0xFFFFFFFF; // 0 is level-sensitive ; 1 is edge-sensitive
             private uint InterruptPolarity = 0x00; // O is low / falling-edge sensitive ; 1 is up / rising edge
             private uint InterruptOnAny = 0x00; // Sensitive on both edges if 1 (polarity is ignored); sensitive on only 1 edge if 0
             private readonly XilinxGPIOPS parentClass;
