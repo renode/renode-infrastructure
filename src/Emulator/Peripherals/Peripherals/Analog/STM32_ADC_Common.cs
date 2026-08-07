@@ -298,17 +298,21 @@ namespace Antmicro.Renode.Peripherals.Analog
                 this.Log(LogLevel.Warning, "Issued a start event before the last sequence finished");
                 return;
             }
+
+            sequenceInProgress = true;
+            startFlag.Value = true;
+
             if(hasChannelSelect)
             {
-                currentChannel = (scanDirection == ScanDirection.Ascending) ? 0 : ADCChannelCount - 1;
+                // NOTE: We set current channel out of bounds to switch to first active channel
+                currentChannel = (scanDirection == ScanDirection.Ascending) ? -1 : ADCChannelCount;
+                SwitchToNextActiveChannel();
             }
             else
             {
                 sequenceCounter = (scanDirection == ScanDirection.Ascending) ? 0 : (int)regularSequenceLength.Value;
                 currentChannel = (int)regularSequence[sequenceCounter].Value;
             }
-            sequenceInProgress = true;
-            startFlag.Value = true;
             SampleNextChannel();
         }
 
@@ -369,12 +373,6 @@ namespace Antmicro.Renode.Peripherals.Analog
                 return;
             }
 
-            // Skip disabled channels
-            while(hasChannelSelect && sequenceInProgress && !channelSelected[currentChannel])
-            {
-                SwitchToNextChannel();
-            }
-
             if(sequenceInProgress)
             {
                 uint sample = GetSampleFromChannel(currentChannel);
@@ -401,13 +399,13 @@ namespace Antmicro.Renode.Peripherals.Analog
                 }
                 endOfConversionFlag.Value = true;
                 this.Log(LogLevel.Debug, "Sampled channel {0}", currentChannel);
-                SwitchToNextChannel();
+                if(dmaEnabled.Value && !adcOverrunFlag.Value)
+                {
+                    SendDmaRequest();
+                }
+                SwitchToNextActiveChannel();
             }
 
-            if(dmaEnabled.Value && !adcOverrunFlag.Value)
-            {
-                SendDmaRequest();
-            }
             if(!sequenceInProgress && awaitingConversion)
             {
                 awaitingConversion = false;
@@ -452,25 +450,20 @@ namespace Antmicro.Renode.Peripherals.Analog
             UpdateInterrupts();
         }
 
-        private void SwitchToNextChannel()
+        private void SwitchToNextActiveChannel()
         {
-            bool iterationFinished;
-            if(hasChannelSelect)
+            if(!sequenceInProgress)
             {
-                currentChannel = (scanDirection == ScanDirection.Ascending) ? currentChannel + 1 : currentChannel - 1;
-
-                iterationFinished = currentChannel >= ADCChannelCount || currentChannel < 0;
+                WarnOnCurrentChannelNotPreselected();
+                return;
             }
-            else
+
+            var iterationFinished = false;
+            do
             {
-                sequenceCounter = (scanDirection == ScanDirection.Ascending) ? sequenceCounter + 1 : sequenceCounter - 1;
-                if(sequenceCounter >= 0 && sequenceCounter <= (int)regularSequenceLength.Value)
-                {
-                    currentChannel = (int)regularSequence[sequenceCounter].Value;
-                }
-
-                iterationFinished = sequenceCounter > (int)regularSequenceLength.Value || sequenceCounter < 0 || currentChannel < 0;
+                iterationFinished = SwitchToNextChannel();
             }
+            while(!iterationFinished && hasChannelSelect && !channelSelected[currentChannel]);
 
             if(iterationFinished)
             {
@@ -480,9 +473,23 @@ namespace Antmicro.Renode.Peripherals.Analog
                 startFlag.Value = false;
                 sequenceInProgress = false;
             }
+        }
+
+        private bool SwitchToNextChannel()
+        {
+            if(hasChannelSelect)
+            {
+                currentChannel = (scanDirection == ScanDirection.Ascending) ? currentChannel + 1 : currentChannel - 1;
+                return currentChannel >= ADCChannelCount || currentChannel < 0;
+            }
             else
             {
-                WarnOnCurrentChannelNotPreselected();
+                sequenceCounter = (scanDirection == ScanDirection.Ascending) ? sequenceCounter + 1 : sequenceCounter - 1;
+                if(sequenceCounter >= 0 && sequenceCounter <= (int)regularSequenceLength.Value)
+                {
+                    currentChannel = (int)regularSequence[sequenceCounter].Value;
+                }
+                return sequenceCounter > (int)regularSequenceLength.Value || sequenceCounter < 0 || currentChannel < 0;
             }
         }
 
