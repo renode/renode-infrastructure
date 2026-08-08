@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -16,15 +16,16 @@ using Antmicro.Renode.Time;
 namespace Antmicro.Renode.Peripherals.UART
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public sealed class STM32F7_USART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IKnownSize
+    public sealed class STM32F7_USART : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IKnownSize, IHasFrequency
     {
-        public STM32F7_USART(IMachine machine, uint frequency, bool lowPowerMode = false) : base(machine)
+        public STM32F7_USART(IMachine machine, uint frequency, bool lowPowerMode = false, bool hasPrescaler = false) : base(machine)
         {
             IRQ = new GPIO();
             ReceiveDmaRequest = new GPIO();
             RegistersCollection = new DoubleWordRegisterCollection(this);
             this.frequency = frequency;
             this.lowPowerMode = lowPowerMode;
+            this.hasPrescaler = hasPrescaler;
             DefineRegisters();
         }
 
@@ -45,6 +46,12 @@ namespace Antmicro.Renode.Peripherals.UART
         public void WriteDoubleWord(long offset, uint value)
         {
             RegistersCollection.Write(offset, value);
+        }
+
+        public ulong Frequency
+        {
+            get => frequency;
+            set { frequency = checked((uint)value); }
         }
 
         public override uint BaudRate => BaudRateMultiplier * frequency / (uint)baudRateDivisor.Value;
@@ -209,6 +216,11 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(16, 16);
             }
 
+            Registers.GuardTimeAndPrescaler.Define(RegistersCollection)
+                .WithTag("PSC", 0, 8)
+                .WithTag("GT", 8, 8)
+                .WithReservedBits(16, 16);
+
             var request = Registers.Request.Define(RegistersCollection)
                 .WithFlag(1, FieldMode.Write, name: "SBKRQ")
                 .WithFlag(2, FieldMode.Write, name: "MMRQ")
@@ -271,6 +283,13 @@ namespace Antmicro.Renode.Peripherals.UART
                     // reading this register will intentionally return the last written value
                     writeCallback: (_, val) => HandleTransmitData((uint)val), name: "TDR")
                 .WithReservedBits(8, 24);
+
+            if(hasPrescaler)
+            {
+                Registers.Prescaler.Define(RegistersCollection)
+                    .WithTag("PRESCALER", 0, 4)
+                    .WithReservedBits(4, 28);
+            }
 
             if(lowPowerMode)
             {
@@ -434,8 +453,9 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private BufferState bufferState;
 
-        private readonly uint frequency;
+        private uint frequency;
         private readonly bool lowPowerMode;
+        private readonly bool hasPrescaler;
 
         private enum Registers
         {
@@ -443,12 +463,14 @@ namespace Antmicro.Renode.Peripherals.UART
             ControlRegister2   = 0x4,
             ControlRegister3   = 0x8,
             BaudRate           = 0xC,
+            GuardTimeAndPrescaler = 0x10,
             ReceiverTimeout    = 0x14,
             Request            = 0x18,
             InterruptAndStatus = 0x1C,
             InterruptFlagClear = 0x20,
             ReceiveData        = 0x24,
             TransmitData       = 0x28,
+            Prescaler          = 0x2C,
         }
     }
 }

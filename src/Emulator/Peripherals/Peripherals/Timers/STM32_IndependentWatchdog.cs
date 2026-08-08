@@ -19,12 +19,13 @@ namespace Antmicro.Renode.Peripherals.Timers
     {
         //TODO: Stop timer on debug stop.
         //TODO: Use RCC to set restart cause.
-        public STM32_IndependentWatchdog(IMachine machine, ulong frequency, bool windowOption = true, uint defaultPrescaler = 0) : base(machine)
+        public STM32_IndependentWatchdog(IMachine machine, ulong frequency, bool windowOption = true, bool earlyWakeupOption = false, uint defaultPrescaler = 0) : base(machine)
         {
             watchdogTimer = new LimitTimer(machine.ClockSource, frequency, this, "STM32_IWDG", DefaultReloadValue, workMode: WorkMode.OneShot, enabled: false, eventEnabled: true, autoUpdate: true, divider: DefaultPrescalerValue);
             watchdogTimer.LimitReached += TimerLimitReachedCallback;
             this.defaultPrescaler = defaultPrescaler;
             this.windowOption = windowOption;
+            this.earlyWakeupOption = earlyWakeupOption;
             DefineRegisters();
             Reset();
         }
@@ -37,6 +38,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             reloadValue = DefaultReloadValue;
             window = DefaultWindow;
             windowEnabled = false;
+            earlyWakeupInterruptFlag = false;
         }
 
         public long Size => 0x400;
@@ -103,11 +105,25 @@ namespace Antmicro.Renode.Peripherals.Timers
             }, name: "RL")
             .WithReservedBits(12, 20);
 
-            Registers.Status.Define(this)
-            .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "PVU")
-            .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => false, name: "RVU")
-            .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => false, name: "WVU")
-            .WithReservedBits(3, 29);
+            if(earlyWakeupOption)
+            {
+                Registers.Status.Define(this)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "PVU")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => false, name: "RVU")
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => false, name: "WVU")
+                .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => false, name: "EWU")
+                .WithReservedBits(4, 10)
+                .WithFlag(14, FieldMode.Read, valueProviderCallback: _ => earlyWakeupInterruptFlag, name: "EWIF")
+                .WithReservedBits(15, 17);
+            }
+            else
+            {
+                Registers.Status.Define(this)
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "PVU")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => false, name: "RVU")
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => false, name: "WVU")
+                .WithReservedBits(3, 29);
+            }
 
             if(windowOption)
             {
@@ -127,6 +143,22 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }, name: "WIN")
                 .WithReservedBits(12, 20);
             }
+
+            if(earlyWakeupOption)
+            {
+                Registers.EarlyWakeup.Define(this)
+                .WithValueField(0, 12, name: "EWIT")
+                .WithReservedBits(12, 2)
+                .WithFlag(14, FieldMode.Write, writeCallback: (_, value) =>
+                {
+                    if(value)
+                    {
+                        earlyWakeupInterruptFlag = false;
+                    }
+                }, name: "EWIC")
+                .WithFlag(15, name: "EWIE")
+                .WithReservedBits(16, 16);
+            }
         }
 
         private void Reload()
@@ -144,10 +176,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         private uint reloadValue;
         private uint window;
         private bool windowEnabled;
+        private bool earlyWakeupInterruptFlag;
 
         private readonly LimitTimer watchdogTimer;
         private readonly uint defaultPrescaler;
         private readonly bool windowOption;
+        private readonly bool earlyWakeupOption;
 
         private const uint DefaultReloadValue = 0xFFF;
         private const uint DefaultWindow = 0xFFF;
@@ -167,6 +201,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             Reload = 0x8,
             Status = 0xC,
             Window = 0x10,
+            EarlyWakeup = 0x14,
         }
     }
 }
