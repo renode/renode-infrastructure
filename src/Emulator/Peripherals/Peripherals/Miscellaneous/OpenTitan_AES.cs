@@ -246,7 +246,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.Log(LogLevel.Error, "Invalid KEY_LEN size: '0x{0:x}'. Undefined behavior ahead!", keyLength.Value);
                 return false;
             }
-            aes.Key = useSideloadedKey.Value ? sideloadKey : key;
+            // Slice the key to the requested KeySize to prevent AesManaged from forcing 256-bit operation
+            var selectedKey = useSideloadedKey.Value ? sideloadKey : key;
+            var actualKey = new byte[aes.KeySize / 8];
+            Array.Copy(selectedKey, actualKey, actualKey.Length);
+            aes.Key = actualKey;
 #if DEBUG
             this.Log(LogLevel.Debug, "Generated key: {0}", Misc.Stringify(key, " "));
 #endif
