@@ -95,7 +95,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 },
 
                 // Holds the MSS peripherals in reset. When in reset the peripheral should not be accessed.
-                {(long)Registers.SoftResetCr, new DoubleWordRegister(this, 0x7FFFFFFE)
+                {(long)Registers.SoftResetCr, new DoubleWordRegister(this, 0x3FFFFFFE)
                     .WithFlag(0, writeCallback: (_, val) => ManageSoftReset(val, 0), name: "ENVM")
                     .WithFlag(1, writeCallback: (_, val) => ManageSoftReset(val, 1), name: "MAC0")
                     .WithFlag(2, writeCallback: (_, val) => ManageSoftReset(val, 2), name: "MAC1")
@@ -132,13 +132,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 {(long)Registers.ClockConfigCr, new DoubleWordRegister(this, 0x10)
                     .WithTag("ClockConfig", 0, 32)
                 },
-                {(long)Registers.EnvmCr, new DoubleWordRegister(this, 0xFF)
+                {(long)Registers.EnvmCr, new DoubleWordRegister(this, 0x4005004F)
                     .WithTag("Envm", 0, 32)
                 },
-                {(long)Registers.RtcClockCr, new DoubleWordRegister(this, 0x1064)
+                {(long)Registers.RtcClockCr, new DoubleWordRegister(this, 0x10064)
                     .WithTag("RtcClock", 0, 32)
                 },
-                {(long)Registers.PllStatusSr, new DoubleWordRegister(this, 0x707)
+                {(long)Registers.PllStatusSr, new DoubleWordRegister(this, 0x0)
                     .WithTag("PllStatus", 0, 32)
                 },
                 {(long)Registers.EdacSr, new DoubleWordRegister(this)
