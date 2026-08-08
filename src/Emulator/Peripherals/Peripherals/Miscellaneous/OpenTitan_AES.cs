@@ -246,7 +246,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.Log(LogLevel.Error, "Invalid KEY_LEN size: '0x{0:x}'. Undefined behavior ahead!", keyLength.Value);
                 return false;
             }
-            aes.Key = useSideloadedKey.Value ? sideloadKey : key;
+                // Slice the key to the requested KeySize to prevent AesManaged from forcing 256-bit operation
+                var selectedKey = useSideloadedKey.Value ? sideloadKey : key;
+                var actualKey = new byte[aes.KeySize / 8];
+                Array.Copy(selectedKey, actualKey, actualKey.Length);
+                aes.Key = actualKey;
 #if DEBUG
             this.Log(LogLevel.Debug, "Generated key: {0}", Misc.Stringify(key, " "));
 #endif
@@ -254,6 +258,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
             case OperationMode.ElectronicCodebook:
                 aes.Mode = CipherMode.ECB;
+                break;
+            case OperationMode.CipherBlockChaining:
+                aes.Mode = CipherMode.CBC;
+                var ivData = initializationVector.RetriveData(trackAccess: false);
+                var iv = new byte[aes.BlockSize / 8];
+                if(ivData != null && ivData.Length > 0)
+                {
+                    Array.Copy(ivData, iv, Math.Min(iv.Length, ivData.Length));
+                }
+                aes.IV = iv;
+#if DEBUG
+                this.Log(LogLevel.Debug, "Using IV: {0}", Misc.Stringify(iv, " "));
+#endif
                 break;
             default:
                 this.Log(LogLevel.Error, "Encryption Mode {0} is not supported yet", operationMode.Value);
@@ -321,7 +338,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         // > warning SYSLIB0021: 'AesManaged' is obsolete: 'Derived cryptographic types are obsolete. Use the Create method on the base type instead.'
         // Replacing with `Aes.Create` isn't straightforward as it breaks serialization on Windows. Let's just hush it.
 #pragma warning disable SYSLIB0021
-        private readonly AesManaged aes = new AesManaged();
+    private readonly AesManaged aes = new AesManaged { Padding = PaddingMode.None };
 #pragma warning restore SYSLIB0021
 
         private readonly PseudorandomNumberGenerator random;
