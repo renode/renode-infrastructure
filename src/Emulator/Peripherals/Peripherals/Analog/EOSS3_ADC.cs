@@ -1,105 +1,46 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
 using System;
-using System.Collections.Generic;
-using System.IO;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Peripherals.Sensor;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class EOSS3_ADC : BasicDoubleWordPeripheral, IKnownSize
+    public class EOSS3_ADC : BasicDoubleWordPeripheral, IKnownSize, IADC
     {
         public EOSS3_ADC(IMachine machine) : base(machine)
         {
-            channels = new Channel[] { new Channel(this, 0), new Channel(this, 1) };
+            ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
             DefineRegisters();
-        }
-
-        public void FeedSample(uint value, uint channelNo, int repeat = 1)
-        {
-            if(channelNo > 1)
-            {
-                throw new RecoverableException("Only channels 0/1 are supported");
-            }
-
-            var sample = new Sample { Value = value };
-            channels[channelNo].FeedSample(sample, repeat);
-        }
-
-        public void FeedSample(string path, uint channelNo, int repeat = 1)
-        {
-            if(channelNo > 1)
-            {
-                throw new RecoverableException("Only channels 0/1 are supported");
-            }
-
-            var parsedSamples = ParseSamplesFile(path);
-            channels[channelNo].FeedSample(parsedSamples, repeat);
+            this.RegisterDefaultChildren(machine);
         }
 
         public override void Reset()
         {
             base.Reset();
             state = State.Idle;
-
-            foreach(var c in channels)
-            {
-                c.Reset();
-            }
         }
 
         public long Size => 0x10;
 
-        private IEnumerable<Sample> ParseSamplesFile(string path)
-        {
-            var localQueue = new Queue<Sample>();
-            var lineNumber = 0;
+        public int ADCChannelCount => 2;
 
-            try
-            {
-                using(var reader = File.OpenText(path))
-                {
-                    var line = "";
-                    while((line = reader.ReadLine()) != null)
-                    {
-                        ++lineNumber;
-                        if(!uint.TryParse(line.Trim(), out var sample))
-                        {
-                            throw new RecoverableException($"Wrong data file format at line {lineNumber}. Expected an unsigned integer number, but got '{line}'");
-                        }
-
-                        localQueue.Enqueue(new Sample { Value = sample });
-                    }
-                }
-            }
-            catch(Exception e)
-            {
-                if(e is RecoverableException)
-                {
-                    throw;
-                }
-
-                // this is to nicely handle IO errors in monitor
-                throw new RecoverableException(e.Message);
-            }
-
-            return localQueue;
-        }
+        public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; }
 
         private void DefineRegisters()
         {
             Registers.Out.Define(this)
-                .WithValueField(0, 12, FieldMode.Read, name: "out", valueProviderCallback: _ => channels[selectedChannel1.Value ? 1 : 0].GetSample())
+                .WithValueField(0, 12, FieldMode.Read, name: "out", valueProviderCallback: _ => GetSample())
                 .WithReservedBits(12, 20)
             ;
 
@@ -112,7 +53,6 @@ namespace Antmicro.Renode.Peripherals.Analog
                         return true;
 
                     case State.ConversionStarted:
-                        channels[selectedChannel1.Value ? 1 : 0].PrepareSample();
                         state = State.SampleReady;
                         return false;
 
@@ -142,103 +82,23 @@ namespace Antmicro.Renode.Peripherals.Analog
                 : State.Idle;
         }
 
+        private uint GetSample()
+        {
+            int channelIndex = selectedChannel1.Value ? 1 : 0;
+            if(ADCContainer.TryGetByAddress(channelIndex, out var source))
+            {
+                return source.Sample.ToADCRawValue(ReferenceVoltage, ResolutionInBits);
+            }
+
+            this.WarningLog("No ADC source connected to channel {0}, returning 0", channelIndex);
+            return 0;
+        }
+
         private State state;
         private IFlagRegisterField selectedChannel1;
 
-        private readonly Channel[] channels;
-
-        private class Channel
-        {
-            public Channel(EOSS3_ADC parent, int id)
-            {
-                this.id = id;
-                this.parent = parent;
-                samples = new Queue<Sample>();
-            }
-
-            public void PrepareSample()
-            {
-                lock(samples)
-                {
-                    if(samples.Count == 0 && BufferedSamples != null)
-                    {
-                        samples.EnqueueRange(BufferedSamples);
-                    }
-
-                    if(!samples.TryDequeue(out currentSample))
-                    {
-                        currentSample = new Sample();
-                        parent.Log(LogLevel.Warning, "No more samples available in channel {0}", id);
-                    }
-                }
-            }
-
-            public uint GetSample()
-            {
-                return currentSample.Value;
-            }
-
-            public void FeedSample(Sample sample, int repeat = 1)
-            {
-                lock(samples)
-                {
-                    if(repeat == -1)
-                    {
-                        BufferedSamples = new Sample[] { sample };
-                    }
-                    else
-                    {
-                        BufferedSamples = null;
-                        for(var i = 0; i < repeat; i++)
-                        {
-                            samples.Enqueue(sample);
-                        }
-                    }
-                }
-            }
-
-            public void FeedSample(IEnumerable<Sample> samplesCollection, int repeat = 1)
-            {
-                lock(samples)
-                {
-                    if(repeat == -1)
-                    {
-                        BufferedSamples = samplesCollection;
-                    }
-                    else
-                    {
-                        BufferedSamples = null;
-                        for(var i = 0; i < repeat; i++)
-                        {
-                            samples.EnqueueRange(samplesCollection);
-                        }
-                    }
-                }
-            }
-
-            public void Reset()
-            {
-                lock(samples)
-                {
-                    BufferedSamples = null;
-                    samples.Clear();
-                    currentSample = new Sample();
-                }
-            }
-
-            public IEnumerable<Sample> BufferedSamples { get; private set; }
-
-            private Sample currentSample;
-
-            private readonly Queue<Sample> samples;
-            private readonly int id;
-            private readonly EOSS3_ADC parent;
-        }
-
-        private struct Sample
-        {
-            public uint Value;
-        }
+        private const ushort ResolutionInBits = 12;
+        private const decimal ReferenceVoltage = 1.4m; // From QL EOS S3 Ultra Low Power multicore MCU datasheet v3.3f.
 
         private enum State
         {
