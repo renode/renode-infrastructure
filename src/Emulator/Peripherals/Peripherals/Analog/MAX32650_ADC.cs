@@ -1,22 +1,29 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 //
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Sensor;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class MAX32650_ADC : BasicDoubleWordPeripheral, IKnownSize
+    public class MAX32650_ADC : BasicDoubleWordPeripheral, IKnownSize, IADC
     {
         public MAX32650_ADC(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
+            ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
+
             DefineRegisters();
+
+            this.RegisterDefaultChildren(machine);
         }
 
         public override void Reset()
@@ -25,64 +32,30 @@ namespace Antmicro.Renode.Peripherals.Analog
             IRQ.Unset();
         }
 
+        public string GetDefaultChannelName(int channel)
+        {
+            this.AssertChannel(channel);
+
+            return ((Channels)channel).ToString();
+        }
+
         public GPIO IRQ { get; }
 
         public long Size => 0x1000;
 
-        public uint AIn0
-        {
-            get => aIn0;
-            set => aIn0 = ValidateAIn(0, value);
-        }
+        public int ADCChannelCount => 6; // Channels after AIn1Div5 are not supported
 
-        public uint AIn1
-        {
-            get => aIn1;
-            set => aIn1 = ValidateAIn(1, value);
-        }
-
-        public uint AIn2
-        {
-            get => aIn2;
-            set => aIn2 = ValidateAIn(2, value);
-        }
-
-        public uint AIn3
-        {
-            get => aIn3;
-            set => aIn3 = ValidateAIn(3, value);
-        }
+        public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; private set; }
 
         private uint GetValueFromActiveChannel()
         {
-            switch(currentChannel.Value)
+            if(ADCContainer.TryGetByAddress((int)currentChannel.Value, out var source))
             {
-            case Channels.AIn0:
-                return AIn0;
-            case Channels.AIn1:
-                return AIn1;
-            case Channels.AIn2:
-                return AIn2;
-            case Channels.AIn3:
-                return AIn3;
-            case Channels.AIn0Div5:
-                return AIn0 / 5;
-            case Channels.AIn1Div5:
-                return AIn1 / 5;
-            default:
-                this.Log(LogLevel.Warning, "{0} is not supported; ignoring", currentChannel.Value);
-                return 0x00;
+                return source.Sample.ToADCRawValue(ReferenceVoltage, ResolutionInBits);
             }
-        }
 
-        private uint ValidateAIn(int idx, uint value)
-        {
-            if(value > ADCDataMask)
-            {
-                this.Log(LogLevel.Warning, "Tried to set AIn{0} to 0x{1:X}, which is bigger than 10-bits; value has been truncated to 0x{2:X03}", idx, value, value & ADCDataMask);
-                value &= ADCDataMask;
-            }
-            return value;
+            this.Log(LogLevel.Warning, "{0} is not supported; ignoring", currentChannel.Value);
+            return 0x00;
         }
 
         private void UpdateInterrupts()
@@ -204,13 +177,9 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField interruptReferenceReadyPending;
         private IFlagRegisterField interruptAnyPending;
 
-        private uint aIn0;
-        private uint aIn1;
-        private uint aIn2;
-        private uint aIn3;
-
         private const int LimitRegistersCount = 4;
-        private const uint ADCDataMask = 0x3FF;
+        private const ushort ResolutionInBits = 10;
+        private const decimal ReferenceVoltage = 1.22m; //Internal bandgap defined in AN6766
 
         private enum Alignment
         {
