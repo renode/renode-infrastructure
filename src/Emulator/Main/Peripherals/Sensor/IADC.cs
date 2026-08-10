@@ -39,9 +39,16 @@ namespace Antmicro.Renode.Peripherals.Sensor
     public interface IADC : ISensor, IPeripheralContainer<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>
     {
         // ADC value should be treated as RESD VoltageSample value
-        void SetADCValue(int channel, uint value);
+        void SetADCValue(int channel, uint value)
+        {
+            // These functions are deprecated, so the default implementation is a throwing
+            throw new RecoverableException("SetADCValue is deprecated and should not be used in new models. Use a ADCChannelSource instead");
+        }
 
-        uint GetADCValue(int channel);
+        uint GetADCValue(int channel)
+        {
+            throw new RecoverableException("GetADCValue is deprecated and should not be used in new models. Use a ADCChannelSource instead");
+        }
 
         void IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>.Register(IRESDSampleSource<VoltageSample> peripheral, NumberRegistrationPoint<int> channel)
         {
