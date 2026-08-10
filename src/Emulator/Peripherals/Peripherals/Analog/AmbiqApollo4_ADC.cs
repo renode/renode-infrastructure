@@ -1,31 +1,26 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Sensor;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
-    public class AmbiqApollo4_ADC : BasicDoubleWordPeripheral, IKnownSize
+    public class AmbiqApollo4_ADC : BasicDoubleWordPeripheral, IKnownSize, IADC
     {
         public AmbiqApollo4_ADC(IMachine machine) : base(machine)
         {
-            // This is just a mock. Getters simply read the properties.
-            channelDataGettersArray = new Func<uint>[]
-            {
-                () => Channel0Data, () => Channel1Data, () => Channel2Data, () => Channel3Data, () => Channel4Data, () => Channel5Data,
-                () => Channel6Data, () => Channel7Data, () => Channel8Data, () => Channel9Data, () => Channel10Data, () => Channel11Data,
-            };
-
             fifo = new Queue<FifoEntry>();
             interruptStatuses = new bool[InterruptsCount];
             IRQ = new GPIO();
@@ -36,8 +31,12 @@ namespace Antmicro.Renode.Peripherals.Analog
                 slots[slotNumber] = new Slot(slotNumber);
             }
 
+            ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
+
             DefineRegisters();
             Reset();
+
+            this.RegisterDefaultChildren(machine);
         }
 
         public override void Reset()
@@ -92,33 +91,13 @@ namespace Antmicro.Renode.Peripherals.Analog
             base.WriteDoubleWord(offset, value);
         }
 
-        public uint Channel0Data { get; set; }
-
-        public uint Channel1Data { get; set; }
-
-        public uint Channel2Data { get; set; }
-
-        public uint Channel3Data { get; set; }
-
-        public uint Channel4Data { get; set; }
-
-        public uint Channel5Data { get; set; }
-
-        public uint Channel6Data { get; set; }
-
-        public uint Channel7Data { get; set; }
-
-        public uint Channel8Data { get; set; }
-
-        public uint Channel9Data { get; set; }
-
-        public uint Channel10Data { get; set; }
-
-        public uint Channel11Data { get; set; }
-
         public GPIO IRQ { get; }
 
         public long Size => 0x294;
+
+        public int ADCChannelCount => 12;
+
+        public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; private set; }
 
         private void DefineRegisters()
         {
@@ -367,16 +346,16 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private bool TryGetDataFromChannel(int channelNumber, out uint data)
         {
-            data = 0x0;
-            if(channelNumber >= ChannelsCount)
-            {
-                this.Log(LogLevel.Warning, "Invalid channel number: {0}", channelNumber);
-                return false;
-            }
+            data = 0;
+            this.AssertChannel(channelNumber);
 
-            var channelDataGet = channelDataGettersArray[channelNumber];
-            data = channelDataGet();
-            return true;
+            if(ADCContainer.TryGetByAddress(channelNumber, out var source))
+            {
+                var rawValue = source.Sample.ToADCRawValue(ReferenceVoltage, ResolutionInBits);
+                data = rawValue << 6; // Bits 0-5 are for the fractional part, integer part is in MSB.
+                return true;
+            }
+            return false;
         }
 
         private void UpdateIRQ()
@@ -402,7 +381,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField[] interruptEnableFlags;
         private IFlagRegisterField moduleEnabled;
 
-        private readonly Func<uint>[] channelDataGettersArray;
         private readonly Queue<FifoEntry> fifo;
         private readonly bool[] interruptStatuses;
         private readonly Slot[] slots;
@@ -411,6 +389,9 @@ namespace Antmicro.Renode.Peripherals.Analog
         private const int InterruptsCount = 12;
         private const int SlotsCount = 8;
         private const int SoftwareTriggerMagicValue = 0x37;
+        // Values from https://contentportal.ambiq.com/documents/20123/388400/Apollo4-SoC-Datasheet.pdf
+        private const ushort ResolutionInBits = 12;
+        private const decimal ReferenceVoltage = 1.19m;
 
         private class Slot
         {
