@@ -78,6 +78,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public ulong Step(int count = 1)
         {
+            if(isAborted)
+            {
+                this.Log(LogLevel.Warning, "Ignoring stepping on an aborted CPU");
+                return PC;
+            }
             if(IsHalted)
             {
                 this.Log(LogLevel.Warning, "Ignoring stepping on a halted CPU");
