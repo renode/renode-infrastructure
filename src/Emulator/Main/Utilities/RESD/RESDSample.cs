@@ -172,6 +172,15 @@ namespace Antmicro.Renode.Utilities.RESD
             return $"{DecimalToString(Voltage / (decimal)1e6)} V";
         }
 
+        public uint ToADCRawValue(decimal maxVolts, ushort resolutionInBits)
+        {
+            // Turns this voltage sample into a ADC value, where 0 is 0V and all 1s is maxVolts V
+            var sampleInVolts = Voltage / 1e6m;
+            var clampedVoltage = Math.Clamp(sampleInVolts, 0.0m, maxVolts);
+            var maxRawValue = BitHelper.Bits(0, resolutionInBits);
+            return (uint)((clampedVoltage / (maxVolts)) * maxRawValue);
+        }
+
         public override int? Width => 4;
 
         public uint Voltage => voltage;
