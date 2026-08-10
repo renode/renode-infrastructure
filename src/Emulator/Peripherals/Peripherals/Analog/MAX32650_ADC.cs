@@ -51,7 +51,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             if(ADCContainer.TryGetByAddress((int)currentChannel.Value, out var source))
             {
-                return source.Sample.ToADCRawValue(ReferenceVoltage, ResolutionInBits);
+                var sample = inputScale.Value ? new VoltageSample(source.Sample.Voltage / 2) : source.Sample;
+                return sample.ToADCRawValue(ReferenceVoltage, ResolutionInBits);
             }
 
             this.Log(LogLevel.Warning, "{0} is not supported; ignoring", currentChannel.Value);
@@ -98,7 +99,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 .WithFlag(4, name: "CTRL.ref_sel")
                 .WithReservedBits(5, 3)
                 .WithTaggedFlag("CTRL.ref_scale", 8)
-                .WithTaggedFlag("CTRL.input_scale", 9)
+                .WithFlag(9, out inputScale, name: "CTRL.input_scale")
                 .WithReservedBits(10, 1)
                 .WithTaggedFlag("CTRL.clk_en", 11)
                 .WithEnumField<DoubleWordRegister, Channels>(12, 4, out currentChannel, name: "CTRL.ch_sel")
@@ -169,6 +170,8 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private IEnumRegisterField<Alignment> dataAlignment;
         private IEnumRegisterField<Channels> currentChannel;
+
+        private IFlagRegisterField inputScale;
 
         private IFlagRegisterField interruptDoneEnabled;
         private IFlagRegisterField interruptReferenceReadyEnabled;
