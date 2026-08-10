@@ -8,9 +8,10 @@
 using System.Linq;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
@@ -18,7 +19,7 @@ using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class SAM4S_ADC : BasicDoubleWordPeripheral, IKnownSize
+    public class SAM4S_ADC : BasicDoubleWordPeripheral, IKnownSize, IADC
     {
         public SAM4S_ADC(Machine machine, ulong baseFrequency = 32768, decimal referenceVoltage = 5m) : base(machine)
         {
@@ -28,65 +29,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             ReferenceVoltage = referenceVoltage;
 
             DefineRegisters();
-        }
 
-        public override void Reset()
-        {
-            base.Reset();
-
-            foreach(var it in channelStream.Select((stream, index) => new { stream, index }))
-            {
-                it.stream?.Dispose();
-                channelStream[it.index] = null;
-            }
-        }
-
-        public void FeedSamplesFromRESD(ReadFilePath filePath, int channelIndex, uint? resdChannelOverride = null,
-            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
-        {
-            AssertChannelIndex(channelIndex);
-
-            var resdChannel = resdChannelOverride ?? (uint)channelIndex;
-            channelStream[channelIndex] = this.CreateRESDStream<VoltageSample>(filePath, resdChannel, sampleOffsetType, sampleOffsetTime);
-        }
-
-        public decimal DefaultChannelVoltage(int channelIndex)
-        {
-            AssertChannelIndex(channelIndex);
-            return defaultChannelValue[channelIndex];
-        }
-
-        public void DefaultChannelVoltage(int channelIndex, decimal newVoltage)
-        {
-            AssertChannelIndex(channelIndex);
-            defaultChannelValue[channelIndex] = newVoltage;
-        }
-
-        public ushort GetChannelValue(int channelIndex)
-        {
-            AssertChannelIndex(channelIndex);
-
-            var voltage = defaultChannelValue[channelIndex];
-            if(temperatureSensorEnabled.Value && channelIndex == TemperatureChannelIndex)
-            {
-                voltage = BaseTemperatureVoltage + (Temperature - BaseTemperature) * TemperatureProportionalCoefficient;
-            }
-            else if(channelStream[channelIndex] != null)
-            {
-                var streamStatus = channelStream[channelIndex].TryGetCurrentSample(this, out var sample, out _);
-                if(streamStatus == RESDStreamStatus.OK)
-                {
-                    voltage = sample.Voltage / 1000m;
-                }
-                else if(streamStatus == RESDStreamStatus.AfterStream)
-                {
-                    channelStream[channelIndex].Dispose();
-                    channelStream[channelIndex] = null;
-                }
-            }
-
-            voltage = voltage.Clamp(0, ReferenceVoltage);
-            return (ushort)(voltage * MaximumChannelValue / ReferenceVoltage);
+            ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
+            this.RegisterDefaultChildren(machine);
         }
 
         public long Size => 0x100;
@@ -96,6 +41,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         public decimal ReferenceVoltage { get; set; }
 
         public decimal Temperature { get; set; }
+
+        public int ADCChannelCount => NumberOfChannels;
+
+        public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; private set; }
 
         private void UpdateInterrupts()
         {
@@ -115,12 +64,32 @@ namespace Antmicro.Renode.Peripherals.Analog
             this.Log(LogLevel.Debug, "Started conversion");
         }
 
+        private ulong GetChannelValue(int channelIndex)
+        {
+            this.AssertChannel(channelIndex);
+
+            if(temperatureSensorEnabled.Value && channelIndex == TemperatureChannelIndex)
+            {
+                var voltage = BaseTemperatureVoltage + (Temperature - BaseTemperature) * TemperatureProportionalCoefficient;
+                voltage = voltage.Clamp(0, ReferenceVoltage);
+                var maximumChannelValue = BitHelper.Bits(0, ResolutionInBits);
+                return (ulong)(voltage * maximumChannelValue / ReferenceVoltage);
+            }
+            else if(ADCContainer.TryGetByAddress(channelIndex, out var source))
+            {
+                return source.Sample.ToADCRawValue(ReferenceVoltage, ResolutionInBits);
+            }
+
+            this.WarningLog("No ADC source connected to channel {0}, returning 0", channelIndex);
+            return 0;
+        }
+
         private void ConversionFinished()
         {
             foreach(var channelIndex in Enumerable.Range(0, NumberOfChannels).Where(index => channelStatus[index].Value))
             {
                 endOfConversionInterruptPending[channelIndex].Value = true;
-                channelValue[channelIndex].Value = (ulong)GetChannelValue(channelIndex);
+                channelValue[channelIndex].Value = GetChannelValue(channelIndex);
                 lastDataConverted.Value = channelValue[channelIndex].Value;
                 this.Log(LogLevel.Debug, "Setting channel#{0} to {1:X03}", channelIndex, channelValue[channelIndex].Value);
             }
@@ -133,14 +102,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(!freerunMode.Value)
             {
                 internalTimer.Enabled = false;
-            }
-        }
-
-        private void AssertChannelIndex(int channelIndex)
-        {
-            if(channelIndex < 0 || channelIndex >= NumberOfChannels)
-            {
-                throw new RecoverableException($"'{nameof(channelIndex)}' should be between 0 and {NumberOfChannels - 1}");
             }
         }
 
@@ -425,13 +386,11 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField temperatureSensorEnabled;
 
         private readonly IValueRegisterField[] channelValue = new IValueRegisterField[NumberOfChannels];
-        private readonly RESDStream<VoltageSample>[] channelStream = new RESDStream<VoltageSample>[NumberOfChannels];
 
-        private readonly decimal[] defaultChannelValue = new decimal[NumberOfChannels];
         private readonly LimitTimer internalTimer;
 
         private const int NumberOfChannels = 16;
-        private const ushort MaximumChannelValue = 0xFFF;
+        private const ushort ResolutionInBits = 12;
 
         private const decimal BaseTemperature = 27m;
         private const decimal BaseTemperatureVoltage = 1.44m;
