@@ -28,6 +28,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         public void AttachCpu(Arm cpu)
         {
             this.cpu = cpu;
+            if(cpu is CortexM cortexM)
+            {
+                // Default to full permission for bus transactions issued by a semihosting handler.
+                semihostingCpuState = new CortexM.ContextState { Privileged = true, CpuSecure = true, AttributionSecure = true, Semihosting = true };
+            }
         }
 
         public void Dispose()
@@ -102,14 +107,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
 
                 // Check presence of the required null character
-                var byteAfterPath = cpu.Bus.ReadByte((ulong)(pathPointer + pathLength), cpu);
+                var byteAfterPath = cpu.Bus.ReadByte((ulong)(pathPointer + pathLength), cpu, semihostingCpuState);
                 if(byteAfterPath != 0)
                 {
                     this.Log(LogLevel.Warning, "SYS_OPEN: No null character after the path. Found: '{0}'", (char)byteAfterPath);
                     return unchecked((uint)-1);
                 }
 
-                var pathBytes = cpu.Bus.ReadBytes(pathPointer, pathLength, cpu);
+                var pathBytes = cpu.Bus.ReadBytes(pathPointer, pathLength, false, cpu, semihostingCpuState);
                 var path = Encoding.UTF8.GetString(pathBytes, 0, pathLength);
                 return AddDescriptor("SYS_OPEN", path, mode);
             }
@@ -135,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 if(TryGetSemihostingDescriptor("SYS_WRITE", handle, out var descriptor))
                 {
-                    var bytes = cpu.Bus.ReadBytes(sourcePointer, (int)length, cpu);
+                    var bytes = cpu.Bus.ReadBytes(sourcePointer, (int)length, false, cpu, semihostingCpuState);
                     if(descriptor.TryWrite("SYS_WRITE", bytes, ref semihostingErrno))
                     {
                         return 0;
@@ -155,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     if(descriptor.TryRead("SYS_READ", (int)length, out var bytesCount, out var bytesRead, ref semihostingErrno))
                     {
-                        cpu.Bus.WriteBytes(bytesRead, destinationPointer, bytesCount, context: cpu);
+                        cpu.Bus.WriteBytes(bytesRead, destinationPointer, bytesCount, false, context: cpu, semihostingCpuState);
                         // Success is indicated by returning any x such that 0 <= x < length.
                         return length - (uint)bytesCount;
                     }
@@ -273,7 +278,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     semihostingErrno = Errno.EOVERFLOW;
                     return unchecked((uint)-1);
                 }
-                cpu.Bus.WriteBytes(filenameBytes, bufferPointer, filenameBytes.Length, context: cpu);
+                cpu.Bus.WriteBytes(filenameBytes, bufferPointer, filenameBytes.Length, false, context: cpu, semihostingCpuState);
 
                 return 0;
             }
@@ -290,14 +295,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
 
                 // Check presence of the required null character
-                var byteAfterPath = cpu.Bus.ReadByte((ulong)(pathPointer + pathLength), cpu);
+                var byteAfterPath = cpu.Bus.ReadByte((ulong)(pathPointer + pathLength), cpu, semihostingCpuState);
                 if(byteAfterPath != 0)
                 {
                     this.Log(LogLevel.Warning, "SYS_REMOVE: No null character after the path. Found: '{0}'", (char)byteAfterPath);
                     return unchecked((uint)-1);
                 }
 
-                var pathBytes = cpu.Bus.ReadBytes(pathPointer, pathLength, cpu);
+                var pathBytes = cpu.Bus.ReadBytes(pathPointer, pathLength, false, cpu, semihostingCpuState);
                 var path = Encoding.UTF8.GetString(pathBytes, 0, pathLength);
 
                 if(!TryAccessPath(path, out var fullPath, out var errorMessage))
@@ -363,8 +368,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return unchecked((uint)-1);
                 }
 
-                cpu.Bus.WriteBytes(argumentBytes, bufferPointer, argumentBytes.Length, context: cpu);
-                cpu.Bus.WriteDoubleWord(argumentsAddress + 4, (uint)argumentBytes.Length, context: cpu); /* write back the length of arguments string */
+                cpu.Bus.WriteBytes(argumentBytes, bufferPointer, argumentBytes.Length, false, context: cpu, semihostingCpuState);
+                cpu.Bus.WriteDoubleWord(argumentsAddress + 4, (uint)argumentBytes.Length, context: cpu, semihostingCpuState); /* write back the length of arguments string */
 
                 return 0;
             }
@@ -443,7 +448,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
 
                 // SYS_WRITE0 writes characters up to the null character.
-                for(byte sourceByte; (sourceByte = cpu.Bus.ReadByte(sourcePointer, cpu)) != '\0'; sourcePointer++)
+                for(byte sourceByte; (sourceByte = cpu.Bus.ReadByte(sourcePointer, cpu, semihostingCpuState)) != '\0'; sourcePointer++)
                 {
                     console.SemihostingWriteByte(sourceByte);
                 }
@@ -567,7 +572,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var address = baseAddress + field * 4;
             // TODO: Add address translation to semihosting handler
-            return cpu.Bus.ReadDoubleWord(address, cpu);
+            return cpu.Bus.ReadDoubleWord(address, cpu, semihostingCpuState);
         }
 
         private void LogReceived(string operationName, string message = null, params object[] args)
@@ -803,6 +808,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         private Arm cpu;
+        private ulong? semihostingCpuState;
         private Errno semihostingErrno = Errno.NoError;
         private SemihostingUart stdInOut;
         private SemihostingUart stdErr;
