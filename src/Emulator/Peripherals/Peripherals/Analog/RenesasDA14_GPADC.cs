@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -7,22 +7,21 @@
 using System;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class RenesasDA14_GPADC : BasicDoubleWordPeripheral, IKnownSize
+    public class RenesasDA14_GPADC : BasicDoubleWordPeripheral, IKnownSize, IADC
     {
         public RenesasDA14_GPADC(IMachine machine) : base(machine)
         {
             DefineRegisters();
-            resdStream = new RESDStream<VoltageSample>[NumberOfChannels];
             samplingTimer = new LimitTimer(
                 machine.ClockSource, 1000000, this, "samplingClock",
                 eventEnabled: true,
@@ -31,27 +30,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 autoUpdate: false,
                 workMode: WorkMode.OneShot);
             samplingTimer.LimitReached += OnConversionFinished;
-        }
-
-        public void FeedSamplesFromRESD(ReadFilePath filePath, uint adcChannel, uint resdChannel = 0,
-            RESDStreamSampleOffset sampleOffsetType = RESDStreamSampleOffset.Specified, long sampleOffsetTime = 0)
-        {
-            EnsureChannelIsValid(adcChannel);
-            try
-            {
-                resdStream[adcChannel] = this.CreateRESDStream<VoltageSample>(filePath, resdChannel, sampleOffsetType, sampleOffsetTime);
-            }
-            catch(RESDException)
-            {
-                for(var channelId = 0; channelId < NumberOfChannels; channelId++)
-                {
-                    if(resdStream[channelId] != null)
-                    {
-                        resdStream[channelId].Dispose();
-                    }
-                }
-                throw new RecoverableException($"Could not load RESD channel {resdChannel} from {filePath}");
-            }
+            ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
+            this.RegisterDefaultChildren(machine);
         }
 
         public override void Reset()
@@ -67,6 +47,10 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         public long Size => 0x24;
 
+        public int ADCChannelCount => 14;
+
+        public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; private set; }
+
         private uint ParseResult(uint voltage)
         {
             return (voltage << (6 - Math.Min(6, (int)conversionNumber.Value))) & ((1 << 16) - 1);
@@ -74,28 +58,22 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private uint HandleConversion(uint channelId)
         {
-            EnsureChannelIsValid(channelId);
-            if(resdStream[channelId] == null || resdStream[channelId].TryGetCurrentSample(this, (sample) => sample.Voltage / 1000, out var voltage, out _) == RESDStreamStatus.BeforeStream)
-            {
-                return ParseResult(DefaultChannelVoltage);
-            }
-            // The attenuator value scales the allowed voltage input.
-            // If the voltage is greater than the allowed level, then maxVoltage is returned.
-            var maxVoltage = (uint) (0.9 * (attenuator.Value + 1) * 1000);
-            if(voltage > maxVoltage)
-            {
-                this.Log(LogLevel.Warning, "The enabled attenuator allows input voltage up to {0}mV. Provided value: {1}mV", maxVoltage, voltage);
-                return ParseResult(maxVoltage);
-            }
-            return ParseResult(voltage);
-        }
+            this.AssertChannel((int)channelId);
 
-        private void EnsureChannelIsValid(uint channelIdx)
-        {
-            if(channelIdx >= NumberOfChannels)
+            if(ADCContainer.TryGetByAddress((int)channelId, out var source))
             {
-                throw new RecoverableException($"Invalid argument value: {channelIdx}. This peripheral implements only channels in range 0-{NumberOfChannels - 1}");
+                var mV = source.Sample.Voltage / 1000;
+                // The attenuator value scales the allowed voltage input.
+                // If the voltage is greater than the allowed level, then maxVoltage is returned.
+                var maxVoltage = (uint) (0.9 * (attenuator.Value + 1) * 1000);
+                if(mV / 1000 > maxVoltage)
+                {
+                    this.Log(LogLevel.Warning, "The enabled attenuator allows input voltage up to {0}mV. Provided value: {1}mV", maxVoltage, mV);
+                    return ParseResult(maxVoltage);
+                }
+                return ParseResult(mV);
             }
+            return ParseResult(DefaultChannelVoltage);
         }
 
         private void StartConversion()
@@ -230,11 +208,9 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IValueRegisterField converionInterval;
         private IValueRegisterField selectPositive;
         private IValueRegisterField result;
-        private readonly RESDStream<VoltageSample>[] resdStream;
 
         private readonly LimitTimer samplingTimer;
 
-        private const int NumberOfChannels = 14;
         private const uint DefaultChannelVoltage = 100;
 
         private enum GeneralPurposeRegisters : long
