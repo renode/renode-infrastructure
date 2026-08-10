@@ -6,6 +6,7 @@
 //
 using System.Collections.Generic;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Analog;
@@ -32,6 +33,35 @@ namespace Antmicro.Renode.Peripherals.Sensor
             if(channel < 0 || channel >= @this.ADCChannelCount)
             {
                 throw new RecoverableException($"'{nameof(channel)}' is not in [0, {@this.ADCChannelCount - 1}] range");
+            }
+        }
+
+        public static void RegisterDefaultChildren(this IADC @this, IMachine machine)
+        {
+            machine.PeripheralsChanged += (machine, ev) =>
+            {
+                /* We need to create default children as soon as this ADC peripheral exists.
+                 * However, the channel name must be unique at the machine level so the ADC name is
+                 * prefixed. The creation driver first register the ADC device and then sets its
+                 * local name. So the default children are created on the
+                 * PeripheralChangeType.NamedChanged event instead of PeripheralChangeType.Addition.
+                 */
+                if(ev.Peripheral == @this && ev.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.NameChanged)
+                {
+                    @this.DoRegisterDefaultChildren(machine);
+                }
+            };
+        }
+
+        private static void DoRegisterDefaultChildren(this IADC @this, IMachine machine)
+        {
+            machine.TryGetLocalName(@this, out var adcName);
+
+            for(var i = 0; i < @this.ADCChannelCount; i++)
+            {
+                IRESDSampleSource<VoltageSample> channelSource = new ADCDefaultChannelSource();
+                @this.Register(channelSource, new NumberRegistrationPoint<int>(i));
+                machine.SetLocalName(channelSource, $"{adcName}-{@this.GetDefaultChannelName(i)}");
             }
         }
     }
@@ -68,6 +98,11 @@ namespace Antmicro.Renode.Peripherals.Sensor
         void IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>.Unregister(IRESDSampleSource<VoltageSample> peripheral)
         {
             ADCContainer.Unregister(peripheral);
+        }
+
+        string GetDefaultChannelName(int channel)
+        {
+            return $"channel{channel}";
         }
 
         int ADCChannelCount { get; }

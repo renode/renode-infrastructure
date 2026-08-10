@@ -124,19 +124,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             channelSelected = new bool[ADCChannelCount];
             Reset();
 
-            machine.PeripheralsChanged += (machine, ev) =>
-            {
-                /* We need to create default children as soon as this ADC peripheral exists.
-                 * However, the channel name must be unique at the machine level so the ADC name is
-                 * prefixed. The creation driver first register the ADC device and then sets its
-                 * local name. So the default children are created on the
-                 * PeripheralChangeType.NamedChanged event instead of PeripheralChangeType.Addition.
-                 */
-                if(ev.Peripheral == this && ev.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.NameChanged)
-                {
-                    RegisterDefaultChildren(machine);
-                }
-            };
+            this.RegisterDefaultChildren(machine);
         }
 
         public void SetADCValue(int channel, uint valueMicroVolts)
@@ -1119,19 +1107,6 @@ namespace Antmicro.Renode.Peripherals.Analog
                 reservedBitsWidth = 2 + reservedBitsEntries * 3;
                 smpr2.Reserved(32 - reservedBitsWidth, reservedBitsWidth);
                 registers.Add((long)Registers.SamplingTime2, smpr2);
-            }
-        }
-
-        private void RegisterDefaultChildren(IMachine machine)
-        {
-            var adcName = "";
-            machine.TryGetLocalName(this, out adcName);
-
-            for(var i = 0; i < ADCChannelCount; i++)
-            {
-                IRESDSampleSource<VoltageSample> channelSource = new ADCDefaultChannelSource();
-                ((IADC)this).Register(channelSource, new NumberRegistrationPoint<int>(i));
-                machine.SetLocalName(channelSource, $"{adcName}-channel{i}");
             }
         }
 
