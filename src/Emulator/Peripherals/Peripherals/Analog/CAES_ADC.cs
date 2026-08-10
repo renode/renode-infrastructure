@@ -36,6 +36,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 workMode: WorkMode.OneShot);
             samplingTimer.LimitReached += OnConversionFinished;
             ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
+            this.RegisterDefaultChildren(machine);
         }
 
         public void FeedSamplesFromRESD(ReadFilePath filePath, uint adcChannel, uint resdChannel = 0,
