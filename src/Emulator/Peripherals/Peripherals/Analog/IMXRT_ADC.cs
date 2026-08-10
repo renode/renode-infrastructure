@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -8,29 +8,29 @@
 using System.Linq;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Sensors;
+using Antmicro.Renode.Peripherals.Sensor;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class IMXRT_ADC : BasicDoubleWordPeripheral, IGPIOReceiver, IKnownSize
+    public class IMXRT_ADC : BasicDoubleWordPeripheral, IGPIOReceiver, IKnownSize, IADC
     {
-        public IMXRT_ADC(IMachine machine) : base(machine)
+        public IMXRT_ADC(IMachine machine, decimal referenceVoltage) : base(machine)
         {
-            samplesFifos = new SensorSamplesFifo<ScalarSample>[NumberOfChannels];
-            for(var i = 0; i < samplesFifos.Length; i++)
-            {
-                samplesFifos[i] = new SensorSamplesFifo<ScalarSample>();
-            }
-
             conversionCompleteInterruptEnable = new IFlagRegisterField[NumberOfHardwareTriggers];
             inputChannel = new IValueRegisterField[NumberOfHardwareTriggers];
             cdata = new IValueRegisterField[NumberOfHardwareTriggers];
 
             IRQ = new GPIO();
             DefineRegisters();
+
+            this.referenceVoltage = referenceVoltage;
+
+            ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
+            this.RegisterDefaultChildren(machine);
         }
 
         public override void Reset()
@@ -53,36 +53,20 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
-        public void FeedSample(byte sample, int channel)
-        {
-            if(channel < 0 || channel >= NumberOfChannels)
-            {
-                throw new RecoverableException($"This model supports channels 0-{(NumberOfChannels - 1)} inclusive");
-            }
-
-            samplesFifos[channel].FeedSample(new ScalarSample(sample));
-        }
-
-        public void FeedSamplesFromFile(string path, int channel)
-        {
-            if(channel < 0 || channel >= NumberOfChannels)
-            {
-                throw new RecoverableException($"This model supports channels 0-{(NumberOfChannels - 1)} inclusive");
-            }
-
-            samplesFifos[channel].FeedSamplesFromFile(path);
-        }
-
         public void TriggerConversion(uint channel)
         {
-            if(channel >= NumberOfChannels)
-            {
-                throw new RecoverableException($"This model supports channels 0-{(NumberOfChannels - 1)} inclusive");
-            }
+            this.AssertChannel((int)channel);
 
             this.Log(LogLevel.Debug, "Starting conversion on channel #{0}", channel);
-            samplesFifos[channel].TryDequeueNewSample();
-            cdata[channel].Value = (uint)samplesFifos[channel].Sample.Value;
+            if(ADCContainer.TryGetByAddress((int)channel, out var source))
+            {
+                cdata[channel].Value = source.Sample.ToADCRawValue(referenceVoltage, ResolutionInBits);
+            }
+            else
+            {
+                this.WarningLog("No ADC source connected to channel {0}, setting CDATA to 0", channel);
+                cdata[channel].Value = 0;
+            }
 
             conversionComplete.Value = true;
             UpdateInterrupts();
@@ -91,6 +75,10 @@ namespace Antmicro.Renode.Peripherals.Analog
         public GPIO IRQ { get; }
 
         public long Size => 0x5C;
+
+        public int ADCChannelCount => 16;
+
+        public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; }
 
         private void HandleTrigger(int triggerId, bool isHW)
         {
@@ -223,10 +211,12 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly IFlagRegisterField[] conversionCompleteInterruptEnable;
         private readonly IValueRegisterField[] inputChannel;
         private readonly IValueRegisterField[] cdata;
-        private readonly SensorSamplesFifo<ScalarSample>[] samplesFifos;
+
+        private readonly decimal referenceVoltage;
 
         private const int NumberOfHardwareTriggers = 8;
-        private const int NumberOfChannels = 16;
+
+        private const ushort ResolutionInBits = 12;
 
         private const int AdcEtcMask = 0b10000;
         private const int ConversionDisabledMask = 0b11111;
