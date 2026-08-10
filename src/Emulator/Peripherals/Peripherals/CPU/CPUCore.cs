@@ -84,12 +84,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             MultiprocessingId = cpuId;
         }
 
-        protected void Abort()
-        {
-            isAborted = true;
-            this.Log(LogLevel.Error, "CPU aborted");
-        }
-
         protected virtual void OnResume()
         {
             // by default do nothing
