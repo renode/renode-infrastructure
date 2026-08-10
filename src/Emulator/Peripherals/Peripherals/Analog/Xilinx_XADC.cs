@@ -1,21 +1,23 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System;
 using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Sensor;
+using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class Xilinx_XADC : BasicDoubleWordPeripheral, IKnownSize
+    public class Xilinx_XADC : BasicDoubleWordPeripheral, IKnownSize, IADC
     {
         public Xilinx_XADC(IMachine machine) : base(machine)
         {
@@ -23,9 +25,11 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             IRQ = new GPIO();
             dataFifo = new Queue<uint>();
-            channelValues = new ushort[NUMBER_OF_CHANNELS];
+            ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
 
             Reset();
+
+            this.RegisterDefaultChildren(machine);
         }
 
         public override void Reset()
@@ -33,26 +37,19 @@ namespace Antmicro.Renode.Peripherals.Analog
             base.Reset();
 
             dataFifo.Clear();
-            Array.Clear(channelValues, 0, NUMBER_OF_CHANNELS);
             IRQ.Unset();
             readDataValue = 0;
-        }
-
-        public void SetChannelValue(ushort channel, ushort value)
-        {
-            var channelIndex = ValidateChannelNumber(channel);
-            channelValues[channelIndex] = value;
-        }
-
-        public ushort GetChannelValue(ushort channel)
-        {
-            var channelIndex = ValidateChannelNumber(channel);
-            return channelValues[channelIndex];
         }
 
         public long Size => 0x1C;
 
         public GPIO IRQ { get; }
+
+        public int ADCChannelCount => 1 +
+            (int)DrpRegister.VccBram - (int)DrpRegister.Temperature +
+            (int)DrpRegister.VauxpVauxn15 - (int)DrpRegister.VccPint;
+
+        public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; private set; }
 
         private void DefineRegisters()
         {
@@ -179,9 +176,18 @@ namespace Antmicro.Renode.Peripherals.Analog
             // The DRP register addresses match the ADC channel numbers used in the datasheet.
             if(AdcChannelNumberToIndex(address) is uint channelIndex)
             {
-                var rawValue = channelValues[channelIndex];
-                this.DebugLog($"Read ADC channel {address} with value {rawValue}");
-                return (ushort)(rawValue << 4); // MSB-justify 12-bit value in 16-bit register
+                if(ADCContainer.TryGetByAddress((int)channelIndex, out var source))
+                {
+                    var rawValue = source.Sample.ToADCRawValue(MaxVoltageForChannel(channelIndex), RESOLUTION_IN_BITS);
+                    this.DebugLog($"Read ADC channel {address} with value {rawValue}");
+                    this.InfoLog($"ADC register value 0x{rawValue << 4}");
+                    return (ushort)(rawValue << 4); // MSB-justify 12-bit value in 16-bit register
+                }
+                else
+                {
+                    this.ErrorLog($"No ADC source connected to channel {channelIndex}, returning 0");
+                    return 0;
+                }
             }
             else
             {
@@ -216,6 +222,24 @@ namespace Antmicro.Renode.Peripherals.Analog
             IRQ.Set(interruptFlag);
         }
 
+        private decimal MaxVoltageForChannel(uint channelIndex)
+        {
+            switch((DrpRegister)channelIndex)
+            {
+            case DrpRegister.VccInt:
+            case DrpRegister.VccAux:
+            case DrpRegister.Vrefp:
+            case DrpRegister.Vrefn:
+            case DrpRegister.VccBram:
+            case DrpRegister.VccPint:
+            case DrpRegister.VccPaux:
+            case DrpRegister.VccoDdr:
+                return 3.0m;
+            default:
+                return 1.0m;
+            }
+        }
+
         private uint readDataValue;
 
         private IValueRegisterField dataFifoThreshold;
@@ -226,13 +250,9 @@ namespace Antmicro.Renode.Peripherals.Analog
         private DoubleWordRegister interruptMask;
 
         private readonly Queue<uint> dataFifo;
-        private readonly ushort[] channelValues;
-
-        private const int NUMBER_OF_CHANNELS = 1 +
-            (int)DrpRegister.VccBram - (int)DrpRegister.Temperature +
-            (int)DrpRegister.VauxpVauxn15 - (int)DrpRegister.VccPint;
 
         private const int DATA_FIFO_CAPACITY = 15;
+        private const ushort RESOLUTION_IN_BITS = 12;
 
         private enum PsXadcCommand
         {
