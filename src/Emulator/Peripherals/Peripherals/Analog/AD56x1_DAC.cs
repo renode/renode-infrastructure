@@ -14,7 +14,7 @@ using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class AD56x1_DAC : IRESDSampleSource<VoltageSample>, ISPIPeripheral
+    public class AD56x1_DAC : IFloatingVoltageSource, ISPIPeripheral
     {
         public AD56x1_DAC(double referenceVoltage, byte resolution)
         {
@@ -40,6 +40,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             buffer[1] = 0;
             index = 0;
             Sample = new VoltageSample(0);
+            IsFloating = false;
             NewSample?.Invoke(Sample);
         }
 
@@ -78,6 +79,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 // Note that this means that V_out can never be = to V_dd, as max reg value is (2**n)-1
                 var output = (uint)(Max * ((double)reg / (Math.Pow(2, Resolution))));
                 Sample = new VoltageSample(output);
+                IsFloating = false;
                 this.DebugLog("Analog output: {0} ({1} μV)", Sample, Sample.Voltage);
             }
             else
@@ -85,6 +87,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 // In Renode all the power down modes are treated as 0V out
                 this.DebugLog("Power down mode, setting output to 0");
                 Sample = new VoltageSample(0);
+                // In other modes DAC is connected through a resistor to ground
+                IsFloating = mode == Mode.ThreeState;
             }
             index = 0;
             NewSample?.Invoke(Sample);
@@ -99,6 +103,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         }
 
         public VoltageSample Sample { get; private set; }
+
+        public bool IsFloating { get; private set; }
 
         public event Action<VoltageSample> NewSample;
 
