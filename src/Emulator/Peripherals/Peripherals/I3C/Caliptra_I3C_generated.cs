@@ -5,7 +5,7 @@ using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.I3C
 {
-    public partial class Caliptra_I3C : IProvidesRegisterCollection<DoubleWordRegisterCollection>, IPeripheral, IDoubleWordPeripheral
+    public partial class Chipsalliance_I3C : IProvidesRegisterCollection<DoubleWordRegisterCollection>, IPeripheral, IDoubleWordPeripheral
     {
         /// <summary> Register "I3C_EC.SecFwRecoveryIf.EXTCAP_HEADER" at 0x100 </summary>
         protected I3cEc_SecFwRecoveryIf_ExtcapHeaderType I3cEc_SecFwRecoveryIf_ExtcapHeader;
@@ -252,7 +252,7 @@ namespace Antmicro.Renode.Peripherals.I3C
 
         public DoubleWordRegisterCollection RegistersCollection { get; }
 
-        public Caliptra_I3C()
+        public Chipsalliance_I3C()
         {
             RegistersCollection = new DoubleWordRegisterCollection(this);
             I3cEc_SecFwRecoveryIf_ExtcapHeader = new I3cEc_SecFwRecoveryIf_ExtcapHeaderType(this);

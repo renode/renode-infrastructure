@@ -8,7 +8,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 
 namespace Antmicro.Renode.Peripherals.I3C
 {
-    partial class Caliptra_I3C : IKnownSize
+    partial class Chipsalliance_I3C : IKnownSize
     {
         public long Size => 0x1000;
 
@@ -25,21 +25,6 @@ namespace Antmicro.Renode.Peripherals.I3C
                 I3cEc_Tti_InterruptEnable.TX_DESC_STAT_EN);
 
             CreateInterruptForceCallback(
-                I3cEc_Tti_InterruptForce.RX_DESC_TIMEOUT_FORCE,
-                I3cEc_Tti_InterruptStatus.RX_DESC_TIMEOUT,
-                I3cEc_Tti_InterruptEnable.RX_DESC_TIMEOUT_EN);
-
-            CreateInterruptForceCallback(
-                I3cEc_Tti_InterruptForce.TX_DESC_TIMEOUT_FORCE,
-                I3cEc_Tti_InterruptStatus.TX_DESC_TIMEOUT,
-                I3cEc_Tti_InterruptEnable.TX_DESC_TIMEOUT_EN);
-
-            CreateInterruptForceCallback(
-                I3cEc_Tti_InterruptForce.TX_DATA_THLD_FORCE,
-                I3cEc_Tti_InterruptStatus.TX_DATA_THLD_STAT,
-                I3cEc_Tti_InterruptEnable.TX_DATA_THLD_STAT_EN);
-
-            CreateInterruptForceCallback(
                 I3cEc_Tti_InterruptForce.RX_DATA_THLD_FORCE,
                 I3cEc_Tti_InterruptStatus.RX_DATA_THLD_STAT,
                 I3cEc_Tti_InterruptEnable.RX_DATA_THLD_STAT_EN);
@@ -50,34 +35,9 @@ namespace Antmicro.Renode.Peripherals.I3C
                 I3cEc_Tti_InterruptEnable.RX_DESC_THLD_STAT_EN);
 
             CreateInterruptForceCallback(
-                I3cEc_Tti_InterruptForce.RX_DESC_THLD_FORCE,
-                I3cEc_Tti_InterruptStatus.RX_DESC_THLD_STAT,
-                I3cEc_Tti_InterruptEnable.RX_DESC_THLD_STAT_EN);
-
-            CreateInterruptForceCallback(
-                I3cEc_Tti_InterruptForce.IBI_THLD_FORCE,
-                I3cEc_Tti_InterruptStatus.IBI_THLD_STAT,
-                I3cEc_Tti_InterruptEnable.IBI_THLD_STAT_EN);
-
-            CreateInterruptForceCallback(
                 I3cEc_Tti_InterruptForce.IBI_DONE_FORCE,
                 I3cEc_Tti_InterruptStatus.IBI_DONE,
                 I3cEc_Tti_InterruptEnable.IBI_DONE_EN);
-
-            CreateInterruptForceCallback(
-                I3cEc_Tti_InterruptForce.TRANSFER_ABORT_STAT_FORCE,
-                I3cEc_Tti_InterruptStatus.TRANSFER_ABORT_STAT,
-                I3cEc_Tti_InterruptEnable.TRANSFER_ABORT_STAT_EN);
-
-            CreateInterruptForceCallback(
-                I3cEc_Tti_InterruptForce.TX_DESC_COMPLETE_FORCE,
-                I3cEc_Tti_InterruptStatus.TX_DESC_COMPLETE,
-                I3cEc_Tti_InterruptEnable.TX_DESC_COMPLETE_EN);
-
-            CreateInterruptForceCallback(
-                I3cEc_Tti_InterruptForce.TRANSFER_ERR_STAT_FORCE,
-                I3cEc_Tti_InterruptStatus.TRANSFER_ERR_STAT,
-                I3cEc_Tti_InterruptEnable.TRANSFER_ERR_STAT_EN);
 
             CreateInterruptForceCallback(
                 I3cEc_StdbyCtrlMode_StbyCrIntrForce.CRR_RESPONSE_FORCE,
