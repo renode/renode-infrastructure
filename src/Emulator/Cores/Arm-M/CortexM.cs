@@ -1106,7 +1106,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                     return;
                 }
                 this.Log(LogLevel.Info, "Setting initial values: PC = 0x{0:X}, SP = 0x{1:X}.", pc, sp);
-                PC = pc;
+                // Armv8-M ARM rule RKSCH and TakeReset(): reset vector bit[0]
+                // initializes EPSR.T. Bypass the Thumb-forcing patch in
+                // CortexM.BeforePCWrite() by writing the register directly.
+                SetRegisterValue32((int)CortexMRegisters.PC, base.BeforePCWrite(pc));
+                pcNotInitialized = false;
                 SP = sp;
             }
         }
