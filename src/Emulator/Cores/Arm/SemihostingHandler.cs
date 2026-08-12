@@ -909,7 +909,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 else
                 {
-                    handler.LogFailure("SYS_FLEN", "Descriptor isn't seekable");
+                    handler.Log(LogLevel.Debug, "SYS_FLEN failed; Descriptor isn't seekable.");
                     errno = Errno.EINVAL;
                     return false;
                 }
