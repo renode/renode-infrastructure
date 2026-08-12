@@ -5,27 +5,66 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Analog;
+using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Sensor
 {
     public static class IADCExtensions
     {
-        public static void SetVoltage(this IADC @this, decimal value, int channel)
+        public static void SetVoltage(this IADC @this, uint voltage, int channel)
         {
-            @this.AssertChannel(channel);
-            @this.SetADCValue(channel, (uint)(value * 1e6m));
+            if(!@this.ADCContainer.TryGetByAddress(channel, out var sampleSource))
+            {
+                throw new RecoverableException($"Invalid channel {channel}");
+            }
+
+            if(sampleSource is ADCChannelSource)
+            {
+                var channelSource = sampleSource as ADCChannelSource;
+                channelSource.Sample = new VoltageSample(voltage);
+            }
+            else if(sampleSource is NamedDiscreteValues)
+            {
+                var namedDiscreteValues = sampleSource as NamedDiscreteValues;
+                var state = namedDiscreteValues.FirstOrDefault(x => x.Value.Voltage == voltage).Key;
+                if(state == null)
+                {
+                    throw new RecoverableException($"Invalid voltage value {voltage}");
+                }
+                namedDiscreteValues.CurrentState = state;
+            }
+            else if(sampleSource is Potentiometer)
+            {
+                var potentiometer = sampleSource as Potentiometer;
+                (var min, var max) = potentiometer.Bounds;
+                var percentage = Misc.RemapNumber(voltage, min, max, 0, 100);
+                if(!percentage.HasValue)
+                {
+                    throw new RecoverableException($"Invalid voltage value {voltage} not in [{min}; {max}]");
+                }
+                potentiometer.Percentage = percentage.Value;
+            }
+            else
+            {
+                throw new RecoverableException($"Unknown channel source type");
+            }
         }
 
-        public static decimal GetVoltage(this IADC @this, int channel)
+        public static uint GetVoltage(this IADC @this, int channel)
         {
-            @this.AssertChannel(channel);
-            return (decimal)@this.GetADCValue(channel) / 1e6m;
+            if(!@this.ADCContainer.TryGetByAddress(channel, out var sampleSource))
+            {
+                throw new RecoverableException($"Invalid channel {channel}");
+            }
+
+            return sampleSource.Sample.Voltage;
         }
 
         public static void AssertChannel(this IADC @this, int channel)
