@@ -63,6 +63,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             set => SetPercentage(value);
         }
 
+        public (uint, uint) Bounds => (min, max);
+
         public event Action<VoltageSample> NewSample;
 
         private decimal percentage;
