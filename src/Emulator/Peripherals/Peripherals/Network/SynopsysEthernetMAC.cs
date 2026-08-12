@@ -134,7 +134,8 @@ namespace Antmicro.Renode.Peripherals.Network
                 return false;
             }
 
-            var frame = rxFifo.Peek();
+            var frame = rxFifo.Dequeue();
+            rxFifoSize -= frame.Bytes.Length;
             this.Log(LogLevel.Noisy, $"Receiving packet, length: {frame.Bytes.Length}");
             var descriptor = new DMADescriptor(this, (uint)dmaCurrentReceiveDescriptorAddress.Value);
             descriptor.Fetch();
@@ -142,6 +143,14 @@ namespace Antmicro.Renode.Peripherals.Network
             var frameTransferred = false;
             var rxFrameBytesWritten = 0;
             var dmaRxProcessFirstDescriptorSet = false;
+
+            if(!decodedDescriptor.Owned)
+            {
+                this.Log(LogLevel.Debug, "Current receive descriptor is not owned by DMA, dropping packet from FIFO");
+                dmaReceiveBufferUnavailableStatus.Value = true;
+                UpdateInterrupts();
+                return false;
+            }
 
             // Iterate through descriptors until the whole frame is copied over or we run out of descriptors
             while(!frameTransferred && decodedDescriptor.Owned && rxFrameBytesWritten < frame.Bytes.Length)
@@ -170,8 +179,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     this.Log(LogLevel.Debug, $"Packet of length {frame.Bytes.Length} delivered.");
                     decodedDescriptor.LastDescriptor = true;
                     decodedDescriptor.FrameLength = (ushort)frame.Bytes.Length;
-                    rxFifo.Dequeue();
-                    rxFifoSize -= frame.Bytes.Length;
                     rxFrameBytesWritten = 0;
                     dmaRxProcessFirstDescriptorSet = false;
                     if(!decodedDescriptor.DisableInterruptOnCompletion)
@@ -208,8 +215,6 @@ namespace Antmicro.Renode.Peripherals.Network
                     decodedDescriptor.DescriptorError = true;
                     decodedDescriptor.ErrorSummary = true;
                     decodedDescriptor.LastDescriptor = true;
-                    // Drop partial frame
-                    rxFifo.Dequeue();
                     dmaReceiveBufferUnavailableStatus.Value = true;
                     UpdateInterrupts();
                 }
