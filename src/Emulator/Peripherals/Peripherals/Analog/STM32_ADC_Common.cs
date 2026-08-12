@@ -127,42 +127,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             this.RegisterDefaultChildren(machine);
         }
 
-        public void SetADCValue(int channel, uint valueMicroVolts)
-        {
-            IRESDSampleSource<VoltageSample> sampleSource;
-
-            this.AssertChannel(channel);
-
-            if(ADCContainer.TryGetByAddress(channel, out sampleSource) && sampleSource is ADCChannelSource channelSource)
-            {
-                this.WarningLog("This API is deprecated in favor of setting values from ADC sources");
-                channelSource.Sample = new VoltageSample(valueMicroVolts);
-            }
-            else
-            {
-                this.ErrorLog("Cannot set value for channel {0}, use ADC sources API", channel);
-            }
-        }
-
-        public uint GetADCValue(int channel)
-        {
-            IRESDSampleSource<VoltageSample> sampleSource;
-
-            this.AssertChannel(channel);
-
-            if(ADCContainer.TryGetByAddress(channel, out sampleSource))
-            {
-                this.WarningLog("This API is deprecated in favor of getting values from ADC sources");
-                return sampleSource.Sample.Voltage;
-            }
-            else
-            {
-                // This should not happen as at least a default children is registered.
-                this.ErrorLog("Cannot get value for channel {0}", channel);
-                return 0;
-            }
-        }
-
         public void Reset()
         {
             RegistersCollection.Reset();

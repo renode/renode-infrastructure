@@ -64,35 +64,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             IRQ.Unset();
         }
 
-        public void SetADCValue(int adcChannel, uint value)
-        {
-            IRESDSampleSource<VoltageSample> sampleSource;
-
-            EnsureChannelIsValid((uint)adcChannel);
-
-            if(ADCContainer.TryGetByAddress(adcChannel, out sampleSource) && sampleSource is ADCChannelSource channelSource)
-            {
-                channelSource.Sample = new VoltageSample(value);
-            }
-            else
-            {
-                rawVoltage[adcChannel] = value;
-            }
-        }
-
-        public uint GetADCValue(int adcChannel)
-        {
-            IRESDSampleSource<VoltageSample> sampleSource;
-
-            EnsureChannelIsValid((uint)adcChannel);
-
-            if(ADCContainer.TryGetByAddress(adcChannel, out sampleSource))
-            {
-                return sampleSource.Sample.Voltage;
-            }
-            return rawVoltage[adcChannel];
-        }
-
         public GPIO IRQ { get; } = new GPIO();
 
         public long Size => 0x1000;
