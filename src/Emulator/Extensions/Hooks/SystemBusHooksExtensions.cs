@@ -36,5 +36,13 @@ namespace Antmicro.Renode.Hooks
             var engine = new WatchpointHookPythonEngine(sysbus, pythonScript);
             sysbus.AddWatchpointHook(address, width, access, engine.Hook);
         }
+
+        public static void ClearHookAfterPeripheralRead(this IBusController sysbus, IBusPeripheral peripheral)
+        {
+            sysbus.ClearHookAfterPeripheralRead<ulong>(peripheral);
+            sysbus.ClearHookAfterPeripheralRead<uint>(peripheral);
+            sysbus.ClearHookAfterPeripheralRead<ushort>(peripheral);
+            sysbus.ClearHookAfterPeripheralRead<byte>(peripheral);
+        }
     }
 }
