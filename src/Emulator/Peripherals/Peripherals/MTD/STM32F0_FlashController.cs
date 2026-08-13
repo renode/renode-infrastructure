@@ -209,7 +209,7 @@ namespace Antmicro.Renode.Peripherals.MTD
         private readonly MapperProvider mapperProvider;
         private readonly RegisterMapper optionByteMapper;
 
-        [RegisterMapper.RegistersDescription]
+        [RegistersDescription]
         public enum Registers
         {
             AccessControl = 0x00,
@@ -222,7 +222,7 @@ namespace Antmicro.Renode.Peripherals.MTD
             WriteProtection = 0x20,
         }
 
-        [RegisterMapper.RegistersDescription("optionByte")]
+        [RegistersDescription("optionByte")]
         public enum OptionByteOffsets
         {
             RDP, nRDP,

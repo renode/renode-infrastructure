@@ -83,32 +83,5 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
         }
 
         private readonly Dictionary<long, string> map = new Dictionary<long, string>();
-
-        [AttributeUsage(AttributeTargets.Enum)]
-        public class RegistersDescriptionAttribute : Attribute
-        {
-            public RegistersDescriptionAttribute(params string[] tags) : this(tags.Length == 0, tags)
-            {
-            }
-
-            public RegistersDescriptionAttribute(bool isDefault, params string[] tags)
-            {
-                if(isDefault)
-                {
-                    Array.Resize(ref tags, tags.Length + 1);
-                    tags[^1] = null;
-                }
-                this.tags = tags;
-            }
-
-            public bool Contains(string tag)
-            {
-                return tags.Contains(tag);
-            }
-
-            public IEnumerable<string> Tag => tags;
-
-            private readonly string[] tags;
-        }
     }
 }

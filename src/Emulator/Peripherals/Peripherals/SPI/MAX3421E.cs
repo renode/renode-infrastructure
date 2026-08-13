@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -571,7 +571,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             Write = 1
         }
 
-        [RegisterMapper.RegistersDescription]
+        [RegistersDescription]
         private enum RegisterType
         {
             // R0 is not available in HOST mode

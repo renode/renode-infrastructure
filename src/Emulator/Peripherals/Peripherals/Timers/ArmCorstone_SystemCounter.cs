@@ -331,7 +331,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             FastClock = 0b10,
         }
 
-        [RegisterMapper.RegistersDescription(ReadRegion)]
+        [RegistersDescription(ReadRegion)]
         public enum ReadRegisters
         {
             CounterCountValueLow      = 0x000, // CNTCV
@@ -347,7 +347,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             ComponentIdentification3  = 0xFFC, // CNTCIDR3
         }
 
-        [RegisterMapper.RegistersDescription(ControlRegion)]
+        [RegistersDescription(ControlRegion)]
         public enum ControlRegisters
         {
             CounterControl            = 0x000, // CNTCR

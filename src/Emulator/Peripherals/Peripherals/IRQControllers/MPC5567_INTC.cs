@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -209,7 +209,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private const int NumberOfInterrupts = 360;
 
-        [RegisterMapper.RegistersDescription]
+        [RegistersDescription]
         private enum Register
         {
             Configuration = 0x0,

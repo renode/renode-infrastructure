@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -158,7 +158,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private const int StopDMAOnError = 13;
 
-        [RegisterMapper.RegistersDescription]
+        [RegistersDescription]
         private enum LongRegister
         {
             Control1 = 0x0,
@@ -169,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.UART
             LINCRCPolynomial = 0x18
         }
 
-        [RegisterMapper.RegistersDescription]
+        [RegistersDescription]
         private enum ShortRegister
         {
             Control2 = 0x4,
