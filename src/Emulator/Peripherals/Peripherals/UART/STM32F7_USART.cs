@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -122,10 +122,11 @@ namespace Antmicro.Renode.Peripherals.UART
                 // Set up a new action to fire after specified time if no characters are received
                 // again, if it receives any, this should be cancelled too, in the exact same way
                 receiverTimeoutCancellationTokenSrc = new CancellationTokenSource();
+                var receiverTimeoutCancellationToken = receiverTimeoutCancellationTokenSrc.Token;
                 // Receiver timeout is specified in bits of inactivity, so divide by the baud rate to calculate time
                 // and multiply by 8 since it's a baud rate (measures bits), and by million to convert to microseconds
                 var timeoutIn = (receiverTimeout.Value * 8000000) / BaudRate;
-                Machine.ScheduleAction(TimeInterval.FromMicroseconds(timeoutIn), _ => ReportRxTimeout(receiverTimeoutCancellationTokenSrc.Token), name: $"{nameof(STM32F7_USART)} Receiver timeout");
+                Machine.ScheduleAction(TimeInterval.FromMicroseconds(timeoutIn), _ => ReportRxTimeout(receiverTimeoutCancellationToken), name: $"{nameof(STM32F7_USART)} Receiver timeout");
             }
         }
 
