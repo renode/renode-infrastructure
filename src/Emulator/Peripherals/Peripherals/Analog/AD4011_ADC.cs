@@ -89,16 +89,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             toTransmit.Clear();
         }
 
-        public void SetADCValue(int channel, uint value)
-        {
-            throw new RecoverableException("SetADCValue is deprecated and should not be used in new models. Use a ADCChannelSource instead");
-        }
-
-        public uint GetADCValue(int channel)
-        {
-            throw new RecoverableException("GetADCValue is deprecated and should not be used in new models. Use a ADCChannelSource instead");
-        }
-
         public decimal ReferenceVoltage
         {
             get => referenceVoltage;
