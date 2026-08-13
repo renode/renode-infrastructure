@@ -282,7 +282,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             public class InternalTimer : LimitTimer
             {
                 public InternalTimer(IMachine machine, VeeR_EL2 owner, InternalTimerBlock internalTimerBlock, bool isTimer1, ulong timerFrequency, uint interrupt, ushort counterCSR, ushort boundCSR, ushort controlCSR)
-                    : base(machine.ClockSource, timerFrequency, owner, localName: isTimer1 ? "InteralTimer1" : "InternalTimer0", limit: UInt32.MaxValue, enabled: true, direction: Direction.Ascending, eventEnabled: true)
+                    : base(machine.ClockSource, timerFrequency, owner, localName: isTimer1 ? "InternalTimer1" : "InternalTimer0", limit: UInt32.MaxValue, enabled: true, direction: Direction.Ascending, eventEnabled: true)
                 {
                     LimitReached += delegate
                     {
