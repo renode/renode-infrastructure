@@ -18,6 +18,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
     {
         public RegisterMapper(Type type, string tag = null)
         {
+            tagString = tag is null ? "" : $" in \"{tag}\"";
             if(type.IsEnum)
             {
                 RegisterEnumMapping(type);
@@ -67,11 +68,11 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
                 if(closestCandidates.Count > 0)
                 {
                     var closest = closestCandidates.Max();
-                    name = $"{map[closest]}+0x{offset - closest:x}";
+                    name = $"{map[closest]}+0x{offset - closest:x}{tagString}";
                 }
                 else
                 {
-                    name = "unknown";
+                    name = $"unknown{tagString}";
                 }
             }
             else
@@ -82,6 +83,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             return name;
         }
 
+        private readonly string tagString;
         private readonly Dictionary<long, string> map = new Dictionary<long, string>();
     }
 }
