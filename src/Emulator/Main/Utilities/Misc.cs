@@ -25,7 +25,9 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Profiling;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Utilities.Packets;
 
 using Dynamitey;
 
@@ -545,6 +547,14 @@ namespace Antmicro.Renode.Utilities
         {
             var structSize = Marshal.SizeOf(typeof(T));
             return @this.ReadBytes(structSize).ToStruct<T>();
+        }
+
+        public static T ReadStruct<T>(this IBusController bus, ulong baseAddress, uint index = 0,
+            IPeripheral context = null, ulong? contextState = null) where T : struct
+        {
+            var length = Packet.CalculateLength<T>();
+            var elementAddress = baseAddress + (ulong)length * index;
+            return Packet.Decode<T>(bus.ReadBytes(elementAddress, length, context: context, cpuState: contextState));
         }
 
         public static byte[] AsBytes(uint[] data)

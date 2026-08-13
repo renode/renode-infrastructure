@@ -307,13 +307,6 @@ namespace Antmicro.Renode.Peripherals.Video
             return TranslateDMAAddress(addr);
         }
 
-        private T ReadStruct<T>(ulong baseAddress, uint index = 0)
-        {
-            var length = Packet.CalculateLength<T>();
-            var elementAddress = baseAddress + (ulong)length * index;
-            return Packet.Decode<T>(sysbus.ReadBytes(elementAddress, length, context: this));
-        }
-
         private void WriteStruct<T>(ulong baseAddress, T obj)
         {
             var bytes = Packet.Encode(obj);
@@ -352,7 +345,7 @@ namespace Antmicro.Renode.Peripherals.Video
             {
                 this.owner = owner;
                 Uid = uid;
-                var param = owner.ReadStruct<EncodeChannelParameters>(owner.TranslateICacheAddress(msg.ParamPointer));
+                var param = owner.sysbus.ReadStruct<EncodeChannelParameters>(owner.TranslateICacheAddress(msg.ParamPointer));
                 owner.DebugLog("[ch{0}] Encoding parameters: {1}", Uid, param);
                 EncodedWidth = param.EncodedWidth;
                 EncodedHeight = param.EncodedHeight;

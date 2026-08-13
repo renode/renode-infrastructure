@@ -70,13 +70,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private T ReadStruct<T>(ulong address) where T : struct
         {
-            var length = Packet.CalculateLength<T>();
-            return Packet.Decode<T>(ReadBytes(address, length));
-        }
-
-        private byte[] ReadBytes(ulong address, int count)
-        {
-            return machine.GetSystemBus(this).ReadBytes(address, count, context: this);
+            return machine.GetSystemBus(this).ReadStruct<T>(address, context: this);
         }
 
         private readonly Channel[] channels;

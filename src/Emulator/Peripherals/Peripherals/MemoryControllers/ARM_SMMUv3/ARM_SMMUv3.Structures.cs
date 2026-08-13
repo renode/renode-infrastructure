@@ -17,13 +17,6 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
 {
     public partial class ARM_SMMUv3
     {
-        private T ReadStruct<T>(ulong baseAddress, uint index = 0)
-        {
-            var length = Packet.CalculateLength<T>();
-            var elementAddress = baseAddress + (ulong)length * index;
-            return Packet.Decode<T>(sysbus.ReadBytes(elementAddress, length, context: Context));
-        }
-
         // All subclasses must have the same length as the base
         private T ReadSubclass<T>(ulong baseAddress, Func<IList<byte>, Type> typeSelector, uint index = 0)
         {
