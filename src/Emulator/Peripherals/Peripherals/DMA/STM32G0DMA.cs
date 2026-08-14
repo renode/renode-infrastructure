@@ -232,12 +232,18 @@ namespace Antmicro.Renode.Peripherals.DMA
                             {
                                 return;
                             }
-                            if(memoryToMemory.Value || transferDirection.Value == TransferDirection.MemoryToPeripheral)
+                            if(memoryToMemory.Value)
                             {
                                 DoTransfer();
                             }
-                        },
-                        valueProviderCallback: _ => false, name: "Channel enable (EN)")
+                            else
+                            {
+                                if(this.parent.Connections[channelNumber].IsSet)
+                                {
+                                    TryTriggerTransfer();
+                                }
+                            }
+                        }, name: "Channel enable (EN)")
                     .WithFlag(1, out transferCompleteInterruptEnable, name: "Transfer complete interrupt enable (TCIE)")
                     .WithFlag(2, out halfTransferInterruptEnable, name: "Half transfer interrupt enable (HTIE)")
                     .WithTag("Transfer error interrupt enable (TEIE)", 3, 1)
