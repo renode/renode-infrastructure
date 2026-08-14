@@ -349,37 +349,40 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // This value is still valid in memory-to-memory mode, "peripheral" means
                 // "the address specified by the peripheralAddress field" and not necessarily
                 // a peripheral.
+
+                uint toCopy = 0;
+                // In memory-to-memory mode do the whole block, otherwise copy only one data unit
+                if(memoryToMemory.Value)
+                {
+                    toCopy = (uint)dataCount.Value;
+                    dataCount.Value = 0;
+                }
+                else
+                {
+                    toCopy = Math.Max((uint)SizeToType(memoryTransferType.Value),
+                        (uint)SizeToType(peripheralTransferType.Value));
+                    dataCount.Value -= 1;
+                }
+
                 if(transferDirection.Value == TransferDirection.PeripheralToMemory)
                 {
-                    var toCopy = (uint)dataCount.Value;
-                    // In peripheral-to-memory mode, only copy one data unit. Otherwise, do the whole block.
-                    if(!memoryToMemory.Value)
-                    {
-                        toCopy = Math.Max((uint)SizeToType(memoryTransferType.Value),
-                            (uint)SizeToType(peripheralTransferType.Value));
-                        dataCount.Value -= 1;
-                    }
-                    else
-                    {
-                        dataCount.Value = 0;
-                    }
                     var response = IssueCopy(currentPeripheralAddress, currentMemoryAddress, toCopy,
                         peripheralIncrementMode.Value, memoryIncrementMode.Value, peripheralTransferType.Value,
                         memoryTransferType.Value);
                     currentPeripheralAddress = response.ReadAddress.Value;
                     currentMemoryAddress = response.WriteAddress.Value;
-                    HalfTransfer = dataCount.Value <= originalDataCount / 2;
-                    TransferComplete = dataCount.Value == 0;
                 }
-                else // 1-bit field, so we handle both possible values
+                else
                 {
-                    IssueCopy(memoryAddress.Value, peripheralAddress.Value, (uint)dataCount.Value,
-                        memoryIncrementMode.Value, peripheralIncrementMode.Value, memoryTransferType.Value,
-                        peripheralTransferType.Value);
-                    dataCount.Value = 0;
-                    HalfTransfer = true;
-                    TransferComplete = true;
+                    var response = IssueCopy(currentMemoryAddress, currentPeripheralAddress, toCopy,
+                        memoryIncrementMode.Value, peripheralIncrementMode.Value,
+                        memoryTransferType.Value, peripheralTransferType.Value);
+
+                    currentMemoryAddress = response.ReadAddress.Value;
+                    currentPeripheralAddress = response.WriteAddress.Value;
                 }
+                HalfTransfer = dataCount.Value <= originalDataCount / 2;
+                TransferComplete = dataCount.Value == 0;
 
                 // Loop around if circular mode is enabled
                 if(circularMode.Value && !memoryToMemory.Value && dataCount.Value == 0)
