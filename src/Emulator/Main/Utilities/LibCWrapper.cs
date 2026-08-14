@@ -5,6 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -77,6 +79,26 @@ namespace Antmicro.Renode.Utilities
 
     public class LibCWrapper
     {
+        static LibCWrapper()
+        {
+            if(!RuntimeInfo.IsWindows())
+            {
+                MemSet = (IntPtr ptr, byte val, int count) => memset(ptr, val, count);
+                return;
+            }
+            var dynamicMethod = new DynamicMethod("Memset", MethodAttributes.Public | MethodAttributes.Static, CallingConventions.Standard,
+                null, new [] { typeof(IntPtr), typeof(byte), typeof(int) }, typeof(LibCWrapper), true);
+
+            var generator = dynamicMethod.GetILGenerator();
+            generator.Emit(OpCodes.Ldarg_0);
+            generator.Emit(OpCodes.Ldarg_1);
+            generator.Emit(OpCodes.Ldarg_2);
+            generator.Emit(OpCodes.Initblk);
+            generator.Emit(OpCodes.Ret);
+
+            MemSet = (Action<IntPtr, byte, int>)dynamicMethod.CreateDelegate(typeof(Action<IntPtr, byte, int>));
+        }
+
         [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
         public static extern int ioctl(int d, int request, ref InterfaceRequest ifreq);
 
@@ -297,6 +319,8 @@ namespace Antmicro.Renode.Utilities
 
         public static int O_TRUNC => RuntimeInfo.IsMacOS() ? 0x400 : 0x200;
 
+        public static readonly Action<IntPtr, byte, int> MemSet;
+
         // Source: https://github.com/apple-oss-distributions/Libc/blob/main/exclave/sys/fcntl.h, https://sourceware.org/git/?p=glibc.git;a=blob;f=bits/fcntl.h;h=ed14c22625b2a6706930967a1cc3e7e167999fdb;hb=HEAD
         public const int O_RDONLY = 0;
         public const int O_WRONLY = 1;
@@ -350,6 +374,9 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("libc", EntryPoint = "strerror")]
         private static extern IntPtr strerror(int fd);
+
+        [DllImport("libc", EntryPoint = "memset")]
+        private static extern IntPtr memset(IntPtr pointer, byte value, int length);
 
         private const int EINTR = 4;
 

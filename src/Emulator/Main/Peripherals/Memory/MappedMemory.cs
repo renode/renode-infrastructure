@@ -12,8 +12,6 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
-using System.Reflection;
-using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,26 +35,6 @@ namespace Antmicro.Renode.Peripherals.Memory
     [Icon("memory")]
     public sealed class MappedMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IQuadWordPeripheral, IMapped, IDisposable, IKnownSize, ISpeciallySerializable, IMemory, IMultibyteWritePeripheral, ICanLoadFiles, IEndiannessAware, IHasDelayedInvalidationContext
     {
-        static MappedMemory()
-        {
-            if(!RuntimeInfo.IsWindows())
-            {
-                MemSet = (IntPtr ptr, byte val, int count) => MemSetLibc(ptr, val, count);
-                return;
-            }
-            var dynamicMethod = new DynamicMethod("Memset", MethodAttributes.Public | MethodAttributes.Static, CallingConventions.Standard,
-                null, new [] { typeof(IntPtr), typeof(byte), typeof(int) }, typeof(MappedMemory), true);
-
-            var generator = dynamicMethod.GetILGenerator();
-            generator.Emit(OpCodes.Ldarg_0);
-            generator.Emit(OpCodes.Ldarg_1);
-            generator.Emit(OpCodes.Ldarg_2);
-            generator.Emit(OpCodes.Initblk);
-            generator.Emit(OpCodes.Ret);
-
-            MemSet = (Action<IntPtr, byte, int>)dynamicMethod.CreateDelegate(typeof(Action<IntPtr, byte, int>));
-        }
-
         public MappedMemory(IMachine machine, long size, int? segmentSize = null, string sharedMemoryFileRoot = null)
         {
             if(size == 0)
@@ -100,7 +78,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 this.NoisyLog(string.Format("Segment no {1} allocated at 0x{0:X} (aligned to 0x{2:X}).",
                     allocSeg.ToInt64(), segmentNo, alignedPointer.ToInt64()));
                 originalPointers[segmentNo] = allocSeg;
-                MemSet(alignedPointer, ResetByte, SegmentSize);
+                LibCWrapper.MemSet(alignedPointer, ResetByte, SegmentSize);
                 var segmentTouched = SegmentTouched;
                 if(segmentTouched != null)
                 {
@@ -113,7 +91,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         {
             foreach(var segment in segments.Where(x => x != IntPtr.Zero))
             {
-                MemSet(segment, ResetByte, SegmentSize);
+                LibCWrapper.MemSet(segment, ResetByte, SegmentSize);
             }
         }
 
@@ -553,11 +531,6 @@ namespace Antmicro.Renode.Peripherals.Memory
         public Endianess Endianness => BitConverter.IsLittleEndian ? Endianess.LittleEndian : Endianess.BigEndian;
 
         public event Action<int> SegmentTouched;
-
-        [DllImport("libc", EntryPoint = "memset")]
-        private static extern IntPtr MemSetLibc(IntPtr pointer, byte value, int length);
-
-        private static readonly Action<IntPtr, byte, int> MemSet;
 
         /// <summary>
         /// This constructor is only to be used with serialization. Deserializer has to invoke Load method after such
