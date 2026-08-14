@@ -112,7 +112,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             Reset();
         }
 
-        public void ConnectOutput(int sourceChannel, IADC targetPeripheral, int targetChannel)
+        public void ConnectOutput(int sourceChannel, IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>> targetPeripheral, int targetChannel)
         {
             var muxOutput = muxOutputs[sourceChannel];
             targetPeripheral.Register(muxOutput, new NumberRegistrationPoint<int>(targetChannel));
@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             var muxOutput = muxOutputs[sourceChannel];
             foreach(var peripheral in machine.GetParentPeripherals(muxOutput))
             {
-                ((IADC)peripheral).Unregister(muxOutput);
+                ((IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>)peripheral).Unregister(muxOutput);
             }
         }
 
