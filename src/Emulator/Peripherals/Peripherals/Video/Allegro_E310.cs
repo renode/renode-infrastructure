@@ -370,6 +370,27 @@ namespace Antmicro.Renode.Peripherals.Video
                 streamBuffers.Enqueue(msg);
             }
 
+            public void ScheduleFrame(EncodeOneFrameMsg msg)
+            {
+                pendingFrames++;
+                owner.ExecuteWithDelay(() =>
+                {
+                    owner.SendMessage(MessageId.EncodeOneFrame, EncodeFrame(msg));
+                    pendingFrames--;
+                    if(pendingFrames == 0 && finishRequested)
+                    {
+                        finishRequested = false;
+                        owner.SendMessage(MessageId.EncodeOneFrame, new FinishEncodingFeedback { ChanUid = Uid });
+                    }
+                });
+            }
+
+            public bool DeferFinish()
+            {
+                finishRequested = pendingFrames != 0;
+                return finishRequested;
+            }
+
             public EncodeOneFrameFeedback EncodeFrame(EncodeOneFrameMsg msg)
             {
                 var pitch = msg.BufferAddresses.Pitch;
@@ -470,6 +491,8 @@ namespace Antmicro.Renode.Peripherals.Video
             public void Reset()
             {
                 FrameIndex = 0;
+                pendingFrames = 0;
+                finishRequested = false;
                 streamBuffers.Clear();
             }
 
@@ -630,6 +653,8 @@ namespace Antmicro.Renode.Peripherals.Video
             private Gst.Pipeline pipeline;
             private GstApp.AppSrc appSrc;
             private GstApp.AppSink appSink;
+            private int pendingFrames;
+            private bool finishRequested;
 
             private readonly Allegro_E310 owner;
             private readonly Queue<PutStreamBufferMsg> streamBuffers = new Queue<PutStreamBufferMsg>();
@@ -1003,6 +1028,10 @@ namespace Antmicro.Renode.Peripherals.Video
 
             public IFeedback Execute(Allegro_E310 owner)
             {
+                if(owner.channels.TryGetValue(ChanUid, out var channel) && channel.DeferFinish())
+                {
+                    return null;
+                }
                 return new FinishEncodingFeedback
                 {
                     ChanUid = ChanUid,
@@ -1037,9 +1066,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 if(owner.channels.TryGetValue(ChanUid, out var encChannel))
                 {
                     owner.InfoLog("Received ENCODE_ONE_FRM for channel {0}: {1}", ChanUid, this);
-                    var that = this;
-                    // TODO: Remove delay (handle encode / push stream in any order?)
-                    owner.ExecuteWithDelay(() => owner.SendMessage(MessageId.EncodeOneFrame, encChannel.EncodeFrame(that)));
+                    encChannel.ScheduleFrame(this);
                 }
                 else
                 {
