@@ -782,9 +782,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public void InitStoreTable(bool afterDeserialization = false)
+        public void InitStoreTable()
         {
-            TlibStoreTableInit(StoreTablePointer, (byte)StoreTableBits, afterDeserialization ? 1 : 0);
+            TlibStoreTableInit(StoreTablePointer, (byte)StoreTableBits);
         }
 
         public void RequestTranslationCacheClearing()
@@ -1985,7 +1985,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             Init();
             if(StoreTablePointer != IntPtr.Zero)
             {
-                InitStoreTable(afterDeserialization: true);
+                InitStoreTable();
             }
             // TODO: state of the reset events
             FreeState();
@@ -2309,7 +2309,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Func<IntPtr, int, int> TlibAtomicMemoryStateInit;
 
         [Import]
-        private readonly Func<IntPtr, byte, int, int> TlibStoreTableInit;
+        private readonly Func<IntPtr, byte, int> TlibStoreTableInit;
 
         [Import]
         private readonly Action<uint> TlibSetSyncPcEveryInstructionDisabled;

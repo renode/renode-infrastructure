@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -63,6 +63,9 @@ namespace Antmicro.Renode.Core
             {
                 storeTablePointer =
                     (IntPtr)NativeMemory.AlignedAlloc((UIntPtr)StoreTableSize, (UIntPtr)StoreTableSize);
+                // Initialize to all 1s, as this indicates each entry being unlocked and not owned by any core.
+                // See `HST_UNLOCKED` and `HST_NO_CORE` in tlib.
+                LibCWrapper.MemSet(storeTablePointer, 0xff, StoreTableSize);
             }
             parent.DebugLog("Store table allocated at 0x{0:X}", storeTablePointer);
         }
@@ -130,6 +133,7 @@ namespace Antmicro.Renode.Core
                 Marshal.Copy(storeTable, 0, StoreTablePointer, StoreTableSize);
                 storeTable = null;
                 parent.DebugLog("Store table deserialized");
+                CheckLockedTableEntries();
             }
         }
 
@@ -158,7 +162,31 @@ namespace Antmicro.Renode.Core
             Marshal.Copy(StoreTablePointer, storeTable, 0, StoreTableSize);
         }
 
+        private void CheckLockedTableEntries()
+        {
+            var allEntriesUnlocked = true;
+            unsafe
+            {
+                var ptr = (HSTEntry*)storeTablePointer;
+                for(var idx = 0; idx < StoreTableEntryCount; idx += 1)
+                {
+                    var lockedByCPUId = ptr[idx].Lock;
+                    if(lockedByCPUId != HSTEntry.LockUnlocked)
+                    {
+                        allEntriesUnlocked = false;
+                        parent.WarningLog("Serialised store table entry at offset 0x{0:X} contains dangling lock for CPU {1}", idx * sizeof(HSTEntry), lockedByCPUId);
+                    }
+                }
+            }
+            if(!allEntriesUnlocked)
+            {
+                throw new InvalidOperationException("Deserialized store table contains dangling locks");
+            }
+        }
+
         private int StoreTableSize => 1 << (IntPtr.Size * 8 - StoreTableBits); // In bytes
+
+        private unsafe int StoreTableEntryCount => StoreTableSize / sizeof(HSTEntry);
 
         [Transient]
         private IntPtr atomicMemoryStatePointer;
@@ -174,5 +202,20 @@ namespace Antmicro.Renode.Core
 
         // TODO: this probably should be dynamically get from Tlib, but how to nicely do that from here?
         private const int AtomicMemoryStateSize = 25600;
+
+        // Keep in sync with tlib's `store_table_entry_t`
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HSTEntry
+        {
+            // These struct fields are set with `MemSet` and later accessed from C,
+            // they aren't unused
+#pragma warning disable CS0649
+            public uint LastAccessedByCoreId;
+            public uint Lock;
+#pragma warning restore CS0649
+
+            // Corresponds to tlib's `HST_UNLOCKED`
+            public const uint LockUnlocked = 0xffffffff;
+        }
     }
 }
