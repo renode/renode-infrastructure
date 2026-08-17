@@ -15,15 +15,15 @@ using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
-    public class S32K3XX_PeriodicInterruptTimer : BasicDoubleWordPeripheral, IKnownSize
+    public class S32K3XX_PeriodicInterruptTimer : BasicDoubleWordPeripheral, IKnownSize, IHasFrequency
     {
-        public S32K3XX_PeriodicInterruptTimer(IMachine machine, ulong oscillatorFrequency, bool hasRealTimeInterrupt = false, bool hasLifetimeTimer = false) : base(machine)
+        public S32K3XX_PeriodicInterruptTimer(IMachine machine, bool hasRealTimeInterrupt = false, bool hasLifetimeTimer = false) : base(machine)
         {
             clockChannels = new SortedList<Registers, ClockChannel>();
 
             IRQ = new GPIO();
 
-            DefineRegisters(oscillatorFrequency, hasRealTimeInterrupt, hasLifetimeTimer);
+            DefineRegisters(hasRealTimeInterrupt, hasLifetimeTimer);
             Reset();
         }
 
@@ -42,13 +42,26 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO IRQ { get; }
 
+        public ulong Frequency
+        {
+            // All timer channels have the same frequency
+            get => clockChannels.First().Value.Frequency;
+            set
+            {
+                foreach(var clockChannel in clockChannels.Values)
+                {
+                    clockChannel.Frequency = value;
+                }
+            }
+        }
+
         private void UpdateInterrupts()
         {
             var interrupt = clockChannels.Values.Any(clockChannel => clockChannel.InterruptEnable && clockChannel.InterruptFlag);
             IRQ.Set(interrupt);
         }
 
-        private void DefineRegisters(ulong oscillatorFrequency, bool hasRealTimeInterrupt, bool hasLifetimeTimer)
+        private void DefineRegisters(bool hasRealTimeInterrupt, bool hasLifetimeTimer)
         {
             var moduleControl = Registers.ModuleControl.Define(this)
                 .WithReservedBits(3, 29)
@@ -96,13 +109,13 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             if(hasRealTimeInterrupt)
             {
-                DefineChannelRegisters(oscillatorFrequency, null, Registers.ControlRTI, Registers.FlagRTI, Registers.LoadValueRTI, Registers.CurrentValueRTI);
+                DefineChannelRegisters(null, Registers.ControlRTI, Registers.FlagRTI, Registers.LoadValueRTI, Registers.CurrentValueRTI);
             }
 
-            DefineChannelRegisters(oscillatorFrequency, null, Registers.Control0, Registers.Flag0, Registers.LoadValue0, Registers.CurrentValue0);
-            DefineChannelRegisters(oscillatorFrequency, Registers.Control0, Registers.Control1, Registers.Flag1, Registers.LoadValue1, Registers.CurrentValue1);
-            DefineChannelRegisters(oscillatorFrequency, Registers.Control1, Registers.Control2, Registers.Flag2, Registers.LoadValue2, Registers.CurrentValue2);
-            DefineChannelRegisters(oscillatorFrequency, Registers.Control2, Registers.Control3, Registers.Flag3, Registers.LoadValue3, Registers.CurrentValue3);
+            DefineChannelRegisters(null, Registers.Control0, Registers.Flag0, Registers.LoadValue0, Registers.CurrentValue0);
+            DefineChannelRegisters(Registers.Control0, Registers.Control1, Registers.Flag1, Registers.LoadValue1, Registers.CurrentValue1);
+            DefineChannelRegisters(Registers.Control1, Registers.Control2, Registers.Flag2, Registers.LoadValue2, Registers.CurrentValue2);
+            DefineChannelRegisters(Registers.Control2, Registers.Control3, Registers.Flag3, Registers.LoadValue3, Registers.CurrentValue3);
 
             if(hasRealTimeInterrupt)
             {
@@ -113,9 +126,10 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private void DefineChannelRegisters(ulong oscillatorFrequency, Registers? chainedTo, Registers control, Registers flag, Registers load, Registers currentValue)
+        private void DefineChannelRegisters(Registers? chainedTo, Registers control, Registers flag, Registers load, Registers currentValue)
         {
-            var clockChannel = new ClockChannel(machine.ClockSource, this, oscillatorFrequency, Enum.GetName(typeof(Registers), control));
+            // The default frequency is not used, it will be overwritten by the clock generation module once it is constructed
+            var clockChannel = new ClockChannel(machine.ClockSource, this, 1, Enum.GetName(typeof(Registers), control));
             clockChannel.OnInterrupt += () =>
             {
                 this.NoisyLog("Clock channel {0} limit reached", control);
@@ -187,7 +201,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private readonly IDictionary<Registers, ClockChannel> clockChannels;
 
-        private class ClockChannel
+        private class ClockChannel : IHasFrequency
         {
             public ClockChannel(IClockSource clockSource, IPeripheral parent, ulong frequency, string name)
             {
@@ -260,6 +274,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                     chainMode = value;
                     Enabled = timerEnabled;
                 }
+            }
+
+            public ulong Frequency
+            {
+                get => underlyingTimer.Frequency;
+                set => underlyingTimer.Frequency = value;
             }
 
             public event Action OnInterrupt;

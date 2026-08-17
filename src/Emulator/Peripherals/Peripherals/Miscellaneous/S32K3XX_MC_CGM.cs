@@ -15,15 +15,18 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public class S32K3XX_MC_CGM : BasicDoubleWordPeripheral, IKnownSize
     {
-        public S32K3XX_MC_CGM(IMachine machine, List<IHasFrequency> coreClk) : base(machine)
+        public S32K3XX_MC_CGM(IMachine machine, List<IHasFrequency> coreClk, List<IHasFrequency> aipsSlowClk) : base(machine)
         {
             this.coreClk = coreClk;
+            this.aipsSlowClk = aipsSlowClk;
 
             lastStatusFlagValues = new int[20];
             for(var i = 0; i < lastStatusFlagValues.Length; i++)
             {
                 lastStatusFlagValues[i] = 0;
             }
+            mux0DivDivider = new IValueRegisterField[NumberOfMux0Dividers];
+            mux0DivEnable = new IFlagRegisterField[NumberOfMux0Dividers];
             DefineRegisters();
             Reset();
         }
@@ -60,10 +63,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 SourceClock.PhaseLockedLoopPHI0 => phaseLockedLoop0Frequency,
                 _ => throw new UnreachableException($"Nonexistant SourceClock variant {clockMux0Source.Value}")
             };
-            var coreClkFreq = mux0Div0Enable.Value ? (baseClock / (mux0Div0Divider.Value + 1)) : baseClock;
+            var coreClkFreq = mux0DivEnable[0].Value ? (baseClock / (mux0DivDivider[0].Value + 1)) : baseClock;
             foreach(var peripheral in coreClk)
             {
                 peripheral.Frequency = coreClkFreq;
+            }
+            // aipsSlowClk is controlled by Mux0 Div2
+            var aipsSlowClkFreq = mux0DivEnable[2].Value ? (baseClock / (mux0DivDivider[2].Value + 1)) : baseClock;
+            foreach(var peripheral in aipsSlowClk)
+            {
+                peripheral.Frequency = aipsSlowClkFreq;
             }
         }
 
@@ -104,12 +113,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     lastStatusFlagValues[0] = ~lastStatusFlagValues[0];
                     return (byte)lastStatusFlagValues[0];
                 });
-            Registers.ClockMux0Divider0Control.Define(this, 0x8000_0000)
-                .WithFlag(31, out mux0Div0Enable, name: "mux0Div0DE")
-                .WithReservedBits(19, 12)
-                .WithValueField(16, 3, out mux0Div0Divider, name: "mux0Div0DIV")
-                .WithReservedBits(0, 16)
-                .WithChangeCallback((_, _) => OnClockingChanged());
+            Registers.ClockMux0Divider0Control.Define32Many(this, NumberOfMux0Dividers, (reg, i) =>
+            {
+                reg
+                    .WithFlag(31, out mux0DivEnable[i], name: $"mux0Div{i}DE")
+                    .WithReservedBits(19, 12)
+                    .WithValueField(16, 3, out mux0DivDivider[i], name: $"mux0Div{i}DIV")
+                    .WithReservedBits(0, 16)
+                    .WithChangeCallback((_, _) => OnClockingChanged());
+            }
+            , 4, 0x8000_0000);
             Registers.ClockMux0DividerUpdateStatus.Define32Many(this, 20, (reg, i) =>
             {
                 reg
@@ -150,10 +163,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private ulong phaseLockedLoop0Frequency = 0; // Will get its value set from PLL peripheral before using it
 
         private IEnumRegisterField<SourceClock> clockMux0Source;
-        private IFlagRegisterField mux0Div0Enable;
-        private IValueRegisterField mux0Div0Divider;
         private readonly int[] lastStatusFlagValues;
         private readonly List<IHasFrequency> coreClk;
+        private readonly List<IHasFrequency> aipsSlowClk;
+        private readonly IFlagRegisterField[] mux0DivEnable;
+        private readonly IValueRegisterField[] mux0DivDivider;
+
+        private const int NumberOfMux0Dividers = 8;
         // Static clock frequencies
         private const ulong FastInternalRCOscillatorFrequency = 48_000_000;
 
