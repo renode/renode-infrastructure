@@ -43,13 +43,13 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             else
             {
-                // Setup a timeout of 1 UART frame (8 bits) for Idle line detection
+                // Setup a timeout of 1 UART frame for Idle line detection
                 idleLineDetectedCancellationTokenSrc?.Cancel();
 
-                var idleLineIn = (8 * 1000000) / BaudRate;
                 idleLineDetectedCancellationTokenSrc = new CancellationTokenSource();
                 var idleLineDetectedCancellationToken = idleLineDetectedCancellationTokenSrc.Token;
-                machine.ScheduleAction(TimeInterval.FromMicroseconds(idleLineIn), _ => ReportIdleLineDetected(idleLineDetectedCancellationToken), name: $"{nameof(STM32_UART)} Idle line detected");
+                var idleFrameDuration = this.GetActualTransmissionDuration(CharacterLength);
+                machine.ScheduleAction(idleFrameDuration, _ => ReportIdleLineDetected(idleLineDetectedCancellationToken), name: $"{nameof(STM32_UART)} Idle line detected");
             }
 
             if(dmaReceptionRequest.Value)
