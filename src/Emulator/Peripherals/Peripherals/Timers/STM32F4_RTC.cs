@@ -419,7 +419,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(8, 24)
                 },
                 {(long)Registers.SubSecondRegister, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Read, name: "SS", valueProviderCallback: _ => (uint)ticker.Value)
+                    // Descending timers have values in (0; limit], the subsecond field has to be in [0; limit)
+                    .WithValueField(0, 16, FieldMode.Read, name: "SS", valueProviderCallback: _ => (uint)ticker.Value - 1)
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.ShiftControlRegister, new DoubleWordRegister(this)
