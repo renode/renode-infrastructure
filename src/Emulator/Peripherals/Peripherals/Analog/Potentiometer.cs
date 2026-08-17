@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
@@ -47,7 +46,6 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             Sample = new VoltageSample((uint)newValue.Value); // The cast to uint is because the value is in µV, not in V
             percentage = newPercentage;
-            NewSample?.Invoke(Sample);
         }
 
         public string GetVoltage()
@@ -64,8 +62,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         }
 
         public (uint, uint) Bounds => (min, max);
-
-        public event Action<VoltageSample> NewSample;
 
         private decimal percentage;
 

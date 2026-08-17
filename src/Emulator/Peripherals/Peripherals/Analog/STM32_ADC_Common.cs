@@ -163,22 +163,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             RegistersCollection.Write(offset, value);
         }
 
-        void IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>.Register(IRESDSampleSource<VoltageSample> peripheral, NumberRegistrationPoint<int> channel)
-        {
-            IRESDSampleSource<VoltageSample> sampleSource;
-
-            this.AssertChannel(channel.Address);
-
-            // Allow to register a new source over the default child.
-            if(ADCContainer.TryGetByAddress(channel.Address, out sampleSource) && sampleSource is ADCDefaultChannelSource)
-            {
-                ADCContainer.Unregister(sampleSource);
-            }
-
-            ADCContainer.Register(peripheral, channel);
-            peripheral.NewSample += newValue => WarnOnTooBigValue(channel.Address, (double)newValue.Voltage / 1e3); // µV to mV
-        }
-
         public DoubleWordRegisterCollection RegistersCollection { get => registers; }
 
         public long Size => 0x400;
@@ -328,6 +312,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             if(sequenceInProgress)
             {
                 uint sample = GetSampleFromChannel(currentChannel);
+                WarnOnTooBigValue(currentChannel, (double)sample / 1e3); // µV to mV
                 if(!adcOverrunFlag.Value || overrunMode.Value)
                 {
                     data.Value = ClampSample(sample, data.Width);

@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -59,13 +58,10 @@ namespace Antmicro.Renode.Peripherals.Analog
                     throw new RecoverableException($"Unknown state '{value}'");
                 }
                 currentState = value;
-                NewSample?.Invoke(Sample);
             }
         }
 
         public VoltageSample Sample => this[CurrentState];
-
-        public event Action<VoltageSample> NewSample;
 
         private string currentState;
     }

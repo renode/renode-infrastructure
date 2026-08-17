@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -25,24 +24,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         public MUX36S16_Input(IMachine machine)
         {
             ADCContainer = new SimpleContainerHelper<IRESDSampleSource<VoltageSample>>(machine, this);
-            newSampleCallbacks = Enumerable.Range(0, InputOutputCount).Select<int, Action<VoltageSample>>(i => (sample => OnNewSampleInput(sample, i))).ToArray();
             Reset();
-        }
-
-        void IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>.Register(IRESDSampleSource<VoltageSample> peripheral, NumberRegistrationPoint<int> channel)
-        {
-            this.AssertChannel(channel.Address);
-            ADCContainer.Register(peripheral, channel);
-            NewSample += newSampleCallbacks[channel.Address];
-        }
-
-        void IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>.Unregister(IRESDSampleSource<VoltageSample> peripheral)
-        {
-            foreach(var child in ADCContainer.Children.Where(x => x.Peripheral == peripheral).Select(x => x.RegistrationPoint))
-            {
-                NewSample -= newSampleCallbacks[child.Address];
-            }
-            ADCContainer.Unregister(peripheral);
         }
 
         public VoltageSample Sample
@@ -87,19 +69,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         public int ADCChannelCount => InputOutputCount;
 
         public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; }
-
-        public event Action<VoltageSample> NewSample;
-
-        private void OnNewSampleInput(VoltageSample sample, int channel)
-        {
-            // Forward the sample if the mux is enabled and configured with this channel
-            if(enabled && address == channel)
-            {
-                NewSample?.Invoke(sample);
-            }
-        }
-
-        private readonly Action<VoltageSample>[] newSampleCallbacks;
     }
 
     public class MUX36S16_Output : MUX36S16_Base, IADC
@@ -127,19 +96,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 ((IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>)peripheral).Unregister(muxOutput);
             }
-        }
-
-        void IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>.Register(IRESDSampleSource<VoltageSample> peripheral, NumberRegistrationPoint<int> channel)
-        {
-            this.AssertChannel(channel.Address);
-            ADCContainer.Register(peripheral, channel);
-            peripheral.NewSample += OnNewSample;
-        }
-
-        void IRegisterablePeripheral<IRESDSampleSource<VoltageSample>, NumberRegistrationPoint<int>>.Unregister(IRESDSampleSource<VoltageSample> peripheral)
-        {
-            peripheral.NewSample -= OnNewSample;
-            ADCContainer.Unregister(peripheral);
         }
 
         public int ADCChannelCount => 1;
@@ -178,15 +134,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             return true;
         }
 
-        private void OnNewSample(VoltageSample sample)
-        {
-            // Forward the event to the active output
-            if(enabled)
-            {
-                muxOutputs[address].InvokeNewSample(sample);
-            }
-        }
-
         private readonly AnalogMuxOutput[] muxOutputs;
         private readonly IMachine machine;
 
@@ -206,14 +153,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             public VoltageSample Sample => parent.GetSample(index);
 
             public bool IsFloating => parent.GetIsFloating(index);
-
-            public event Action<VoltageSample> NewSample;
-
-            /// </summary>
-            internal void InvokeNewSample(VoltageSample sample)
-            {
-                NewSample.Invoke(sample);
-            }
 
             private readonly MUX36S16_Output parent;
             private readonly int index;

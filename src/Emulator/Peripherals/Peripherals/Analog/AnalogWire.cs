@@ -4,12 +4,10 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
-using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
@@ -22,22 +20,18 @@ namespace Antmicro.Renode.Peripherals.Analog
     {
         public AnalogWire(IMachine machine) : base(machine)
         {
-            Reset();
         }
 
         public override void Reset()
         {
-            isFloating = true;
-            isUpdating = false;
-            sample = new VoltageSample(0);
-            NewSample?.Invoke(Sample);
+            // Intentionally left empty
         }
 
         public VoltageSample Sample
         {
             get
             {
-                Update();
+                var (sample, _) = GetState();
                 return sample;
             }
         }
@@ -46,48 +40,26 @@ namespace Antmicro.Renode.Peripherals.Analog
         {
             get
             {
-                Update();
+                var (_, isFloating) = GetState();
                 return isFloating;
             }
         }
 
         public decimal Volts => Sample.Voltage / 1e6m;
 
-        public event Action<VoltageSample> NewSample;
-
-        private void Update()
+        private (VoltageSample, bool) GetState()
         {
-            // This check is needed to ensure that accessing `Sample` or `IsFloating` from the
-            // `NewSample` callback doesn't cause infinite recurions
-            if(isUpdating)
+            foreach(var child in Children.OrderBy(x => x.RegistrationPoint.Address).Select(x => x.Peripheral))
             {
-                return;
-            }
-
-            isUpdating = true;
-            using(DisposableWrapper.New(() => isUpdating = false))
-            {
-                foreach(var child in Children.OrderBy(x => x.RegistrationPoint.Address).Select(x => x.Peripheral))
+                if((child as IFloatingVoltageSource)?.IsFloating ?? false)
                 {
-                    if((child as IFloatingVoltageSource)?.IsFloating ?? false)
-                    {
-                        continue;
-                    }
-
-                    sample = child.Sample;
-                    isFloating = false;
-                    NewSample?.Invoke(sample);
-                    return;
+                    continue;
                 }
 
-                sample = new VoltageSample(0);
-                isFloating = true;
-                NewSample?.Invoke(sample);
+                return (child.Sample, false);
             }
-        }
 
-        private bool isFloating;
-        private VoltageSample sample;
-        private bool isUpdating;
+            return (new VoltageSample(0), true);
+        }
     }
 }

@@ -41,7 +41,6 @@ namespace Antmicro.Renode.Peripherals.Analog
             index = 0;
             Sample = new VoltageSample(0);
             IsFloating = false;
-            NewSample?.Invoke(Sample);
         }
 
         public byte Transmit(byte data)
@@ -91,7 +90,6 @@ namespace Antmicro.Renode.Peripherals.Analog
                 IsFloating = mode == Mode.ThreeState;
             }
             index = 0;
-            NewSample?.Invoke(Sample);
         }
 
         /// <summary>
@@ -105,8 +103,6 @@ namespace Antmicro.Renode.Peripherals.Analog
         public VoltageSample Sample { get; private set; }
 
         public bool IsFloating { get; private set; }
-
-        public event Action<VoltageSample> NewSample;
 
         // The supply voltage, which is used as the max output value, in microvolts
 

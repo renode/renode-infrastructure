@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
 
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -17,21 +16,21 @@ namespace Antmicro.Renode.Peripherals.Analog
     {
         public ADCChannelSource(VoltageSample sample)
         {
-            defaultSample = sample;
+            DefaultSample = sample;
             resetSample = sample;
         }
 
         public ADCChannelSource(uint defaultValueMicroVolts = 0)
         {
-            defaultSample = new VoltageSample(defaultValueMicroVolts);
-            resetSample = defaultSample;
+            DefaultSample = new VoltageSample(defaultValueMicroVolts);
+            resetSample = DefaultSample;
         }
 
         public void Reset()
         {
             resdStream?.Dispose();
             resdStream = null;
-            defaultSample = resetSample;
+            DefaultSample = resetSample;
         }
 
         public void FeedSamplesFromRESD(ReadFilePath filePath, uint resdChannel = 0,
@@ -70,7 +69,6 @@ namespace Antmicro.Renode.Peripherals.Analog
                 resdStream?.Dispose();
                 resdStream = null;
                 DefaultSample = value;
-                NewSample?.Invoke(value);
             }
         }
 
@@ -87,35 +85,11 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
-        public VoltageSample DefaultSample
-        {
-            get => defaultSample;
-            set
-            {
-                defaultSample = value;
-            }
-        }
+        public VoltageSample DefaultSample { get; set; }
 
-        public bool IsFloating
-        {
-            get => isFloating;
-            set
-            {
-                if(isFloating != value)
-                {
-                    isFloating = value;
-                    NewSample?.Invoke(Sample);
-                }
-            }
-        }
-
-        public event Action<VoltageSample> NewSample;
+        public bool IsFloating { get; set; }
 
         private RESDStream<VoltageSample> resdStream;
-
-        private VoltageSample defaultSample;
-
-        private bool isFloating;
 
         private readonly VoltageSample resetSample;
     }
