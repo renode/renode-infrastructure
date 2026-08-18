@@ -34,37 +34,36 @@ namespace Antmicro.Renode.Peripherals.UART
                 this.Log(LogLevel.Warning, "Received a character, but the receiver is not enabled, dropping.");
                 return;
             }
-            receiveFifo.Enqueue(value);
-            readFifoNotEmpty.Value = true;
 
-            if(BaudRate == 0)
+            if(receiverThread == null)
             {
-                this.Log(LogLevel.Warning, "Unknown baud rate, couldn't trigger the idle line interrupt");
-            }
-            else
-            {
-                // Setup a timeout of 1 UART frame for Idle line detection
                 idleLineDetectedCancellationTokenSrc?.Cancel();
-
-                idleLineDetectedCancellationTokenSrc = new CancellationTokenSource();
-                var idleLineDetectedCancellationToken = idleLineDetectedCancellationTokenSrc.Token;
-                var idleFrameDuration = this.GetActualTransmissionDuration(CharacterLength);
-                machine.ScheduleAction(idleFrameDuration, _ => ReportIdleLineDetected(idleLineDetectedCancellationToken), name: $"{nameof(STM32_UART)} Idle line detected");
+                ReceiveChar(value);
+                return;
             }
 
-            if(dmaReceptionRequest.Value)
+            lock(intermediateReceiveQueue)
             {
-                DMARequest.Blink();
+                idleLineDetectedCancellationTokenSrc?.Cancel();
+                intermediateReceiveQueue.Enqueue(value);
+                // Restart the receiver only when the queue changes from empty to nonempty.
+                if(intermediateReceiveQueue.Count == 1)
+                {
+                    receiverThread.Restart();
+                }
             }
-
-            Update();
         }
 
         public override void Reset()
         {
             base.Reset();
             UpdateBaudrate();
-            idleLineDetectedCancellationTokenSrc?.Cancel();
+            lock(intermediateReceiveQueue)
+            {
+                idleLineDetectedCancellationTokenSrc?.Cancel();
+                receiverThread?.Stop();
+                intermediateReceiveQueue.Clear();
+            }
             receiveFifo.Clear();
             IRQ.Set(false);
         }
@@ -138,6 +137,38 @@ namespace Antmicro.Renode.Peripherals.UART
 
         [field: Transient]
         public event Action<byte> CharReceived;
+
+        private void ReceiveChar(byte value)
+        {
+            receiveFifo.Enqueue(value);
+            readFifoNotEmpty.Value = true;
+
+            if(BaudRate == 0)
+            {
+                this.Log(LogLevel.Warning, "Unknown baud rate, couldn't trigger the idle line interrupt");
+            }
+            else
+            {
+                lock(intermediateReceiveQueue)
+                {
+                    if(intermediateReceiveQueue.Count == 0)
+                    {
+                        // Setup a timeout of 1 UART frame for Idle line detection
+                        idleLineDetectedCancellationTokenSrc = new CancellationTokenSource();
+                        var idleLineDetectedCancellationToken = idleLineDetectedCancellationTokenSrc.Token;
+                        var idleFrameDuration = this.GetActualTransmissionDuration(CharacterLength);
+                        machine.ScheduleAction(idleFrameDuration, _ => ReportIdleLineDetected(idleLineDetectedCancellationToken), name: $"{nameof(STM32_UART)} Idle line detected");
+                    }
+                }
+            }
+
+            if(dmaReceptionRequest.Value)
+            {
+                DMARequest.Blink();
+            }
+
+            Update();
+        }
 
         private void DefineRegisters()
         {
@@ -287,6 +318,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             baudrate = newBaudrate;
 
+            ConfigureReceiverThread();
             if(AutoUpdateDelay)
             {
                 UpdateDelay();
@@ -301,6 +333,62 @@ namespace Antmicro.Renode.Peripherals.UART
                 (transmitDataRegisterEmptyInterruptEnabled.Value) || // TXE is assumed to be true
                 (transmissionCompleteInterruptEnabled.Value && transmissionComplete.Value)
             );
+        }
+
+        private void ConfigureReceiverThread()
+        {
+            lock(intermediateReceiveQueue)
+            {
+                if(baudrate == 0)
+                {
+                    // Drain the intermediate queue before disabling pacing to preserve character order.
+                    while(intermediateReceiveQueue.TryDequeue(out var value))
+                    {
+                        ReceiveChar(value);
+                    }
+                    receiverThread?.Dispose();
+                    receiverThread = null;
+                    return;
+                }
+
+                receiverThread?.Dispose();
+                receiverThread = machine.ObtainManagedThread(
+                    action: () =>
+                    {
+                        byte value;
+                        lock(intermediateReceiveQueue)
+                        {
+                            if(!intermediateReceiveQueue.TryDequeue(out value))
+                            {
+                                return;
+                            }
+                        }
+
+                        if(!usartEnabled.Value || !receiverEnabled.Value)
+                        {
+                            this.Log(LogLevel.Warning, "Received a character, but the receiver is not enabled, dropping.");
+                            return;
+                        }
+
+                        ReceiveChar(value);
+                    },
+                    period: this.GetActualTransmissionDuration(CharacterLength),
+                    name: $"{nameof(STM32_UART)} receiver",
+                    owner: this,
+                    stopCondition: () =>
+                    {
+                        lock(intermediateReceiveQueue)
+                        {
+                            return intermediateReceiveQueue.Count == 0;
+                        }
+                    }
+                );
+
+                if(intermediateReceiveQueue.Count > 0)
+                {
+                    receiverThread.Restart();
+                }
+            }
         }
 
         private CancellationTokenSource idleLineDetectedCancellationTokenSrc;
@@ -328,9 +416,12 @@ namespace Antmicro.Renode.Peripherals.UART
         private bool autoUpdateDelay;
         private double delayMultiplier = 1;
 
+        private IManagedThread receiverThread;
+
         private readonly uint frequency;
 
         private readonly Queue<byte> receiveFifo = new Queue<byte>();
+        private readonly Queue<byte> intermediateReceiveQueue = new Queue<byte>();
 
         private enum OversamplingMode
         {
