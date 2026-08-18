@@ -591,6 +591,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibReset();
             ResetOpcodesCounters();
             profiler?.Dispose();
+            localAtomicState?.Reset();
         }
 
         /// <summary>

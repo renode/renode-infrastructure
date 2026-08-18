@@ -815,6 +815,7 @@ namespace Antmicro.Renode.Core
                         resetable.Reset();
                         PeripheralReset?.Invoke(this, resetable);
                     }
+                    atomicState.Reset();
                     var machineReset = MachineReset;
                     if(machineReset != null)
                     {

@@ -24,6 +24,12 @@ namespace Antmicro.Renode.Core
             InitAtomicMemoryState();
         }
 
+        public void Reset()
+        {
+            ResetAtomicMemoryState();
+            ResetStoreTable();
+        }
+
         [PostDeserialization]
         public void InitAtomicMemoryState()
         {
@@ -45,8 +51,7 @@ namespace Antmicro.Renode.Core
             }
             else
             {
-                // this write spans two 8-byte flags
-                Marshal.WriteInt16(atomicMemoryStatePointer, 0);
+                ResetAtomicMemoryState();
             }
         }
 
@@ -63,10 +68,8 @@ namespace Antmicro.Renode.Core
             {
                 storeTablePointer =
                     (IntPtr)NativeMemory.AlignedAlloc((UIntPtr)StoreTableSize, (UIntPtr)StoreTableSize);
-                // Initialize to all 1s, as this indicates each entry being unlocked and not owned by any core.
-                // See `HST_UNLOCKED` and `HST_NO_CORE` in tlib.
-                LibCWrapper.MemSet(storeTablePointer, 0xff, StoreTableSize);
             }
+            ResetStoreTable();
             parent.DebugLog("Store table allocated at 0x{0:X}", storeTablePointer);
         }
 
@@ -182,6 +185,24 @@ namespace Antmicro.Renode.Core
             {
                 throw new InvalidOperationException("Deserialized store table contains dangling locks");
             }
+        }
+
+        private void ResetAtomicMemoryState()
+        {
+            // this write spans two 8-byte flags
+            Marshal.WriteInt16(atomicMemoryStatePointer, 0);
+        }
+
+        private void ResetStoreTable()
+        {
+            if(storeTablePointer == IntPtr.Zero)
+            {
+                return;
+            }
+
+            // Initialize to all 1s, as this indicates each entry being unlocked and not owned by any core.
+            // See `HST_UNLOCKED` and `HST_NO_CORE` in tlib.
+            LibCWrapper.MemSet(storeTablePointer, 0xff, StoreTableSize);
         }
 
         private int StoreTableSize => 1 << (IntPtr.Size * 8 - StoreTableBits); // In bytes
