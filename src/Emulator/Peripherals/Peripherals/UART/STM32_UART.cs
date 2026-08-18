@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public void WriteChar(byte value)
         {
-            if(!usartEnabled.Value && !receiverEnabled.Value)
+            if(!usartEnabled.Value || !receiverEnabled.Value)
             {
                 this.Log(LogLevel.Warning, "Received a character, but the receiver is not enabled, dropping.");
                 return;
