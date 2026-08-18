@@ -146,6 +146,14 @@ namespace Antmicro.Renode.Peripherals
             return false;
         }
 
+        public bool TryAddAnalyzer<T>(T backend, IAnalyzableBackendAnalyzer<T> analyzer) where T : IAnalyzableBackend
+        {
+            analyzer.AttachTo(backend);
+            activeAnalyzers.Add(analyzer);
+            PeripheralBackendAnalyzerCreated?.Invoke(analyzer);
+            return true;
+        }
+
         public void HideAnalyzersFor(IPeripheral peripheral)
         {
             var toRemove = new List<IAnalyzableBackendAnalyzer>();
