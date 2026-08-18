@@ -127,7 +127,9 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public uint CharacterLength => wordLength0.Value ? 9U : 8U;
+        // The STM32 UART includes the parity bit in its word length, unlike others such as the SAM USART.
+        // Therefore, to get the number of bits utilized to represent just the character, we subtract the parity bit.
+        public uint CharacterLength => (wordLength0.Value ? 9U : 8U) - (ParityBit == Parity.None ? 0U : 1U);
 
         [DefaultInterrupt]
         public GPIO IRQ { get; } = new GPIO();
