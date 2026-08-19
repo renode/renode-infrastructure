@@ -40,6 +40,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             Reset();
         }
 
+        // Exposed so STM32_SYSCFG's compensation cell (SYSCFG_CCCSR) can gate its READY
+        // bit on the CSI oscillator actually running, matching RM0433: the cell needs a
+        // running reference clock to lock, so it can't become ready off a dead CSI.
+        public bool CsiEnabled => csion.Value;
+
         public void Register(IPeripheral peripheral, EnumRegistrationPoint<RegistrationPeripheralAlias> registrationPoint)
         {
             if(RegisteredPeripherals.ContainsValue(peripheral))

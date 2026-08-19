@@ -17,8 +17,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     public sealed class STM32_SYSCFG : IDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize, ILocalGPIOReceiver
     {
-        public STM32_SYSCFG()
+        // `rcc` is optional -- when wired (a board can pass an already-declared `rcc:`
+        // peripheral from its .repl file), READY correctly stays low if CSI isn't
+        // running yet (see RM0433). Boards that don't wire it keep the EN-only behavior.
+        public STM32_SYSCFG(STM32H7_RCC rcc = null)
         {
+            this.rcc = rcc;
             var gpios = new Dictionary<int, IGPIO>();
             for(var i = 0; i < GpioPins; ++i)
             {
@@ -108,11 +112,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
             
             map.Add((long)Registers.CompensationCellControl, new DoubleWordRegister(this)
-                .WithFlag(0, name: "EN")
+                .WithFlag(0, out var compensationCellEnable, name: "EN")
                 .WithFlag(1, name: "CS")
                 .WithReservedBits(2, 6)
-                // READY should only be driven to 1 when the CSION flag is set in the RCC_CR register
-                .WithFlag(8, mode: FieldMode.Read, name: "READY", valueProviderCallback: _ => true)
+                // READY should only be driven to 1 when the cell is enabled and the CSION
+                // flag is set in the RCC_CR register (RM0433) -- the cell needs CSI as its
+                // reference clock to lock. No propagation delay modeled: real hardware
+                // locks in microseconds once both hold.
+                .WithFlag(8, mode: FieldMode.Read, name: "READY",
+                    valueProviderCallback: _ => compensationCellEnable.Value && (rcc?.CsiEnabled ?? true))
                 .WithReservedBits(9, 7)
                 .WithFlag(16, name: "HSLV")
                 .WithReservedBits(17, 15)
@@ -124,6 +132,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly Dictionary<int, InternalReceiver> internalReceiversCache;
 
         private readonly IValueRegisterField[] extiMappings = new IValueRegisterField[GpioPins];
+        private readonly STM32H7_RCC rcc;
 
         private const int GpioPins = 16;
 
