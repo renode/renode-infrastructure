@@ -110,7 +110,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
                 map.Add((long)Registers.ExternalInterruptConfiguration1 + 4 * regNumber, reg);
             }
-            
+
             map.Add((long)Registers.CompensationCellControl, new DoubleWordRegister(this)
                 .WithFlag(0, out var compensationCellEnable, name: "EN")
                 .WithFlag(1, name: "CS")
