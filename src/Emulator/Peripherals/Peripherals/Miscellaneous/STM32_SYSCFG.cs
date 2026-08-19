@@ -106,6 +106,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
                 map.Add((long)Registers.ExternalInterruptConfiguration1 + 4 * regNumber, reg);
             }
+            
+            map.Add((long)Registers.CompensationCellControl, new DoubleWordRegister(this)
+                .WithFlag(0, name: "EN")
+                .WithFlag(1, name: "CS")
+                .WithReservedBits(2, 6)
+                // READY should only be driven to 1 when the CSION flag is set in the RCC_CR register
+                .WithFlag(8, mode: FieldMode.Read, name: "READY", valueProviderCallback: _ => true)
+                .WithReservedBits(9, 7)
+                .WithFlag(16, name: "HSLV")
+                .WithReservedBits(17, 15)
+            );
             return new DoubleWordRegisterCollection(this, map);
         }
 
