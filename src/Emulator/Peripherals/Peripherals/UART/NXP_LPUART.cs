@@ -864,8 +864,16 @@ namespace Antmicro.Renode.Peripherals.UART
                 if((ulong)count > receiveWatermark)
                 {
                     BufferState = BufferState.Ready;
-                    return;
                 }
+                else if(count >= rxMaxBytes)
+                {
+                    BufferState = BufferState.Full;
+                }
+                else
+                {
+                    BufferState = BufferState.Empty;
+                }
+                return;
             }
 
             if(count >= rxMaxBytes)
@@ -909,7 +917,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private bool TransmitDmaState => transmitterDMAEnabled.Value && transmitDataRegisterEmpty.Value;
 
-        private bool ReceiveDmaState => receiverDMAEnabled.Value && BufferState == BufferState.Full;
+        private bool ReceiveDmaState => receiverDMAEnabled.Value && (BufferState == BufferState.Full || (receiveFifoEnabled.Value && BufferState == BufferState.Ready));
 
         private long CommonRegistersOffset => hasGlobalRegisters ? 0x10 : 0x0;
 
