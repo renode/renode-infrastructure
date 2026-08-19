@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Utilities
             using(var locker = Config.LockSource())
             {
                 config.Set(name, value);
-                Config.Source.Save();
+                Config.Save();
             }
         }
 
@@ -166,7 +166,16 @@ namespace Antmicro.Renode.Utilities
             FileName = filePath;
         }
 
-        public IDisposable LockSource() => new FileLocker(FileName + ConfigurationLockSuffix);
+        public void Save()
+        {
+            if(Emulator.InCIMode)
+            {
+                return;
+            }
+            source.Save(FileName);
+        }
+
+        public IDisposable LockSource() => Emulator.InCIMode ? new DisposableWrapper() : new FileLocker(FileName + ConfigurationLockSuffix);
 
         public IConfigSource Source
         {
@@ -190,7 +199,7 @@ namespace Antmicro.Renode.Utilities
                         else
                         {
                             source = new IniConfigSource();
-                            source.Save(FileName);
+                            Save();
                         }
                     }
                 }
