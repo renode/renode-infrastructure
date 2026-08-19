@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Utilities
             T result;
             if(!TryFindInCache(group, name, out result))
             {
-                if(!TryGetGroup(group, out var config) || !config.Contains(name))
+                if(!Config.TryGet(group, out var config) || !config.Contains(name))
                 {
                     if(defaultValue == null)
                     {
@@ -90,7 +90,7 @@ namespace Antmicro.Renode.Utilities
 
         public bool TryGet<T>(string group, string name, out T result)
         {
-            var config = Config.Source.Configs[group];
+            var config = Config.Get(group);
             if(config == null || !config.Contains(name))
             {
                 result = default(T);
@@ -109,9 +109,9 @@ namespace Antmicro.Renode.Utilities
 
         public void Set<T>(string group, string name, T value)
         {
-            if(!TryGetGroup(group, out var config))
+            if(!Config.TryGet(group, out var config))
             {
-                config = Config.Source.AddConfig(group);
+                config = Config.Add(group);
             }
 
             AddToCache(group, name, value);
@@ -129,12 +129,6 @@ namespace Antmicro.Renode.Utilities
         private ConfigurationManager(string configFile)
         {
             Config = new ConfigSource(configFile);
-        }
-
-        private bool TryGetGroup(string group, out IConfig config)
-        {
-            config = Config.Source.Configs[group];
-            return config != null;
         }
 
         private void AddToCache<T>(string group, string name, T value)
@@ -173,6 +167,16 @@ namespace Antmicro.Renode.Utilities
                 return;
             }
             source.Save(FileName);
+        }
+
+        public IConfig Add(string group) => Source.AddConfig(group);
+
+        public IConfig Get(string group) => Source.Configs[group];
+
+        public bool TryGet(string group, out IConfig config)
+        {
+            config = Get(group);
+            return config != null;
         }
 
         public IDisposable LockSource() => Emulator.InCIMode ? new DisposableWrapper() : new FileLocker(FileName + ConfigurationLockSuffix);
