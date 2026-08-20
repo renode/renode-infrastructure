@@ -157,14 +157,14 @@ namespace Antmicro.Renode.UserInterface.Commands
             Handler handler;
             if(domain == null)
             {
-                externalsHandler = externalsHandler ?? new ExternalsHandler(this);
+                externalsHandler = externalsHandler ?? new ExternalsHandler();
                 handler = externalsHandler;
             }
             else
             {
                 if(!handlers.TryGetValue(domain, out var domainHandler))
                 {
-                    domainHandler = new DomainHandler(this, domain);
+                    domainHandler = new DomainHandler(domain);
                     handlers.Add(domain, domainHandler);
                 }
                 handler = domainHandler;
@@ -188,7 +188,7 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private class DomainHandler : Handler
         {
-            public DomainHandler(SetAndRevertAfterCommand parent, IMachine machine) : base(parent)
+            public DomainHandler(IMachine machine) : base()
             {
                 this.machine = machine;
             }
@@ -235,7 +235,7 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private class ExternalsHandler : Handler
         {
-            public ExternalsHandler(SetAndRevertAfterCommand parent) : base(parent)
+            public ExternalsHandler() : base()
             {
                 emulation = EmulationManager.Instance.CurrentEmulation;
                 emulation.MasterTimeSource.TimePassed += _ => Update();
@@ -308,11 +308,6 @@ namespace Antmicro.Renode.UserInterface.Commands
                 UpdateSchedule(reverts.First.Value.Timestamp - now);
             }
 
-            protected Handler(SetAndRevertAfterCommand parent)
-            {
-                this.parent = parent;
-            }
-
             protected virtual void Update()
             {
                 var now = GetCurrentTime();
@@ -335,7 +330,6 @@ namespace Antmicro.Renode.UserInterface.Commands
 
             protected abstract TimeInterval GetCurrentTime();
 
-            private readonly SetAndRevertAfterCommand parent;
             // NOTE: Kept in order by Revert.Timestamp
             private readonly LinkedList<Revert> reverts = new LinkedList<Revert>();
 
