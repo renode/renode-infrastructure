@@ -861,7 +861,7 @@ namespace Antmicro.Renode.UserInterface
             Commands.Add(new MachCommand(this, () => Machine, x => Machine = x));
             Commands.Add(new ResdCommand(this));
             Commands.Add(new VerboseCommand(this, x => MonitorContext.VerboseMode = x));
-            Commands.Add(new SetAndRevertAfterCommand(this, new DeviceHandlingHelpers(this)));
+            Commands.Add(new SetAndRevertAfterCommand(this));
             Commands.Add(new PrintEnvironmentCommand(this));
         }
 

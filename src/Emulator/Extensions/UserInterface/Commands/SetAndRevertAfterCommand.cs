@@ -9,13 +9,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
+using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.UserInterface.Tokenizer;
-using Antmicro.Renode.Utilities.Collections;
 
 using AntShell.Commands;
 
@@ -23,15 +22,12 @@ namespace Antmicro.Renode.UserInterface.Commands
 {
     public class SetAndRevertAfterCommand : Command
     {
-        public SetAndRevertAfterCommand(Monitor monitor, Monitor.DeviceHandlingHelpers helpers) : base(monitor, "setAndRevertAfter", "Sets value for a period of time then restores previous value", "sara")
+        public SetAndRevertAfterCommand(Monitor monitor) : base(monitor, "setAndRevertAfter", "Sets value for a period of time then restores previous value", "sara")
         {
-            this.helpers = helpers;
-            monitor.CacheCleared += cache.ClearCache;
             EmulationManager.Instance.EmulationChanged += () =>
             {
                 externalsHandler = null;
                 handlers.Clear();
-                cache.ClearCache();
                 EmulationManager.Instance.CurrentEmulation.MachineRemoved += RemoveDomain;
             };
             EmulationManager.Instance.CurrentEmulation.MachineRemoved += RemoveDomain;
@@ -59,81 +55,29 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Run(ICommandInteraction writer, TimeIntervalToken interval, LiteralToken deviceToken, params Token[] tokensArray)
         {
-            var tokens = tokensArray.AsEnumerable();
+            var saveableCommand = default(SerializableCommandInvocation);
+            var value = default(object);
 
-            // get root device
-            if(!helpers.IsNameAvailable(deviceToken.Value))
-            {
-                writer.WriteError($"No device found: {deviceToken.Value}");
-                return;
-            }
-            if(!monitor.TryFindPeripheralTypeByName(deviceToken.Value, out var deviceType, out var longestMatch, out var actualName))
-            {
-                writer.WriteError($"Could not find device {deviceToken.Value}, the longest match is {longestMatch}");
-                return;
-            }
-            var device = helpers.IdentifyDevice(actualName);
-
-            // get machine if available
-            IMachine machine = null;
-            (device as IPeripheral)?.TryGetMachine(out machine);
-
-            // get actual device
-            device = helpers.HandleDeviceChain(actualName, out var chainedName, device, tokens, out tokens);
-
-            // get accessor
-            if(!(tokens?.FirstOrDefault() is LiteralToken memberToken))
-            {
-                writer.WriteError($"No accessor specified for {chainedName}");
-                PrintHelp(writer);
-                return;
-            }
-
-            MemberInfo memberInfo = null;
             try
             {
-                memberInfo = cache.Get(device, memberToken.Value, this.GetAccessor);
+                saveableCommand = new SerializableCommandInvocation(monitor, deviceToken, tokensArray, out value);
             }
-            catch(RecoverableException e)
+            catch(InvalidOperationException e)
             {
-                writer.WriteError($"Accessor {e.Message}");
+                writer.WriteError(e.Message);
                 return;
             }
-            if(memberInfo == null)
+            catch(ArgumentException e)
             {
-                writer.WriteError($"Accessor '{memberToken.Value}' not found for {chainedName}");
-                return;
-            }
-            tokens = tokens.Skip(1);
-
-            // get and validate new value
-            var i = 0;
-            if(!helpers.ParseArgument(tokens.ToArray(), ref i, out var arg))
-            {
-                writer.WriteError($"Argument not found for {chainedName} {memberToken.Value}");
-                return;
-            }
-            tokens = tokens.Skip(i + 1);
-
-            if(tokens.Any())
-            {
-                writer.WriteError($"Too many arguments passed");
+                writer.WriteError(e.Message);
                 PrintHelp(writer);
                 return;
             }
 
-            var memberType = GetAccessorType(memberInfo);
-            if(!helpers.FitArgumentType(arg, memberType, out var value))
-            {
-                writer.WriteError($"Could not convert {arg} to {memberType}");
-                return;
-            }
-
-            // queue revert
-            QueueRevert(machine, device, memberInfo, interval.Value);
+            QueueRevert(saveableCommand, interval.Value);
 
             // set new value
-            DeviceHelper.InvokeSet(device, memberInfo, value);
+            DeviceHelper.InvokeSet(saveableCommand.Device, saveableCommand.MemberInfo, value);
         }
 
         private static Type GetAccessorType(MemberInfo info)
@@ -149,12 +93,11 @@ namespace Antmicro.Renode.UserInterface.Commands
             throw new ArgumentException("Passed member is not an accessor", nameof(info));
         }
 
-        private MemberInfo GetAccessor(object device, string member)
-            => helpers.GetAccessor(device, member, assertSetter: true, assertGetter: true);
-
-        private void QueueRevert(IMachine domain, object device, MemberInfo member, TimeInterval offset)
+        private void QueueRevert(SerializableCommandInvocation command, TimeInterval offset)
         {
             Handler handler;
+
+            var domain = command.Machine;
             if(domain == null)
             {
                 externalsHandler = externalsHandler ?? new ExternalsHandler();
@@ -170,7 +113,7 @@ namespace Antmicro.Renode.UserInterface.Commands
                 handler = domainHandler;
             }
 
-            handler.QueueRevert(device, member, offset);
+            handler.QueueRevert(command, offset);
         }
 
         private void RemoveDomain(IMachine machine)
@@ -182,8 +125,6 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         private ExternalsHandler externalsHandler;
-        private readonly SimpleCache cache = new SimpleCache();
-        private readonly Monitor.DeviceHandlingHelpers helpers;
         private readonly IDictionary<IMachine, DomainHandler> handlers = new Dictionary<IMachine, DomainHandler>();
 
         private class DomainHandler : Handler
@@ -193,11 +134,11 @@ namespace Antmicro.Renode.UserInterface.Commands
                 this.machine = machine;
             }
 
-            public override void QueueRevert(object device, MemberInfo member, TimeInterval offset)
+            public override void QueueRevert(SerializableCommandInvocation command, TimeInterval offset)
             {
                 machine.ClockSource.ExecuteInLock(() =>
                 {
-                    base.QueueRevert(device, member, offset);
+                    base.QueueRevert(command, offset);
                 });
             }
 
@@ -241,11 +182,11 @@ namespace Antmicro.Renode.UserInterface.Commands
                 emulation.MasterTimeSource.TimePassed += _ => Update();
             }
 
-            public override void QueueRevert(object device, MemberInfo member, TimeInterval offset)
+            public override void QueueRevert(SerializableCommandInvocation command, TimeInterval offset)
             {
                 lock(locker)
                 {
-                    base.QueueRevert(device, member, offset);
+                    base.QueueRevert(command, offset);
                 }
             }
 
@@ -266,20 +207,128 @@ namespace Antmicro.Renode.UserInterface.Commands
             private readonly Emulation emulation;
         }
 
+        private class SerializableCommandInvocation
+        {
+            public SerializableCommandInvocation(Monitor monitor, LiteralToken deviceToken, IEnumerable<Token> tokens, out object value)
+            {
+                this.tokens = tokens;
+                this.monitor = monitor;
+                this.monitorContext = Serializer.DeepClone(monitor.MonitorContext);
+
+                if(!monitor.DeviceHelpers.IsNameAvailable(deviceToken.Value))
+                {
+                    throw new InvalidOperationException($"No device found: {deviceToken.Value}");
+                }
+                if(!Monitor.TryFindPeripheralTypeByName(deviceToken.Value, out _, out var longestMatch, out actualName))
+                {
+                    throw new InvalidOperationException($"Could not find device {deviceToken.Value}, the longest match is {longestMatch}");
+                }
+
+                GetDevice(out chainedName, out var tailTokens);
+                var firstToken = tailTokens?.FirstOrDefault();
+                if(!(firstToken is LiteralToken))
+                {
+                    throw new ArgumentException($"No accessor specified for {chainedName}");
+                }
+
+                memberToken = firstToken as LiteralToken;
+                tailTokens = tailTokens.Skip(1);
+
+                var i = 0;
+                if(!monitor.DeviceHelpers.ParseArgument(tailTokens.ToArray(), ref i, out var arg))
+                {
+                    throw new InvalidOperationException($"Argument not found for {chainedName} {memberToken.Value}");
+                }
+                tailTokens = tailTokens.Skip(i + 1);
+
+                if(tailTokens.Any())
+                {
+                    throw new ArgumentException($"Too many arguments passed");
+                }
+
+                var memberType = GetAccessorType(MemberInfo);
+                if(!monitor.DeviceHelpers.FitArgumentType(arg, memberType, out value))
+                {
+                    throw new InvalidOperationException($"Could not convert {arg} to {memberType}");
+                }
+            }
+
+            public override string ToString() => $"<{Device}>.<{MemberInfo}>";
+
+            public bool SameTarget(SerializableCommandInvocation other) =>
+                Device == other.Device && MemberInfo == other.MemberInfo;
+
+            public object Device => device ?? (device = GetDevice(out _, out _));
+
+            public MemberInfo MemberInfo
+            {
+                get
+                {
+                    if(member == null)
+                    {
+                        MemberInfo info;
+                        using(Monitor.EnterContext(monitorContext))
+                        {
+                            info = Monitor.DeviceHelpers.GetAccessor(Device, memberToken.Value, assertSetter: true, assertGetter: true);
+                        }
+
+                        if(info == null)
+                        {
+                            throw new RecoverableException($"Accessor '{memberToken.Value}' not found for {chainedName}");
+                        }
+
+                        member = info;
+                    }
+
+                    return member;
+                }
+            }
+
+            public IMachine Machine => monitorContext.CurrentMachine;
+
+            private object GetDevice(out string chainedName, out IEnumerable<Token> tail)
+            {
+                using(Monitor.EnterContext(monitorContext))
+                {
+                    var rootDevice = Monitor.DeviceHelpers.IdentifyDevice(actualName);
+                    device = Monitor.DeviceHelpers.HandleDeviceChain(actualName, out chainedName, rootDevice, tokens, out tail);
+                }
+                return device;
+            }
+
+            private Monitor Monitor => monitor ?? (monitor = ObjectCreator.Instance.GetSurrogate<Monitor>());
+
+            [Transient]
+            private Monitor monitor;
+
+            [Transient]
+            private object device;
+            [Transient]
+            private MemberInfo member;
+
+            private readonly MonitorContext monitorContext;
+
+            private readonly IEnumerable<Token> tokens;
+            private readonly LiteralToken memberToken;
+
+            private readonly string actualName;
+            private readonly string chainedName;
+        }
+
         private abstract class Handler
         {
-            public virtual void QueueRevert(object device, MemberInfo member, TimeInterval offset)
+            public virtual void QueueRevert(SerializableCommandInvocation command, TimeInterval offset)
             {
                 var now = GetCurrentTime();
                 var ts = now + offset;
 
-                var revert = new Revert(ts, device, member);
+                var revert = new Revert(ts, command);
 
                 var node = reverts.First;
                 while(node != null && node.Value.Timestamp <= ts)
                 {
                     var next = node.Next;
-                    if(node.Value.SameTarget(revert))
+                    if(node.Value.Command.SameTarget(revert.Command))
                     {
                         if(node.Value.Timestamp == ts)
                         {
@@ -293,7 +342,7 @@ namespace Antmicro.Renode.UserInterface.Commands
                     node = next;
                 }
 
-                revert.Value = revert.Value ?? DeviceHelper.InvokeGet(device, member);
+                revert.Value = revert.Value ?? DeviceHelper.InvokeGet(command.Device, command.MemberInfo);
                 this.Trace($"sara: Pushing {revert}");
                 if(node == null)
                 {
@@ -315,7 +364,7 @@ namespace Antmicro.Renode.UserInterface.Commands
                 while(node != null && node.Value.Timestamp <= now)
                 {
                     this.Trace($"sara: Executing {node.Value}");
-                    DeviceHelper.InvokeSet(node.Value.Device, node.Value.Accessor, node.Value.Value);
+                    DeviceHelper.InvokeSet(node.Value.Command.Device, node.Value.Command.MemberInfo, node.Value.Value);
                     reverts.RemoveFirst();
                     node = reverts.First;
                 }
@@ -335,24 +384,17 @@ namespace Antmicro.Renode.UserInterface.Commands
 
             protected struct Revert
             {
-                public Revert(TimeInterval timestamp, object device, MemberInfo accessor)
+                public Revert(TimeInterval timestamp, SerializableCommandInvocation command)
                 {
                     Timestamp = timestamp;
-                    Device = device;
-                    Accessor = accessor;
+                    Command = command;
                     Value = null;
                 }
 
-                public bool SameTarget(Revert other)
-                {
-                    return Device == other.Device && Accessor == other.Accessor;
-                }
-
-                public override string ToString() => $"{{<{Device}>.<{Accessor}> := {Value} @ {Timestamp}}}";
+                public override string ToString() => $"{{{Command} := {Value} @ {Timestamp}}}";
 
                 public readonly TimeInterval Timestamp;
-                public readonly object Device;
-                public readonly MemberInfo Accessor;
+                public readonly SerializableCommandInvocation Command;
                 public object Value;
             }
         }
