@@ -15,13 +15,15 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.I2C;
+using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
     public class NXP_FLEXCOMM : IKnownSize, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IUART,
         IPeripheralContainer<IUART, NullRegistrationPoint>,
-        IPeripheralContainer<II2CPeripheral, NumberRegistrationPoint<int>>
+        IPeripheralContainer<II2CPeripheral, NumberRegistrationPoint<int>>,
+        IPeripheralContainer<ISPIPeripheral, NumberRegistrationPoint<int>>
     {
         public NXP_FLEXCOMM(IMachine machine, uint uartFifoSize = 256, bool uartPresent = true, bool i2cPresent = true, bool spiPresent = true)
         {
@@ -47,15 +49,21 @@ namespace Antmicro.Renode.Peripherals.UART
             i2cInstance = new S32K3XX_LowPowerInterIntegratedCircuit(machine);
             i2cInstance.IRQ.AddStateChangedHook((state) => UpdateI2CMasterGPIO(PeripheralMode.I2C, state));
 
+            spiInstance = new IMXRT_LPSPI(machine);
+            spiInstance.IRQ.AddStateChangedHook((state) => UpdateSPIGPIO(PeripheralMode.SPI, state));
+
             DefineRegisters();
             Reset();
         }
 
         public void Reset()
         {
-            IRQ.Unset();
             uartInstance.Reset();
+            i2cInstance.Reset();
+            spiInstance.Reset();
+            currentPeripheralMode = PeripheralMode.None;
             RegistersCollection.Reset();
+            UpdateCombinedIRQ();
         }
 
         public uint ReadDoubleWord(long offset)
@@ -71,6 +79,10 @@ namespace Antmicro.Renode.Peripherals.UART
             else if(currentPeripheralMode == PeripheralMode.I2C)
             {
                 return i2cInstance.ReadDoubleWord(GetI2CRegistersOffset(offset));
+            }
+            else if(currentPeripheralMode == PeripheralMode.SPI)
+            {
+                return spiInstance.ReadDoubleWord(offset);
             }
             else
             {
@@ -92,6 +104,10 @@ namespace Antmicro.Renode.Peripherals.UART
             else if(currentPeripheralMode == PeripheralMode.I2C)
             {
                 i2cInstance.WriteDoubleWord(GetI2CRegistersOffset(offset), value);
+            }
+            else if(currentPeripheralMode == PeripheralMode.SPI)
+            {
+                spiInstance.WriteDoubleWord(offset, value);
             }
             else
             {
@@ -135,6 +151,22 @@ namespace Antmicro.Renode.Peripherals.UART
             return i2cInstance.GetRegistrationPoints(peripheral);
         }
 
+        public virtual void Register(ISPIPeripheral peripheral, NumberRegistrationPoint<int> registrationPoint)
+        {
+            EnsureChildPeripheralRegistered(spiInstance, $"{machine.GetLocalName(this)}_spi");
+            spiInstance.Register(peripheral, registrationPoint);
+        }
+
+        public virtual void Unregister(ISPIPeripheral peripheral)
+        {
+            spiInstance.Unregister(peripheral);
+        }
+
+        public IEnumerable<NumberRegistrationPoint<int>> GetRegistrationPoints(ISPIPeripheral peripheral)
+        {
+            return spiInstance.GetRegistrationPoints(peripheral);
+        }
+
         public void UpdateTxGPIO(PeripheralMode source, bool state)
         {
             switch(source)
@@ -151,7 +183,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             }
 
-            IRQ.Set(state);
+            UpdateCombinedIRQ();
         }
 
         public void UpdateRxGPIO(PeripheralMode source, bool state)
@@ -170,7 +202,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             }
 
-            IRQ.Set(uartTxInterruptSet.Value || uartRxInterruptSet.Value);
+            UpdateCombinedIRQ();
         }
 
         public void UpdateI2CMasterGPIO(PeripheralMode source, bool state)
@@ -189,7 +221,26 @@ namespace Antmicro.Renode.Peripherals.UART
             }
             }
 
-            IRQ.Set(state);
+            UpdateCombinedIRQ();
+        }
+
+        public void UpdateSPIGPIO(PeripheralMode source, bool state)
+        {
+            switch(source)
+            {
+            case PeripheralMode.SPI:
+            {
+                spiInterruptSet.Value = state;
+                break;
+            }
+            default:
+            {
+                this.Log(LogLevel.Error, $"Unsupported FLEXCOMM mode: {currentPeripheralMode} - ignoring IRQ.");
+                return;
+            }
+            }
+
+            UpdateCombinedIRQ();
         }
 
         public GPIO IRQ { get; }
@@ -211,6 +262,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         IEnumerable<IRegistered<II2CPeripheral, NumberRegistrationPoint<int>>> IPeripheralContainer<II2CPeripheral, NumberRegistrationPoint<int>>.Children => i2cInstance.Children;
 
+        IEnumerable<IRegistered<ISPIPeripheral, NumberRegistrationPoint<int>>> IPeripheralContainer<ISPIPeripheral, NumberRegistrationPoint<int>>.Children => spiInstance.Children;
+
         private static bool IsFlexcommRegister(long offset)
         {
             return offset == (long)Registers.InterruptStatus || offset == (long)Registers.PeripheralSelectAndID;
@@ -226,7 +279,7 @@ namespace Antmicro.Renode.Peripherals.UART
             if(!machine.IsRegistered(peripheral))
             {
                 machine.RegisterAsAChildOf(this, peripheral, NullRegistrationPoint.Instance);
-                machine.SetLocalName(i2cInstance, name);
+                machine.SetLocalName(peripheral, name);
             }
         }
 
@@ -264,6 +317,33 @@ namespace Antmicro.Renode.Peripherals.UART
             }
 
             currentPeripheralMode = newMode;
+            UpdateCombinedIRQ();
+        }
+
+        private void UpdateCombinedIRQ()
+        {
+            var irqState = false;
+
+            switch(currentPeripheralMode)
+            {
+            case PeripheralMode.UART:
+            case PeripheralMode.UARTI2C:
+                irqState = uartTxInterruptSet.Value || uartRxInterruptSet.Value;
+                break;
+            case PeripheralMode.I2C:
+                irqState = i2cMasterInterruptSet.Value;
+                break;
+            case PeripheralMode.SPI:
+                irqState = spiInterruptSet.Value;
+                break;
+            case PeripheralMode.None:
+                break;
+            default:
+                this.Log(LogLevel.Warning, $"Unsupported FLEXCOMM mode: {currentPeripheralMode} - deasserting IRQ.");
+                break;
+            }
+
+            IRQ.Set(irqState);
         }
 
         private void DefineRegisters()
@@ -285,7 +365,7 @@ namespace Antmicro.Renode.Peripherals.UART
             Registers.InterruptStatus.Define(this)
                     .WithFlag(0, out uartTxInterruptSet, mode: FieldMode.Read, name: "UARTTX")
                     .WithFlag(1, out uartRxInterruptSet, mode: FieldMode.Read, name: "UARTRX")
-                    .WithTaggedFlag("SPI", 2)
+                    .WithFlag(2, out spiInterruptSet, mode: FieldMode.Read, name: "SPI")
                     .WithReservedBits(3, 1)
                     .WithFlag(4, out i2cMasterInterruptSet, mode: FieldMode.Read, name: "I2CM")
                     .WithTaggedFlag("I2CS", 5)
@@ -308,6 +388,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private PeripheralMode currentPeripheralMode;
         private IFlagRegisterField uartTxInterruptSet;
         private IFlagRegisterField uartRxInterruptSet;
+        private IFlagRegisterField spiInterruptSet;
         private IFlagRegisterField i2cMasterInterruptSet;
         private IFlagRegisterField peripheralModeLock;
 
@@ -321,6 +402,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly NullRegistrationPointContainerHelper<IUART> uartContainer;
 
         private readonly S32K3XX_LowPowerInterIntegratedCircuit i2cInstance;
+        private readonly IMXRT_LPSPI spiInstance;
 
         private const long I2CRegistersOffset = 0x800;
 
