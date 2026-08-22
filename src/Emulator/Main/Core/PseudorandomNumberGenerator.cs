@@ -32,6 +32,7 @@ namespace Antmicro.Renode.Core
                 {
                     Logger.Log(LogLevel.Warning, "Pseudorandom Number Generator has already been used with seed {0}. Next time it will use a new one {1}. It won't be possible to repeat this exact execution.", baseSeed, newSeed);
                     InitializeGenerator();
+                    generatorsByName.Clear();
                 }
                 baseSeed = newSeed;
             }
@@ -83,11 +84,23 @@ namespace Antmicro.Renode.Core
 
         private RandomGenerator GetGeneratorForCurentThread()
         {
-            return new RandomGenerator
+            // The per-thread generator must be keyed by the logical thread *name*, not by the physical
+            // managed-thread identity that ThreadLocal uses. Some threads (e.g. emulated CPU cores) are
+            // torn down and recreated under the same name during a run. Creating a brand-new Random for
+            // each physical thread would re-seed it identically (the seed derives only from the name and
+            // baseSeed), restarting the pseudo-random stream from the beginning every time. By caching the
+            // generator by name we let a recreated thread continue its existing, deterministic stream.
+            var name = Thread.CurrentThread.Name;
+            if(!generatorsByName.TryGetValue(name, out var randomGenerator))
             {
-                Random = new Random(GetSeedForThread()),
-                ThreadName = Thread.CurrentThread.Name
-            };
+                randomGenerator = new RandomGenerator
+                {
+                    Random = new Random(GetSeedForThread()),
+                    ThreadName = name
+                };
+                generatorsByName.Add(name, randomGenerator);
+            }
+            return randomGenerator;
         }
 
         private int GetSeedForThread()
@@ -146,6 +159,9 @@ namespace Antmicro.Renode.Core
         private ThreadLocal<RandomGenerator> generator;
 
         private readonly HashSet<RandomGenerator> serializedGenerators = new HashSet<RandomGenerator>(); // we initialize the collection to simplify the rest of the code
+        // Generators kept alive by logical thread name so a thread recreated under the same name continues
+        // its stream instead of restarting it. Outlives the physical threads tracked by `generator`.
+        private readonly Dictionary<string, RandomGenerator> generatorsByName = new Dictionary<string, RandomGenerator>();
         private readonly object locker;
 
         private class RandomGenerator
