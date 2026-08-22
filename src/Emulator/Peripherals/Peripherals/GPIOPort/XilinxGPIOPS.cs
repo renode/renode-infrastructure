@@ -6,6 +6,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
@@ -14,10 +15,38 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 {
     public class XilinxGPIOPS : BaseGPIOPort, IDoubleWordPeripheral, IKnownSize, IHasMappedRegisters
     {
-        public XilinxGPIOPS(IMachine machine, uint numberOfGpioBanks = 4) : base(machine, 54 + 64) //54 MIO + 64 EMIO
+        public XilinxGPIOPS(IMachine machine, string platform = "Zynq") : base(machine, GetNumberOfPins(platform))
         {
+            switch(platform)
+            {
+            case "Zynq":
+                numberOfGpioBanks = 4;
+                portOffsets = new uint[] { 0, 32, 54, 86, 118 };
+                bankType = new GPIOType[] { GPIOType.MIO, GPIOType.MIO, GPIOType.EMIO, GPIOType.EMIO };
+                break;
+            case "ZynqMP":
+                // 3 26-bit MIO banks and 3 32-bit EMIO banks
+                numberOfGpioBanks = 6;
+                portOffsets = new uint[] { 0, 26, 52, 78, 110, 142, 174 };
+                bankType = new GPIOType[] { GPIOType.MIO, GPIOType.MIO, GPIOType.MIO, GPIOType.EMIO, GPIOType.EMIO, GPIOType.EMIO };
+                break;
+            case "Versal-PMC":
+                numberOfGpioBanks = 4;
+                portOffsets = new uint[] { 0, 26, 52, 84, 116 };
+                bankType = new GPIOType[] { GPIOType.MIO, GPIOType.MIO, GPIOType.EMIO, GPIOType.EMIO };
+
+                break;
+            case "Versal-PS":
+                numberOfGpioBanks = 2;
+                portOffsets = new uint[] { 0, 26, 58 };
+                bankType = new GPIOType[] { GPIOType.MIO, GPIOType.EMIO };
+                break;
+            default:
+                throw new ConstructionException("This platform is not valid for GPIO peripheral XilinxGPIOPS.");
+            }
             portControllers = new GPIOController[numberOfGpioBanks];
-            for(uint i = 0; i < numberOfGpioBanks; i++)
+            IRQ = new GPIO(); // NEW - support of IRQs. Per the doc there is 1 interrupt line for all banks
+            for(uint i = 0 ; i < numberOfGpioBanks ; i++)
             {
                 portControllers[i] = new GPIOController(this, i);
             }
@@ -43,42 +72,76 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             case RegistersOffsets.MaskableOutputData1Hi:
                 return OutputData1 >> 16;
             case RegistersOffsets.MaskableOutputData2Low:
-                return OutputData2 & 0xFFFF;
+                if(numberOfGpioBanks > 2) return OutputData2 & 0xFFFF;
+                this.WarningLog("Tried to read MaskableOutputData2Low when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.MaskableOutputData2Hi:
-                return OutputData2 >> 16;
+                if(numberOfGpioBanks > 2) return OutputData2 >> 16;
+                this.WarningLog("Tried to read MaskableOutputData2High when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.MaskableOutputData3Low:
-                return OutputData3 & 0xFFFF;
+                if(numberOfGpioBanks > 3) return OutputData3 & 0xFFFF;
+                this.WarningLog("Tried to read MaskableOutputData3Low when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.MaskableOutputData3Hi:
-                return OutputData3 >> 16;
+                if(numberOfGpioBanks > 3) return OutputData3 >> 16;
+                this.WarningLog("Tried to read MaskableOutputData3High when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.MaskableOutputData4Low:
+                if(numberOfGpioBanks > 4) return OutputData4 & 0xFFFF;
+                this.WarningLog("Tried to read MaskableOutputData4Low when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.MaskableOutputData4Hi:
+                if(numberOfGpioBanks > 4) return OutputData4 >> 16;
+                this.WarningLog("Tried to read MaskableOutputData4High when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.MaskableOutputData5Low:
+                if(numberOfGpioBanks > 5) return OutputData5 & 0xFFFF;
+                this.WarningLog("Tried to read MaskableOutputData5Low when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.MaskableOutputData5Hi:
-                this.WarningLog($"Read from EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported, returning 0.", offset);
+                if(numberOfGpioBanks > 5) return OutputData5 >> 16;
+                this.WarningLog("Tried to read MaskableOutputData5High when there are only {0} banks; returning 0.", numberOfGpioBanks);
                 return 0;
             case RegistersOffsets.OutputData0:
                 return OutputData0;
             case RegistersOffsets.OutputData1:
                 return OutputData1;
             case RegistersOffsets.OutputData2:
-                return OutputData2;
+                if(numberOfGpioBanks > 2) return OutputData2;
+                this.WarningLog("Tried to read OutputData2 when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.OutputData3:
-                return OutputData3;
+                if(numberOfGpioBanks > 3) return OutputData3;
+                this.WarningLog("Tried to read OutputData3 when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.OutputData4:
+                if(numberOfGpioBanks > 4) return OutputData4;
+                this.WarningLog("Tried to read OutputData4 when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.OutputData5:
-                this.WarningLog($"Read from EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported, returning 0.", offset);
+                if(numberOfGpioBanks > 5) return OutputData5;
+                this.WarningLog("Tried to read OutputData5 when there are only {0} banks; returning 0.", numberOfGpioBanks);
                 return 0;
             case RegistersOffsets.InputData0:
-                return OutputData0;
+                return InputData0;
             case RegistersOffsets.InputData1:
-                return OutputData1;
+                return InputData1;
             case RegistersOffsets.InputData2:
-                return OutputData2;
+                if(numberOfGpioBanks > 2) return InputData2;
+                this.WarningLog("Tried to read InputData2 when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.InputData3:
-                return OutputData3;
+                if(numberOfGpioBanks > 3) return InputData3;
+                this.WarningLog("Tried to read InputData3 when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.InputData4:
+                if(numberOfGpioBanks > 4) return InputData4;
+                this.WarningLog("Tried to read InputData4 when there are only {0} banks; returning 0.", numberOfGpioBanks);
+                return 0;
             case RegistersOffsets.InputData5:
-                this.WarningLog($"Read from EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported, returning 0.", offset);
+                if(numberOfGpioBanks > 5) return InputData5;
+                this.WarningLog("Tried to read InputData5 when there are only {0} banks; returning 0.", numberOfGpioBanks);
                 return 0;
             default:
                 this.LogUnhandledRead(offset);
@@ -97,84 +160,232 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             switch((RegistersOffsets)offset)
             {
             case RegistersOffsets.MaskableOutputData0Low:
-                OutputData0 = (OutputData0 & 0xFFFF0000) | (value & 0xFFFF);
+                InputData0 = (OutputData0 & 0xFFFF0000) | (value & 0xFFFF);
+                this.UpdateInterrupts(0, OutputData0, InputData0);
+                OutputData0 = InputData0;
                 this.DoPinOperation(0, value & 0xFFFF, 0xFFFF0000 | value >> 16);
                 break;
             case RegistersOffsets.MaskableOutputData0Hi:
-                OutputData0 = (OutputData0 & 0x0000FFFF) | (value << 16);
+                InputData0 = (OutputData0 & 0x0000FFFF) | (value << 16);
+                this.UpdateInterrupts(0, OutputData0, InputData0);
+                OutputData0 = InputData0;
                 this.DoPinOperation(0, value & 0xFFFF, 0x0000FFFF | value >> 16);
                 break;
             case RegistersOffsets.MaskableOutputData1Low:
-                OutputData1 = (OutputData1 & 0xFFFF0000) | (value & 0xFFFF);
+                InputData1 = (OutputData1 & 0xFFFF0000) | (value & 0xFFFF);
+                this.UpdateInterrupts(1, OutputData1, InputData1);
+                OutputData1 = InputData1;
                 this.DoPinOperation(1, value & 0xFFFF, 0xFFFF0000 | value >> 16);
                 break;
             case RegistersOffsets.MaskableOutputData1Hi:
-                OutputData1 = (OutputData1 & 0x0000FFFF) | (value << 16);
+                InputData1 = (OutputData1 & 0x0000FFFF) | (value << 16);
+                this.UpdateInterrupts(1, OutputData1, InputData1);
+                OutputData1 = InputData1;
                 this.DoPinOperation(1, value & 0xFFFF, 0x0000FFFF | value >> 16);
                 break;
             case RegistersOffsets.MaskableOutputData2Low:
-                OutputData2 = (OutputData2 & 0xFFFF0000) | (value & 0xFFFF);
-                this.DoPinOperation(2, value & 0xFFFF, 0xFFFF0000 | value >> 16);
+                if(numberOfGpioBanks > 2)
+                {
+                    InputData2 = (OutputData2 & 0xFFFF0000) | (value & 0xFFFF);
+                    this.UpdateInterrupts(2, OutputData2, InputData2);
+                    OutputData2 = InputData2;
+                    this.DoPinOperation(2, value & 0xFFFF, 0xFFFF0000 | value >> 16);
+                }
                 break;
             case RegistersOffsets.MaskableOutputData2Hi:
-                OutputData2 = (OutputData2 & 0x0000FFFF) | (value << 16);
-                this.DoPinOperation(2, value & 0xFFFF, 0x0000FFFF | value >> 16);
+                if(numberOfGpioBanks > 2)
+                {
+                    InputData2 = (OutputData2 & 0x0000FFFF) | (value << 16);
+                    this.UpdateInterrupts(2, OutputData2, InputData2);
+                    OutputData2 = InputData2;
+                    this.DoPinOperation(2, value & 0xFFFF, 0x0000FFFF | value >> 16);
+                }
                 break;
             case RegistersOffsets.MaskableOutputData3Low:
-                OutputData3 = (OutputData3 & 0xFFFF0000) | (value & 0xFFFF);
-                this.DoPinOperation(3, value & 0xFFFF, 0xFFFF0000 | value >> 16);
+                if(numberOfGpioBanks > 3)
+                {
+                    InputData3 = (OutputData3 & 0xFFFF0000) | (value & 0xFFFF);
+                    this.UpdateInterrupts(3, OutputData3, InputData3);
+                    OutputData3 = InputData3;
+                    this.DoPinOperation(3, value & 0xFFFF, 0xFFFF0000 | value >> 16);
+                }
                 break;
             case RegistersOffsets.MaskableOutputData3Hi:
-                OutputData3 = (OutputData3 & 0x0000FFFF) | (value << 16);
-                this.DoPinOperation(3, value & 0xFFFF, 0x0000FFFF | value >> 16);
+                if(numberOfGpioBanks > 3)
+                {
+                    InputData3 = (OutputData3 & 0x0000FFFF) | (value << 16);
+                    this.UpdateInterrupts(3, OutputData3, InputData3);
+                    OutputData3 = InputData3;
+                    this.DoPinOperation(3, value & 0xFFFF, 0x0000FFFF | value >> 16);
+                }
                 break;
             case RegistersOffsets.MaskableOutputData4Low:
+                if(numberOfGpioBanks > 4)
+                {
+                    InputData4 = (OutputData4 & 0xFFFF0000) | (value & 0xFFFF);
+                    this.UpdateInterrupts(4, OutputData4, InputData4);
+                    OutputData4 = InputData4;
+                    this.DoPinOperation(4, value & 0xFFFF, 0xFFFF0000 | value >> 16);
+                }
+                break;
             case RegistersOffsets.MaskableOutputData4Hi:
+                if(numberOfGpioBanks > 4)
+                {
+                    InputData4 = (OutputData4 & 0x0000FFFF) | (value << 16);
+                    this.UpdateInterrupts(4, OutputData4, InputData4);
+                    OutputData4 = InputData4;
+                    this.DoPinOperation(4, value & 0xFFFF, 0x0000FFFF | value >> 16);
+                }
+                break;
             case RegistersOffsets.MaskableOutputData5Low:
+                if(numberOfGpioBanks > 5)
+                {
+                    InputData5 = (OutputData5 & 0xFFFF0000) | (value & 0xFFFF);
+                    this.UpdateInterrupts(5, OutputData5, InputData5);
+                    OutputData5 = InputData5;
+                    this.DoPinOperation(5, value & 0xFFFF, 0xFFFF0000 | value >> 16);
+                }
+                break;
             case RegistersOffsets.MaskableOutputData5Hi:
-                this.WarningLog($"Write to EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported", offset);
+                if(numberOfGpioBanks > 5)
+                {
+                    InputData5 = (OutputData5 & 0x0000FFFF) | (value << 16);
+                    this.UpdateInterrupts(5, OutputData5, InputData5);
+                    OutputData5 = InputData5;
+                    this.DoPinOperation(5, value & 0xFFFF, 0x0000FFFF | value >> 16);
+                }
                 break;
             case RegistersOffsets.OutputData0:
-                OutputData0 = value;
-                this.DoPinOperation(0, value, 0);
+                this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
                 break;
             case RegistersOffsets.OutputData1:
-                OutputData1 = value;
-                this.DoPinOperation(1, value, 0);
+                this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
                 break;
             case RegistersOffsets.OutputData2:
-                OutputData2 = value;
-                this.DoPinOperation(2, value, 0);
+                this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
                 break;
             case RegistersOffsets.OutputData3:
-                OutputData2 = value;
-                this.DoPinOperation(2, value, 0);
+                this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
                 break;
             case RegistersOffsets.OutputData4:
+                this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
+                break;
             case RegistersOffsets.OutputData5:
-                this.WarningLog($"Write to EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported", offset);
+                this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
                 break;
             case RegistersOffsets.InputData0:
-                this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
+                InputData0 = value;
+                this.UpdateInterrupts(0, OutputData0, InputData0);
+                OutputData0 = InputData0;
+                this.DoPinOperation(0, value, 0);
                 break;
             case RegistersOffsets.InputData1:
-                this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
+                InputData1 = value;
+                this.UpdateInterrupts(1, OutputData1, InputData1);
+                OutputData1 = InputData1;
+                this.DoPinOperation(1, value, 0);
                 break;
             case RegistersOffsets.InputData2:
-                this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
+                if(numberOfGpioBanks > 2)
+                {
+                    InputData2 = value;
+                    this.UpdateInterrupts(2, OutputData2, InputData2);
+                    OutputData2 = InputData2;
+                    this.DoPinOperation(2, value, 0);
+                }
                 break;
             case RegistersOffsets.InputData3:
-                this.Log(LogLevel.Warning, "Writing read only register offset: {0:X} value: {1:X}", offset, value);
+                if(numberOfGpioBanks > 3)
+                {
+                    InputData3 = value;
+                    this.UpdateInterrupts(3, OutputData3, InputData3);
+                    OutputData3 = InputData3;
+                    this.DoPinOperation(3, value, 0);
+                }
                 break;
             case RegistersOffsets.InputData4:
+                if(numberOfGpioBanks > 4)
+                {
+                    InputData4 = value;
+                    this.UpdateInterrupts(4, OutputData4, InputData4);
+                    OutputData4 = InputData4;
+                    this.DoPinOperation(4, value, 0);
+                }
+                break;
             case RegistersOffsets.InputData5:
-                this.WarningLog($"Write to EMIO register at offset 0x{offset:X} ({(RegistersOffsets)offset}) is not supported", offset);
+                if(numberOfGpioBanks > 5)
+                {
+                    InputData5 = value;
+                    this.UpdateInterrupts(5, OutputData5, InputData5);
+                    OutputData5 = InputData5;
+                    this.DoPinOperation(5, value, 0);
+                }
                 break;
             default:
                 this.LogUnhandledWrite(offset, value);
                 break;
             }
         }
+
+        public override void OnGPIO(int number, bool value)
+        {
+            // Find the port this pin belongs to
+            int bank, offset;
+            this.PinToBank(number, out bank, out offset);
+
+            // Assert this pin is in, not out
+            if((portControllers[bank].OutputEnabled() & (1 << offset)) != 0)
+            {
+                this.Log(LogLevel.Warning, "OnGPIO: Trying to change an out port, skipping");
+                return;
+            }
+            // If the pin is in, update value
+            base.OnGPIO(number, value);
+
+            uint tmp;
+            switch(bank)
+            {
+            case 0:
+                if(value) tmp = OutputData0 | (uint)(1 << offset);
+                else tmp = OutputData0 & ~((uint)(1 << offset));
+                UpdateInterrupts(0, OutputData0, tmp);
+                OutputData0 = tmp;
+                break;
+            case 1:
+                if(value) tmp = OutputData1 | (uint)(1 << offset);
+                else tmp = OutputData1 & ~((uint)(1 << offset));
+                UpdateInterrupts(1, OutputData1, tmp);
+                OutputData1 = tmp;
+                break;
+            case 2:
+                if(value) tmp = OutputData2 | (uint)(1 << offset);
+                else tmp = OutputData2 & ~((uint)(1 << offset));
+                UpdateInterrupts(2, OutputData2, tmp);
+                OutputData2 = tmp;
+                break;
+            case 3:
+                if(value) tmp = OutputData3 | (uint)(1 << offset);
+                else tmp = OutputData3 & ~((uint)(1 << offset));
+                UpdateInterrupts(3, OutputData3, tmp);
+                OutputData3 = tmp;
+                break;
+            case 4:
+                if(value) tmp = OutputData4 | (uint)(1 << offset);
+                else tmp = OutputData4 & ~((uint)(1 << offset));
+                UpdateInterrupts(4, OutputData4, tmp);
+                OutputData4 = tmp;
+                break;
+            case 5:
+                if(value) tmp = OutputData5 | (uint)(1 << offset);
+                else tmp = OutputData5 & ~((uint)(1 << offset));
+                UpdateInterrupts(5, OutputData5, tmp);
+                OutputData5 = tmp;
+                break;
+            default: this.Log(LogLevel.Error, "GPIO {0} is in a bank bigger than 6, which should not be possible", number); break;
+            }
+        }
+
+        public GPIO IRQ { get; }
 
         public long Size
         {
@@ -184,10 +395,22 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        private static int GetNumberOfPins(string platform)
+        {
+            switch(platform)
+            {
+            case "Zynq": return 118; //54 MIO + 64 EMIO
+            case "ZynqMP": return 174; //78 MIO + 96 EMIO
+            case "Versal-PMC": return 116; // 52 MIO,
+            case "Versal-PS": return 58; // 26 MIO, 
+            default: throw new ConstructionException("This platform is not valid for GPIO peripheral XilinxGPIOPS.");
+            }
+        }
+
         private void DoPinOperation(int portNumber, uint value, uint mask)
         {
-            /* Port 1 is only 22 bit long, while all the others are 32 bit*/
-            var portLength = portNumber == 1 ? 21 : 31;
+            /* Compute port length based on portOffset array (that has been extended with the end of the port range as well) */
+            var portLength = portOffsets[portNumber + 1] - portOffsets[portNumber];
             var outputEnabled = portControllers[portNumber].OutputEnabled();
             for(int i = 0; i < portLength; i++)
             {
@@ -208,17 +431,80 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        private void PinToBank(int number, out int bank, out int offset)
+        {
+            bank = -1; offset = -1;
+            for(int i = 0; i < 6; i++) // 6 is the max case, will never be reached ; we will use break before that
+            {
+                if(number < portOffsets[i + 1]) { bank = i; break; }
+            }
+            if(bank < 0)
+            {
+                this.Log(LogLevel.Error, "No bank found for GPIO {0}", number);
+                return;
+            }
+
+            offset = number - (int)portOffsets[bank];
+            this.Log(LogLevel.Info, "OnGPIO: GPIO {0} has been calculated to be in bank {1}, offset {2}", number, bank, offset);
+        }
+
+        private void UpdateInterrupts(int bank, uint before, uint after)
+        {
+            GPIOController portController = portControllers[bank];
+
+            uint assert_low = ~after & portController.LevelLowInterrupt();
+            uint assert_high = after & portController.LevelHighInterrupt();
+            uint rising_edge = ~before & after & portController.RisingEdgeInterrupt();
+            uint falling_edge = before & ~after & portController.FallingEdgeInterrupt();
+
+            uint interrupt = assert_low | assert_high | rising_edge | falling_edge;
+            if(interrupt != 0)
+            {
+                this.Log(LogLevel.Info, "Conditions for interrupt on bank {0} have been met. Rising interrupt....", bank);
+                this.Log(LogLevel.Noisy, "Before value : {0} ; After value : {1}", before, after);
+                this.Log(LogLevel.Noisy, "Level Low : {0} ; Level High : {1} ; Rising Edge {2}, Falling Edge {3}", assert_low, assert_high, rising_edge, falling_edge);
+
+                portController.SetInterruptStatus(interrupt);
+            }
+        }
+
+        private void UpdateIRQLine()
+        {
+            // Regarder l'état de toutes les lignes d'interruption
+            // Mettre à jour selon leur état
+            bool allBankInterrupts = false;
+            for(int i = 0; i < numberOfGpioBanks; i++)
+            {
+                GPIOController control = portControllers[i];
+                if(control.GetInterruptStatus() != 0) allBankInterrupts = true;
+            }
+            IRQ.Set(allBankInterrupts);
+        }
+
         /* Registers */
         private uint OutputData0;
         private uint OutputData1;
         private uint OutputData2;
         private uint OutputData3;
+        private uint OutputData4;
+        private uint OutputData5;
+        private uint InputData0;
+        private uint InputData1;
+        private uint InputData2;
+        private uint InputData3;
+        private uint InputData4;
+        private uint InputData5;
+
+        private readonly uint[] portOffsets;
+        private readonly uint numberOfGpioBanks;
+        private readonly GPIOType[] bankType;
         private readonly RegisterMapper registerMapper = new RegisterMapper(typeof(RegistersOffsets));
-        private readonly uint[] portOffsets = new uint[] { 0, 32, 54, 86 };
 
         private readonly GPIOController[] portControllers;
 
-        /* Common register sets for the all the banks */
+        /* Common register sets for the all the banks
+         * This is where the interruption parameters are handled
+         */
         private class GPIOController
         {
             public GPIOController(XilinxGPIOPS parent, uint bankNumber)
@@ -237,6 +523,31 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 case RegistersOffsets.OutputEnable:
                     OutputEnable = value;
                     break;
+                case RegistersOffsets.InterruptMaskStatus:
+                    parentClass.Log(LogLevel.Warning, "Writing Read-only register, ignored");
+                    break;
+                case RegistersOffsets.InterruptEnable:
+                    InterruptMask |= value;
+                    break;
+                case RegistersOffsets.InterruptDisable:
+                    InterruptMask &= ~(value);
+                    break;
+                case RegistersOffsets.InterruptStatus:
+                    // Write 1 to clear
+                    InterruptStatus &= ~value;
+                    parentClass.UpdateIRQLine();
+                    break;
+                case RegistersOffsets.InterruptType:
+                    InterruptType = value; // This should be a mask but again, how to differenciate written bits to non-set bits... Rely on driver??
+                    break;
+                case RegistersOffsets.InterruptPolarity:
+                    InterruptPolarity = value;
+                    break;
+                case RegistersOffsets.InterruptAnyEdgeSensitive:
+                    // Update bits only if InterruptType is set to Edge = 1
+                    // So these should update only of Interrupt Type is 1
+                    InterruptOnAny = value & InterruptType;
+                    break;
                 default:
                     this.parentClass.LogUnhandledWrite(0x204 + this.bankNumber * 0x40 + offset, value);
                     break;
@@ -251,6 +562,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     return DirectionMode;
                 case RegistersOffsets.OutputEnable:
                     return OutputEnable;
+                case RegistersOffsets.InterruptMaskStatus:
+                    return ~InterruptMask; //Harwdare stores 1 = unmasked but software expects 1 = masked
+                case RegistersOffsets.InterruptEnable:
+                case RegistersOffsets.InterruptDisable:
+                    parentClass.Log(LogLevel.Warning, "Reading Write-1-to-set register, returning 0"); return 0;
+                case RegistersOffsets.InterruptStatus:
+                    return InterruptStatus;
+                case RegistersOffsets.InterruptType:
+                    return InterruptType;
+                case RegistersOffsets.InterruptPolarity:
+                    return InterruptPolarity;
+                case RegistersOffsets.InterruptAnyEdgeSensitive:
+                    return InterruptOnAny;
                 default:
                     this.parentClass.LogUnhandledRead(0x204 + this.bankNumber * 0x40 + offset);
                     return 0;
@@ -262,9 +586,46 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 return (uint)(DirectionMode & OutputEnable);
             }
 
+            public uint LevelLowInterrupt()
+            {
+                parentClass.Log(LogLevel.Noisy, "Interrupt type is 0x{0:X}, Interrupt polarity is 0x{1:X}, mask is 0x{2:X}", InterruptType, InterruptPolarity, InterruptMask);
+                return (uint)(~InterruptType & ~InterruptPolarity & InterruptMask);
+            }
+
+            public uint LevelHighInterrupt()
+            {
+                return (uint)(~InterruptType & InterruptPolarity & InterruptMask);
+            }
+
+            public uint RisingEdgeInterrupt()
+            {
+                return (uint)(InterruptType & (InterruptPolarity | InterruptOnAny) & InterruptMask);
+            }
+
+            public uint FallingEdgeInterrupt()
+            {
+                return (uint)(InterruptType & (~InterruptPolarity | InterruptOnAny) & InterruptMask);
+            }
+
+            public void SetInterruptStatus(uint status)
+            {
+                InterruptStatus |= status;
+                parentClass.UpdateIRQLine();
+            }
+
+            public uint GetInterruptStatus()
+            {
+                return InterruptStatus;
+            }
+
             /* Registers */
             private uint DirectionMode = 0x00;
             private uint OutputEnable = 0x00;
+            private uint InterruptMask = 0x00; // After Linux tests, seems like masked is 0 and 1 is not masked ; all interrupts are masked on reset
+            private uint InterruptStatus = 0x00; // No interrupt has happened on reset
+            private uint InterruptType = 0xFFFFFFFF; // 0 is level-sensitive ; 1 is edge-sensitive
+            private uint InterruptPolarity = 0x00; // O is low / falling-edge sensitive ; 1 is up / rising edge
+            private uint InterruptOnAny = 0x00; // Sensitive on both edges if 1 (polarity is ignored); sensitive on only 1 edge if 0
             private readonly XilinxGPIOPS parentClass;
             private readonly uint bankNumber;
 
@@ -275,20 +636,23 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 InterruptMaskStatus = 0x0C,
                 InterruptEnable = 0x10,
                 InterruptDisable = 0x14,
-                InterruptPolarity = 0x18,
-                InterruptAnyEdgeSensitive = 0x1C
+                InterruptStatus = 0x18,
+                InterruptType = 0x1C,
+                InterruptPolarity = 0x20,
+                InterruptAnyEdgeSensitive = 0x24,
             }
         }
 
-        /* For the future use
-        private uint InputData0;
-        private uint InputData1;
-        private uint InputData2;
-        private uint InputData3;
-        */
+        private enum GPIOType
+        {
+            MIO,
+            EMIO
+        }
+
         /* Offsets */
         private enum RegistersOffsets : uint
         {
+            // Used for partial GPIO within banks writes
             MaskableOutputData0Low = 0x000,
             MaskableOutputData0Hi  = 0x004,
             MaskableOutputData1Low = 0x008,
@@ -302,6 +666,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             MaskableOutputData5Low = 0x028,
             MaskableOutputData5Hi  = 0x02C,
 
+            // Used for full bank writes
             OutputData0 = 0x040,
             OutputData1 = 0x044,
             OutputData2 = 0x048,
