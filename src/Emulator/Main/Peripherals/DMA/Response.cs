@@ -12,5 +12,12 @@ namespace Antmicro.Renode.Peripherals.DMA
         public ulong? ReadAddress { get; set; }
 
         public ulong? WriteAddress { get; set; }
+
+        // The data is only present if the destination or source is a buffer, and not a memory address
+        // The data is read from either ReadAddress location or ReadData buffer
+        // And written to either WriteAddress location or WriteData buffer
+        public byte[] ReadData { get; set; }
+
+        public byte[] WriteData { get; set; }
     }
 }

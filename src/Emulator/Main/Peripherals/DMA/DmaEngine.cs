@@ -22,6 +22,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 ReadAddress = request.Source.Address,
                 WriteAddress = request.Destination.Address,
+
+                ReadData = request.Source.Array,
+                WriteData = request.Destination.Array,
             };
 
             var readLengthInBytes = (int)request.ReadTransferType;
