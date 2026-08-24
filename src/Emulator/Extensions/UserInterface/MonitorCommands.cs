@@ -1042,21 +1042,6 @@ namespace Antmicro.Renode.UserInterface
             return false;
         }
 
-        //TODO: unused, but maybe should be used.
-        private void PrintPython(IEnumerable<Token> p, ICommandInteraction writer)
-        {
-            if(!p.Any())
-            {
-                writer.WriteLine("\nPython commands:");
-                writer.WriteLine("===========================");
-                foreach(var command in pythonRunner.GetPythonCommands())
-                {
-                    writer.WriteLine(command);
-                }
-                writer.WriteLine();
-            }
-        }
-
         private IEnumerable<String> GetObjectSuggestions(object node)
         {
             if(node != null)
@@ -1608,13 +1593,6 @@ namespace Antmicro.Renode.UserInterface
             Hexadecimal,
             Decimal,
             Both,
-        }
-
-        private class MachineWithWasPaused
-        {
-            public Machine Machine { get; set; }
-
-            public bool WasPaused { get; set; }
         }
     }
 }

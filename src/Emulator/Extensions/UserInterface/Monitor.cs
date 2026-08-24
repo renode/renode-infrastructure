@@ -54,7 +54,7 @@ namespace Antmicro.Renode.UserInterface
             SetBasePath();
             InitCommands();
             emulationManager.CurrentEmulation.MachineAdded += RegisterResetCommand;
-            emulationManager.CurrentEmulation.MachineRemoved += UpdateMonitorPrompt;
+            emulationManager.CurrentEmulation.MachineRemoved += OnMachineRemoved;
             emulationManager.EmulationChanged += () =>
             {
                 Token oldOrigin;
@@ -462,14 +462,6 @@ namespace Antmicro.Renode.UserInterface
         public void BindStatic(string name, Func<object> objectServer)
         {
             staticObjectDelegateMappings[name] = objectServer;
-        }
-
-        public void OnMachineRemoved(Machine m)
-        {
-            if(m == CurrentMachine)
-            {
-                CurrentMachine = null;
-            }
         }
 
         public void RegisterCommand(Command command)
@@ -992,7 +984,7 @@ namespace Antmicro.Renode.UserInterface
             machine.PeripheralReset += ResetPeripheral;
         }
 
-        private void UpdateMonitorPrompt(IMachine machine)
+        private void OnMachineRemoved(IMachine machine)
         {
             if(CurrentMachine == machine)
             {
@@ -1314,8 +1306,6 @@ namespace Antmicro.Renode.UserInterface
         private readonly Dictionary<VariableType, Dictionary<string, Token>> variableCollections;
 
         private readonly Tokenizer.Tokenizer tokenizer = Tokenizer.Tokenizer.CreateTokenizer();
-
-        internal delegate void CommandHandler(IEnumerable<Token> p, ICommandInteraction w);
 
         private const string GlobalVariablePrefix = "global.";
 
