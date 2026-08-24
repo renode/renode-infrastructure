@@ -45,19 +45,19 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void For(ICommandInteraction writer, DecimalIntegerToken interval, LiteralToken deviceToken, params Token[] tokensArray)
+        public void Run(ICommandInteraction writer, DecimalIntegerToken interval, LiteralToken deviceToken, params Token[] tokensArray)
         {
-            For(writer, (TimeIntervalToken)interval, deviceToken, tokensArray);
+            Run(writer, (TimeIntervalToken)interval, deviceToken, tokensArray);
         }
 
         [Runnable]
-        public void For(ICommandInteraction writer, FloatToken interval, LiteralToken deviceToken, params Token[] tokensArray)
+        public void Run(ICommandInteraction writer, FloatToken interval, LiteralToken deviceToken, params Token[] tokensArray)
         {
-            For(writer, (TimeIntervalToken)interval, deviceToken, tokensArray);
+            Run(writer, (TimeIntervalToken)interval, deviceToken, tokensArray);
         }
 
         [Runnable]
-        public void For(ICommandInteraction writer, TimeIntervalToken interval, LiteralToken deviceToken, params Token[] tokensArray)
+        public void Run(ICommandInteraction writer, TimeIntervalToken interval, LiteralToken deviceToken, params Token[] tokensArray)
         {
             var tokens = tokensArray.AsEnumerable();
 
