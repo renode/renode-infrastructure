@@ -265,11 +265,7 @@ namespace Antmicro.Renode.Core
         public void LoadLatestSnapshot(bool autoStart = false)
         {
             var currentTimeStamp = CurrentEmulation.MasterTimeSource.ElapsedVirtualTime;
-            if(currentTimeStamp == TimeInterval.FromTicks(0))
-            {
-                throw new RecoverableException("There are no snapshots taken before this timestamp.");
-            }
-            LoadLatestSnapshot(currentTimeStamp - TimeInterval.FromTicks(1), autoStart);
+            LoadLatestSnapshot(currentTimeStamp, autoStart);
         }
 
         public void LoadLatestSnapshot(TimeInterval beforeOrAtTimestamp, bool autoStart = false)
