@@ -1152,6 +1152,22 @@ namespace Antmicro.Renode.Utilities
             return value / unit * unit;
         }
 
+        public static string TypePrettyName(Type type)
+        {
+            var genericArguments = type.GetGenericArguments();
+            if(genericArguments.Length == 0)
+            {
+                return type.Name;
+            }
+            if(type.GetGenericTypeDefinition() == typeof(Nullable<>) && genericArguments.Length == 1)
+            {
+                return genericArguments.Select(x => TypePrettyName(x) + "?").First();
+            }
+            var backtickIndex = type.Name.IndexOf("`", StringComparison.Ordinal);
+            var unmangledName = backtickIndex > 0 ? type.Name.Substring(0, backtickIndex) : type.Name;
+            return unmangledName + "<" + String.Join(",", genericArguments.Select(TypePrettyName)) + ">";
+        }
+
         public static string PrettyPrintFlagsEnum(Enum enumeration)
         {
             var values = new List<string>();

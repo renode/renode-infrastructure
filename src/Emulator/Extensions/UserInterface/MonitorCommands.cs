@@ -464,22 +464,6 @@ namespace Antmicro.Renode.UserInterface
             writer.WriteLine("".PadRight(lineLength, '-'));
         }
 
-        private static string TypePrettyName(Type type)
-        {
-            var genericArguments = type.GetGenericArguments();
-            if(genericArguments.Length == 0)
-            {
-                return type.Name;
-            }
-            if(type.GetGenericTypeDefinition() == typeof(Nullable<>) && genericArguments.Length == 1)
-            {
-                return genericArguments.Select(x => TypePrettyName(x) + "?").First();
-            }
-            var backtickIndex = type.Name.IndexOf("`", StringComparison.Ordinal);
-            var unmangledName = backtickIndex > 0 ? type.Name.Substring(0, backtickIndex) : type.Name;
-            return unmangledName + "<" + String.Join(",", genericArguments.Select(TypePrettyName)) + ">";
-        }
-
         private static readonly Dictionary<NumberModes, string> NumberFormats = new Dictionary<NumberModes, string> {
             { NumberModes.Both, "0x{0:X} ({0})" },
             { NumberModes.Decimal, "{0}" },
@@ -1307,7 +1291,7 @@ namespace Antmicro.Renode.UserInterface
                 foreach(var method in info.Methods.Where(x => lookup == null || x.Name == lookup))
                 {
                     writer.Write(" - ");
-                    writer.Write(TypePrettyName(method.ReturnType), ConsoleColor.Green);
+                    writer.Write(Misc.TypePrettyName(method.ReturnType), ConsoleColor.Green);
                     writer.Write($" {method.Name} (");
 
                     IEnumerable<ParameterInfo> parameters;
@@ -1333,7 +1317,7 @@ namespace Antmicro.Renode.UserInterface
                         {
                             writer.Write("params ", ConsoleColor.Yellow);
                         }
-                        writer.Write(TypePrettyName(param.ParameterType), ConsoleColor.Green);
+                        writer.Write(Misc.TypePrettyName(param.ParameterType), ConsoleColor.Green);
                         writer.Write($" {param.Name}");
 
                         if(param.IsOptional)
@@ -1373,7 +1357,7 @@ namespace Antmicro.Renode.UserInterface
                 foreach(var property in info.Properties.Where(x => lookup == null || x.Name == lookup))
                 {
                     writer.Write(" - ");
-                    writer.Write(TypePrettyName(property.PropertyType), ConsoleColor.Green);
+                    writer.Write(Misc.TypePrettyName(property.PropertyType), ConsoleColor.Green);
                     writer.WriteLine($" {property.Name}");
                     writer.Write("     available for ");
                     if(property.IsCurrentlyGettable(CurrentBindingFlags))
@@ -1403,13 +1387,13 @@ namespace Antmicro.Renode.UserInterface
                 foreach(var indexer in info.Indexers.Where(x => lookup == null || x.Name == lookup))
                 {
                     writer.Write(" - ");
-                    writer.Write(TypePrettyName(indexer.PropertyType), ConsoleColor.Green);
+                    writer.Write(Misc.TypePrettyName(indexer.PropertyType), ConsoleColor.Green);
                     writer.Write($" {indexer.Name}[");
                     var parameters = indexer.GetIndexParameters();
                     var lastParameter = parameters.LastOrDefault();
                     foreach(var param in parameters)
                     {
-                        writer.Write(TypePrettyName(param.ParameterType), ConsoleColor.Green);
+                        writer.Write(Misc.TypePrettyName(param.ParameterType), ConsoleColor.Green);
                         writer.Write($" {param.Name}");
                         if(param.IsOptional)
                         {
@@ -1465,7 +1449,7 @@ namespace Antmicro.Renode.UserInterface
                 foreach(var field in info.Fields.Where(x => lookup == null || x.Name == lookup))
                 {
                     writer.Write(" - ");
-                    writer.Write(TypePrettyName(field.FieldType), ConsoleColor.Green);
+                    writer.Write(Misc.TypePrettyName(field.FieldType), ConsoleColor.Green);
                     writer.Write($" {field.Name}");
                     if(field.IsLiteral || field.IsInitOnly)
                     {
