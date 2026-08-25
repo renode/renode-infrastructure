@@ -390,7 +390,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         }
 
         /// <remarks>Doesn't include peripherals registered using NullRegistrationPoints.</remarks>
-        public IEnumerable<BusRangeRegistration> GetRegistrationPoints(IBusPeripheral peripheral, ICPU context = null)
+        public IEnumerable<BusRangeRegistration> GetRegistrationPoints(IBusPeripheral peripheral, ICPU context)
         {
             return GetAccessiblePeripheralsForContext(context)
                 .Where(x => x.Peripheral == peripheral)
