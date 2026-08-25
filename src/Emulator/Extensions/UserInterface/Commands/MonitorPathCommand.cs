@@ -5,8 +5,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using System;
-
 using Antmicro.Renode.UserInterface.Tokenizer;
 
 using AntShell.Commands;
@@ -25,12 +23,12 @@ namespace Antmicro.Renode.UserInterface.Commands
             base.PrintHelp(writer);
             writer.WriteLine();
             PrintCurrentPath(writer);
-            writer.WriteLine(string.Format("Default 'PATH' value is: {0}", monitorPath.DefaultPath));
+            writer.WriteLine($"Default 'PATH' value is: {monitorPath.DefaultPath}");
             writer.WriteLine();
             writer.WriteLine("You can use following commands:");
-            writer.WriteLine(String.Format("'{0} set @path'\tto set 'PATH' to the given value", Name));
-            writer.WriteLine(String.Format("'{0} add @path'\tto prepend the given value to 'PATH'", Name));
-            writer.WriteLine(String.Format("'{0} reset'\t\tto reset 'PATH' to it's default value", Name));
+            writer.WriteLine($"'{Name} set @path'\tto set 'PATH' to the given value");
+            writer.WriteLine($"'{Name} add @path'\tto prepend the given value to 'PATH'");
+            writer.WriteLine($"'{Name} reset'\t\tto reset 'PATH' to it's default value");
         }
 
         [Runnable]

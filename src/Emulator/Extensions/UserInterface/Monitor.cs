@@ -84,10 +84,8 @@ namespace Antmicro.Renode.UserInterface
 
         public bool TryLoadPlatform(string filename, ICommandInteraction writer = null)
         {
-            if(writer == null)
-            {
-                writer = Interaction;
-            }
+            writer = writer ?? Interaction;
+
             if(Machine == null)
             {
                 var machine = new Machine();
@@ -124,10 +122,7 @@ namespace Antmicro.Renode.UserInterface
 
         public bool Parse(string cmd, ICommandInteraction writer = null)
         {
-            if(writer == null)
-            {
-                writer = Interaction;
-            }
+            writer = writer ?? Interaction;
 
             if(stringEaterMode > 0)
             {
@@ -257,42 +252,16 @@ namespace Antmicro.Renode.UserInterface
                     return false;
                 }
             }
-            catch(Exception e)
+            catch(Exception e) when(swallowExceptions && e.IsExceptionRecoverable(allowAggregate: true))
             {
-                var ex = e as AggregateException;
-                if(ex != null)
+                var contextMessage = String.Join(" ", result.Select(x => x.OriginalValue));
+
+                foreach(var ex in (IEnumerable<Exception>)(e as AggregateException)?.InnerExceptions ?? new[] { e })
                 {
-                    if(ex.InnerExceptions.Any(x => !(x is RecoverableException)))
-                    {
-                        throw;
-                    }
+                    PrintException(contextMessage, ex, writer);
                 }
-                else if(!(e is RecoverableException))
-                {
-                    throw;
-                }
-                if(swallowExceptions)
-                {
-                    if(ex != null)
-                    {
-                        foreach(var inner in ex.InnerExceptions)
-                        {
-                            PrintException(String.Join(" ", result.Select(x => x.OriginalValue)), inner, writer);
-                        }
-                    }
-                    else
-                    {
-                        PrintException(String.Join(" ", result.Select(x => x.OriginalValue)), e, writer);
-                    }
-                    if(breakOnException)
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    throw;
-                }
+
+                return !breakOnException;
             }
             return true;
         }
@@ -304,10 +273,7 @@ namespace Antmicro.Renode.UserInterface
 
         public bool TryExecuteScript(string filename, ICommandInteraction writer = null)
         {
-            if(writer == null)
-            {
-                writer = Interaction;
-            }
+            writer = writer ?? Interaction;
 
             Token oldOrigin;
             var originalFilename = filename;
@@ -391,10 +357,7 @@ namespace Antmicro.Renode.UserInterface
 
         public bool TryCompilePlugin(string[] filenames, ICommandInteraction writer = null)
         {
-            if(writer == null)
-            {
-                writer = Interaction;
-            }
+            writer = writer ?? Interaction;
 
             // Sort filenames to have consistent order when calculating hash
             Array.Sort(filenames);
@@ -571,32 +534,6 @@ namespace Antmicro.Renode.UserInterface
                 return path;
             }
             return path.StartsWith(prefix, StringComparison.Ordinal) ? path.Substring(prefix.Length + (prefix.EndsWith(Path.DirectorySeparatorChar) ? 0 : 1)) : path;
-        }
-
-        private static String AllButLastAndAggregate(IEnumerable<String> value, bool dontDropLast = false)
-        {
-            if(dontDropLast)
-            {
-                return value.Any() ? value.Aggregate((x, y) => x + ' ' + y) : string.Empty;
-            }
-            var list = value.ToList();
-            if(list.Count < 2)
-            {
-                return String.Empty;
-            }
-            var output = AllButLast(value);
-            return output.Aggregate((x, y) => x + ' ' + y);
-        }
-
-        private static IEnumerable<T> AllButLast<T>(IEnumerable<T> value) where T : class
-        {
-            var list = value.ToList();
-            if(list.Any())
-            {
-                var last = list.Last();
-                return list.Where(x => x != last);
-            }
-            return value;
         }
 
         private static string FindLastCommandInString(string origin)
@@ -794,25 +731,11 @@ namespace Antmicro.Renode.UserInterface
             return info.AllNames.Contains(name);
         }
 
-        private object FromStaticMapping(string name)
-        {
-            Func<object> value;
-            if(staticObjectDelegateMappings.TryGetValue(name, out value))
-            {
-                return value();
-            }
-            return null;
-        }
+        private object FromStaticMapping(string name) =>
+            staticObjectDelegateMappings.GetOrDefault(name)?.Invoke();
 
-        private object FromMapping(string name)
-        {
-            Func<object> value;
-            if(objectDelegateMappings.TryGetValue(name, out value))
-            {
-                return value();
-            }
-            return null;
-        }
+        private object FromMapping(string name) =>
+            objectDelegateMappings.GetOrDefault(name)?.Invoke();
 
         private IEnumerable<String> SuggestCommands(String prefix)
         {
@@ -826,16 +749,20 @@ namespace Antmicro.Renode.UserInterface
             {
                 lastElement = prefixSplit.Last();
             }
-            var allButLastOptional = AllButLastAndAggregate(prefixSplit, prefix.EndsWith(' '));
+
+            var optionalInput = prefix.EndsWith(' ') ? prefixSplit : prefixSplit.SkipLast(1);
+            var allButLastOptional = string.Join(' ', optionalInput);
             if(!string.IsNullOrEmpty(allButLastOptional))
             {
                 allButLastOptional += ' ';
             }
-            var allButLast = AllButLastAndAggregate(prefixSplit);
+
+            var allButLast = string.Join(' ', prefixSplit.SkipLast(1));
             if(!string.IsNullOrEmpty(allButLast))
             {
                 allButLast += ' ';
             }
+
             //paths
             if(lastElement.StartsWith('@'))
             {

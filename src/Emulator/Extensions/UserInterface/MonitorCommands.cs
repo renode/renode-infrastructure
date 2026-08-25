@@ -1495,7 +1495,7 @@ namespace Antmicro.Renode.UserInterface
         {
             var device = FromStaticMapping(name);
             var iface = GetExternalInterfaceOrNull(name);
-            device = device ?? FromMapping(name) ?? iface ?? (object)Machine[name];
+            device = device ?? FromMapping(name) ?? iface ?? Machine[name];
             return device;
         }
 
@@ -1581,7 +1581,7 @@ namespace Antmicro.Renode.UserInterface
 
             IEnumerator IEnumerable.GetEnumerator()
             {
-                return ((IEnumerable)Tokens).GetEnumerator();
+                return Tokens.GetEnumerator();
             }
 
             public readonly List<Token> Tokens = new List<Token>();
