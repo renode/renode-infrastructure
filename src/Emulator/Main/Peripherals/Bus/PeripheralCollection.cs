@@ -306,6 +306,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             public void Dispose()
             {
                 sync.Dispose();
+                lastBlockStorage.Dispose();
             }
 
             public IEnumerable<IBusRegistered<IBusPeripheral>> Peripherals

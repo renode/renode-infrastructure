@@ -118,6 +118,7 @@ namespace Antmicro.Renode.Core
             Profiler = null;
 
             atomicState.Dispose();
+            clockSource.Dispose();
 
             EmulationManager.Instance.CurrentEmulation.BackendManager.HideAnalyzersFor(this);
         }

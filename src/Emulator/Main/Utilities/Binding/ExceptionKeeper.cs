@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -12,7 +12,7 @@ using System.Threading;
 
 namespace Antmicro.Renode.Utilities.Binding
 {
-    public class ExceptionKeeper
+    public class ExceptionKeeper : IDisposable
     {
         public void AddException(Exception e)
         {
@@ -55,6 +55,11 @@ namespace Antmicro.Renode.Utilities.Binding
             {
                 Console.WriteLine(exception.SourceException);
             }
+        }
+
+        public void Dispose()
+        {
+            exceptions.Dispose();
         }
 
         private readonly ThreadLocal<List<ExceptionDispatchInfo>> exceptions = new ThreadLocal<List<ExceptionDispatchInfo>>(() => new List<ExceptionDispatchInfo>());

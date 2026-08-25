@@ -370,6 +370,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             base.Dispose();
             profiler?.Dispose();
             localAtomicState?.Dispose();
+            pauseGuard.TrueDispose();
         }
 
         public void SetHookAtBlockEnd(Action<ulong, uint> hook)
@@ -2469,6 +2470,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             public void InitializeForReading(ulong address, SysbusAccessWidth width)
             {
                 InterruptTransaction = !ExecuteWatchpoints(address, width, null);
+            }
+
+            // We use `IDisposable.Dispose` to unlock the guard (this class is meant to be used in a `using`),
+            // but we also need to expose a method to dispose resources
+            public void TrueDispose()
+            {
+                guard.Dispose();
             }
 
             public bool InterruptTransaction { get; private set; }

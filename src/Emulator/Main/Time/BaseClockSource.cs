@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -15,7 +15,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Time
 {
-    public class BaseClockSource : IClockSource
+    public class BaseClockSource : IClockSource, IDisposable
     {
         public BaseClockSource(bool skipAdvancesHigherThanNearestLimit = false)
         {
@@ -237,6 +237,12 @@ namespace Antmicro.Renode.Time
                     AddClockEntry(entry);
                 }
             }
+        }
+
+        public void Dispose()
+        {
+            reupdateNeeded.Dispose();
+            updateAlreadyInProgress.Dispose();
         }
 
         public TimeInterval NearestLimitIn

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -9,7 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using Antmicro.Migrant;
+using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
@@ -30,7 +30,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             shortAddress = new Address(AddressingMode.ShortAddress);
             extendedAddress = new Address(AddressingMode.ExtendedAddress);
-            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             IRQ = new GPIO();
 
             srcShortEnabled = new bool[24];
@@ -155,6 +154,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             registers = new DoubleWordRegisterCollection(this, addresses);
 
             Reset();
+            SetRandomNumberGenerator();
         }
 
         public uint ReadDoubleWord(long offset)
@@ -783,9 +783,16 @@ namespace Antmicro.Renode.Peripherals.Wireless
                            | (ffsmMemory[32 * id + 6] << 8) | ffsmMemory[32 * id + 7]);
         }
 
+        [PostDeserialization]
+        private void SetRandomNumberGenerator()
+        {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+        }
+
         private int txPendingCounter;
         private int currentFrameOffset;
         private FSMStates fsmState;
+        private PseudorandomNumberGenerator random;
 
         private readonly DoubleWordRegisterCollection registers;
         private readonly IFlagRegisterField autoAck;
@@ -816,8 +823,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private readonly Address extendedAddress;
         private readonly Queue<Frame> rxQueue;
         private readonly Queue<byte> txQueue;
-        [Constructor]
-        private readonly PseudorandomNumberGenerator random;
 
         private const uint NoSourceIndex = 0x3F;
         private const int BroadcastPanIdentifier = 0xFFFF;

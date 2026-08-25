@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,7 +18,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
     // OpenTitan HMAC AES as per https://docs.opentitan.org/hw/ip/aes/doc/ (16.09.2021)
-    public class OpenTitan_AES : BasicDoubleWordPeripheral, IKnownSize, ISideloadableKey
+    public class OpenTitan_AES : BasicDoubleWordPeripheral, IKnownSize, ISideloadableKey, IDisposable
     {
         public OpenTitan_AES(IMachine machine) : base(machine)
         {
@@ -35,6 +35,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             key = new byte[InitialKeyShareLengthInBytes];
             random = new PseudorandomNumberGenerator();
             Reset();
+        }
+
+        public void Dispose()
+        {
+            random.Dispose();
         }
 
         public override void Reset()

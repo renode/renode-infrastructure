@@ -15,7 +15,7 @@ using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Core
 {
-    public sealed class PseudorandomNumberGenerator
+    public sealed class PseudorandomNumberGenerator : IDisposable
     {
         public PseudorandomNumberGenerator()
         {
@@ -76,6 +76,11 @@ namespace Antmicro.Renode.Core
         public void GetItems<T>(ReadOnlySpan<T> choices, Span<T> destination)
         {
             GetOrCreateGenerator().GetItems(choices, destination);
+        }
+
+        public void Dispose()
+        {
+            generator.Dispose();
         }
 
         private static int baseSeed = new Random().Next();

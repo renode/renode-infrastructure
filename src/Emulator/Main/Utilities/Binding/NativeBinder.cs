@@ -66,7 +66,8 @@ namespace Antmicro.Renode.Utilities.Binding
             var classType = classToBind.GetType().IsSubclassOf(typeof(Type)) ? (Type)classToBind : classToBind.GetType();
             var importFields = classType.GetAllFields().Where(x => x.IsDefined(typeof(ImportAttribute), false)).ToList();
             EnsureWrappersType(importFields);
-            wrappersObj = CreateWrappersObject();
+            exceptionKeeper = new ExceptionKeeper();
+            wrappersObj = CreateWrappersObject(exceptionKeeper);
             try
             {
                 ResolveCallsToNative(importFields);
@@ -81,6 +82,7 @@ namespace Antmicro.Renode.Utilities.Binding
 
         public void Dispose()
         {
+            exceptionKeeper.Dispose();
             DisposeInner();
             GC.SuppressFinalize(this);
         }
@@ -262,10 +264,10 @@ namespace Antmicro.Renode.Utilities.Binding
             }
         }
 
-        private object CreateWrappersObject()
+        private object CreateWrappersObject(ExceptionKeeper keeper)
         {
             var wrappers = Activator.CreateInstance(wrappersType);
-            exceptionKeeperField.SetValue(wrappers, new ExceptionKeeper());
+            exceptionKeeperField.SetValue(wrappers, keeper);
             instanceField.SetValue(wrappers, classToBind);
             return wrappers;
         }
@@ -490,5 +492,6 @@ namespace Antmicro.Renode.Utilities.Binding
         private readonly string libraryFileName;
         private readonly object classToBind;
         private readonly object wrappersObj;
+        private readonly ExceptionKeeper exceptionKeeper;
     }
 }
