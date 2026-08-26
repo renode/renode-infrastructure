@@ -41,7 +41,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 Logger.LogAs(this, LogLevel.Debug, "Reverse stepping. Executed Instructions: {0}", executedInstructions);
                 while(instructionsExecutedBetweenSnapshots == 0)
                 {
-                    commandsManager.LoadLatestSnapshot((CommandsManager newManager) => commandsManager = newManager);
+                    commandsManager.LoadLatestSnapshotBefore((CommandsManager newManager) => commandsManager = newManager);
 
                     instructionsExecutedBetweenSnapshots = executedInstructions - commandsManager.Cpu.ExecutedInstructions;
                     Logger.LogAs(this, LogLevel.Debug, "Loaded previous snapshot. Instructions executed between snapshots: {0}", instructionsExecutedBetweenSnapshots);
@@ -91,9 +91,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 do
                 {
                     var executedInstructions = commandsManager.Cpu.ExecutedInstructions;
-                    var time = EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ElapsedVirtualTime - TimeInterval.FromTicks(1);
+                    var time = EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ElapsedVirtualTime;
                     Logger.LogAs(this, LogLevel.Debug, "Loading snapshot with max virtual time: {0}", time);
-                    commandsManager.LoadLatestSnapshot(time, newManager => commandsManager = newManager);
+                    commandsManager.LoadLatestSnapshotBefore(time, newManager => commandsManager = newManager);
 
                     // We disable AutoSnapshotCreator here to make sure it does not create any new state during search.
                     // It is not re-enabled because same snapshot is reloaded at the end of the loop anyway.
@@ -106,7 +106,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                     commandsManager.RemoveAllBreakpoints();
                     found = TryRunForToFindLastBreakpoint(commandsManager.Cpu, EmulationManager.Instance.CurrentEmulation.AutoSnapshotCreator.Period, executedInstructions, hooksAddresses, out foundExecutedInstructions, out foundBreakpointAddress);
 
-                    commandsManager.LoadLatestSnapshot(time, newManager => commandsManager = newManager);
+                    commandsManager.LoadLatestSnapshotBefore(time, newManager => commandsManager = newManager);
                 } while(!found && EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ElapsedVirtualTime.Ticks > 0);
 
                 commandsManager.RemoveAllBreakpoints();

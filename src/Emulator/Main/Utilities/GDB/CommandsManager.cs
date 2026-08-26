@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -175,13 +175,13 @@ namespace Antmicro.Renode.Utilities.GDB
             breakpointCommand.RemoveAllWatchpoints();
         }
 
-        public void LoadLatestSnapshot(Action<CommandsManager> onLoadAction = null)
+        public void LoadLatestSnapshotBefore(Action<CommandsManager> onLoadAction = null)
         {
             var currentTimeStamp = EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ElapsedVirtualTime;
-            LoadLatestSnapshot(currentTimeStamp - TimeInterval.FromTicks(1), onLoadAction);
+            LoadLatestSnapshotBefore(currentTimeStamp, onLoadAction);
         }
 
-        public void LoadLatestSnapshot(TimeInterval beforeOrAtTimeStamp, Action<CommandsManager> onLoadAction = null)
+        public void LoadLatestSnapshotBefore(TimeInterval beforeTimeStamp, Action<CommandsManager> onLoadAction = null)
         {
             if(Machine.GdbStubs.Count > 1)
             {
@@ -190,7 +190,7 @@ namespace Antmicro.Renode.Utilities.GDB
             var port = Machine.GdbStubs.Values.First().Terminal.Port.Value;
             var machineName = Machine.ToString();
 
-            EmulationManager.Instance.LoadLatestSnapshot(beforeOrAtTimeStamp);
+            EmulationManager.Instance.LoadLatestSnapshot(beforeTimeStamp - TimeInterval.FromTicks(1));
             if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(machineName, out var newMachine))
             {
                 throw new RecoverableException("Machine was not found in the snapshot.");
