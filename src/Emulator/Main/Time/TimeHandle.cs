@@ -429,7 +429,11 @@ namespace Antmicro.Renode.Time
                 // it does not allow the handle to be disposed when in use
                 Enabled = false;
 
+                // This will signal `HandlesCollection` to remove this handle
+                // from the list
                 DetachRequested = true;
+                TimeSource.StopRequested -= RequestPause;
+
                 sinkSideInProgress = false;
                 sourceSideInProgress = false;
                 reportPending = false;

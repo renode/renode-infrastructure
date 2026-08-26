@@ -103,6 +103,11 @@ namespace Antmicro.Renode.Core
             DetachIncomingInterrupts(registeredPeripherals.ToArray());
             DetachOutgoingInterrupts(registeredPeripherals);
 
+            if(localTimeSource != null)
+            {
+                localTimeSource.TimePassed -= HandleTimeProgress;
+            }
+
             // ordering below is due to the fact that the CPU can use other peripherals, e.g. Memory so it should be disposed first
             // Mapped memory can be used as storage by other disposable peripherals which may want to read it while being disposed
             foreach(var peripheral in GetPeripheralsOfType<IDisposable>().OrderBy(x => x is ICPU ? 0 : x is IMapped ? 2 : 1))
