@@ -121,6 +121,25 @@ namespace Antmicro.Renode.Core
             PauseAll();
         }
 
+        public void RunUntil(TimeInterval targetTimestamp)
+        {
+            if(IsStarted)
+            {
+                throw new RecoverableException("This action is not available when emulation is already started");
+            }
+            var elapsedTime = MasterTimeSource.ElapsedVirtualTime;
+
+            if(elapsedTime >= targetTimestamp)
+            {
+                Logger.Log(LogLevel.Warning, "Given timestamp '{0}' is from the past. Current elapsed virtual time is {1}", targetTimestamp, elapsedTime);
+                return;
+            }
+
+            InnerStartAll();
+            MasterTimeSource.RunFor(targetTimestamp - elapsedTime);
+            PauseAll();
+        }
+
         public void RunFor(TimeInterval period)
         {
             if(IsStarted)
