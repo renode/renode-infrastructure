@@ -326,7 +326,7 @@ namespace Antmicro.Renode.UserInterface
         public bool TryFindPeripheralByName(string name, out IPeripheral peripheral, out string longestMatch, out string actualName)
         {
             actualName = name;
-            if(CurrentMachine == null)
+            if(Machine == null)
             {
                 longestMatch = string.Empty;
                 peripheral = null;
@@ -334,12 +334,12 @@ namespace Antmicro.Renode.UserInterface
             }
 
             var longestPrefix = string.Empty;
-            var ret = CurrentMachine.TryGetByName(name, out peripheral, out var longestMatching);
+            var ret = Machine.TryGetByName(name, out peripheral, out var longestMatching);
             if(!ret)
             {
                 foreach(var prefix in usings)
                 {
-                    ret = CurrentMachine.TryGetByName(prefix + name, out peripheral, out var currentMatch);
+                    ret = Machine.TryGetByName(prefix + name, out peripheral, out var currentMatch);
                     if(longestMatching.Split('.').Length < currentMatch.Split('.').Length - prefix.Split('.').Length)
                     {
                         longestMatching = currentMatch;
@@ -620,7 +620,7 @@ namespace Antmicro.Renode.UserInterface
             if(parameters.Count > 0 && typeof(IMachine).IsAssignableFrom(parameters[0].ParameterType)
                 && Attribute.IsDefined(parameters[0], typeof(AutoParameterAttribute)))
             {
-                result.Add(CurrentMachine);
+                result.Add(Machine);
                 parameters = parameters.Skip(1).ToList();
             }
 
@@ -840,10 +840,10 @@ namespace Antmicro.Renode.UserInterface
                     }
                 }
 
-                if(CurrentMachine != null)
+                if(Machine != null)
                 {
                     IPeripheralsGroup group;
-                    if(CurrentMachine.PeripheralsGroups.TryGetByName((string)value, out group))
+                    if(Machine.PeripheralsGroups.TryGetByName((string)value, out group))
                     {
                         if(type.IsInstanceOfType(group))
                         {
@@ -1070,7 +1070,7 @@ namespace Antmicro.Renode.UserInterface
         {
             var staticBound = FromStaticMapping(name);
             var iface = GetExternalInterfaceOrNull(name);
-            if(CurrentMachine != null || staticBound != null || iface != null)
+            if(Machine != null || staticBound != null || iface != null)
             {
                 var boundObject = staticBound ?? FromMapping(name) ?? iface;
                 if(boundObject != null)
@@ -1272,7 +1272,7 @@ namespace Antmicro.Renode.UserInterface
         {
             var staticBound = FromStaticMapping(name);
             var iface = GetExternalInterfaceOrNull(name);
-            if(CurrentMachine != null || staticBound != null || iface != null)
+            if(Machine != null || staticBound != null || iface != null)
             { //special cases
                 var boundElement = staticBound ?? FromMapping(name);
                 if(boundElement != null)
@@ -1495,7 +1495,7 @@ namespace Antmicro.Renode.UserInterface
         {
             var device = FromStaticMapping(name);
             var iface = GetExternalInterfaceOrNull(name);
-            device = device ?? FromMapping(name) ?? iface ?? (object)CurrentMachine[name];
+            device = device ?? FromMapping(name) ?? iface ?? (object)Machine[name];
             return device;
         }
 

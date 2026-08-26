@@ -88,11 +88,11 @@ namespace Antmicro.Renode.UserInterface
             {
                 writer = Interaction;
             }
-            if(CurrentMachine == null)
+            if(Machine == null)
             {
                 var machine = new Machine();
                 EmulationManager.Instance.CurrentEmulation.AddMachine(machine);
-                CurrentMachine = machine;
+                Machine = machine;
             }
             var path = new PathToken(filename);
             var command = new LiteralToken("LoadPlatformDescription");
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.UserInterface
 
         public bool SetPeripheralMacro(IPeripheral peripheral, string macroName, string contents, IMachine machine = null)
         {
-            machine = machine ?? CurrentMachine;
+            machine = machine ?? Machine;
             string variablePrefix;
             if(peripheral == null)
             {
@@ -537,12 +537,14 @@ namespace Antmicro.Renode.UserInterface
         {
             get
             {
-                return CurrentMachine;
+                return currentMachine;
             }
 
             set
             {
-                CurrentMachine = value;
+                currentMachine = value;
+
+                MachineChanged?.Invoke(MachineName);
             }
         }
 
@@ -742,9 +744,9 @@ namespace Antmicro.Renode.UserInterface
 
         private IEnumerable<string> GetAvailableNames()
         {
-            if(CurrentMachine != null)
+            if(Machine != null)
             {
-                return CurrentMachine.GetAllNames().Union(Emulation.ExternalsManager.GetNames().Union(staticObjectDelegateMappings.Keys.Union(objectDelegateMappings.Keys)));
+                return Machine.GetAllNames().Union(Emulation.ExternalsManager.GetNames().Union(staticObjectDelegateMappings.Keys.Union(objectDelegateMappings.Keys)));
             }
             return Emulation.ExternalsManager.GetNames().Union(staticObjectDelegateMappings.Keys);
         }
@@ -770,7 +772,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 return true;
             }
-            if(CurrentMachine != null)
+            if(Machine != null)
             {
                 newName = $"{MachineNameNormalized}.{varName}";
                 if(collection.TryGetValue(newName, out expandedVariable))
@@ -986,9 +988,9 @@ namespace Antmicro.Renode.UserInterface
 
         private void OnMachineRemoved(IMachine machine)
         {
-            if(CurrentMachine == machine)
+            if(Machine == machine)
             {
-                CurrentMachine = null;
+                Machine = null;
             }
         }
 
@@ -1001,9 +1003,9 @@ namespace Antmicro.Renode.UserInterface
         {
             Emulation.MachineExchanged += (oldMachine, newMachine) =>
             {
-                if(CurrentMachine == oldMachine)
+                if(Machine == oldMachine)
                 {
-                    CurrentMachine = newMachine;
+                    Machine = newMachine;
                 }
             };
         }
@@ -1029,11 +1031,11 @@ namespace Antmicro.Renode.UserInterface
                 return result;
             }));
             Commands.Add(includeCommand);
-            Commands.Add(new CreatePlatformCommand(this, x => CurrentMachine = x));
+            Commands.Add(new CreatePlatformCommand(this, x => Machine = x));
             Commands.Add(new UsingCommand(this, () => usings));
-            Commands.Add(new QuitCommand(this, x => CurrentMachine = x, () => Quitted));
-            Commands.Add(new PeripheralsCommand(this, () => CurrentMachine));
-            Commands.Add(new TagsCommand(this, () => CurrentMachine));
+            Commands.Add(new QuitCommand(this, x => Machine = x, () => Quitted));
+            Commands.Add(new PeripheralsCommand(this, () => Machine));
+            Commands.Add(new TagsCommand(this, () => Machine));
             Commands.Add(new MonitorPathCommand(this, monitorPath));
             Commands.Add(new StartCommand(this, includeCommand));
             Commands.Add(new SetCommand(this, "set", "VARIABLE", (x, y) => SetVariable(x, y, variables), (x, y) => EnableStringEater(x, y, VariableType.Variable),
@@ -1045,7 +1047,7 @@ namespace Antmicro.Renode.UserInterface
             Commands.Add(new PythonExecuteCommand(this, x => ExpandVariable(x, variables), (x, y) => pythonRunner.ExecutePythonCommand(x, y)));
             Commands.Add(new ExecuteCommand(this, "execute", "VARIABLE", x => ExpandVariable(x, variables), () => variables.Keys));
             Commands.Add(new ExecuteCommand(this, "runMacro", "MACRO", x => ExpandVariable(x, macros), () => macros.Keys));
-            Commands.Add(new MachCommand(this, () => CurrentMachine, x => CurrentMachine = x));
+            Commands.Add(new MachCommand(this, () => Machine, x => Machine = x));
             Commands.Add(new ResdCommand(this));
             Commands.Add(new VerboseCommand(this, x => verboseMode = x));
             Commands.Add(new SetAndRevertAfterCommand(this, new DeviceHandlingHelpers(this)));
@@ -1184,7 +1186,7 @@ namespace Antmicro.Renode.UserInterface
 
             if(elements.Length == 1 || (!elements[0].Equals("global") && !EmulationManager.Instance.CurrentEmulation.Names.Select(x => x.Replace("-", "_")).Any(x => x == elements[0])))
             {
-                if(CurrentMachine != null)
+                if(Machine != null)
                 {
                     variableName = $"{MachineNameNormalized}.{variableName}";
                 }
@@ -1198,9 +1200,9 @@ namespace Antmicro.Renode.UserInterface
 
         private IDisposable ObtainMachineContext(IMachine machine)
         {
-            var activeMachine = _currentMachine;
-            _currentMachine = machine;
-            return DisposableWrapper.New(() => _currentMachine = activeMachine);
+            var activeMachine = currentMachine;
+            currentMachine = machine;
+            return DisposableWrapper.New(() => currentMachine = activeMachine);
         }
 
         private void PrintExceptionDetails(Exception e, ICommandInteraction writer, int tab = 0)
@@ -1254,25 +1256,6 @@ namespace Antmicro.Renode.UserInterface
 
         private HashSet<Command> Commands { get; set; }
 
-        private IMachine CurrentMachine
-        {
-            get
-            {
-                return _currentMachine;
-            }
-
-            set
-            {
-                _currentMachine = value;
-
-                var mc = MachineChanged;
-                if(mc != null)
-                {
-                    mc(MachineName);
-                }
-            }
-        }
-
         private Emulation Emulation
         {
             get
@@ -1285,7 +1268,7 @@ namespace Antmicro.Renode.UserInterface
 
         private string MachineNameNormalized => MachineName?.Replace("-", "_") ?? null;
 
-        private IMachine _currentMachine;
+        private IMachine currentMachine;
         private string stringEaterVariableName = "";
         private VariableType? recordingType;
         private string stringEaterValue = "";
