@@ -109,6 +109,7 @@ namespace Antmicro.Renode.Time
             DeferredEnabled = true;
 
             TimeSource = timeSource;
+            timeSource.StopRequested += RequestPause;
 
             // we should not assign this handle to TimeSink as the source might not be configured properly yet
             TimeSink = timeSink;

@@ -142,7 +142,6 @@ namespace Antmicro.Renode.Time
             using(sync.HighPriority)
             {
                 var handle = new TimeHandle(this, sink) { SourceSideActive = isStarted };
-                StopRequested += handle.RequestPause;
                 handles.Add(handle);
 #if DEBUG
                 this.Trace($"Registering sink ({(sink as IIdentifiable)?.GetDescription()}) in source ({this.GetDescription()}) via handle ({handle.GetDescription()})");
@@ -339,6 +338,14 @@ namespace Antmicro.Renode.Time
         /// An event called when the time source is blocked by at least one of the sinks.
         /// </summary>
         public event Action BlockHook;
+
+        /// <summary>
+        /// Used to request a pause on sinks before trying to acquire their locks.
+        /// </summary>
+        /// <remarks>
+        /// Triggering this event can improve pausing efficiency by interrupting the sink execution in the middle of a quant.
+        /// </remarks>
+        public event Action StopRequested;
 
         /// <summary>
         /// Execute one iteration of time-granting loop.
@@ -781,14 +788,6 @@ namespace Antmicro.Renode.Time
             IsOnSyncPhaseThread = false;
             NumberOfSyncPoints++;
         }
-
-        /// <summary>
-        /// Used to request a pause on sinks before trying to acquire their locks.
-        /// </summary>
-        /// <remarks>
-        /// Triggering this event can improve pausing efficiency by interrupting the sink execution in the middle of a quant.
-        /// </remarks>
-        private event Action StopRequested;
 
         private TimeInterval elapsedAtLastUpdate;
         private bool isBlocked;

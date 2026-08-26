@@ -4,6 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 namespace Antmicro.Renode.Time
 {
     /// <summary>
@@ -35,6 +37,11 @@ namespace Antmicro.Renode.Time
         /// Gets the amount of virtual time elapsed from the perspective of this time source.
         /// </summary>
         TimeInterval ElapsedVirtualTime { get; }
+
+        /// <summary>
+        /// Used to request a pause on sinks before trying to acquire their locks.
+        /// </summary>
+        event Action StopRequested;
 
         /// <summary>
         /// Registers a new time sink in this source.

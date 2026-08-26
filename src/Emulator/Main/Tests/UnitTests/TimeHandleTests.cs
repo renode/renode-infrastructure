@@ -715,6 +715,12 @@ namespace UnitTests
             public TimeInterval NearestSyncPoint => ElapsedVirtualTime + Quantum;
 
             public TimeInterval ElapsedVirtualTime { get; set; }
+
+            public event Action StopRequested
+            {
+                add {}
+                remove {}
+            }
         }
 
         private class MockTimeSink : ITimeSink
