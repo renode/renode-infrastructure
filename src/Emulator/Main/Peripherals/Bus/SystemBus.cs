@@ -931,15 +931,20 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 foreach(var target in targets)
                 {
-                    var multibytePeripheral = target.What.Peripheral as IMultibyteWritePeripheral;
-                    if(multibytePeripheral != null)
+                    if(target.What.Peripheral is IMultibyteWritePeripheral multibytePeripheral)
                     {
-                        checked
+                        if(target.What.Peripheral is IAbsoluteAddressAware absoluteAddressAwarePeripheral)
                         {
-                            var invalidationCtx = delayedInvalidation ? multibytePeripheral as IHasDelayedInvalidationContext : null;
-                            using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
+                            absoluteAddressAwarePeripheral.SetAbsoluteAddress(address);
+                        }
+
+                        var invalidationCtx = delayedInvalidation ? multibytePeripheral as IHasDelayedInvalidationContext : null;
+                        using(var ctx = invalidationCtx?.EnterDelayedInvalidationContext())
+                        {
+                            checked
                             {
-                                multibytePeripheral.WriteBytes(checked((long)(target.Offset - target.What.RegistrationPoint.Range.StartAddress + target.What.RegistrationPoint.Offset)), bytes, startingIndex + (int)target.SourceIndex, (int)target.SourceLength);
+                                var peripheralAddress = (long)(target.Offset - target.What.RegistrationPoint.Range.StartAddress + target.What.RegistrationPoint.Offset);
+                                multibytePeripheral.WriteBytes(peripheralAddress, bytes, startingIndex + (int)target.SourceIndex, (int)target.SourceLength);
                             }
                         }
                     }
@@ -992,12 +997,17 @@ namespace Antmicro.Renode.Peripherals.Bus
                 }
                 foreach(var target in targets)
                 {
-                    var memory = target.What.Peripheral as MappedMemory;
-                    if(memory != null)
+                    if(target.What.Peripheral is IMultibyteWritePeripheral multibytePeripheral)
                     {
+                        if(target.What.Peripheral is IAbsoluteAddressAware absoluteAddressAwarePeripheral)
+                        {
+                            absoluteAddressAwarePeripheral.SetAbsoluteAddress(address);
+                        }
+
                         checked
                         {
-                            memory.ReadBytes(checked((long)(target.Offset - target.What.RegistrationPoint.Range.StartAddress + target.What.RegistrationPoint.Offset)), (int)target.SourceLength, destination, startIndex + (int)target.SourceIndex);
+                            var peripheralAddress = (long)(target.Offset - target.What.RegistrationPoint.Range.StartAddress + target.What.RegistrationPoint.Offset);
+                            destination = multibytePeripheral.ReadBytes(peripheralAddress, (int)target.SourceLength);
                         }
                     }
                     else
