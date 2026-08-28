@@ -12,6 +12,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
@@ -247,6 +248,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             public void Reset()
             {
+                receivedUnhandledMessageTypes.Clear();
                 resetStatus.Clear();
             }
 
@@ -270,7 +272,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 case PmApi.PllGetParameter:
                     return HandlePllGetParameter(message);
                 default:
-                    return HandleDefault();
+                    // Warn only about the first message of each type because there are lots of messages for certain types (ClockGetState, PinCtrl*, etc.).
+                    if(!receivedUnhandledMessageTypes.Contains(apiId))
+                    {
+                        pmu.WarningLog("Received the first {0} message which is a type without proper handling currently implemented so just returning success; "
+                                + "enable PMU debug logs to see payload of this message and to see logs for all further {0} messages", apiId);
+                        receivedUnhandledMessageTypes.Add(apiId);
+                    }
+
+                    pmu.DebugLog("Received unhandled {0} message (payload: {1}), returning success", apiId, Misc.PrettyPrintCollectionHex(message.Payload));
+                    return IpiMessage.CreateSuccessResponse();
                 }
             }
 
@@ -487,13 +498,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
             }
 
-            private IpiMessage HandleDefault()
-            {
-                return IpiMessage.CreateSuccessResponse();
-            }
-
             private readonly ZynqMP_PlatformManagementUnit pmu;
             private readonly Dictionary<uint, uint> resetStatus;
+            private readonly HashSet<PmApi> receivedUnhandledMessageTypes = new HashSet<PmApi>();
 
             private const uint ApiVersion = 0x10001;
             private const uint ClockDividerMask = 0x3f;
