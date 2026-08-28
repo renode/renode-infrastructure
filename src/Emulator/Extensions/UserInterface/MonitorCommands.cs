@@ -490,6 +490,21 @@ namespace Antmicro.Renode.UserInterface
             return unmangledName + "<" + String.Join(",", genericArguments.Select(TypePrettyName)) + ">";
         }
 
+        private static readonly Dictionary<NumberModes, string> NumberFormats = new Dictionary<NumberModes, string> {
+            { NumberModes.Both, "0x{0:X} ({0})" },
+            { NumberModes.Decimal, "{0}" },
+            { NumberModes.Hexadecimal, "0x{0:X}" },
+        };
+
+        private static readonly HashSet<Tuple<Type, Type>> acceptableTokensTypes = new HashSet<Tuple<Type, Type>>() {
+            { new Tuple<Type, Type>(typeof(string), typeof(StringToken)) },
+            { new Tuple<Type, Type>(typeof(string), typeof(PathToken)) },
+            { new Tuple<Type, Type>(typeof(int), typeof(DecimalIntegerToken)) },
+            { new Tuple<Type, Type>(typeof(bool), typeof(BooleanToken)) },
+            { new Tuple<Type, Type>(typeof(long), typeof(DecimalIntegerToken)) },
+            { new Tuple<Type, Type>(typeof(short), typeof(DecimalIntegerToken)) },
+        };
+
         private IEnumerable<PropertyInfo> GetAvailableIndexers(Type objectType)
         {
             var properties = new List<PropertyInfo>();
@@ -1523,21 +1538,6 @@ namespace Antmicro.Renode.UserInterface
                 }
             }
         }
-
-        private readonly Dictionary<NumberModes, string> NumberFormats = new Dictionary<NumberModes, string> {
-            { NumberModes.Both, "0x{0:X} ({0})" },
-            { NumberModes.Decimal, "{0}" },
-            { NumberModes.Hexadecimal, "0x{0:X}" },
-        };
-
-        private readonly HashSet<Tuple<Type, Type>> acceptableTokensTypes = new HashSet<Tuple<Type, Type>>() {
-            { new Tuple<Type, Type>(typeof(string), typeof(StringToken)) },
-            { new Tuple<Type, Type>(typeof(string), typeof(PathToken)) },
-            { new Tuple<Type, Type>(typeof(int), typeof(DecimalIntegerToken)) },
-            { new Tuple<Type, Type>(typeof(bool), typeof(BooleanToken)) },
-            { new Tuple<Type, Type>(typeof(long), typeof(DecimalIntegerToken)) },
-            { new Tuple<Type, Type>(typeof(short), typeof(DecimalIntegerToken)) },
-        };
 
         private readonly SimpleCache cache = new SimpleCache();
         private static readonly MethodInfo selectInfo = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static)

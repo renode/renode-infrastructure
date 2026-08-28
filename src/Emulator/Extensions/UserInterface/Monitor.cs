@@ -33,9 +33,6 @@ namespace Antmicro.Renode.UserInterface
     {
         public Monitor()
         {
-            swallowExceptions = ConfigurationManager.Instance.Get(ConfigurationSection, "consume-exceptions-from-command", true);
-            breakOnException = ConfigurationManager.Instance.Get(ConfigurationSection, "break-script-on-exception", true);
-
             CurrentBindingFlags = BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static;
             Commands = new HashSet<Command>(new CommandComparer());
             TypeManager.Instance.AutoLoadedType += InitializeAutoCommand;
@@ -651,6 +648,9 @@ namespace Antmicro.Renode.UserInterface
                 return new[] { "{0}@{1}/".FormatWith(allButLast, Path.Combine(StripPrefix(directoryPath, prefix), lastElement)) };
             }
         }
+
+        private static readonly bool swallowExceptions = ConfigurationManager.Instance.Get(ConfigurationSection, "consume-exceptions-from-command", true);
+        private static readonly bool breakOnException = ConfigurationManager.Instance.Get(ConfigurationSection, "break-script-on-exception", true);
 
         private bool ExecuteCommand(Token[] com, ICommandInteraction writer)
         {
@@ -1289,8 +1289,6 @@ namespace Antmicro.Renode.UserInterface
         private bool verboseMode;
 
         private readonly MonitorPath monitorPath = new MonitorPath(Environment.CurrentDirectory);
-        private readonly bool swallowExceptions;
-        private readonly bool breakOnException;
 
         private readonly List<string> scannedFilesCache = new List<string>();
 
