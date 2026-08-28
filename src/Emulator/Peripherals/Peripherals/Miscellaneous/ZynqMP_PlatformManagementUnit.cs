@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -548,19 +548,90 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 AckNonBlocking = 3
             }
 
-            // We only list API ids that we need.
-            // This enum corresponds to XPm_ApiId enum in PMU FW source code.
+            // This enum corresponds to XPm_ApiId enum in PMU FW source code:
+            // https://github.com/Xilinx/embeddedsw/blob/master/lib/bsp/standalone/src/common/pm_api_version.h
             private enum PmApi
             {
-                ApiMin          = 0x0,
-                GetApiVersion   = 0x1,
-                ForcePowerdown  = 0x8,
-                RequestWakeup   = 0xa,
-                ResetAssert     = 0x11,
-                ResetGetStatus  = 0x12,
-                ClockGetDivider = 0x28,
-                PllGetParameter = 0x31,
-                ApiMax          = 0x4a
+                ApiMin,
+                GetApiVersion,
+                SetConfiguration,
+                GetNodeStatus,
+                GetOpCharacteristic,
+                RegisterNotifier,
+                RequestSuspend,
+                SelfSuspend,
+                ForcePowerdown,
+                AbortSuspend,
+                RequestWakeup,
+                SetWakeupSource,
+                SystemShutdown,
+                RequestNode,
+                ReleaseNode,
+                SetRequirement,
+                SetMaxLatency,
+                ResetAssert,
+                ResetGetStatus,
+                MmioWrite,
+                MmioRead,
+                InitFinalize,
+                FpgaLoad,
+                FpgaGetStatus,
+                GetChipId,
+                SecureRsaAes,
+                SecureSha,
+                SecureRsa,
+                PinCtrlRequest,
+                PinCtrlRelease,
+                PinCtrlGetFunction,
+                PinCtrlSetFunction,
+                PinCtrlConfigParamGet,
+                PinCtrlConfigParamSet,
+                Ioctl,
+                QueryData,
+                ClockEnable,
+                ClockDisable,
+                ClockGetState,
+                ClockSetDivider,
+                ClockGetDivider,
+                ClockSetRate,
+                ClockGetRate,
+                ClockSetParent,
+                ClockGetParent,
+                SecureImage,
+                FpgaRead,
+                SecureAes,
+                PllSetParameter,
+                PllGetParameter,
+                PllSetMode,
+                PllGetMode,
+                RegisterAccess,
+                EfuseAccess,
+                AddSubsystem,
+                DestroySubsystem,
+                DescribeNodes,
+                AddNode,
+                AddNodeParent,
+                AddNodeName,
+                AddRequirement,
+                SetCurrentSubsystem,
+                InitNode,
+                FeatureCheck,
+                IsoControl,
+                ActivateSubsystem,
+                SetNodeAccess,
+                Bisr,
+                ApplyTrim,
+                NocClockEnable,
+                IfNocClockEnable,
+                ForceHouseclean,
+                FpgaGetVersion,
+                FpgaGetFeatureList,
+                HnicxNpiDataXfer,
+                FpgaSetConfigReg,
+                FpgaGetFrameData,
+                ClockDescribeRate,
+                ClockProgramRate,
+                ApiMax,
             }
         };
 
