@@ -14,6 +14,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
@@ -21,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.Network
 {
     // 8-, 16- and 32-bit accesses are supported to the Ethernet MAC registers, but only 32-bit-aligned accesses to the DMA registers (RM 0090/0385/0410)
     // Only 32-bit access is currently handled
-    public class SynopsysEthernetMAC : NetworkWithPHY, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IMACInterface, IKnownSize
+    public class SynopsysEthernetMAC : NetworkWithPHY, IDoubleWordPeripheral, IHasMappedRegisters, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IMACInterface, IKnownSize
     {
         public SynopsysEthernetMAC(IMachine machine, BusWidth? busWidth = null, SynopsysEthernetVersion version = SynopsysEthernetVersion.STM32F) : base(machine)
         {
@@ -43,6 +44,8 @@ namespace Antmicro.Renode.Peripherals.Network
             rxFifoSize = 0;
             txFrameState = new TxFrameState(this);
         }
+
+        public string OffsetToString(long offset) => registerMapper.ToString(offset);
 
         public override void Reset()
         {
@@ -650,6 +653,7 @@ namespace Antmicro.Renode.Peripherals.Network
         private readonly SynopsysEthernetVersion version;
         private readonly object dmaLock;
         private readonly Queue<EthernetFrame> rxFifo;
+        private readonly RegisterMapper registerMapper = new RegisterMapper(typeof(Registers));
         private const uint FifoDepth = 2 * 1024;
 
         [LeastSignificantByteFirst]
