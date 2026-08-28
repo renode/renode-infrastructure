@@ -12,6 +12,7 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -20,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         // apus and rpus must be passed in ascending order, for example
         // apus: [apu0, apu1, apu2, apu3]
-        public ZynqMP_PlatformManagementUnit(List<ICPU> apus, List<ICPU> rpus)
+        public ZynqMP_PlatformManagementUnit(IMachine machine, List<ICPU> apus, List<ICPU> rpus, List<IPeripheral> preservedOnAPUResets = null)
         {
             if(apus.Count != 4 || rpus.Count != 2)
             {
@@ -32,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 registeredPeripherals[p] = new HashSet<IPeripheral>();
             }
-            powerManagement = new PowerManagementModule(this);
+            powerManagement = new PowerManagementModule(machine, this, preservedOnAPUResets);
         }
 
         public void OnGPIO(int number, bool value)
@@ -260,9 +261,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private class PowerManagementModule
         {
-            public PowerManagementModule(ZynqMP_PlatformManagementUnit pmu)
+            public PowerManagementModule(IMachine machine, ZynqMP_PlatformManagementUnit pmu, List<IPeripheral> peripheralsPreservedOnAPUResets)
             {
+                this.machine = machine;
                 this.pmu = pmu;
+
+                this.peripheralsPreservedOnAPUResets.Add(pmu);
+                this.peripheralsPreservedOnAPUResets.AddRange(pmu.rpus);
+                this.peripheralsPreservedOnAPUResets.AddRange(peripheralsPreservedOnAPUResets ?? Enumerable.Empty<IPeripheral>());
+
+                machine.PeripheralsChanged += (_, eventArgs) =>
+                {
+                    if(eventArgs.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.Addition && eventArgs.Peripheral is ZynqMP_RTC rtc)
+                    {
+                        // RTC should never be reset.
+                        this.peripheralsPreservedOnAPUResets.Add(rtc);
+                        this.peripheralsPreservedOnPSResets.Add(rtc);
+                        this.peripheralsPreservedOnSystemResets.Add(rtc);
+                    }
+                };
             }
 
             public void Reset()
@@ -290,6 +307,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     return HandleClockGetDivider(message);
                 case PmApi.PllGetParameter:
                     return HandlePllGetParameter(message);
+                case PmApi.SystemShutdown:
+                    return HandleSystemShutdown(message);
                 default:
                     // Warn only about the first message of each type because there are lots of messages for certain types (ClockGetState, PinCtrl*, etc.).
                     if(!receivedUnhandledMessageTypes.Contains(apiId))
@@ -519,9 +538,55 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 }
             }
 
+            // See ATF's `plat/xilinx/zynqmp/pm_service/zynqmp_pm_api_sys.c : pm_system_shutdown` for payload description.
+            private IpiMessage HandleSystemShutdown(IpiMessage message)
+            {
+                var type = (SystemShutdownType)message.Payload[0];
+                var scope = (SystemShutdownScope)message.Payload[1];
+
+                // `IsDefined` isn't used for `SystemShutdownType` because it contains a `SetScope` type which should be handled internally
+                // by the `pm_system_shutdown` function and should never reach PMU.
+                if(!(type == SystemShutdownType.Restart || type == SystemShutdownType.Shutdown) || !Enum.IsDefined<SystemShutdownScope>(scope))
+                {
+                    pmu.WarningLog("SystemShutdown was requested with invalid type ({0} / 0x{0:X}) or scope ({1} / 0x{1:X}), ignoring the request", type, scope);
+                    return IpiMessage.CreateSuccessResponse();
+                }
+
+                if(type != SystemShutdownType.Restart)
+                {
+                    pmu.WarningLog("SystemShutdown was requested with currently-unhandled type ({0} / 0x{0:X}), ignoring the request", type);
+                    return IpiMessage.CreateSuccessResponse();
+                }
+
+                if(!pmu.TryGetMachine(out var machine))
+                {
+                    pmu.ErrorLog("SystemShutdown request can't be handled: this Platform Management Unit isn't registered to any machine");
+                    return IpiMessage.CreateSuccessResponse();
+                }
+
+                var peripheralsToSkip = scope switch
+                {
+                    SystemShutdownScope.ApuSubsystem => peripheralsPreservedOnAPUResets,
+                    SystemShutdownScope.ProcessingSystem => peripheralsPreservedOnPSResets,
+                    SystemShutdownScope.System => peripheralsPreservedOnSystemResets,
+                    _ => throw new ArgumentOutOfRangeException($"Invalid scope: {scope}"),
+                };
+
+                machine.RequestResetInSafeState(() =>
+                {
+                    pmu.InfoLog("System was reset due to the SystemShutdown request (type: {0}, scope: {1})", type, scope);
+                }, unresetable: peripheralsToSkip, runRegisteredResetEvents: true);
+
+                return IpiMessage.CreateSuccessResponse();
+            }
+
+            private readonly IMachine machine;
             private readonly ZynqMP_PlatformManagementUnit pmu;
             private readonly Dictionary<uint, uint> resetStatus = new Dictionary<uint, uint>();
             private readonly HashSet<PmApi> receivedUnhandledMessageTypes = new HashSet<PmApi>();
+            private readonly List<IPeripheral> peripheralsPreservedOnAPUResets = new List<IPeripheral>();
+            private readonly List<IPeripheral> peripheralsPreservedOnPSResets = new List<IPeripheral>();
+            private readonly List<IPeripheral> peripheralsPreservedOnSystemResets = new List<IPeripheral>();
 
             private const uint ApiVersion = 0x10001;
             private const uint ClockDividerMask = 0x3f;
@@ -660,6 +725,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 ClockDescribeRate,
                 ClockProgramRate,
                 ApiMax,
+            }
+
+            private enum SystemShutdownType
+            {
+                Shutdown,
+                Restart,
+                SetScope,  // This one should never be sent, it should be handled by `pm_system_shutdown` function internally
+            }
+
+            private enum SystemShutdownScope
+            {
+                ApuSubsystem,
+                ProcessingSystem,  // APU+RPU+PMU
+                System,
             }
         };
 
