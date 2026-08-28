@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             array[intOffset] = value;
         }
 
-        public byte[] ReadBytes(long offset, int count, IPeripheral context = null)
+        public virtual byte[] ReadBytes(long offset, int count, IPeripheral context = null)
         {
             if(!IsCorrectOffset(offset, count))
             {

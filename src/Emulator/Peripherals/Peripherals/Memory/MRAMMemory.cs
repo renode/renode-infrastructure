@@ -28,7 +28,9 @@ namespace Antmicro.Renode.Peripherals.Memory
     ///   - <see cref="WriteFaultMode"/> selects between power-loss (partial
     ///     program) and bit-corruption (deterministic bit flips) fault models.
     ///   - <see cref="WriteTraceEnabled"/> records each word write as a
-    ///     (writeIndex, wordOffset) tuple for offline trace replay.
+    ///     (writeIndex, wordOffset) tuple for offline trace replay. At most
+    ///     100,000 entries are retained; check <see cref="WriteTraceTruncated"/>
+    ///     before treating the trace as complete.
     ///   - <see cref="RetainOldDataOnFault"/> controls whether the un-programmed
     ///     half of a partial write retains old data (MRAM) or is filled with
     ///     <see cref="EraseFill"/> (flash).
@@ -116,6 +118,21 @@ namespace Antmicro.Renode.Peripherals.Memory
             WriteBytesWithWordSemantics(offset, data);
         }
 
+        public override byte[] ReadBytes(long offset, int count, IPeripheral context = null)
+        {
+            var result = base.ReadBytes(offset, count, context);
+            if(offset < 0 || count < 0 || (ulong)count > (ulong)Size || (ulong)offset > (ulong)Size - (ulong)count)
+            {
+                return result;
+            }
+
+            for(var i = 0; i < result.Length; i++)
+            {
+                result[i] = (byte)ApplyReadFault(offset + i, sizeof(byte), result[i]);
+            }
+            return result;
+        }
+
         // NVM contents are not modified by transient read faults; only the
         // value returned to the CPU is corrupted.
 
@@ -152,7 +169,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         public void InjectPartialWrite(long address)
         {
             var aligned = AlignDown(address);
-            if(aligned < 0 || aligned + wordSize > Size)
+            if(aligned < 0 || aligned > Size - wordSize)
             {
                 this.Log(LogLevel.Error, "InjectPartialWrite at 0x{0:X} is outside memory bounds", address);
                 return;
@@ -203,7 +220,8 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         /// <summary>
         /// Return all recorded write trace entries as a CSV string.
-        /// Each line is "writeIndex,wordOffset\n".
+        /// Each line is "writeIndex,wordOffset\n". At most 100,000 entries
+        /// are returned; check <see cref="WriteTraceTruncated"/> for completeness.
         /// </summary>
         public string WriteTraceToString()
         {
@@ -221,7 +239,14 @@ namespace Antmicro.Renode.Peripherals.Memory
         public void WriteTraceClear()
         {
             writeTrace.Clear();
+            WriteTraceTruncated = false;
         }
+
+        /// <summary>
+        /// Indicates that one or more enabled write-trace entries were omitted
+        /// after the 100,000-entry retention limit was reached.
+        /// </summary>
+        public bool WriteTraceTruncated { get; private set; }
 
         public int WordSize
         {
@@ -280,9 +305,10 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         /// <summary>
         /// When true, each word-granularity write is recorded as a
-        /// (writeIndex, wordOffset) tuple.  Retrieve with
-        /// <see cref="WriteTraceToString"/> and clear with
-        /// <see cref="WriteTraceClear"/>.
+        /// (writeIndex, wordOffset) tuple. At most 100,000 entries are retained.
+        /// Retrieve with <see cref="WriteTraceToString"/> and clear with
+        /// <see cref="WriteTraceClear"/>; check <see cref="WriteTraceTruncated"/>
+        /// before treating the trace as complete.
         /// </summary>
         public bool WriteTraceEnabled { get; set; }
 
@@ -297,6 +323,8 @@ namespace Antmicro.Renode.Peripherals.Memory
         /// deterministic bit flips applied to the returned value.  The fault
         /// is one-shot: after firing, <see cref="ReadFaultEnabled"/> is
         /// automatically cleared and <see cref="ReadFaultFired"/> is set.
+        /// To rearm a fired campaign, clear <see cref="ReadFaultFired"/> and
+        /// <see cref="ReadFaultTotalReads"/> before enabling it again.
         /// </summary>
         public bool ReadFaultEnabled { get; set; }
 
@@ -326,13 +354,15 @@ namespace Antmicro.Renode.Peripherals.Memory
         public ulong ReadFaultSkipCount { get; set; }
 
         /// <summary>
-        /// Running count of qualifying reads seen since the fault was armed.
+        /// Running count of qualifying reads since the last explicit clear or
+        /// reset.  Clear this before rearming a fired campaign.
         /// </summary>
         public ulong ReadFaultTotalReads { get; set; }
 
         /// <summary>
         /// Number of bits to flip on the faulted read.  When 0, a
-        /// seed-dependent count of 1-3 is used.
+        /// seed-dependent count of 1-3 is used. The count is capped by the
+        /// access width, so a byte access can flip at most 8 bits.
         /// </summary>
         public int ReadFaultBitFlips { get; set; }
 
@@ -350,6 +380,8 @@ namespace Antmicro.Renode.Peripherals.Memory
                 return;
             }
 
+            LastFaultInjected = false;
+
             if(!EnforceWordWriteSemantics)
             {
                 for(var i = 0; i < data.Length; i++)
@@ -363,7 +395,6 @@ namespace Antmicro.Renode.Peripherals.Memory
             var lastWordStart = AlignDown(offset + data.Length - 1);
 
             WriteInProgress = true;
-            LastFaultInjected = false;
 
             try
             {
@@ -451,8 +482,17 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         private void RecordWriteTrace(ulong writeIndex, long wordOffset)
         {
-            if(!WriteTraceEnabled || writeTrace.Count >= WriteTraceMaxEntries)
+            if(!WriteTraceEnabled)
             {
+                return;
+            }
+            if(writeTrace.Count >= DefaultWriteTraceMaxEntries)
+            {
+                if(!WriteTraceTruncated)
+                {
+                    WriteTraceTruncated = true;
+                    this.Log(LogLevel.Warning, "MRAM write trace reached its {0}-entry limit; subsequent entries are omitted", DefaultWriteTraceMaxEntries);
+                }
                 return;
             }
             writeTrace.Add((writeIndex, wordOffset));
@@ -499,6 +539,11 @@ namespace Antmicro.Renode.Peripherals.Memory
                 return value;
             }
 
+            if(offset < 0 || accessSize <= 0 || accessSize > Size || offset > Size - accessSize || ReadFaultAddress >= Size)
+            {
+                return value;
+            }
+
             var armedEnd = ReadFaultAddress + 4;
             var accessEnd = offset + accessSize;
             if(offset >= armedEnd || accessEnd <= ReadFaultAddress)
@@ -537,9 +582,9 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         private void ValidateWordSize(int value)
         {
-            if(value < 2 || (value & (value - 1)) != 0 || (ulong)value > (ulong)Size)
+            if(value < 2 || (value & (value - 1)) != 0 || (ulong)value > (ulong)Size || Size % value != 0)
             {
-                throw new ArgumentException("WordSize must be a power of two between 2 and the memory size");
+                throw new ArgumentException("WordSize must be a power of two between 2 and the memory size, and divide the memory size evenly");
             }
         }
 
@@ -553,6 +598,6 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         private const ulong DefaultSize = 0x80000;
         private const int DefaultWordSize = 8;
-        private const int WriteTraceMaxEntries = 100000;
+        private const int DefaultWriteTraceMaxEntries = 100000;
     }
 }
