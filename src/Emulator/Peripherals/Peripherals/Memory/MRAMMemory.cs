@@ -20,13 +20,18 @@ namespace Antmicro.Renode.Peripherals.Memory
     ///
     /// Key behaviors:
     ///   - Reset() preserves storage contents (non-volatile).
-    ///   - When <see cref="EnforceWordWriteSemantics"/> is true, every write is
-    ///     decomposed into program cycles at <see cref="WordSize"/> boundaries.
+    ///   - When <see cref="EnforceWordWriteSemantics"/> is true, bus scalar and
+    ///     bulk writes are decomposed into program cycles at <see cref="WordSize"/>
+    ///     boundaries. Inherited Fill() and FillRegion() are initialization
+    ///     helpers and bypass fault counters and write tracing.
     ///   - <see cref="InjectPartialWrite"/> simulates a power cut mid-program
-    ///     by replacing the second half of a word with <see cref="EraseFill"/>.
-    ///     This is the core primitive for fault-injection campaigns.
-    ///   - <see cref="WriteFaultMode"/> selects between power-loss (partial
-    ///     program) and bit-corruption (deterministic bit flips) fault models.
+    ///     by unconditionally replacing the second half of a word with
+    ///     <see cref="EraseFill"/>. This is the core primitive for
+    ///     fault-injection campaigns.
+    ///   - <see cref="WriteFaultMode"/> selects between power-loss (torn
+    ///     write) and bit-corruption (deterministic bit flips) fault models.
+    ///     Automatic power-loss faults require the external campaign controller
+    ///     to stop and reset the machine after the fault fires.
     ///   - <see cref="WriteTraceEnabled"/> records each word write as a
     ///     (writeIndex, wordOffset) tuple for offline trace replay. At most
     ///     100,000 entries are retained; check <see cref="WriteTraceTruncated"/>
@@ -72,37 +77,17 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public override void WriteWord(long offset, ushort value)
         {
-            WriteBytesWithWordSemantics(offset, new[]
-            {
-                (byte)(value & 0xFF),
-                (byte)((value >> 8) & 0xFF),
-            });
+            WriteBytesWithWordSemantics(offset, BitConverter.GetBytes(value));
         }
 
         public override void WriteDoubleWord(long offset, uint value)
         {
-            WriteBytesWithWordSemantics(offset, new[]
-            {
-                (byte)(value & 0xFF),
-                (byte)((value >> 8) & 0xFF),
-                (byte)((value >> 16) & 0xFF),
-                (byte)((value >> 24) & 0xFF),
-            });
+            WriteBytesWithWordSemantics(offset, BitConverter.GetBytes(value));
         }
 
         public override void WriteQuadWord(long offset, ulong value)
         {
-            WriteBytesWithWordSemantics(offset, new[]
-            {
-                (byte)(value & 0xFF),
-                (byte)((value >> 8) & 0xFF),
-                (byte)((value >> 16) & 0xFF),
-                (byte)((value >> 24) & 0xFF),
-                (byte)((value >> 32) & 0xFF),
-                (byte)((value >> 40) & 0xFF),
-                (byte)((value >> 48) & 0xFF),
-                (byte)((value >> 56) & 0xFF),
-            });
+            WriteBytesWithWordSemantics(offset, BitConverter.GetBytes(value));
         }
 
         public override void WriteBytes(long offset, byte[] bytes, int startingIndex, int count, IPeripheral context = null)
@@ -120,16 +105,15 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         public override byte[] ReadBytes(long offset, int count, IPeripheral context = null)
         {
-            var result = base.ReadBytes(offset, count, context);
             if(offset < 0 || count < 0 || (ulong)count > (ulong)Size || (ulong)offset > (ulong)Size - (ulong)count)
             {
-                return result;
+                this.Log(LogLevel.Error, "Tried to read {0} byte(s) at offset 0x{1:X} outside MRAM range 0x0 - 0x{2:X}",
+                    count, offset, Size - 1);
+                return Array.Empty<byte>();
             }
 
-            for(var i = 0; i < result.Length; i++)
-            {
-                result[i] = (byte)ApplyReadFault(offset + i, sizeof(byte), result[i]);
-            }
+            var result = base.ReadBytes(offset, count, context);
+            ApplyReadFault(offset, result);
             return result;
         }
 
@@ -162,8 +146,9 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         /// <summary>
         /// Simulate a power cut during a word-aligned write.  The second half of
-        /// the word at <paramref name="address"/> is filled with EraseFill; the
-        /// first half is left unchanged.  Call after writing partial data to
+        /// the word at <paramref name="address"/> is unconditionally filled with
+        /// EraseFill; the first half is left unchanged, regardless of
+        /// <see cref="RetainOldDataOnFault"/>. Call after writing partial data to
         /// model a mid-program power loss.
         /// </summary>
         public void InjectPartialWrite(long address)
@@ -279,13 +264,27 @@ namespace Antmicro.Renode.Peripherals.Memory
 
         /// <summary>
         /// Fault model selector:
-        ///   0 = power_loss (default): partial program, first half written,
+        ///   0 = power_loss (default): torn write, with partial program and
+        ///       first half written,
         ///       second half erased or retained depending on
         ///       <see cref="RetainOldDataOnFault"/>.
+        ///       The external campaign controller must stop and reset the
+        ///       machine after this fault fires.
         ///   1 = bit_corruption: full word is written, then 1-3 deterministic
         ///       bits are flipped to model partial cell state transitions.
         /// </summary>
-        public int WriteFaultMode { get; set; }
+        public int WriteFaultMode
+        {
+            get { return writeFaultMode; }
+            set
+            {
+                if(value != 0 && value != 1)
+                {
+                    throw new ArgumentException("WriteFaultMode must be either 0 (power_loss) or 1 (bit_corruption)");
+                }
+                writeFaultMode = value;
+            }
+        }
 
         /// <summary>
         /// Seed for the bit-corruption PRNG.  When 0, the word-aligned address
@@ -410,14 +409,13 @@ namespace Antmicro.Renode.Peripherals.Memory
                         mergedWord[i] = array[wordStart + i];
                     }
 
-                    for(var i = 0; i < data.Length; i++)
+                    var dataEndExclusive = offset + data.LongLength;
+                    var wordEndExclusive = wordStart + wordSize;
+                    var copyStart = Math.Max(offset, wordStart);
+                    var copyEndExclusive = Math.Min(dataEndExclusive, wordEndExclusive);
+                    for(var absoluteAddress = copyStart; absoluteAddress < copyEndExclusive; absoluteAddress++)
                     {
-                        var absoluteAddress = offset + i;
-                        if(absoluteAddress < wordStart || absoluteAddress >= wordStart + wordSize)
-                        {
-                            continue;
-                        }
-                        mergedWord[absoluteAddress - wordStart] = data[i];
+                        mergedWord[(int)(absoluteAddress - wordStart)] = data[(int)(absoluteAddress - offset)];
                     }
 
                     // Initialize the destination before the program phase.
@@ -506,23 +504,23 @@ namespace Antmicro.Renode.Peripherals.Memory
         private void ApplyBitCorruption(long wordStart)
         {
             var seed = CorruptionSeed != 0 ? CorruptionSeed : (uint)wordStart;
-            var totalBits = wordSize * 8;
+            var totalBits = (ulong)wordSize * 8UL;
 
             // Determine number of bits to flip: 1-3 from first LCG step.
             seed = LcgNext(seed);
-            var numFlips = Math.Min((int)(seed % 3) + 1, totalBits);
-            var flippedBits = new HashSet<int>();
+            var numFlips = (int)(seed % 3) + 1;
+            var flippedBits = new HashSet<ulong>();
 
             while(flippedBits.Count < numFlips)
             {
                 seed = LcgNext(seed);
-                var bitPos = (int)(seed % (uint)totalBits);
+                var bitPos = (ulong)seed % totalBits;
                 if(!flippedBits.Add(bitPos))
                 {
                     continue;
                 }
-                var byteIndex = bitPos / 8;
-                var bitIndex = bitPos % 8;
+                var byteIndex = (int)(bitPos / 8UL);
+                var bitIndex = (int)(bitPos % 8UL);
                 array[wordStart + byteIndex] ^= (byte)(1 << bitIndex);
             }
         }
@@ -580,6 +578,58 @@ namespace Antmicro.Renode.Peripherals.Memory
             return value;
         }
 
+        private void ApplyReadFault(long offset, byte[] result)
+        {
+            if(!ReadFaultEnabled || ReadFaultFired || ReadFaultAddress < 0 || result.Length == 0)
+            {
+                return;
+            }
+
+            var accessSize = (long)result.Length;
+            if(ReadFaultAddress >= Size)
+            {
+                return;
+            }
+
+            var armedEnd = ReadFaultAddress + 4;
+            var accessEnd = offset + accessSize;
+            if(offset >= armedEnd || accessEnd <= ReadFaultAddress)
+            {
+                return;
+            }
+
+            ReadFaultTotalReads++;
+            if(ReadFaultTotalReads <= ReadFaultSkipCount)
+            {
+                return;
+            }
+
+            ReadFaultFired = true;
+            ReadFaultEnabled = false;
+            var seed = ReadFaultSeed != 0 ? ReadFaultSeed : (uint)(ReadFaultAddress ^ 0xDEAD);
+            if(seed == 0)
+            {
+                seed = 0xDEAD;
+            }
+            var accessBits = (ulong)result.Length * 8UL;
+            var requestedFlips = ReadFaultBitFlips > 0
+                ? (ulong)ReadFaultBitFlips
+                : 1UL + (seed % 3U);
+            var flipCount = Math.Min(requestedFlips, accessBits);
+            var flippedBits = new HashSet<ulong>();
+            while((ulong)flippedBits.Count < flipCount)
+            {
+                seed = LcgNext(seed);
+                var bitPos = (ulong)seed % accessBits;
+                if(flippedBits.Add(bitPos))
+                {
+                    var byteIndex = (int)(bitPos / 8UL);
+                    var bitIndex = (int)(bitPos % 8UL);
+                    result[byteIndex] ^= (byte)(1 << bitIndex);
+                }
+            }
+        }
+
         private void ValidateWordSize(int value)
         {
             if(value < 2 || (value & (value - 1)) != 0 || (ulong)value > (ulong)Size || Size % value != 0)
@@ -594,6 +644,7 @@ namespace Antmicro.Renode.Peripherals.Memory
         }
 
         private int wordSize;
+        private int writeFaultMode;
         private readonly List<(ulong writeIndex, long wordOffset)> writeTrace;
 
         private const ulong DefaultSize = 0x80000;
