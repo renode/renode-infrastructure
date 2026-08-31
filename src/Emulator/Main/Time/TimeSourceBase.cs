@@ -89,16 +89,21 @@ namespace Antmicro.Renode.Time
         /// Queues an action to execute in the nearest synced state.
         /// </summary>
         /// <param name="executeImmediately">Flag indicating if the action should be executed immediately when executed in already synced context or should it wait for the next synced state.</param>
-        public void ExecuteInNearestSyncedState(Action<TimeStamp> what, bool executeImmediately = false)
+        /// <returns>
+        /// Null if executes immediately or the ID of the action, which can be used to cancel it with <see cref="CancelActionToExecuteInSyncedState">.
+        /// </returns>
+        public ulong? ExecuteInNearestSyncedState(Action<TimeStamp> what, bool executeImmediately = false)
         {
             if(IsOnSyncPhaseThread && executeImmediately)
             {
                 what(new TimeStamp(ElapsedVirtualTime, Domain));
-                return;
+                return null;
             }
             lock(delayedActions)
             {
-                delayedActions.Add(new DelayedTask(what, new TimeStamp(), ++delayedTaskId));
+                var id = ++delayedTaskId;
+                delayedActions.Add(new DelayedTask(what, new TimeStamp(), id));
+                return id;
             }
         }
 
