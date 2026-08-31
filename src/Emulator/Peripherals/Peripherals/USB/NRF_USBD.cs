@@ -6,6 +6,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -27,8 +28,10 @@ namespace Antmicro.Renode.Peripherals.USB
             IRQ = new GPIO();
             interruptManager = new InterruptManager<Events>(this, IRQ, "UsbIrq");
             events = new IFlagRegisterField[(int)Events.EpData + 1];
-            epInDataStatus = new bool[EndpointCount];
-            epInStatus = new bool[EndpointCount];
+            for(var i = 0; i < EndpointCount; i++)
+            {
+                epOutBuffers[i] = new Queue<byte[]>();
+            }
             this.maximumPacketSize = maximumPacketSize;
             InitiateUSBCore();
             DefineRegisters();
@@ -48,6 +51,20 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             interruptManager.Reset();
             registers.Reset();
+            eventCauseReady = false;
+            eventCauseSuspend = false;
+            ep0Buffer.Clear();
+            for(var i = 0; i < EndpointCount; i++)
+            {
+                lock(epOutBuffers[i])
+                {
+                    epOutBuffers[i].Clear();
+                }
+                epInDataStatus[i] = false;
+                epInStatus[i] = false;
+                epOutDataStatus[i] = false;
+                epOutStatus[i] = false;
+            }
         }
 
         public USBDeviceCore USBCore { get; }
@@ -61,58 +78,124 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private void HandleSetupPacket(SetupPacket packet, byte[] arg2, Action<byte[]> action)
         {
-            // Note: this method handled some setup packets in the model instead of relying them to the simulated software
-            // This is a simplification that needs to be resolved in the future
-            this.Log(LogLevel.Noisy, "Received SetupPacket. Request: {0}", packet.Request);
+            this.Log(LogLevel.Noisy, "Received SetupPacket. Request: 0x{0:X2}, Value: 0x{1:X4}, Index: 0x{2:X4}, Length: 0x{3:X4}", packet.Request, packet.Value, packet.Index, packet.Count);
             setupPacket = packet;
-            SetEvent(Events.Ep0Setup);
+            setupPacketAdditionalData = arg2;
+            epOutSize[0] = (uint)(arg2?.Length ?? 0);
+            ep0Buffer.Clear();
             setupPacketResultCallback = action;
+            SetEvent(Events.Ep0Setup);
 
             switch(packet.Request)
             {
             case (byte)StandardRequest.SetAddress:
                 USBCore.Address = (byte)setupPacket.Value;
-                setupPacketResultCallback(Array.Empty<byte>());
-                break;
-            case (byte)StandardRequest.SetConfiguration:
-                setupPacketResultCallback(Array.Empty<byte>());
                 break;
             }
         }
 
         private void GetData(ushort epNumber)
         {
-            this.Log(LogLevel.Noisy, "Reading data from EP number: {0}", epNumber);
-            // Every pointer to endpoint data and endpoint count is n * 0x14 away from endpoint's 0, where n is number of endpoint. 
-            // E.g: pointer to second endpoint data would be: (2 * 0x14 + address of endpoint 0) 
-            uint endpointIn = registers.Read((0x14 * epNumber) + (long)Registers.Endpoint0In);
-            uint endpointInCount = registers.Read((0x14 * epNumber) + (long)Registers.Endpoint0InCount);
+            this.Log(LogLevel.Noisy, "Reading data from EP IN number: {0}", epNumber);
+            uint endpointIn = epInPtr[epNumber];
+            uint endpointInCount = epInMaxCnt[epNumber];
             var usbPacket = machine.GetSystemBus(this).ReadBytes(endpointIn, (int)endpointInCount);
+            epInAmount[epNumber] = endpointInCount;
 
             if(epNumber == 0)
             {
-                setupPacketResultCallback(usbPacket);
-                endpoint0InCount.Value = endpointInCount;
+                ep0Buffer.AddRange(usbPacket);
+                if(usbPacket.Length < maximumPacketSize || ep0Buffer.Count >= setupPacket.Count)
+                {
+                    var fullData = ep0Buffer.ToArray();
+                    ep0Buffer.Clear();
+                    setupPacketAdditionalData = null;
+                    var cb = setupPacketResultCallback;
+                    setupPacketResultCallback = null;
+                    cb?.Invoke(fullData);
+                }
             }
             else if(usbPacket.Length != 0)
             {
-                deviceToHostEndpoint.HandlePacket(usbPacket);
+                this.Log(LogLevel.Noisy, "Sending {0} bytes from EP IN {1} to host", usbPacket.Length, epNumber);
+                deviceToHostEndpoints[epNumber]?.HandlePacket(usbPacket);
             }
             DataAcknowledged(epNumber);
         }
 
+        private void OnTaskEp0RcvOut(ushort epNumber)
+        {
+            this.Log(LogLevel.Noisy, "TASKS_EP0RCVOUT called");
+            if(setupPacketAdditionalData != null && setupPacketAdditionalData.Length > 0)
+            {
+                SetEvent(Events.Ep0DataDone);
+            }
+        }
+
+        private void OnTaskStartEpOut0(ushort epNumber)
+        {
+            this.Log(LogLevel.Noisy, "TASKS_STARTEPOUT0 called, epOutPtr[0]=0x{0:X}, len={1}", epOutPtr[0], epOutSize[0]);
+            if(setupPacketAdditionalData != null && setupPacketAdditionalData.Length > 0 && epOutPtr[0] != 0)
+            {
+                uint endpointOut = epOutPtr[0];
+                machine.GetSystemBus(this).WriteBytes(setupPacketAdditionalData, endpointOut);
+                epOutAmount[0] = (uint)setupPacketAdditionalData.Length;
+            }
+            SetEvent(Events.Started);
+            SetEvent(Events.EndEpOut0);
+        }
+
+        private void HandleEpOut(ushort epNumber)
+        {
+            this.Log(LogLevel.Noisy, "HandleEpOut task called on EP {0}, epOutPtr=0x{1:X}", epNumber, epOutPtr[epNumber]);
+            lock(epOutBuffers[epNumber])
+            {
+                if(epOutBuffers[epNumber].Count > 0)
+                {
+                    var data = epOutBuffers[epNumber].Dequeue();
+                    uint maxCnt = epOutMaxCnt[epNumber];
+                    int toCopy = Math.Min((int)maxCnt, data.Length);
+                    machine.GetSystemBus(this).WriteBytes(data, epOutPtr[epNumber], startingIndex: 0, count: toCopy);
+                    epOutAmount[epNumber] = (uint)toCopy;
+                    epOutSize[epNumber] = (uint)(data.Length - toCopy);
+                }
+                else
+                {
+                    epOutAmount[epNumber] = 0;
+                    epOutSize[epNumber] = 0;
+                }
+            }
+            epOutDataStatus[epNumber] = false;
+            SetEvent(Events.Started);
+            SetEvent(Events.EndEpOut0 + epNumber);
+            SetEvent(Events.EpData);
+        }
+
+        private void OnDataWritten(ushort epNumber, byte[] data)
+        {
+            this.Log(LogLevel.Noisy, "Host wrote {0} bytes to EP {1}", data.Length, epNumber);
+            lock(epOutBuffers[epNumber])
+            {
+                epOutBuffers[epNumber].Enqueue(data);
+            }
+            epOutDataStatus[epNumber] = true;
+            epOutSize[epNumber] = (uint)data.Length;
+            SetEvent(Events.EpData);
+        }
+
         private void DataAcknowledged(ushort epNumber)
         {
-            epInDataStatus[epNumber] = true;
-
             SetEvent(Events.Started);
             SetEvent(Events.EndEpIn0 + epNumber);
-            SetEvent(Events.EpData);
 
-            // Special event for control endpoint
             if(epNumber == 0)
             {
                 SetEvent(Events.Ep0DataDone);
+            }
+            else
+            {
+                epInDataStatus[epNumber] = true;
+                SetEvent(Events.EpData);
             }
         }
 
@@ -146,113 +229,103 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private void DefineRegisters()
         {
-            DefineTask(Registers.TasksStartEpIn0, GetData, 0, "TASKS_STARTEPIN0");
-            DefineTask(Registers.TasksStartEpIn1, GetData, 1, "TASKS_STARTEPIN1");
-            DefineTask(Registers.TasksStartEpIn2, GetData, 2, "TASKS_STARTEPIN2");
-            DefineTask(Registers.TasksStartEpIn3, GetData, 3, "TASKS_STARTEPIN3");
-            DefineTask(Registers.TasksStartEpIn4, GetData, 4, "TASKS_STARTEPIN4");
-            DefineTask(Registers.TasksStartEpIn5, GetData, 5, "TASKS_STARTEPIN5");
-            DefineTask(Registers.TasksStartEpIn6, GetData, 6, "TASKS_STARTEPIN6");
-            DefineTask(Registers.TasksStartEpIn7, GetData, 7, "TASKS_STARTEPIN7");
-            DefineTask(Registers.TasksEp0Status, (_) => { }, 0, "TASKS_EP0STATUS");
+            for(ushort i = 0; i < EndpointCount; i++)
+            {
+                DefineTask(Registers.TasksStartEpIn0 + i, GetData, i, $"TASKS_STARTEPIN{i}");
+            }
+            DefineTask(Registers.TasksEp0Status, _ =>
+            {
+                var cb = setupPacketResultCallback;
+                setupPacketResultCallback = null;
+                cb?.Invoke(Array.Empty<byte>());
+            }, 0, "TASKS_EP0STATUS");
+            DefineTask(Registers.TasksEp0Stall, _ =>
+            {
+                var cb = setupPacketResultCallback;
+                setupPacketResultCallback = null;
+                cb?.Invoke(null);
+            }, 0, "TASKS_EP0STALL");
+            DefineTask(Registers.TasksEp0RcvOut, OnTaskEp0RcvOut, 0, "TASKS_EP0RCVOUT");
+            DefineTask(Registers.TasksStartEpOut0, OnTaskStartEpOut0, 0, "TASKS_STARTEPOUT0");
+            for(ushort i = 1; i < EndpointCount; i++)
+            {
+                DefineTask(Registers.TasksStartEpOut0 + i, HandleEpOut, i, $"TASKS_STARTEPOUT{i}");
+            }
+
             DefineEvent(Registers.EventsUsbReset, Events.UsbReset, "EVENTS_USBRESET");
             DefineEvent(Registers.EventsEp0Setup, Events.Ep0Setup, "EVENTS_EP0SETUP");
             DefineEvent(Registers.EventsStarted, Events.Started, "EVENTS_STARTED");
-            DefineEvent(Registers.EventsEndEpIn0, Events.EndEpIn0, "EVENTS_ENDEPIN0");
-            DefineEvent(Registers.EventsEndEpIn1, Events.EndEpIn1, "EVENTS_ENDEPIN1");
-            DefineEvent(Registers.EventsEndEpIn2, Events.EndEpIn2, "EVENTS_ENDEPIN2");
-            DefineEvent(Registers.EventsEndEpIn3, Events.EndEpIn3, "EVENTS_ENDEPIN3");
-            DefineEvent(Registers.EventsEndEpIn4, Events.EndEpIn4, "EVENTS_ENDEPIN4");
-            DefineEvent(Registers.EventsEndEpIn5, Events.EndEpIn5, "EVENTS_ENDEPIN5");
-            DefineEvent(Registers.EventsEndEpIn6, Events.EndEpIn6, "EVENTS_ENDEPIN6");
-            DefineEvent(Registers.EventsEndEpIn7, Events.EndEpIn7, "EVENTS_ENDEPIN7");
+            for(var i = 0; i < EndpointCount; i++)
+            {
+                DefineEvent(Registers.EventsEndEpIn0 + i, Events.EndEpIn0 + i, $"EVENTS_ENDEPIN{i}");
+                DefineEvent(Registers.EventsEndEpOut0 + i, Events.EndEpOut0 + i, $"EVENTS_ENDEPOUT{i}");
+            }
+            DefineEvent(Registers.EventsStartOfFrame, Events.StartOfFrame, "EVENTS_SOF");
+            DefineEvent(Registers.EventsUsbEvent, Events.UsbEvent, "EVENTS_USBEVENT");
             DefineEvent(Registers.EventsEp0DataDone, Events.Ep0DataDone, "EVENTS_EP0DATADONE");
             DefineEvent(Registers.EventsEpData, Events.EpData, "EVENTS_EPDATA");
 
             registers.AddRegister((long)Registers.InterruptEnable,
                 interruptManager.GetInterruptEnableSetRegister<DoubleWordRegister>());
+            registers.AddRegister((long)Registers.InterruptEnableSet,
+                interruptManager.GetInterruptEnableSetRegister<DoubleWordRegister>());
+            registers.AddRegister((long)Registers.InterruptEnableClear,
+                interruptManager.GetInterruptEnableClearRegister<DoubleWordRegister>());
 
             Registers.EventCause.Define(this)
                 .WithTaggedFlag("EVENT_ISOOUTCRC", 0)
-                .WithTaggedFlag("EVENT_SUSPEND", 8)
+                .WithFlag(8, writeCallback: (_, val) => { if(val) eventCauseSuspend = false; }, valueProviderCallback: _ => eventCauseSuspend, name: "EVENT_SUSPEND")
                 .WithTaggedFlag("EVENT_RESUME", 9)
                 .WithTaggedFlag("EVENT_USBWUALLOWED", 10)
-                .WithFlag(11, name: "EVENT_READY")
+                .WithFlag(11, writeCallback: (_, val) => { if(val) eventCauseReady = false; }, valueProviderCallback: _ => eventCauseReady, name: "EVENT_READY")
                 .WithReservedBits(12, 20);
 
-            Registers.EndpointStatus.Define(this)
-                .WithFlag(0, writeCallback: (_, val) => { epInStatus[0] = val; }, valueProviderCallback: _ => epInStatus[0], name: "EPIN1")
-                .WithFlag(1, writeCallback: (_, val) => { epInStatus[1] = val; }, valueProviderCallback: _ => epInStatus[1], name: "EPIN1")
-                .WithFlag(2, writeCallback: (_, val) => { epInStatus[2] = val; }, valueProviderCallback: _ => epInStatus[2], name: "EPIN2")
-                .WithFlag(3, writeCallback: (_, val) => { epInStatus[3] = val; }, valueProviderCallback: _ => epInStatus[3], name: "EPIN3")
-                .WithFlag(4, writeCallback: (_, val) => { epInStatus[4] = val; }, valueProviderCallback: _ => epInStatus[4], name: "EPIN4")
-                .WithFlag(5, writeCallback: (_, val) => { epInStatus[5] = val; }, valueProviderCallback: _ => epInStatus[5], name: "EPIN5")
-                .WithFlag(6, writeCallback: (_, val) => { epInStatus[6] = val; }, valueProviderCallback: _ => epInStatus[6], name: "EPIN6")
-                .WithFlag(7, writeCallback: (_, val) => { epInStatus[7] = val; }, valueProviderCallback: _ => epInStatus[7], name: "EPIN7")
-                .WithReservedBits(8, 8)
-                .WithTaggedFlag("EPOUT0", 16)
-                .WithTaggedFlag("EPOUT1", 17)
-                .WithTaggedFlag("EPOUT2", 18)
-                .WithTaggedFlag("EPOUT3", 19)
-                .WithTaggedFlag("EPOUT4", 20)
-                .WithTaggedFlag("EPOUT5", 21)
-                .WithTaggedFlag("EPOUT6", 22)
-                .WithTaggedFlag("EPOUT7", 23)
-                .WithTaggedFlag("EPOUT8", 24)
-                .WithReservedBits(25, 7);
-
-            Registers.EndpointDataStatus.Define(this)
-                .WithReservedBits(0, 1) // Ep0 has no data status
-                .WithFlag(1, writeCallback: (_, val) => { epInDataStatus[1] = val; }, valueProviderCallback: _ => epInDataStatus[1], name: "EPIN1")
-                .WithFlag(2, writeCallback: (_, val) => { epInDataStatus[2] = val; }, valueProviderCallback: _ => epInDataStatus[2], name: "EPIN2")
-                .WithFlag(3, writeCallback: (_, val) => { epInDataStatus[3] = val; }, valueProviderCallback: _ => epInDataStatus[3], name: "EPIN3")
-                .WithFlag(4, writeCallback: (_, val) => { epInDataStatus[4] = val; }, valueProviderCallback: _ => epInDataStatus[4], name: "EPIN4")
-                .WithFlag(5, writeCallback: (_, val) => { epInDataStatus[5] = val; }, valueProviderCallback: _ => epInDataStatus[5], name: "EPIN5")
-                .WithFlag(6, writeCallback: (_, val) => { epInDataStatus[6] = val; }, valueProviderCallback: _ => epInDataStatus[6], name: "EPIN6")
-                .WithFlag(7, writeCallback: (_, val) => { epInDataStatus[7] = val; }, valueProviderCallback: _ => epInDataStatus[7], name: "EPIN7")
-                .WithReservedBits(8, 9)
-                .WithTaggedFlag("EPOUT1", 17)
-                .WithTaggedFlag("EPOUT2", 18)
-                .WithTaggedFlag("EPOUT3", 19)
-                .WithTaggedFlag("EPOUT4", 20)
-                .WithTaggedFlag("EPOUT5", 21)
-                .WithTaggedFlag("EPOUT6", 22)
-                .WithTaggedFlag("EPOUT7", 23)
-                .WithReservedBits(24, 8);
+            var epStatusReg = Registers.EndpointStatus.Define(this);
+            var epDataStatusReg = Registers.EndpointDataStatus.Define(this);
+            for(var i = 0; i < EndpointCount; i++)
+            {
+                var epIndex = i;
+                epStatusReg
+                    .WithFlag(i, writeCallback: (_, val) => { if(val) epInStatus[epIndex] = false; }, valueProviderCallback: _ => epInStatus[epIndex], name: $"EPIN{i}")
+                    .WithFlag(16 + i, writeCallback: (_, val) => { if(val) epOutStatus[epIndex] = false; }, valueProviderCallback: _ => epOutStatus[epIndex], name: $"EPOUT{i}");
+                epDataStatusReg
+                    .WithFlag(i, writeCallback: (_, val) => { if(val) epInDataStatus[epIndex] = false; }, valueProviderCallback: _ => epInDataStatus[epIndex], name: $"EPIN{i}")
+                    .WithFlag(16 + i, writeCallback: (_, val) => { if(val) epOutDataStatus[epIndex] = false; }, valueProviderCallback: _ => epOutDataStatus[epIndex], name: $"EPOUT{i}");
+            }
+            epStatusReg.WithReservedBits(8, 8).WithReservedBits(24, 8);
+            epDataStatusReg.WithReservedBits(8, 8).WithReservedBits(24, 8);
 
             Registers.UsbAddress.Define(this)
-                .WithValueField(0, 7, out usbAddress, FieldMode.Read)
-                .WithReservedBits(7, 24);
+                .WithValueField(0, 7, name: "ADDR", valueField: out usbAddress)
+                .WithReservedBits(7, 25);
 
             Registers.bmRequestType.Define(this)
-                .WithTag("RECIPIENT", 0, 5)
-                .WithValueField(5, 2, FieldMode.Read, valueProviderCallback: _ => 0, name: "TYPE")
-                .WithValueField(7, 1, FieldMode.Read, name: "DIRECTION",
-                    valueProviderCallback: _ => (ulong)setupPacket.Direction)
+                .WithValueField(0, 8, name: "BMREQUESTTYPE", valueProviderCallback: _ => ((setupPacket.Direction == Direction.DeviceToHost ? 1u : 0u) << 7) | (((uint)setupPacket.Type & 0x3) << 5) | ((uint)setupPacket.Recipient & 0x1F))
                 .WithReservedBits(8, 24);
 
             Registers.bRequest.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => setupPacket.Request)
+                .WithValueField(0, 8, name: "BREQUEST", valueProviderCallback: _ => (uint)setupPacket.Request)
                 .WithReservedBits(8, 24);
 
-            Registers.wValueLow.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => (byte)(setupPacket.Value & 0xFF))
-                .WithReservedBits(8, 24);
+            void DefineLowHigh(Registers lowReg, Registers highReg, string prefix, Func<uint> valGetter)
+            {
+                lowReg.Define(this).WithValueField(0, 8, name: $"{prefix}LOW", valueProviderCallback: _ => valGetter() & 0xFF).WithReservedBits(8, 24);
+                highReg.Define(this).WithValueField(0, 8, name: $"{prefix}HIGH", valueProviderCallback: _ => (valGetter() >> 8) & 0xFF).WithReservedBits(8, 24);
+            }
 
-            Registers.wValueHigh.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => (byte)(setupPacket.Value >> 8 & 0xFF))
-                .WithReservedBits(8, 24);
-
-            Registers.wIndexLow.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => setupPacket.Index)
-                .WithReservedBits(8, 24);
-
-            Registers.wLengthLow.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => setupPacket.Count)
-                .WithReservedBits(8, 24);
+            DefineLowHigh(Registers.wValueLow, Registers.wValueHigh, "WVALUE", () => setupPacket.Value);
+            DefineLowHigh(Registers.wIndexLow, Registers.wIndexHigh, "WINDEX", () => setupPacket.Index);
+            DefineLowHigh(Registers.wLengthLow, Registers.wLengthHigh, "WLENGTH", () => setupPacket.Count);
 
             Registers.Enable.Define(this)
-                .WithFlag(0, out usbEnable, name: "ENABLE")
+                .WithFlag(0, out usbEnable, writeCallback: (_, val) =>
+                {
+                    if(val)
+                    {
+                        eventCauseReady = true;
+                        SetEvent(Events.UsbEvent);
+                    }
+                }, name: "ENABLE")
                 .WithReservedBits(1, 31);
 
             Registers.UsbPullup.Define(this)
@@ -260,34 +333,19 @@ namespace Antmicro.Renode.Peripherals.USB
                 .WithReservedBits(1, 31);
 
             Registers.DataToggle.Define(this)
-                .WithValueField(0, 3, valueField: out dataToggleEndpoint, name: "EP")
+                .WithValueField(0, 3, out dataToggleEndpoint, name: "EP")
+                .WithReservedBits(3, 4)
                 .WithFlag(7, out dataToggleInputOutput, name: "IO")
                 .WithValueField(8, 2, valueField: out dataToggleValue, name: "VALUE")
                 .WithReservedBits(10, 22)
                 .WithWriteCallback((_, __) => HandleToggle());
 
             Registers.EndpointInEnable.Define(this)
-                .WithFlag(0, out ep0InEnabled, name: "IN0")
-                .WithTaggedFlag("IN1", 1)
-                .WithTaggedFlag("IN2", 2)
-                .WithTaggedFlag("IN3", 3)
-                .WithTaggedFlag("IN4", 4)
-                .WithTaggedFlag("IN5", 5)
-                .WithTaggedFlag("IN6", 6)
-                .WithTaggedFlag("IN7", 7)
-                .WithTaggedFlag("ISOIN", 8)
+                .WithValueField(0, 9, name: "EPINEN")
                 .WithReservedBits(9, 23);
 
             Registers.EndpointOutEnable.Define(this)
-                .WithFlag(0, out ep0OutEnabled, name: "OUT0")
-                .WithTaggedFlag("OUT1", 1)
-                .WithTaggedFlag("OUT2", 2)
-                .WithTaggedFlag("OUT3", 3)
-                .WithTaggedFlag("OUT4", 4)
-                .WithTaggedFlag("OUT5", 5)
-                .WithTaggedFlag("OUT6", 6)
-                .WithTaggedFlag("OUT7", 7)
-                .WithTaggedFlag("ISOOUT", 8)
+                .WithValueField(0, 9, name: "EPOUTEN")
                 .WithReservedBits(9, 23);
 
             Registers.EndpointStall.Define(this)
@@ -298,57 +356,65 @@ namespace Antmicro.Renode.Peripherals.USB
                 .WithReservedBits(9, 23)
                 .WithWriteCallback((_, __) => HandleStalling());
 
-            Registers.IsoInConfig.Define(this) // This is last thing happening in nRF5340, after this the enumeration should start
+            // SIZE.EPOUT registers (0x4A0..0x4BC) and SIZE.ISOOUT (0x4C0)
+            for(var i = 0; i < EndpointCount; i++)
+            {
+                var epIndex = i;
+                registers.AddRegister(0x4A0 + (i * 4), new DoubleWordRegister(this).WithValueField(0, 16, name: $"SIZE_EPOUT{i}",
+                    valueProviderCallback: _ => epOutSize[epIndex]));
+            }
+            registers.AddRegister(0x4C0, new DoubleWordRegister(this).WithValueField(0, 16, name: "SIZE_ISOOUT"));
+
+            for(var i = 0; i < EndpointCount; i++)
+            {
+                var epOffset = (long)Registers.HaltedEndpointIn0 + (i * 4);
+                registers.AddRegister(epOffset, new DoubleWordRegister(this).WithValueField(0, 1, name: $"HALTED_EPIN{i}").WithReservedBits(1, 31));
+                var epOutHaltedOffset = (long)Registers.HaltedEndpointOut0 + (i * 4);
+                registers.AddRegister(epOutHaltedOffset, new DoubleWordRegister(this).WithValueField(0, 1, name: $"HALTED_EPOUT{i}").WithReservedBits(1, 31));
+            }
+
+            Registers.IsoSplit.Define(this)
+                .WithValueField(0, 16, name: "SPLIT")
+                .WithReservedBits(16, 16);
+
+            Registers.IsoInConfig.Define(this)
                 .WithTaggedFlag("RESPONSE", 0)
                 .WithReservedBits(1, 31);
 
-            Registers.Endpoint0In.Define(this)
-                .WithValueField(0, 32, name: "EPIN0", valueField: out endpoint0In);
-            Registers.Endpoint0InCount.Define(this)
-                .WithValueField(0, 8, name: "EPIN0_MAXCNT", valueField: out endpoint0InCount)
-                .WithReservedBits(8, 24);
+            for(var i = 0; i < EndpointCount; i++)
+            {
+                var epIndex = i;
+                registers.AddRegister((long)Registers.Endpoint0In + (0x14 * i),
+                    new DoubleWordRegister(this).WithValueField(0, 32, name: $"EPIN{i}_PTR",
+                        writeCallback: (_, val) => epInPtr[epIndex] = (uint)val,
+                        valueProviderCallback: _ => epInPtr[epIndex]));
+                registers.AddRegister((long)Registers.Endpoint0InCount + (0x14 * i),
+                    new DoubleWordRegister(this).WithValueField(0, 8, name: $"EPIN{i}_MAXCNT",
+                        writeCallback: (_, val) => epInMaxCnt[epIndex] = (uint)val,
+                        valueProviderCallback: _ => epInMaxCnt[epIndex]).WithReservedBits(8, 24));
+                registers.AddRegister((long)Registers.Endpoint0InAmount + (0x14 * i),
+                    new DoubleWordRegister(this).WithValueField(0, 8, FieldMode.Read, name: $"EPIN{i}_AMOUNT",
+                        valueProviderCallback: _ => epInAmount[epIndex]).WithReservedBits(8, 24));
 
-            Registers.Endpoint1In.Define(this)
-                .WithValueField(0, 32, name: "EPIN1");
-            Registers.Endpoint1InCount.Define(this)
-                .WithValueField(0, 8, name: "EPIN1_MAXCNT")
-                .WithReservedBits(8, 24);
-
-            Registers.Endpoint2In.Define(this)
-                .WithValueField(0, 32, name: "EPIN2");
-            Registers.Endpoint2InCount.Define(this)
-                .WithValueField(0, 8, name: "EPIN2_MAXCNT")
-                .WithReservedBits(8, 24);
-
-            Registers.Endpoint3In.Define(this)
-                .WithValueField(0, 32, name: "EPIN3");
-            Registers.Endpoint3InCount.Define(this)
-                .WithValueField(0, 8, name: "EPIN3_MAXCNT")
-                .WithReservedBits(8, 24);
-
-            Registers.Endpoint4In.Define(this)
-                .WithValueField(0, 32, name: "EPIN4");
-            Registers.Endpoint4InCount.Define(this)
-                .WithValueField(0, 8, name: "EPIN4_MAXCNT")
-                .WithReservedBits(8, 24);
-
-            Registers.Endpoint5In.Define(this)
-                .WithValueField(0, 32, name: "EPIN5");
-            Registers.Endpoint5InCount.Define(this)
-                .WithValueField(0, 8, name: "EPIN5_MAXCNT")
-                .WithReservedBits(8, 24);
-
-            Registers.Endpoint6In.Define(this)
-                .WithValueField(0, 32, name: "EPIN6");
-            Registers.Endpoint6InCount.Define(this)
-                .WithValueField(0, 8, name: "EPIN6_MAXCNT")
-                .WithReservedBits(8, 24);
-
-            Registers.Endpoint7In.Define(this)
-                .WithValueField(0, 32, name: "EPIN7");
-            Registers.Endpoint7InCount.Define(this)
-                .WithValueField(0, 8, name: "EPIN7_MAXCNT")
-                .WithReservedBits(8, 24);
+                registers.AddRegister((long)Registers.Endpoint0Out + (0x14 * i),
+                    new DoubleWordRegister(this).WithValueField(0, 32, name: $"EPOUT{i}_PTR",
+                        writeCallback: (_, val) => {
+                            epOutPtr[epIndex] = (uint)val;
+                            if(epIndex == 0 && setupPacketAdditionalData != null && setupPacketAdditionalData.Length > 0 && (uint)val != 0)
+                            {
+                                machine.GetSystemBus(this).WriteBytes(setupPacketAdditionalData, (uint)val);
+                                epOutAmount[0] = (uint)setupPacketAdditionalData.Length;
+                            }
+                        },
+                        valueProviderCallback: _ => epOutPtr[epIndex]));
+                registers.AddRegister((long)Registers.Endpoint0OutCount + (0x14 * i),
+                    new DoubleWordRegister(this).WithValueField(0, 8, name: $"EPOUT{i}_MAXCNT",
+                        writeCallback: (_, val) => epOutMaxCnt[epIndex] = (uint)val,
+                        valueProviderCallback: _ => epOutMaxCnt[epIndex]).WithReservedBits(8, 24));
+                registers.AddRegister((long)Registers.Endpoint0OutAmount + (0x14 * i),
+                    new DoubleWordRegister(this).WithValueField(0, 8, FieldMode.Read, name: $"EPOUT{i}_AMOUNT",
+                        valueProviderCallback: _ => epOutAmount[epIndex]).WithReservedBits(8, 24));
+            }
         }
 
         private void HandleToggle()
@@ -363,122 +429,46 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private void HandleStalling()
         {
-            // This is useful for debugging, as software may stall endpoint
-            // on wrong/unsupported tokens
             this.Log(LogLevel.Noisy, "{0} EP #{1}, {2}", epstallStall.Value == true ? "Stalling" : "Unstalling", epstallEndpoint.Value, epstallIO.Value == false ? "out" : "in");
         }
 
         private void InitiateUSBCore()
         {
-            // Define all possible endpoints as available right away
-            // This is to be improved in the future and should reflect what software returns as a result of enumaration, but will require support from `USB` subsystem in Renode
-            USBConfiguration config = new USBConfiguration(this, 0, "").WithInterface(
-                    configure: x =>
+            var config = new USBConfiguration(this, 0, "").WithInterface(
+                configure: x =>
+                {
+                    for(byte i = 0; i < EndpointCount; i++)
+                    {
+                        var epIndex = i;
+                        var transferType = i == 0 ? EndpointTransferType.Control : EndpointTransferType.Bulk;
                         x.WithEndpoint(
                             Direction.DeviceToHost,
-                            EndpointTransferType.Control,
+                            transferType,
                             maximumPacketSize,
                             0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.DeviceToHost,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out deviceToHostEndpoint)
-                        .WithEndpoint(
-                            Direction.DeviceToHost,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.DeviceToHost,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.DeviceToHost,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.DeviceToHost,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.DeviceToHost,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.DeviceToHost,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
+                            out deviceToHostEndpoints[epIndex],
+                            id: i);
+                        x.WithEndpoint(
                             Direction.HostToDevice,
-                            EndpointTransferType.Control,
+                            transferType,
                             maximumPacketSize,
                             0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.HostToDevice,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.HostToDevice,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.HostToDevice,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.HostToDevice,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.HostToDevice,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.HostToDevice,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _)
-                        .WithEndpoint(
-                            Direction.HostToDevice,
-                            EndpointTransferType.Bulk,
-                            maximumPacketSize,
-                            0x10,
-                            out _));
+                            out hostToDeviceEndpoints[epIndex],
+                            id: i);
+                        if(i > 0)
+                        {
+                            hostToDeviceEndpoints[epIndex].DataWritten += data => OnDataWritten(epIndex, data);
+                        }
+                    }
+                });
             USBCore.SelectedConfiguration = config;
         }
 
         DoubleWordRegisterCollection IProvidesRegisterCollection<DoubleWordRegisterCollection>.RegistersCollection => registers;
 
         private SetupPacket setupPacket;
+        private byte[] setupPacketAdditionalData;
 
-        private IValueRegisterField endpoint0In;
-        private IValueRegisterField endpoint0InCount;
         private IValueRegisterField dataToggleEndpoint;
         private IFlagRegisterField dataToggleInputOutput;
         private IValueRegisterField dataToggleValue;
@@ -490,14 +480,27 @@ namespace Antmicro.Renode.Peripherals.USB
 
         private IFlagRegisterField usbPullup;
         private IFlagRegisterField usbEnable;
-        private IFlagRegisterField ep0InEnabled;
-        private IFlagRegisterField ep0OutEnabled;
+        private bool eventCauseReady;
+        private bool eventCauseSuspend;
 
-        private USBEndpoint deviceToHostEndpoint;
+        private readonly USBEndpoint[] deviceToHostEndpoints = new USBEndpoint[EndpointCount];
+        private readonly USBEndpoint[] hostToDeviceEndpoints = new USBEndpoint[EndpointCount];
+        private readonly Queue<byte[]>[] epOutBuffers = new Queue<byte[]>[EndpointCount];
         private Action<byte[]> setupPacketResultCallback;
         private readonly IMachine machine;
-        private readonly bool[] epInDataStatus;
-        private readonly bool[] epInStatus;
+        private readonly bool[] epInDataStatus = new bool[EndpointCount];
+        private readonly bool[] epInStatus = new bool[EndpointCount];
+        private readonly bool[] epOutDataStatus = new bool[EndpointCount];
+        private readonly bool[] epOutStatus = new bool[EndpointCount];
+        private readonly List<byte> ep0Buffer = new List<byte>();
+
+        private readonly uint[] epInPtr = new uint[EndpointCount];
+        private readonly uint[] epInMaxCnt = new uint[EndpointCount];
+        private readonly uint[] epInAmount = new uint[EndpointCount];
+        private readonly uint[] epOutPtr = new uint[EndpointCount];
+        private readonly uint[] epOutMaxCnt = new uint[EndpointCount];
+        private readonly uint[] epOutAmount = new uint[EndpointCount];
+        private readonly uint[] epOutSize = new uint[EndpointCount];
 
         private readonly InterruptManager<Events> interruptManager;
         private readonly IFlagRegisterField[] events;
@@ -587,11 +590,14 @@ namespace Antmicro.Renode.Peripherals.USB
             EventsEp0Setup = 0x15C,
             EventsEpData = 0x160,
             InterruptEnable = 0x300,
+            InterruptEnableSet = 0x304,
+            InterruptEnableClear = 0x308,
             UsbPullup = 0x504,
             DataToggle = 0x50C,
             IsoSplit = 0x51C,
             IsoInConfig = 0x530,
-            HaltedEndpointOut0 = 0x444,
+            HaltedEndpointOut0 = 0x420,
+            HaltedEndpointIn0 = 0x440,
             EndpointStall = 0x518,
             EventCause = 0x400,
             EndpointStatus = 0x468,
@@ -611,29 +617,9 @@ namespace Antmicro.Renode.Peripherals.USB
             Endpoint0In = 0x600,
             Endpoint0InCount = 0x604,
             Endpoint0InAmount = 0x608,
-            Endpoint1In = 0x614,
-            Endpoint1InCount = 0x618,
-            Endpoint2In = 0x628,
-            Endpoint2InCount = 0x62C,
-            Endpoint2Amount = 0x630,
-            Endpoint3In = 0x63C,
-            Endpoint3InCount = 0x640,
-            Endpoint4In = 0x650,
-            Endpoint4InCount = 0x654,
-            Endpoint5In = 0x664,
-            Endpoint5InCount = 0x668,
-            Endpoint6In = 0x678,
-            Endpoint6InCount = 0x67C,
-            Endpoint7In = 0x68C,
-            Endpoint7InCount = 0x690,
-
             Endpoint0Out = 0x700,
             Endpoint0OutCount = 0x704,
             Endpoint0OutAmount = 0x708,
-            Endpoint1Out = 0x714,
-            Endpoint1OutCount = 0x718,
-            Endpoint2Out = 0x728,
-            Endpoint2OutCount = 0x72C,
         }
     }
 }
