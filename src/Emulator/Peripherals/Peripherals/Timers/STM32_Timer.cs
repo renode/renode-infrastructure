@@ -67,6 +67,18 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     var channel = channels[i];
                     channel.UpdateTimer();
+
+                    // A compare value at the wrap boundary cannot be represented by the
+                    // one-shot compare timer (CCRx == 0 is a zero-length count, CCRx >= ARR
+                    // a dead heat with this very update event), yet hardware fires the
+                    // compare at the wrap. Deliver it here; boundary channels are never
+                    // armed by UpdateTimer, so this cannot double-fire.
+                    if(channel.IsInterruptOrOutputEnabled && (channel.Timer.Limit == 0 || channel.Timer.Limit >= autoReloadValue))
+                    {
+                        channel.CompareMatch();
+                        continue;
+                    }
+
                     if(!channel.Timer.Enabled || !channel.IsOutputMode)
                     {
                         continue;
@@ -104,37 +116,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 channel.Timer = new LimitTimer(machine.ClockSource, frequency, this, String.Format("cctimer{0}", j + 1), limit: initialLimit, eventEnabled: true, direction: Direction.Ascending, enabled: false, autoUpdate: false, workMode: WorkMode.OneShot);
                 channel.Timer.LimitReached += delegate
                 {
-                    if(!channel.IsOutputMode)
-                    {
-                        return;
-                    }
-
-                    switch(channel.CompareMode.Value)
-                    {
-                    case OutputCompareMode.SetActiveOnMatch:
-                        channel.Connection.Blink(); // high pulse
-                        break;
-                    case OutputCompareMode.SetInactiveOnMatch:
-                        channel.Connection.Unset();
-                        channel.Connection.Set(); // low pulse
-                        break;
-                    case OutputCompareMode.ToggleOnMatch:
-                        channel.Connection.Toggle();
-                        break;
-                    case OutputCompareMode.PwmMode1:
-                        channel.Connection.Unset();
-                        break;
-                    case OutputCompareMode.PwmMode2:
-                        channel.Connection.Set();
-                        break;
-                    }
-
-                    if(channel.InterruptEnable)
-                    {
-                        channel.InterruptFlag = true;
-                        this.Log(LogLevel.Noisy, "cctimer{0}: Compare IRQ pending", j + 1);
-                        UpdateInterrupts();
-                    }
+                    channel.CompareMatch();
                 };
             }
 
@@ -164,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithFlag(7, out autoReloadPreloadEnable, name: "Auto-reload preload enable (APRE)")
                     .WithTag("Clock Division (CKD)", 8, 2)
                     .WithReservedBits(10, 22)
-                    .WithWriteCallback((_, __) => { UpdateCaptureCompareTimers(); UpdateInterrupts(); })
+                    .WithWriteCallback((_, __) => { UpdateCaptureCompareTimers(true); UpdateInterrupts(); })
                 },
                 {(long)Registers.Control2, new DoubleWordRegister(this)
                     .WithTaggedFlag("Capture/compare preloaded control (CCPC)", 0)
@@ -404,7 +386,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(timerCounterLengthInBits, 32 - timerCounterLengthInBits)
                     .WithWriteCallback((_, __) =>
                     {
-                        channels[j].UpdateTimer();
+                        channels[j].UpdateTimer(true);
                         UpdateInterrupts();
                     })
                     , () => channels[j].IsOutputMode
@@ -684,8 +666,12 @@ namespace Antmicro.Renode.Peripherals.Timers
             return (triggerSelection.Value == TriggerSelection.TimerInput1 && tiSource == 0) || (triggerSelection.Value == TriggerSelection.TimerInput2 && tiSource == 1);
         }
 
-        private void UpdateCaptureCompareTimers()
+        private void UpdateCaptureCompareTimers(bool syncTime = false)
         {
+            if(syncTime && sysbus.TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+            }
             for(var i = 0; i < NumberOfCCChannels; ++i)
             {
                 channels[i].UpdateTimer();
@@ -695,7 +681,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void WriteCaptureCompareOutputEnable(int i, bool value)
         {
             channels[i].OutputEnable = value;
-            channels[i].UpdateTimer();
+            channels[i].UpdateTimer(true);
             if(!value)
             {
                 channels[i].Connection.Unset();
@@ -706,7 +692,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void WriteCaptureCompareInterruptEnable(int i, bool value)
         {
             channels[i].InterruptEnable = value;
-            channels[i].UpdateTimer();
+            channels[i].UpdateTimer(true);
             this.Log(LogLevel.Noisy, "cctimer{0}: Interrupt Enable set to {1}", i + 1, value);
         }
 
@@ -842,14 +828,60 @@ namespace Antmicro.Renode.Peripherals.Timers
                 Signal = value;
             }
 
-            public void UpdateTimer()
+            public void UpdateTimer(bool syncTime = false)
             {
-                Timer.Enabled = parent.Enabled && IsInterruptOrOutputEnabled && parent.Value < Timer.Limit;
+                // Written from a CPU register access the parent counter is only fresh after a
+                // sync point, so a stale read here could drop a match falling inside the
+                // current quantum; sync before the arm decision.
+                if(syncTime && parent.sysbus.TryGetCurrentCPU(out var cpu))
+                {
+                    cpu.SyncTime();
+                }
+                // Only a strictly interior 0 < CCRx < ARR compare can be modelled by the
+                // one-shot count timer; both wrap boundaries are delivered by the parent's
+                // update handler instead.
+                Timer.Enabled = parent.Enabled && IsInterruptOrOutputEnabled
+                    && parent.Value < Timer.Limit && Timer.Limit < parent.autoReloadValue;
                 if(Timer.Enabled)
                 {
                     Timer.Value = parent.Value;
                 }
                 Timer.Direction = parent.Direction;
+            }
+
+            public void CompareMatch()
+            {
+                if(!IsOutputMode)
+                {
+                    return;
+                }
+
+                switch(CompareMode.Value)
+                {
+                case OutputCompareMode.SetActiveOnMatch:
+                    Connection.Blink(); // high pulse
+                    break;
+                case OutputCompareMode.SetInactiveOnMatch:
+                    Connection.Unset();
+                    Connection.Set(); // low pulse
+                    break;
+                case OutputCompareMode.ToggleOnMatch:
+                    Connection.Toggle();
+                    break;
+                case OutputCompareMode.PwmMode1:
+                    Connection.Unset();
+                    break;
+                case OutputCompareMode.PwmMode2:
+                    Connection.Set();
+                    break;
+                }
+
+                if(InterruptEnable)
+                {
+                    InterruptFlag = true;
+                    parent.Log(LogLevel.Noisy, "cctimer{0}: Compare IRQ pending", Index + 1);
+                    parent.UpdateInterrupts();
+                }
             }
 
             public InputCaptureEdge CaptureEdge => (InputCaptureEdge)(((Polarity.Value ? 1 : 0) << 1) | (ComplementaryPolarity.Value ? 1 : 0));
