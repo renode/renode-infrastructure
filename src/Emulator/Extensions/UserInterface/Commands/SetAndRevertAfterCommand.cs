@@ -175,7 +175,7 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private void RemoveDomain(IMachine machine)
         {
-            if(handlers.ContainsKey(machine))
+            if(handlers.Remove(machine))
             {
                 handlers.Remove(machine);
             }
@@ -191,16 +191,6 @@ namespace Antmicro.Renode.UserInterface.Commands
             public DomainHandler(SetAndRevertAfterCommand parent, IMachine machine) : base(parent)
             {
                 this.machine = machine;
-                machine.ClockSource.AddClockEntry(new ClockEntry(
-                    period: 0,
-                    frequency: TimeInterval.TicksPerSecond,
-                    // clock entry handler is executed in lock, so there is no need to wrap Update
-                    handler: Update,
-                    owner: machine,
-                    localName: $"{nameof(SetAndRevertAfterCommand)}",
-                    enabled: false,
-                    workMode: WorkMode.OneShot
-                ));
             }
 
             public override void QueueRevert(object device, MemberInfo member, TimeInterval offset)
@@ -211,11 +201,28 @@ namespace Antmicro.Renode.UserInterface.Commands
                 });
             }
 
-            protected override void UpdateSchedule(TimeInterval? interval)
+            protected override void UpdateSchedule(TimeInterval? maybeInterval)
             {
-                machine.ClockSource.ExchangeClockEntryWith(Update,
-                    entry => entry.With(period: interval?.Ticks ?? 0, enabled: interval != null)
-                );
+                if(maybeInterval is TimeInterval interval)
+                {
+                    machine.ClockSource.ExchangeClockEntryWith(Update,
+                        entry => entry.With(period: interval.Ticks, enabled: true),
+                        () => new ClockEntry(
+                            period: interval.Ticks,
+                            frequency: TimeInterval.TicksPerSecond,
+                            // clock entry handler is executed in lock, so there is no need to wrap Update
+                            handler: Update,
+                            owner: machine,
+                            localName: $"{nameof(SetAndRevertAfterCommand)}",
+                            enabled: true,
+                            workMode: WorkMode.OneShot
+                        )
+                    );
+                }
+                else
+                {
+                    machine.ClockSource.TryRemoveClockEntry(Update);
+                }
             }
 
             protected override TimeInterval GetCurrentTime()
