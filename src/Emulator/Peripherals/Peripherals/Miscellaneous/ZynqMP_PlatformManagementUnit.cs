@@ -144,17 +144,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private IpiMessage ProcessIpiMessage(IpiMessage message)
         {
-            // 8 most significant bits of header indicate which PMU module should handle message
-            this.Log(LogLevel.Debug, "Processing message with Header = 0x{0:X}", message.Header);
-            var moduleId = (PmuModule)(message.Header >> 16);
+            this.Log(LogLevel.Debug, "Processing message with Header = 0x{0:X}", (uint)message.Header);
+
+            var moduleId = message.Header.ModuleId;
             switch(moduleId)
             {
             case PmuModule.PowerManagement:
                 return powerManagement.HandleMessage(message);
             default:
                 this.Log(LogLevel.Warning, "Received call for PMU module with ID {0} which is not implemented.", (uint)moduleId);
-                // PMU don't handle messages with wrong module id, so we return empty message
-                return new IpiMessage();
+                // PMU doesn't handle messages with an invalid module ID
+                return IpiMessage.CreateSuccessResponse();
             }
         }
 
@@ -164,8 +164,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             // Exception would indicate error in PMU code rather than in emulated software.
             var sourceMailboxAddress = ZynqMP_IPI.GetMailboxOffset(sourceId);
 
-            var message = new IpiMessage();
-            message.Header = ipi.Mailbox.ReadDoubleWord(sourceMailboxAddress + IpiMessage.HeaderOffset);
+            var header = ipi.Mailbox.ReadDoubleWord(sourceMailboxAddress + IpiMessage.HeaderOffset);
+            var message = new IpiMessage(header);
             for(var payloadIdx = 0; payloadIdx < IpiMessage.PayloadLen; ++payloadIdx)
             {
                 var payloadAddress = sourceMailboxAddress + IpiMessage.PayloadOffset + IpiMessage.FieldSize * payloadIdx;
@@ -207,19 +207,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             public static IpiMessage CreateSuccessResponse()
             {
-                var message = new IpiMessage();
-                message.Header = (uint)IpiResponseHeader.Success;
-                return message;
+                return new IpiMessage((uint)IpiResponseHeader.Success);
             }
 
             public static IpiMessage CreateInvalidParamResponse()
             {
-                var response = new IpiMessage();
-                response.Header = (uint)IpiResponseHeader.InvalidParam;
-                return response;
+                return new IpiMessage((uint)IpiResponseHeader.InvalidParam);
             }
 
-            public uint Header = 0;
+            public IpiMessage(uint header)
+            {
+                Header = new HeaderStruct(header);
+            }
+
+            public HeaderStruct Header;
             public uint[] Payload = new uint[PayloadLen];
             public uint Reserved = 0;
             public uint Checksum = 0;
@@ -230,6 +231,25 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             public const long ChecksumOffset = 0x1c;
             public const long FieldSize = 0x4;
             public const uint PayloadLen = 5;
+
+            public struct HeaderStruct
+            {
+                public static implicit operator uint(HeaderStruct header)
+                {
+                    return (uint)(header.MessageType | ((byte)header.ModuleId << 16) | (header.Flags << 24));
+                }
+
+                public HeaderStruct(uint header)
+                {
+                    MessageType = (ushort)BitHelper.GetValue(header, 0, 16);
+                    ModuleId = (PmuModule)BitHelper.GetValue(header, 16, 8);
+                    Flags = (byte)BitHelper.GetValue(header, 24, 8);
+                }
+
+                public readonly ushort MessageType;  // Bits 0-15
+                public readonly PmuModule ModuleId;  // Bits 16-23
+                public readonly byte Flags;  // Bits 24-31
+            }
 
             private enum IpiResponseHeader
             {
@@ -254,7 +274,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             public IpiMessage HandleMessage(IpiMessage message)
             {
-                var apiId = (PmApi)message.Header;
+                var apiId = (PmApi)message.Header.MessageType;
                 switch(apiId)
                 {
                 case PmApi.GetApiVersion:
@@ -318,8 +338,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     }
                     catch(ArgumentOutOfRangeException)
                     {
-                        pmu.Log(LogLevel.Warning, "Received invalid ack request with value {0}.", ack);
-                        return new IpiMessage();
+                        pmu.Log(LogLevel.Warning, "Received invalid ack request with value {0}, returning success.", ack);
+                        // Returning success anyway.
+                        return IpiMessage.CreateSuccessResponse();
                     }
                 }
 
@@ -332,13 +353,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 switch(ack)
                 {
                 case RequestAck.AckNo:
-                    // AckNo means we shouldn't do anything so we return empty message
-                    return new IpiMessage();
+                    // AckNo means we shouldn't do anything
+                    return IpiMessage.CreateSuccessResponse();
                 case RequestAck.AckBlocking:
                     return response;
                 case RequestAck.AckNonBlocking:
-                    pmu.Log(LogLevel.Warning, "Requested non blocking ACK which is not implemented.");
-                    return new IpiMessage();
+                    pmu.Log(LogLevel.Warning, "Received non blocking ACK which is not implemented, returning success.");
+                    // Returning success anyway.
+                    return IpiMessage.CreateSuccessResponse();
                 default:
                     throw new ArgumentOutOfRangeException("RequestAck");
                 }
@@ -651,7 +673,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         }
 
         // Right now we only need to handle calls to PM module
-        private enum PmuModule
+        private enum PmuModule : byte
         {
             PowerManagement = 0x0
         }
