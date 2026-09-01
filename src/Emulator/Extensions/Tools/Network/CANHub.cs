@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Tools.Network
         }
     }
 
-    public sealed class CANHub : IExternal, IConnectable<ICAN>, INetworkLog<ICAN>
+    public sealed class CANHub : IExternal, IConnectable<ICAN>, INetworkLog<ICAN>, IAnalyzable
     {
         public CANHub(bool loopback = false, bool useNetworkByteOrderForLogging = true)
         {

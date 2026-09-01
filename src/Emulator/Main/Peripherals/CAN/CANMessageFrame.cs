@@ -4,6 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Text.Json.Serialization;
+
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Utilities;
@@ -103,6 +105,7 @@ namespace Antmicro.Renode.Core.CAN
             return FlexibleSocketCANFrame.FromCANMessageFrame(this).Encode(useNetworkByteOrder);
         }
 
+        [JsonIgnore]
         public string DataAsHex => Misc.PrettyPrintCollectionHex(Data);
 
         public uint Id { get; }
@@ -117,10 +120,13 @@ namespace Antmicro.Renode.Core.CAN
 
         public bool BitRateSwitch { get; }
 
+        [JsonIgnore]
         public uint ExtendedId => ExtendedFormat ? Id : (Id << StandardIdOffset);
 
+        [JsonIgnore]
         public uint ExtendedIdPart => ExtendedFormat ? (Id & ExtendedIdMask) : 0;
 
+        [JsonIgnore]
         public uint StandardIdPart => ExtendedFormat ? (Id >> StandardIdOffset) : Id;
 
         private const byte StandardIdWidth = 11;

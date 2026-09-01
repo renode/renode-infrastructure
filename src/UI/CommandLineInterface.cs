@@ -12,9 +12,11 @@ using System.IO;
 using Antmicro.Renode.Analyzers;
 using Antmicro.Renode.Backends.Video;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Extensions.Analyzers;
 using Antmicro.Renode.Extensions.Analyzers.Video;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Backends;
+using Antmicro.Renode.Peripherals.CAN;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
@@ -95,11 +97,13 @@ namespace Antmicro.Renode.UI
 
                 var uartAnalyzerType = typeof(ConsoleWindowBackendAnalyzer);
                 var videoAnalyzerType = typeof(VideoAnalyzer);
+                var canAnalyzerType = typeof(DummyCANAnalyzer);
 
                 if(options.ServerMode)
                 {
                     uartAnalyzerType = typeof(WebSocketUartAnalyzer);
                     videoAnalyzerType = typeof(WebSocketVideoAnalyzer);
+                    canAnalyzerType = typeof(WebSocketCANAnalyzer);
                 }
                 else if(ui == null || options.RobotDebug)
                 {
@@ -109,10 +113,12 @@ namespace Antmicro.Renode.UI
 
                 EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), uartAnalyzerType);
                 EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(VideoBackend), videoAnalyzerType);
+                EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(CANBackend), canAnalyzerType);
                 EmulationManager.Instance.EmulationChanged += () =>
                 {
                     EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), uartAnalyzerType);
                     EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(VideoBackend), videoAnalyzerType);
+                    EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(CANBackend), canAnalyzerType);
                 };
 
                 var shell = PrepareShell(options, monitor);
