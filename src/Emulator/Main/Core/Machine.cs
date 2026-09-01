@@ -340,7 +340,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public void RequestResetInSafeState(Action postReset = null, ICollection<IPeripheral> unresetable = null)
+        public void RequestResetInSafeState(Action postReset = null, ICollection<IPeripheral> unresetable = null, bool runRegisteredResetEvents = false)
         {
             Action softwareRequestedReset = null;
             softwareRequestedReset = () =>
@@ -352,6 +352,11 @@ namespace Antmicro.Renode.Core
                     {
                         peripheral.Reset();
                         PeripheralReset?.Invoke(this, peripheral);
+                    }
+
+                    if(runRegisteredResetEvents)
+                    {
+                        MachineReset?.Invoke(this);
                     }
                 }
                 postReset?.Invoke();

@@ -96,7 +96,7 @@ namespace Antmicro.Renode.Core
 
         void RequestReset();
 
-        void RequestResetInSafeState(Action postReset = null, ICollection<IPeripheral> unresetable = null);
+        void RequestResetInSafeState(Action postReset = null, ICollection<IPeripheral> unresetable = null, bool runRegisteredResetEvents = false);
 
         void Reset();
 
