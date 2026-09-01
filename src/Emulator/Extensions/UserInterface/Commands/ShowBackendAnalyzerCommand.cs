@@ -113,9 +113,9 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction _, StringToken analyzerName, LiteralToken peripheral, LiteralToken analyzerTypeName)
+        public void Run(ICommandInteraction _, StringToken analyzerName, LiteralToken analyzable, LiteralToken analyzerTypeName)
         {
-            ShowAnalyzer(GetPeripheral(peripheral.Value), analyzerTypeName?.Value, analyzerName?.Value);
+            ShowAnalyzer(GetAnalyzable(analyzable.Value), analyzerTypeName?.Value, analyzerName?.Value);
         }
 
         [Runnable]
@@ -125,26 +125,26 @@ namespace Antmicro.Renode.UserInterface.Commands
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, LiteralToken peripheral)
+        public void Run(ICommandInteraction writer, LiteralToken analyzable)
         {
-            Run(writer, peripheral, null);
+            Run(writer, analyzable, null);
         }
 
         [Runnable]
-        public void Run(ICommandInteraction writer, LiteralToken peripheral, LiteralToken analyzerTypeName)
+        public void Run(ICommandInteraction writer, LiteralToken analyzable, LiteralToken analyzerTypeName)
         {
-            Run(writer, null, peripheral, analyzerTypeName);
+            Run(writer, null, analyzable, analyzerTypeName);
         }
 
-        private IPeripheral GetPeripheral(string peripheralName)
+        private IAnalyzable GetAnalyzable(string analyzableName)
         {
             try
             {
-                return (IPeripheral)monitor.ConvertValueOrThrowRecoverable(peripheralName, typeof(IPeripheral));
+                return (IAnalyzable)monitor.ConvertValueOrThrowRecoverable(analyzableName, typeof(IAnalyzable));
             }
             catch(RecoverableException)
             {
-                throw new RecoverableException(string.Format("Peripheral not found: {0}", peripheralName));
+                throw new RecoverableException(string.Format("Analyzable not found: {0}", analyzableName));
             }
         }
 

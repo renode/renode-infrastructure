@@ -171,9 +171,16 @@ namespace Antmicro.Renode.Peripherals
 
         public void HideAnalyzersFor(IMachine machine)
         {
-            string name;
             var toRemove = new List<IAnalyzableBackendAnalyzer>();
-            foreach(var analyzer in activeAnalyzers.Where(x => machine.TryGetLocalName(x.Backend.AnalyzableElement as IPeripheral, out name)))
+            var connectedAnalyzers = activeAnalyzers.Where(x =>
+            {
+                if(x.Backend.AnalyzableElement as IPeripheral != null)
+                {
+                    return machine.TryGetLocalName(x.Backend.AnalyzableElement as IPeripheral, out var _);
+                }
+                return false;
+            });
+            foreach(var analyzer in connectedAnalyzers)
             {
                 analyzer.Hide();
                 toRemove.Add(analyzer);
