@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) 2010-2025 Antmicro
 //
 // This file is licensed under the MIT License.
@@ -31,16 +31,16 @@ namespace Antmicro.Renode.Peripherals.USB
             machine.SetLocalName(pendrive, name);
         }
 
-        public static void PendriveFromFile(this USBIPServer usbController, string file, bool persistent = true, int? port = null, CompressionType compression = CompressionType.None)
+        public static void PendriveFromFile(this USBIPServer usbController, string file, bool persistent = true, int? port = null, CompressionType compression = CompressionType.None, USBSpeed? speed = null)
         {
-            var pendrive = new USBPendrive(file, persistent: persistent, compression: compression);
-            usbController.Register(pendrive, port);
+            var pendrive = new USBPendrive(file, persistent: persistent, compression: compression, speed: speed ?? USBSpeed.Full);
+            usbController.Register(pendrive, port, speed);
         }
     }
 
     public class USBPendrive : IUSBDevice, IDisposable
     {
-        public USBPendrive(string imageFile, long? size = null, bool persistent = false, uint blockSize = 512, CompressionType compression = CompressionType.None)
+        public USBPendrive(string imageFile, long? size = null, bool persistent = false, uint blockSize = 512, CompressionType compression = CompressionType.None, USBSpeed speed = USBSpeed.Full)
         {
             BlockSize = blockSize;
             dataBackend = DataStorage.CreateFromFile(imageFile, size, persistent, compression: compression);
@@ -52,7 +52,7 @@ namespace Antmicro.Renode.Peripherals.USB
                 this.Log(LogLevel.Warning, "Underlying data size extended by {0} bytes to align it to the block size ({1} bytes)", blockSize - sizeMisalignment, blockSize);
             }
 
-            USBCore = new USBDeviceCore(this)
+            USBCore = new USBDeviceCore(this, speed: speed)
                 .WithConfiguration(configure: c => c.WithInterface<Core.USB.MSC.Interface>(
                     (byte)Core.USB.MSC.Subclass.ScsiTransparentCommandSet,
                     (byte)Core.USB.MSC.Protocol.BulkOnlyTransport,

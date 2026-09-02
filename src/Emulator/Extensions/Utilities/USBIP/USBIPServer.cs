@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         }
 
         // this is just a simple wrapper method allowing to register devices from monitor
-        public static void Register(this USBIPServer @this, IUSBDevice device, int? port = null)
+        public static void Register(this USBIPServer @this, IUSBDevice device, int? port = null, USBSpeed? speed = null)
         {
             if(!port.HasValue)
             {
@@ -45,12 +45,21 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     : 0;
             }
 
+            if(speed.HasValue)
+            {
+                @this.SetDeviceSpeed(device, speed.Value);
+            }
+
             @this.Register(device, new NumberRegistrationPoint<int>(port.Value));
         }
     }
 
     public class USBIPServer : SimpleContainerBase<IUSBDevice>, IHostMachineElement, IDisposable
     {
+        public void SetDeviceSpeed(IUSBDevice device, USBSpeed speed)
+        {
+            deviceSpeeds[device] = speed;
+        }
         public USBIPServer(int port)
         {
             this.port = port;
@@ -85,9 +94,14 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             cancellationToken = new CancellationTokenSource();
         }
 
+        private readonly object sendLock = new object();
+
         private void SendResponse(IEnumerable<byte> bytes)
         {
-            server.Send(bytes);
+            lock(sendLock)
+            {
+                server.Send(bytes);
+            }
 
 #if DEBUG_PACKETS
             this.Log(LogLevel.Noisy, "Count {0}: {1}", bytes.Count(), Misc.PrettyPrintCollectionHex(bytes));
@@ -244,7 +258,14 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     var replyHeader = urbHeader;
                     device.USBCore.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
                     {
-                        SendResponse(GenerateURBReply(replyHeader, packet, response));
+                        if(response == null)
+                        {
+                            SendResponse(GenerateURBReply(replyHeader, packet, null, status: -32));
+                        }
+                        else
+                        {
+                            SendResponse(GenerateURBReply(replyHeader, packet, response, status: 0));
+                        }
                     });
                 }
                 else
@@ -256,12 +277,25 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     }
                     else if(ep.Direction == Direction.DeviceToHost)
                     {
-                        this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", ep.Identifier);
-                        var response = ep.Read(packet.TransferBufferLength, cancellationToken.Token);
-#if DEBUG_PACKETS
-                            this.Log(LogLevel.Noisy, "Count {0}: {1}", response.Length, Misc.PrettyPrintCollectionHex(response));
-#endif
-                        SendResponse(GenerateURBReply(urbHeader, packet, response));
+                        var capturedUrbHeader = urbHeader;
+                        var capturedPacket = packet;
+                        var capturedToken = cancellationToken.Token;
+                        ThreadPool.QueueUserWorkItem(_ =>
+                        {
+                            try
+                            {
+                                this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", ep.Identifier);
+                                var response = ep.Read(capturedPacket.TransferBufferLength, capturedToken);
+                                SendResponse(GenerateURBReply(capturedUrbHeader, capturedPacket, response));
+                            }
+                            catch(OperationCanceledException)
+                            {
+                            }
+                            catch(Exception ex)
+                            {
+                                this.Log(LogLevel.Warning, "Exception during ep.Read: {0}", ex.Message);
+                            }
+                        });
                     }
                     else
                     {
@@ -296,7 +330,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             }
         }
 
-        private IEnumerable<byte> GenerateURBReply(URBHeader hdr, URBRequest req, IEnumerable<byte> data = null)
+        private IEnumerable<byte> GenerateURBReply(URBHeader hdr, URBRequest req, IEnumerable<byte> data = null, int status = 0)
         {
             var header = new URBHeader
             {
@@ -306,20 +340,19 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 DeviceId = hdr.DeviceId,
                 Direction = hdr.Direction,
                 EndpointNumber = hdr.EndpointNumber,
+                FlagsOrStatus = (uint)status,
             };
 
             var reply = new URBReply
             {
-                // this is intentional:
-                // - report size of TransferBufferLength when returning no additional data,
-                // - report additional data size (and not TransferBufferLenght) otherwise
-                ActualLength = (data == null)
+                ActualLength = (status != 0) ? 0 : ((hdr.Direction == URBDirection.Out)
                     ? req.TransferBufferLength
-                    : (uint)data.Count()
+                    : (uint)(data?.Count() ?? 0)),
+                Setup = req.Setup
             };
 
             var result = Packet.Encode(header).Concat(Packet.Encode(reply)).AsEnumerable();
-            if(data != null)
+            if(hdr.Direction == URBDirection.In && data != null && status == 0)
             {
                 result = result.Concat(data);
             }
@@ -330,7 +363,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         // using this blocking helper method simplifies the logic of other methods
         // + it seems to be harmless, as this logic is not executed as a result of
         // intra-emulation communication (where it could lead to deadlocks)
-        private byte[] HandleSetupPacketSync(IUSBDevice device, SetupPacket setupPacket)
+        private byte[] HandleSetupPacketSync(IUSBDevice device, SetupPacket setupPacket, int timeoutMs = 1500)
         {
             byte[] result = null;
 
@@ -341,7 +374,10 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 mre.Set();
             });
 
-            mre.WaitOne();
+            if(!mre.WaitOne(timeoutMs))
+            {
+                this.Log(LogLevel.Warning, "Timeout waiting for setup packet response: {0}", setupPacket.ToString());
+            }
             return result;
         }
 
@@ -357,7 +393,10 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 Count = (ushort)Packet.CalculateLength<USB.DeviceDescriptor>()
             };
 
-            return Packet.Decode<USB.DeviceDescriptor>(HandleSetupPacketSync(device, setupPacket));
+            var data = HandleSetupPacketSync(device, setupPacket, 1000);
+            return data != null && data.Length >= Packet.CalculateLength<USB.DeviceDescriptor>()
+                ? Packet.Decode<USB.DeviceDescriptor>(data)
+                : default(USB.DeviceDescriptor);
         }
 
         private USB.ConfigurationDescriptor ReadConfigurationDescriptor(IUSBDevice device, byte configurationId, out USB.InterfaceDescriptor[] interfaceDescriptors)
@@ -372,23 +411,37 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 Count = (ushort)Packet.CalculateLength<USB.ConfigurationDescriptor>()
             };
             // first ask for the configuration descriptor non-recursively ...
-            var configurationDescriptorBytes = HandleSetupPacketSync(device, setupPacket);
+            var configurationDescriptorBytes = HandleSetupPacketSync(device, setupPacket, 1000);
+            if(configurationDescriptorBytes == null || configurationDescriptorBytes.Length < Packet.CalculateLength<USB.ConfigurationDescriptor>())
+            {
+                interfaceDescriptors = Array.Empty<USB.InterfaceDescriptor>();
+                return default(USB.ConfigurationDescriptor);
+            }
             var result = Packet.Decode<USB.ConfigurationDescriptor>(configurationDescriptorBytes);
 
             interfaceDescriptors = new USB.InterfaceDescriptor[result.NumberOfInterfaces];
             // ... read the total length of a recursive structure ...
             setupPacket.Count = result.TotalLength;
             // ... and only then read the whole structure again.
-            var recursiveBytes = HandleSetupPacketSync(device, setupPacket);
+            var recursiveBytes = HandleSetupPacketSync(device, setupPacket, 1000);
+            if(recursiveBytes == null || recursiveBytes.Length < result.TotalLength)
+            {
+                interfaceDescriptors = Array.Empty<USB.InterfaceDescriptor>();
+                return result;
+            }
 
             var currentOffset = Packet.CalculateLength<USB.ConfigurationDescriptor>();
             for(var i = 0; i < interfaceDescriptors.Length; i++)
             {
                 // the second byte of each descriptor contains the type
-                while(recursiveBytes[currentOffset + 1] != (byte)DescriptorType.Interface)
+                while(currentOffset + 1 < recursiveBytes.Length && recursiveBytes[currentOffset + 1] != (byte)DescriptorType.Interface)
                 {
                     // the first byte of each descriptor contains the length in bytes
                     currentOffset += recursiveBytes[currentOffset];
+                }
+                if(currentOffset >= recursiveBytes.Length)
+                {
+                    break;
                 }
 
                 interfaceDescriptors[i] = Packet.Decode<USB.InterfaceDescriptor>(recursiveBytes, currentOffset);
@@ -413,6 +466,12 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 }
             }
 
+            USBSpeed speed;
+            if(!deviceSpeeds.TryGetValue(device, out speed))
+            {
+                speed = device.USBCore?.Speed ?? USBSpeed.Full;
+            }
+
             var devDescriptor = new USBIP.DeviceDescriptor
             {
                 Path = new byte[256],
@@ -420,7 +479,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
                 BusNumber = ExportedBusId,
                 DeviceNumber = deviceNumber,
-                Speed = (int)USBSpeed.High, // this is hardcoded, but I don't know if that's good
+                Speed = (uint)speed,
 
                 IdVendor = deviceDescriptor.VendorId,
                 IdProduct = deviceDescriptor.ProductId,
@@ -487,7 +546,6 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             var success = true;
             var deviceId = 0;
             IUSBDevice device = null;
-
             var m = Regex.Match(deviceIdString, "([0-9]+)-([0-9]+)");
             if(m == null)
             {
@@ -535,20 +593,10 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         private readonly int port;
         private readonly List<byte> buffer;
         private readonly SocketServerProvider server;
+        private readonly Dictionary<IUSBDevice, USBSpeed> deviceSpeeds = new Dictionary<IUSBDevice, USBSpeed>();
 
         private const uint ExportedBusId = 1;
         private const ushort ProtocolVersion = 0x0111;
-
-        private enum USBSpeed
-        {
-            Unknown = 0,
-            Low = 1,
-            Full = 2,
-            High = 3,
-            Wireless = 4,
-            Super = 5,
-            SuperPlus = 6,
-        }
 
         private enum State
         {
