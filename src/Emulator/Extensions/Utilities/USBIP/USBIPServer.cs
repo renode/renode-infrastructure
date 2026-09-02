@@ -85,9 +85,14 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             cancellationToken = new CancellationTokenSource();
         }
 
+        private readonly object sendLock = new object();
+
         private void SendResponse(IEnumerable<byte> bytes)
         {
-            server.Send(bytes);
+            lock(sendLock)
+            {
+                server.Send(bytes);
+            }
 
 #if DEBUG_PACKETS
             this.Log(LogLevel.Noisy, "Count {0}: {1}", bytes.Count(), Misc.PrettyPrintCollectionHex(bytes));
@@ -256,12 +261,25 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     }
                     else if(ep.Direction == Direction.DeviceToHost)
                     {
-                        this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", ep.Identifier);
-                        var response = ep.Read(packet.TransferBufferLength, cancellationToken.Token);
-#if DEBUG_PACKETS
-                            this.Log(LogLevel.Noisy, "Count {0}: {1}", response.Length, Misc.PrettyPrintCollectionHex(response));
-#endif
-                        SendResponse(GenerateURBReply(urbHeader, packet, response));
+                        var capturedUrbHeader = urbHeader;
+                        var capturedPacket = packet;
+                        var capturedToken = cancellationToken.Token;
+                        ThreadPool.QueueUserWorkItem(_ =>
+                        {
+                            try
+                            {
+                                this.Log(LogLevel.Noisy, "Reading from endpoint #{0}", ep.Identifier);
+                                var response = ep.Read(capturedPacket.TransferBufferLength, capturedToken);
+                                SendResponse(GenerateURBReply(capturedUrbHeader, capturedPacket, response));
+                            }
+                            catch(OperationCanceledException)
+                            {
+                            }
+                            catch(Exception ex)
+                            {
+                                this.Log(LogLevel.Warning, "Exception during ep.Read: {0}", ex.Message);
+                            }
+                        });
                     }
                     else
                     {
