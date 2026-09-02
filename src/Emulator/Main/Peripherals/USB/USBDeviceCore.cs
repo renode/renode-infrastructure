@@ -28,7 +28,8 @@ namespace Antmicro.Renode.Core.USB
                              string serialNumber = null,
                              ushort vendorId = 0,
                              ushort productId = 0,
-                             Action<SetupPacket, byte[], Action<byte[]>> customSetupPacketHandler = null) : base(18, (byte)DescriptorType.Device)
+                             Action<SetupPacket, byte[], Action<byte[]>> customSetupPacketHandler = null,
+                             USBSpeed speed = USBSpeed.Full) : base(18, (byte)DescriptorType.Device)
         {
             if(maximalPacketSize != PacketSize.Size8
                 && maximalPacketSize != PacketSize.Size16
@@ -43,6 +44,7 @@ namespace Antmicro.Renode.Core.USB
             configurations = new List<USBConfiguration>();
 
             CompatibleProtocolVersion = usbProtocolVersion;
+            Speed = speed;
             Class = classCode;
             SubClass = subClassCode;
             Protocol = protocol;
@@ -154,6 +156,8 @@ namespace Antmicro.Renode.Core.USB
         public byte Address { get; set; }
 
         public USBProtocol CompatibleProtocolVersion { get; }
+
+        public USBSpeed Speed { get; set; }
 
         public USBClassCode Class { get; }
 

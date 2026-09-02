@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         }
 
         // this is just a simple wrapper method allowing to register devices from monitor
-        public static void Register(this USBIPServer @this, IUSBDevice device, int? port = null)
+        public static void Register(this USBIPServer @this, IUSBDevice device, int? port = null, USBSpeed? speed = null)
         {
             if(!port.HasValue)
             {
@@ -45,12 +45,21 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     : 0;
             }
 
+            if(speed.HasValue)
+            {
+                @this.SetDeviceSpeed(device, speed.Value);
+            }
+
             @this.Register(device, new NumberRegistrationPoint<int>(port.Value));
         }
     }
 
     public class USBIPServer : SimpleContainerBase<IUSBDevice>, IHostMachineElement, IDisposable
     {
+        public void SetDeviceSpeed(IUSBDevice device, USBSpeed speed)
+        {
+            deviceSpeeds[device] = speed;
+        }
         public USBIPServer(int port)
         {
             this.port = port;
@@ -457,6 +466,12 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 }
             }
 
+            USBSpeed speed;
+            if(!deviceSpeeds.TryGetValue(device, out speed))
+            {
+                speed = device.USBCore?.Speed ?? USBSpeed.Full;
+            }
+
             var devDescriptor = new USBIP.DeviceDescriptor
             {
                 Path = new byte[256],
@@ -464,7 +479,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
 
                 BusNumber = ExportedBusId,
                 DeviceNumber = deviceNumber,
-                Speed = (int)USBSpeed.High, // this is hardcoded, but I don't know if that's good
+                Speed = (uint)speed,
 
                 IdVendor = deviceDescriptor.VendorId,
                 IdProduct = deviceDescriptor.ProductId,
@@ -531,7 +546,6 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             var success = true;
             var deviceId = 0;
             IUSBDevice device = null;
-
             var m = Regex.Match(deviceIdString, "([0-9]+)-([0-9]+)");
             if(m == null)
             {
@@ -579,20 +593,10 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         private readonly int port;
         private readonly List<byte> buffer;
         private readonly SocketServerProvider server;
+        private readonly Dictionary<IUSBDevice, USBSpeed> deviceSpeeds = new Dictionary<IUSBDevice, USBSpeed>();
 
         private const uint ExportedBusId = 1;
         private const ushort ProtocolVersion = 0x0111;
-
-        private enum USBSpeed
-        {
-            Unknown = 0,
-            Low = 1,
-            Full = 2,
-            High = 3,
-            Wireless = 4,
-            Super = 5,
-            SuperPlus = 6,
-        }
 
         private enum State
         {

@@ -149,6 +149,38 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldReportFullSpeedByDefaultInDeviceDescriptor()
+        {
+            var dummyDevice = new DummyUSBDevice();
+            var descBytes = InvokeGenerateDeviceDescriptor(dummyDevice, 1, false).ToArray();
+            var devDescriptor = Packet.Decode<DeviceDescriptor>(descBytes);
+
+            // USBSpeed.Full is 2; USBSpeed.High is 3
+            Assert.AreEqual((int)USBSpeed.Full, devDescriptor.Speed);
+        }
+
+        [Test]
+        public void ShouldReportHighSpeedWhenRequestedViaUSBCore()
+        {
+            var dummyDevice = new DummyUSBDevice(USBSpeed.High);
+            var descBytes = InvokeGenerateDeviceDescriptor(dummyDevice, 1, false).ToArray();
+            var devDescriptor = Packet.Decode<DeviceDescriptor>(descBytes);
+
+            Assert.AreEqual((int)USBSpeed.High, devDescriptor.Speed);
+        }
+
+        [Test]
+        public void ShouldReportSpeedWhenOverriddenOnServer()
+        {
+            var dummyDevice = new DummyUSBDevice();
+            server.SetDeviceSpeed(dummyDevice, USBSpeed.High);
+            var descBytes = InvokeGenerateDeviceDescriptor(dummyDevice, 1, false).ToArray();
+            var devDescriptor = Packet.Decode<DeviceDescriptor>(descBytes);
+
+            Assert.AreEqual((int)USBSpeed.High, devDescriptor.Speed);
+        }
+
+        [Test]
         public void ShouldTimeoutOnUnresponsiveSetupPacket()
         {
             var unresponsiveDevice = new UnresponsiveUSBDevice();
@@ -184,6 +216,12 @@ namespace Antmicro.Renode.UnitTests
             return (IEnumerable<byte>)method.Invoke(server, new object[] { hdr, req, data, status });
         }
 
+        private IEnumerable<byte> InvokeGenerateDeviceDescriptor(IUSBDevice device, uint deviceNumber, bool includeInterfaces)
+        {
+            var method = typeof(USBIPServer).GetMethod("GenerateDeviceDescriptor", BindingFlags.NonPublic | BindingFlags.Instance);
+            return (IEnumerable<byte>)method.Invoke(server, new object[] { device, deviceNumber, includeInterfaces });
+        }
+
         private byte[] InvokeHandleSetupPacketSync(IUSBDevice device, SetupPacket setupPacket, int timeoutMs)
         {
             var method = typeof(USBIPServer).GetMethod("HandleSetupPacketSync", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -209,6 +247,21 @@ namespace Antmicro.Renode.UnitTests
         }
 
         private USBIPServer server;
+
+        private class DummyUSBDevice : IUSBDevice
+        {
+            public DummyUSBDevice(USBSpeed speed = USBSpeed.Full)
+            {
+                USBCore = new USBDeviceCore(this, speed: speed);
+            }
+
+            public void Reset()
+            {
+                USBCore.Reset();
+            }
+
+            public USBDeviceCore USBCore { get; }
+        }
 
         private class BlockingEndpointUSBDevice : IUSBDevice
         {
