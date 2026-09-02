@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -97,6 +97,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 psciEmulationMethod = value;
                 TlibPsciHandlerEnable((uint)psciEmulationMethod);
             }
+        }
+
+        public ulong ResetVectorBaseAddress
+        {
+            get => GetSystemRegisterValue("RVBAR");
+            set => TlibSetResetVectorBaseAddress(value);
         }
 
         public bool RNDRSupported
@@ -351,6 +357,9 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Func<string, uint> TlibIsGicOrGenericTimerSystemRegister;
+
+        [Import]
+        private readonly Action<ulong> TlibSetResetVectorBaseAddress;
 #pragma warning restore 649
 
         private readonly Dictionary<ulong, Action> customFunctionHandlers;
