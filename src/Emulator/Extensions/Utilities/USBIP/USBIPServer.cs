@@ -249,7 +249,14 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                     var replyHeader = urbHeader;
                     device.USBCore.HandleSetupPacket(setupPacket, additionalData: additionalData, resultCallback: response =>
                     {
-                        SendResponse(GenerateURBReply(replyHeader, packet, response));
+                        if(response == null)
+                        {
+                            SendResponse(GenerateURBReply(replyHeader, packet, null, status: -32));
+                        }
+                        else
+                        {
+                            SendResponse(GenerateURBReply(replyHeader, packet, response, status: 0));
+                        }
                     });
                 }
                 else
@@ -314,7 +321,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
             }
         }
 
-        private IEnumerable<byte> GenerateURBReply(URBHeader hdr, URBRequest req, IEnumerable<byte> data = null)
+        private IEnumerable<byte> GenerateURBReply(URBHeader hdr, URBRequest req, IEnumerable<byte> data = null, int status = 0)
         {
             var header = new URBHeader
             {
@@ -324,20 +331,19 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 DeviceId = hdr.DeviceId,
                 Direction = hdr.Direction,
                 EndpointNumber = hdr.EndpointNumber,
+                FlagsOrStatus = (uint)status,
             };
 
             var reply = new URBReply
             {
-                // this is intentional:
-                // - report size of TransferBufferLength when returning no additional data,
-                // - report additional data size (and not TransferBufferLenght) otherwise
-                ActualLength = (data == null)
+                ActualLength = (status != 0) ? 0 : ((hdr.Direction == URBDirection.Out)
                     ? req.TransferBufferLength
-                    : (uint)data.Count()
+                    : (uint)(data?.Count() ?? 0)),
+                Setup = req.Setup
             };
 
             var result = Packet.Encode(header).Concat(Packet.Encode(reply)).AsEnumerable();
-            if(data != null)
+            if(hdr.Direction == URBDirection.In && data != null && status == 0)
             {
                 result = result.Concat(data);
             }

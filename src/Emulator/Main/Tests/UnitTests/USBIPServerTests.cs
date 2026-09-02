@@ -79,6 +79,80 @@ namespace Antmicro.Renode.UnitTests
             Assert.IsTrue(completedInTime, "FeedBytes blocked on endpoint read instead of queuing asynchronously.");
         }
 
+        [Test]
+        public void ShouldReportErrorStatusAndZeroLengthOnStallReply()
+        {
+            var hdr = new URBHeader
+            {
+                Command = URBCommand.URBRequest,
+                SequenceNumber = 123,
+                DeviceId = 1,
+                Direction = URBDirection.In,
+                EndpointNumber = 0
+            };
+            var req = new URBRequest
+            {
+                TransferBufferLength = 64
+            };
+
+            var replyBytes = InvokeGenerateURBReply(hdr, req, null, status: -32).ToArray();
+            var replyHeader = Packet.Decode<URBHeader>(replyBytes);
+            var replyBody = Packet.Decode<URBReply>(replyBytes, Packet.CalculateLength<URBHeader>());
+
+            Assert.AreEqual(unchecked((uint)-32), replyHeader.FlagsOrStatus);
+            Assert.AreEqual(0u, replyBody.ActualLength);
+        }
+
+        [Test]
+        public void ShouldCalculateCorrectLengthForInTransferWithZeroOrEmptyData()
+        {
+            var hdr = new URBHeader
+            {
+                Command = URBCommand.URBRequest,
+                SequenceNumber = 124,
+                DeviceId = 1,
+                Direction = URBDirection.In,
+                EndpointNumber = 1
+            };
+            var req = new URBRequest
+            {
+                TransferBufferLength = 64
+            };
+
+            var replyBytes = InvokeGenerateURBReply(hdr, req, Array.Empty<byte>(), status: 0).ToArray();
+            var replyBody = Packet.Decode<URBReply>(replyBytes, Packet.CalculateLength<URBHeader>());
+
+            Assert.AreEqual(0u, replyBody.ActualLength);
+        }
+
+        [Test]
+        public void ShouldCalculateCorrectLengthForOutTransfer()
+        {
+            var hdr = new URBHeader
+            {
+                Command = URBCommand.URBRequest,
+                SequenceNumber = 125,
+                DeviceId = 1,
+                Direction = URBDirection.Out,
+                EndpointNumber = 1
+            };
+            var req = new URBRequest
+            {
+                TransferBufferLength = 64
+            };
+
+            var replyBytes = InvokeGenerateURBReply(hdr, req, null, status: 0).ToArray();
+            var replyBody = Packet.Decode<URBReply>(replyBytes, Packet.CalculateLength<URBHeader>());
+
+            Assert.AreEqual(64u, replyBody.ActualLength);
+        }
+
+        private IEnumerable<byte> InvokeGenerateURBReply(URBHeader hdr, URBRequest req, IEnumerable<byte> data, int status)
+        {
+            var method = typeof(USBIPServer).GetMethod("GenerateURBReply", BindingFlags.NonPublic | BindingFlags.Instance);
+            return (IEnumerable<byte>)method.Invoke(server, new object[] { hdr, req, data, status });
+        }
+
         private void FeedBytes(IEnumerable<byte> bytes)
         {
             var method = typeof(USBIPServer).GetMethod("HandleIncomingData", BindingFlags.NonPublic | BindingFlags.Instance);
