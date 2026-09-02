@@ -138,7 +138,7 @@ namespace Antmicro.Renode.Core
                 }
 
                 EmulationEpoch++;
-                var deserializationResult = serializer.TryDeserialize<Emulation>(stream, out var emulation, out var metadata);
+                var deserializationResult = serializer.TryDeserialize<(Emulation, MonitorContext)>(stream, out var deserializedData, out var metadata);
                 string metadataStringFromFile = null;
 
                 try
@@ -159,8 +159,11 @@ namespace Antmicro.Renode.Core
                     throw CreateLoadException(deserializationResult, metadataStringFromFile);
                 }
 
+                (var emulation, var monitorContext) = deserializedData;
                 CurrentEmulation = emulation;
                 CurrentEmulation.BlobManager.Load(stream, fstream.Name);
+                ObjectCreator.Instance.GetSurrogate<Monitor>().MonitorContext = monitorContext;
+                Logger.Log(LogLevel.Info, $"Monitor symbols loaded:\n\tMacros: {monitorContext.Macros.Keys.Stringify()}\n\tAliasses: {monitorContext.Aliases.Keys.Stringify()}\n\tVariables: {monitorContext.Variables.Keys.Stringify()}");
 
                 if(metadataStringFromFile != MetadataString)
                 {
@@ -227,8 +230,9 @@ namespace Antmicro.Renode.Core
                     {
                         try
                         {
+                            var monitorContext = ObjectCreator.Instance.GetSurrogate<Monitor>().MonitorContext;
                             CurrentEmulation.SnapshotTracker.Save(CurrentEmulation.MasterTimeSource.ElapsedVirtualTime, path);
-                            serializer.Serialize(CurrentEmulation, stream, Encoding.UTF8.GetBytes(MetadataString));
+                            serializer.Serialize((CurrentEmulation, monitorContext), stream, Encoding.UTF8.GetBytes(MetadataString));
                             CurrentEmulation.BlobManager.Save(stream);
                         }
                         catch(InvalidOperationException e)
