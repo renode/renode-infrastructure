@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.UART
             sysbus = machine.GetSystemBus(this);
             this.easyDMA = easyDMA;
             IRQ = new GPIO();
-            interruptManager = new InterruptManager<Interrupts>(this);
+            interruptManager = new InterruptManager<Interrupts>(this, IRQ, "UART_IRQ");
             registers = new DoubleWordRegisterCollection(this, DefineRegisters());
         }
 
@@ -86,7 +86,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override void CharWritten()
         {
-            if(enabled.Value == EnableState.Disabled || !rxStarted)
+            if(enabled.Value == EnableState.Disabled)
             {
                 this.Log(LogLevel.Warning, "Received a character, but the receiver is disabled.");
                 // The character should not be received. This is safe because QueueEmptied is not used
@@ -96,16 +96,16 @@ namespace Antmicro.Renode.Peripherals.UART
 
             lock(interruptManager)
             {
-                if(interruptManager.IsSet(Interrupts.EndReceive))
+                if(easyDMA && rxStarted && rxMaximumCount.Value > 0)
                 {
-                    // The receiver stopped, but there might still be characters in the buffer.
-                    // This occurs when we paste text to terminal - UART is assumed to be slower
-                    // than ISR. That's why we silently wait for the StartRx event.
-                    return;
-                }
+                    if(interruptManager.IsSet(Interrupts.EndReceive))
+                    {
+                        // The receiver stopped, but there might still be characters in the buffer.
+                        // This occurs when we paste text to terminal - UART is assumed to be slower
+                        // than ISR. That's why we silently wait for the StartRx event.
+                        return;
+                    }
 
-                if(easyDMA)
-                {
                     // do DMA transfer
                     if(!TryGetCharacter(out var character))
                     {
@@ -219,87 +219,71 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(5, 27)
                 }
             };
-            if(!easyDMA)
-            {
-                // these are registers only for non-eDMA version of the UART
-                dict.Add((long)Registers.RxD, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, FieldMode.Read, name: "RXD", valueProviderCallback: _ =>
+            // Non-EasyDMA FIFO registers (always available)
+            dict.Add((long)Registers.RxD, new DoubleWordRegister(this)
+                .WithValueField(0, 8, FieldMode.Read, name: "RXD", valueProviderCallback: _ =>
+                {
+                    if(!TryGetCharacter(out var character))
                     {
-                        if(!TryGetCharacter(out var character))
-                        {
-                            this.Log(LogLevel.Warning, "Trying to read from an empty Rx FIFO.");
-                        }
+                        this.Log(LogLevel.Warning, "Trying to read from an empty Rx FIFO.");
+                    }
 
-                        if(Count > 0)
-                        {
-                            interruptManager.SetInterrupt(Interrupts.ReceiveReady);
-                            EventTriggered?.Invoke((uint)Registers.RxDReady);
-                        }
-
-                        return character;
-                    })
-                    .WithReservedBits(8, 24)
-                );
-                dict.Add((long)Registers.TxD, new DoubleWordRegister(this)
-                    .WithValueField(0, 8, FieldMode.Write, name: "TXD", writeCallback: (_, value) =>
+                    if(Count > 0)
                     {
-                        if(enabled.Value == EnableState.Disabled)
-                        {
-                            this.Log(LogLevel.Warning, "Trying to transmit a character, but the peripheral is disabled.");
-                            return;
-                        }
-                        TransmitCharacter((byte)value);
-                        interruptManager.SetInterrupt(Interrupts.TransmitReady);
-                        EventTriggered?.Invoke((uint)Registers.TxDReady);
-                    })
-                    .WithReservedBits(8, 24)
-                );
-            }
-            else
-            {
-                // these are registers only for eDMA version of the UART
-                dict.Add((long)Registers.EndRx, GetEventRegister(Interrupts.EndReceive, "EVENTS_ENDRX"));
+                        interruptManager.SetInterrupt(Interrupts.ReceiveReady);
+                        EventTriggered?.Invoke((uint)Registers.RxDReady);
+                    }
 
-                dict.Add((long)Registers.EndTx, GetEventRegister(Interrupts.EndTransmit, "EVENTS_ENDRX"));
+                    return character;
+                })
+                .WithReservedBits(8, 24)
+            );
+            dict.Add((long)Registers.TxD, new DoubleWordRegister(this)
+                .WithValueField(0, 8, FieldMode.Write, name: "TXD", writeCallback: (_, value) =>
+                {
+                    if(enabled.Value == EnableState.Disabled)
+                    {
+                        this.Log(LogLevel.Warning, "Trying to transmit a character, but the peripheral is disabled.");
+                        return;
+                    }
+                    TransmitCharacter((byte)value);
+                    interruptManager.SetInterrupt(Interrupts.TransmitReady);
+                    EventTriggered?.Invoke((uint)Registers.TxDReady);
+                })
+                .WithReservedBits(8, 24)
+            );
 
-                dict.Add((long)Registers.RxTimeout, GetEventRegister(Interrupts.ReceiveTimeout, "EVENTS_RXTO"));
+            // EasyDMA registers
+            dict.Add((long)Registers.EndRx, GetEventRegister(Interrupts.EndReceive, "EVENTS_ENDRX"));
+            dict.Add((long)Registers.EndTx, GetEventRegister(Interrupts.EndTransmit, "EVENTS_ENDTX"));
+            dict.Add((long)Registers.RxTimeout, GetEventRegister(Interrupts.ReceiveTimeout, "EVENTS_RXTO"));
+            dict.Add((long)Registers.RxStarted, GetEventRegister(Interrupts.ReceiveStarted, "EVENTS_RXSTARTED"));
+            dict.Add((long)Registers.TxStarted, GetEventRegister(Interrupts.TransmitStarted, "EVENTS_TXSTARTED"));
+            dict.Add((long)Registers.TxStopped, GetEventRegister(Interrupts.TransmitStopped, "EVENTS_TXSTOPPED"));
+            dict.Add((long)Registers.InterruptEnable, interruptManager.GetInterruptEnableRegister<DoubleWordRegister>());
+            dict.Add((long)Registers.RxDPointer, new DoubleWordRegister(this)
+                .WithValueField(0, 32, out rxPointer, name: "PTR")
+            );
+            dict.Add((long)Registers.RxDMaximumCount, new DoubleWordRegister(this)
+                .WithValueField(0, 16, out rxMaximumCount, name: "MAXCNT")
+                .WithReservedBits(16, 16)
+            );
+            dict.Add((long)Registers.RxDAmount, new DoubleWordRegister(this)
+                .WithValueField(0, 16, out rxAmount, FieldMode.Read, name: "AMOUNT")
+                .WithReservedBits(16, 16)
+            );
+            dict.Add((long)Registers.TxDPointer, new DoubleWordRegister(this)
+                .WithValueField(0, 32, out txPointer, name: "PTR")
+            );
+            dict.Add((long)Registers.TxDMaximumCount, new DoubleWordRegister(this)
+                .WithValueField(0, 16, out txMaximumCount, name: "MAXCNT")
+                .WithReservedBits(16, 16)
+            );
+            dict.Add((long)Registers.TxDAmount, new DoubleWordRegister(this)
+                .WithValueField(0, 16, out txAmount, FieldMode.Read, name: "AMOUNT")
+                .WithReservedBits(16, 16)
+            );
 
-                dict.Add((long)Registers.RxStarted, GetEventRegister(Interrupts.ReceiveStarted, "EVENTS_RXSTARTED"));
-
-                dict.Add((long)Registers.TxStarted, GetEventRegister(Interrupts.TransmitStarted, "EVENTS_TXSTARTED"));
-
-                dict.Add((long)Registers.TxStopped, GetEventRegister(Interrupts.TransmitStopped, "EVENTS_TXSTOPPED"));
-
-                dict.Add((long)Registers.InterruptEnable, interruptManager.GetInterruptEnableRegister<DoubleWordRegister>());
-
-                dict.Add((long)Registers.RxDPointer, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out rxPointer, name: "PTR")
-                );
-
-                dict.Add((long)Registers.RxDMaximumCount, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out rxMaximumCount, name: "MAXCNT")
-                    .WithReservedBits(16, 16)
-                );
-
-                dict.Add((long)Registers.RxDAmount, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out rxAmount, FieldMode.Read, name: "AMOUNT")
-                    .WithReservedBits(16, 16)
-                );
-
-                dict.Add((long)Registers.TxDPointer, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, out txPointer, name: "PTR")
-                );
-
-                dict.Add((long)Registers.TxDMaximumCount, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out txMaximumCount, name: "MAXCNT")
-                    .WithReservedBits(16, 16)
-                );
-
-                dict.Add((long)Registers.TxDAmount, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, out txAmount, FieldMode.Read, name: "AMOUNT")
-                    .WithReservedBits(16, 16)
-                );
-            }
             return dict;
         }
 
