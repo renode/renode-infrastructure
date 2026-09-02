@@ -194,10 +194,17 @@ namespace Antmicro.Renode.Core.USB
 
         private void SendSetupResult(Action<byte[]> resultCallback, byte[] result)
         {
-            device.Log(LogLevel.Noisy, "Sending setup packet response of length {0}", result.Length);
+            if(result != null)
+            {
+                device.Log(LogLevel.Noisy, "Sending setup packet response of length {0}", result.Length);
 #if DEBUG_PACKET
-            device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(result));
+                device.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(result));
 #endif
+            }
+            else
+            {
+                device.Log(LogLevel.Noisy, "Sending setup packet STALL response");
+            }
             resultCallback(result);
         }
 
