@@ -17,6 +17,7 @@ using Antmicro.Renode.Core.USB;
 using Antmicro.Renode.Extensions.Utilities.USBIP;
 using Antmicro.Renode.Utilities.Packets;
 using NUnit.Framework;
+using USB = Antmicro.Renode.Extensions.Utilities.USB;
 
 namespace Antmicro.Renode.UnitTests
 {
@@ -147,10 +148,55 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(64u, replyBody.ActualLength);
         }
 
+        [Test]
+        public void ShouldTimeoutOnUnresponsiveSetupPacket()
+        {
+            var unresponsiveDevice = new UnresponsiveUSBDevice();
+            var setupPacket = new SetupPacket
+            {
+                Recipient = PacketRecipient.Device,
+                Type = PacketType.Standard,
+                Direction = Direction.DeviceToHost,
+                Request = (byte)StandardRequest.GetDescriptor
+            };
+
+            byte[] result = null;
+            Assert.DoesNotThrow(() =>
+            {
+                result = InvokeHandleSetupPacketSync(unresponsiveDevice, setupPacket, 50);
+            });
+
+            Assert.IsNull(result);
+        }
+
+        [Test]
+        public void ShouldHandleTruncatedConfigurationDescriptorSafely()
+        {
+            var truncatedDevice = new TruncatedDescriptorUSBDevice();
+            var result = InvokeReadConfigurationDescriptor(truncatedDevice, 0, out var ifaces);
+
+            Assert.IsEmpty(ifaces);
+        }
+
         private IEnumerable<byte> InvokeGenerateURBReply(URBHeader hdr, URBRequest req, IEnumerable<byte> data, int status)
         {
             var method = typeof(USBIPServer).GetMethod("GenerateURBReply", BindingFlags.NonPublic | BindingFlags.Instance);
             return (IEnumerable<byte>)method.Invoke(server, new object[] { hdr, req, data, status });
+        }
+
+        private byte[] InvokeHandleSetupPacketSync(IUSBDevice device, SetupPacket setupPacket, int timeoutMs)
+        {
+            var method = typeof(USBIPServer).GetMethod("HandleSetupPacketSync", BindingFlags.NonPublic | BindingFlags.Instance);
+            return (byte[])method.Invoke(server, new object[] { device, setupPacket, timeoutMs });
+        }
+
+        private USB.ConfigurationDescriptor InvokeReadConfigurationDescriptor(IUSBDevice device, byte configId, out USB.InterfaceDescriptor[] ifaces)
+        {
+            var method = typeof(USBIPServer).GetMethod("ReadConfigurationDescriptor", BindingFlags.NonPublic | BindingFlags.Instance);
+            var parameters = new object[] { device, configId, null };
+            var result = (USB.ConfigurationDescriptor)method.Invoke(server, parameters);
+            ifaces = (USB.InterfaceDescriptor[])parameters[2];
+            return result;
         }
 
         private void FeedBytes(IEnumerable<byte> bytes)
@@ -187,6 +233,43 @@ namespace Antmicro.Renode.UnitTests
 
             public USBDeviceCore USBCore { get; }
             private USBEndpoint endpoint;
+        }
+
+        private class UnresponsiveUSBDevice : IUSBDevice
+        {
+            public UnresponsiveUSBDevice()
+            {
+                USBCore = new USBDeviceCore(this, customSetupPacketHandler: (packet, data, cb) =>
+                {
+                    // Never invokes cb to simulate hang/unresponsive firmware
+                });
+            }
+
+            public void Reset()
+            {
+                USBCore.Reset();
+            }
+
+            public USBDeviceCore USBCore { get; }
+        }
+
+        private class TruncatedDescriptorUSBDevice : IUSBDevice
+        {
+            public TruncatedDescriptorUSBDevice()
+            {
+                USBCore = new USBDeviceCore(this, customSetupPacketHandler: (packet, data, cb) =>
+                {
+                    // Return truncated 2 bytes
+                    cb(new byte[] { 0x02, 0x02 });
+                });
+            }
+
+            public void Reset()
+            {
+                USBCore.Reset();
+            }
+
+            public USBDeviceCore USBCore { get; }
         }
     }
 }

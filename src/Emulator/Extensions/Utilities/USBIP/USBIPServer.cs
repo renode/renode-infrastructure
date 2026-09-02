@@ -354,7 +354,7 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
         // using this blocking helper method simplifies the logic of other methods
         // + it seems to be harmless, as this logic is not executed as a result of
         // intra-emulation communication (where it could lead to deadlocks)
-        private byte[] HandleSetupPacketSync(IUSBDevice device, SetupPacket setupPacket)
+        private byte[] HandleSetupPacketSync(IUSBDevice device, SetupPacket setupPacket, int timeoutMs = 1500)
         {
             byte[] result = null;
 
@@ -365,7 +365,10 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 mre.Set();
             });
 
-            mre.WaitOne();
+            if(!mre.WaitOne(timeoutMs))
+            {
+                this.Log(LogLevel.Warning, "Timeout waiting for setup packet response: {0}", setupPacket.ToString());
+            }
             return result;
         }
 
@@ -381,7 +384,10 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 Count = (ushort)Packet.CalculateLength<USB.DeviceDescriptor>()
             };
 
-            return Packet.Decode<USB.DeviceDescriptor>(HandleSetupPacketSync(device, setupPacket));
+            var data = HandleSetupPacketSync(device, setupPacket, 1000);
+            return data != null && data.Length >= Packet.CalculateLength<USB.DeviceDescriptor>()
+                ? Packet.Decode<USB.DeviceDescriptor>(data)
+                : default(USB.DeviceDescriptor);
         }
 
         private USB.ConfigurationDescriptor ReadConfigurationDescriptor(IUSBDevice device, byte configurationId, out USB.InterfaceDescriptor[] interfaceDescriptors)
@@ -396,23 +402,37 @@ namespace Antmicro.Renode.Extensions.Utilities.USBIP
                 Count = (ushort)Packet.CalculateLength<USB.ConfigurationDescriptor>()
             };
             // first ask for the configuration descriptor non-recursively ...
-            var configurationDescriptorBytes = HandleSetupPacketSync(device, setupPacket);
+            var configurationDescriptorBytes = HandleSetupPacketSync(device, setupPacket, 1000);
+            if(configurationDescriptorBytes == null || configurationDescriptorBytes.Length < Packet.CalculateLength<USB.ConfigurationDescriptor>())
+            {
+                interfaceDescriptors = Array.Empty<USB.InterfaceDescriptor>();
+                return default(USB.ConfigurationDescriptor);
+            }
             var result = Packet.Decode<USB.ConfigurationDescriptor>(configurationDescriptorBytes);
 
             interfaceDescriptors = new USB.InterfaceDescriptor[result.NumberOfInterfaces];
             // ... read the total length of a recursive structure ...
             setupPacket.Count = result.TotalLength;
             // ... and only then read the whole structure again.
-            var recursiveBytes = HandleSetupPacketSync(device, setupPacket);
+            var recursiveBytes = HandleSetupPacketSync(device, setupPacket, 1000);
+            if(recursiveBytes == null || recursiveBytes.Length < result.TotalLength)
+            {
+                interfaceDescriptors = Array.Empty<USB.InterfaceDescriptor>();
+                return result;
+            }
 
             var currentOffset = Packet.CalculateLength<USB.ConfigurationDescriptor>();
             for(var i = 0; i < interfaceDescriptors.Length; i++)
             {
                 // the second byte of each descriptor contains the type
-                while(recursiveBytes[currentOffset + 1] != (byte)DescriptorType.Interface)
+                while(currentOffset + 1 < recursiveBytes.Length && recursiveBytes[currentOffset + 1] != (byte)DescriptorType.Interface)
                 {
                     // the first byte of each descriptor contains the length in bytes
                     currentOffset += recursiveBytes[currentOffset];
+                }
+                if(currentOffset >= recursiveBytes.Length)
+                {
+                    break;
                 }
 
                 interfaceDescriptors[i] = Packet.Decode<USB.InterfaceDescriptor>(recursiveBytes, currentOffset);
