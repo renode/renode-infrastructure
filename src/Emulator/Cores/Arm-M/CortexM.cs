@@ -901,6 +901,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public const uint IDAU_SAURegionAddressMask = ~(IDAU_SAURegionMinSize - 1u);
 
+        public void RaisePreciseBusFault(ulong address)
+        {
+            tlibRaisePreciseBusFault(checked((uint)address));
+        }
+
         protected override void HandleBusAccessError(ulong address, SysbusAccessWidth width, BusAccess.Operation operation, BusAccessError error)
         {
             tlibRaisePreciseBusFault(checked((uint)address));
