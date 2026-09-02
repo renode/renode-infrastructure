@@ -39,6 +39,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             for(var i = 0; i < repeat; i++)
             {
                 commonFifo.FeedAccelerationSample(x, y, z);
+                accelerometerDataReady.Value = true;
+                UpdateInterrupts();
             }
         }
 
@@ -58,6 +60,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             for(var i = 0; i < repeat; i++)
             {
                 commonFifo.FeedAngularRateSample(x, y, z);
+                gyroscopeDataReady.Value = true;
+                UpdateInterrupts();
             }
         }
 
@@ -235,7 +239,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("LPF2_XL_EN: Accelerometer high-resolution selection", 1)
                 .WithEnumField(2, 2, out accelerationFullScaleSelection, name: "FS_XL: Accelerometer full-scale selection",
                     changeCallback: (_, __) => UpdateAccelerationSensitivity())
-                .WithEnumField(4, 4, out accelerometerOutputDataRateSelection, name: "ODR_XL: Accelerometer Output Data Rate")
+                .WithEnumField(4, 4, out accelerometerOutputDataRateSelection, name: "ODR_XL: Accelerometer Output Data Rate",
+                    changeCallback: (_, __) =>
+                    {
+                        UpdateAccelerationSampleFrequency();
+                        if(accelerometerOutputDataRateSelection.Value != DataRates.Disabled && accelerometerFeederThread == null)
+                        {
+                            accelerometerFeederThread = CreateAccelerationDefaultSampleFeeder();
+                        }
+                    })
                 ;
 
             Registers.Control2_Gyroscope.Define(this)
@@ -244,7 +256,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     changeCallback: (_, __) => UpdateAngularRateSensitivity())
                 .WithEnumField(2, 2, out angularRateFullScaleSelection, name: "FS_G: Gyroscope UI chain full-scale selection",
                     changeCallback: (_, __) => UpdateAngularRateSensitivity())
-                .WithEnumField(4, 4, out gyroscopeOutputDataRateSelection, name: "ODR_G: Gyroscope Output Data Rate")
+                .WithEnumField(4, 4, out gyroscopeOutputDataRateSelection, name: "ODR_G: Gyroscope Output Data Rate",
+                    changeCallback: (_, __) =>
+                    {
+                        UpdateAngularRateSampleFrequency();
+                        if(gyroscopeOutputDataRateSelection.Value != DataRates.Disabled && gyroFeederThread == null)
+                        {
+                            gyroFeederThread = CreateAngularRateDefaultSampleFeeder();
+                        }
+                    })
                 ;
 
             Registers.Control3.Define(this, resetValue: 0b00000100)
@@ -310,6 +330,13 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithTaggedFlag("DEN_Z", 5)
                 .WithTaggedFlag("DEN_Y", 6)
                 .WithTaggedFlag("DEN_X", 7)
+                ;
+
+            Registers.Status.Define(this)
+                .WithFlag(0, out accelerometerDataReady, FieldMode.Read, name: "XLDA")
+                .WithFlag(1, out gyroscopeDataReady, FieldMode.Read, name: "GDA")
+                .WithTaggedFlag("TDA", 2)
+                .WithReservedBits(3, 5)
                 ;
 
             Registers.TemperatureLow.Define(this)
@@ -403,8 +430,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
             DefineOutputRegistersGroup(Registers.GyroscopeXLow, "OUT{0}_G", () => commonFifo.AngularRateSample);
 
             Registers.Int1PinControl.Define(this)
-                .WithTaggedFlag("INT1_DRDY_XL", 0)
-                .WithTaggedFlag("INT1_DRDY_G", 1)
+                .WithFlag(0, out int1EnableDataReadyAccelerometer, name: "INT1_DRDY_XL")
+                .WithFlag(1, out int1EnableDataReadyGyroscope, name: "INT1_DRDY_G")
                 .WithTaggedFlag("INT1_BOOT", 2)
                 .WithTaggedFlag("INT1_TH", 3)
                 .WithFlag(4, out interrupt1EnableFifoOverrun, name: "INT1_FIFO_OVR")
@@ -512,7 +539,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             {
                 var registerInfo = subsequentRegistersInfo[registerOffset];
                 var name = string.Format(nameFormat, registerInfo.NameSuffix);
-                register.WithValueField(0, 8, FieldMode.Read, name: name,
+                var reg = register.WithValueField(0, 8, FieldMode.Read, name: name,
                     valueProviderCallback: _ =>
                     {
                         var sample = sampleProvider();
@@ -534,6 +561,22 @@ namespace Antmicro.Renode.Peripherals.Sensors
                         return @byte;
                     }
                 );
+
+                if(registerInfo.UpperByte)
+                {
+                    reg.WithReadCallback((_, __) =>
+                    {
+                        if(firstGroupRegister == Registers.AccelerometerXLow)
+                        {
+                            accelerometerDataReady.Value = false;
+                        }
+                        else if(firstGroupRegister == Registers.GyroscopeXLow)
+                        {
+                            gyroscopeDataReady.Value = false;
+                        }
+                        UpdateInterrupts();
+                    });
+                }
             });
         }
 
@@ -543,7 +586,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             if(sample != null)
             {
-                commonFifo.FeedAccelerationSample(
+                FeedAccelerationSample(
                     (decimal)sample.AccelerationX / 1e6m,
                     (decimal)sample.AccelerationY / 1e6m,
                     (decimal)sample.AccelerationZ / 1e6m
@@ -551,7 +594,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
             else
             {
-                commonFifo.FeedAccelerationSample(
+                FeedAccelerationSample(
                     DefaultAccelerationX,
                     DefaultAccelerationY,
                     DefaultAccelerationZ
@@ -572,7 +615,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             if(sample != null)
             {
-                commonFifo.FeedAngularRateSample(
+                FeedAngularRateSample(
                     RadiansToDegrees * (decimal)sample.AngularRateX / 1e5m,
                     RadiansToDegrees * (decimal)sample.AngularRateY / 1e5m,
                     RadiansToDegrees * (decimal)sample.AngularRateZ / 1e5m
@@ -580,7 +623,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
             else
             {
-                commonFifo.FeedAngularRateSample(
+                FeedAngularRateSample(
                     DefaultAngularRateX,
                     DefaultAngularRateY,
                     DefaultAngularRateZ
@@ -749,6 +792,16 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 newInt1Status = true;
             }
 
+            if(int1EnableDataReadyAccelerometer.Value && accelerometerDataReady.Value)
+            {
+                newInt1Status = true;
+            }
+
+            if(int1EnableDataReadyGyroscope.Value && gyroscopeDataReady.Value)
+            {
+                newInt1Status = true;
+            }
+
             if(Interrupt1.IsSet != newInt1Status)
             {
                 this.Log(LogLevel.Debug, "New INT1 state: {0}", newInt1Status ? "set" : "reset");
@@ -861,6 +914,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private IEnumRegisterField<AccelerationFullScaleSelection> accelerationFullScaleSelection;
         private IFlagRegisterField accelerationFullScaleMode;
+        private IFlagRegisterField accelerometerDataReady;
+        private IFlagRegisterField gyroscopeDataReady;
         private IEnumRegisterField<DataRates> accelerometerFifoBatchingDataRateSelection;
         private IEnumRegisterField<DataRates> accelerometerOutputDataRateSelection;
         private IFlagRegisterField addressAutoIncrement;
@@ -870,6 +925,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private IFlagRegisterField fifoThresholdBit8;
         private IEnumRegisterField<DataRates> gyroscopeFifoBatchingDataRateSelection;
         private IEnumRegisterField<DataRates> gyroscopeOutputDataRateSelection;
+        private IFlagRegisterField int1EnableDataReadyAccelerometer;
+        private IFlagRegisterField int1EnableDataReadyGyroscope;
         private IFlagRegisterField interrupt1EnableFifoOverrun;
         private IEnumRegisterField<RegisterBank> selectedRegisterBank;
         private readonly LSM6DSO_FIFO commonFifo;
