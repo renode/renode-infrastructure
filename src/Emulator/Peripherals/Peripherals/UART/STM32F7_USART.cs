@@ -47,7 +47,8 @@ namespace Antmicro.Renode.Peripherals.UART
             RegistersCollection.Write(offset, value);
         }
 
-        public override uint BaudRate => BaudRateMultiplier * frequency / (uint)baudRateDivisor.Value;
+        public override uint BaudRate =>
+            BaudRateMultiplier * frequency / Math.Max(1, (uint)baudRateDivisor.Value);
 
         public override Bits StopBits
         {
