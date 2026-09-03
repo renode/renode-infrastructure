@@ -439,6 +439,12 @@ namespace Antmicro.Renode.Peripherals.CPU
             return pauseGuard.RequestTranslationBlockRestart(quiet);
         }
 
+        public void RequestWakeUpFromWfi()
+        {
+            wakeUpFromWfiRequested = true;
+            sleeper.Interrupt();
+        }
+
         public uint AssembleBlock(ulong addr, string instructions, string triple = null, bool alternateDialect = false)
         {
             if(Assembler == null)
@@ -1514,8 +1520,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             else if(result == ExecutionResult.WaitingForInterrupt && lastTlibResult != TlibExecutionResult.Lockup)
             {
-                if(InDebugMode || neverWaitForInterrupt)
+                if(InDebugMode || neverWaitForInterrupt || wakeUpFromWfiRequested)
                 {
+                    wakeUpFromWfiRequested = false;
                     // NIP always points to the next instruction, on all emulated cores. If this behavior changes, this needs to change as well.
                     this.Trace("Clearing WaitForInterrupt processor state.");
                     TlibCleanWfiProcState(); // Clean WFI state in the emulated core
@@ -2172,6 +2179,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ExternalMmuFaultHook mmuFaultHook;
         private MemoryAccessHook memoryAccessHook;
         private Action<bool> wfiStateChangeHook;
+        private volatile bool wakeUpFromWfiRequested;
 
         private List<SegmentMapping> currentMappings;
 
