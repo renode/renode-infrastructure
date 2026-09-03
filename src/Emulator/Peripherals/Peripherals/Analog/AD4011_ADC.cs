@@ -119,24 +119,26 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private uint Convert(decimal input)
         {
+            // Current model is only one sided, not differential
+            // e.g. It assumes that IN- is 0 at all times, making the range [0, V_ref) without span compression
             // With span compression enabled, the maximum value is 0.8 * V_ref
             var maxVolts = ReferenceVoltage * (spanCompression.Value ? 0.8m : 1m);
             var lsb = maxVolts / (1 << (MeasurementResolutionBits - 1));
 
-            var diff = input - ReferenceVoltage;
-            if(Math.Abs(diff) > maxVolts)
+            if(Math.Abs(input) > maxVolts)
             {
                 overvoltageClamp.Value = false; // This is active low
-                diff = Math.Sign(diff) * maxVolts;
+                input = Math.Sign(input) * maxVolts;
             }
 
-            var result = (uint)((int)(diff / lsb)) & ((1u << MeasurementResolutionBits) - 1);
+            var result = (uint)((int)(input / lsb)) & ((1u << MeasurementResolutionBits) - 1);
 
             // Since the output is in 2's complement it is impossible to encode +V_ref
-            if(result > MaxRawPositiveMeasurement && Math.Sign(diff) > 0)
+            if(result > MaxRawPositiveMeasurement && Math.Sign(input) > 0)
             {
                 result = MaxRawPositiveMeasurement;
             }
+            this.DebugLog("Input value {0}, encoded value 0x{1:X}", input, result);
             return result;
         }
 
