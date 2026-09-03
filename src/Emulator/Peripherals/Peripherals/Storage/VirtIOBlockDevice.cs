@@ -1,12 +1,14 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -23,7 +25,7 @@ namespace Antmicro.Renode.Peripherals.Storage
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class VirtIOBlockDevice : VirtIOMMIO, IDisposable
     {
-        public VirtIOBlockDevice(IMachine machine) : base(machine)
+        public VirtIOBlockDevice(IMachine machine, string diskId = "") : base(machine)
         {
             storage = DataStorage.CreateInTemporaryFile(size: 0);
             lastQueueIdx = 0;
@@ -35,6 +37,24 @@ namespace Antmicro.Renode.Peripherals.Storage
             BitHelper.SetBit(ref deviceFeatureBits, (byte)FeatureBits.BlockFlagFlush, true);
             BitHelper.SetBit(ref deviceFeatureBits, (byte)FeatureBits.BlockFlagConfigWCE, true);
             DefineRegisters();
+
+            if(string.IsNullOrEmpty(diskId))
+            {
+                machine.PeripheralsChanged += (machine, ev) =>
+                {
+                    /* Creation driver will set this device name after this creation. Therefore,
+                     * retrieving the name of the device to assign diskId has to be delayed.
+                     */
+                    if(ev.Peripheral == this && ev.Operation == PeripheralsChangedEventArgs.PeripheralChangeType.NameChanged)
+                    {
+                        DiskId = this.GetName();
+                    }
+                };
+            }
+            else
+            {
+                DiskId = diskId;
+            }
         }
 
         public void Dispose()
@@ -116,6 +136,13 @@ namespace Antmicro.Renode.Peripherals.Storage
                 }
                 break;
 
+            case BlockOperations.GetId:
+                if(!vqueue.TryWriteToBuffers(diskIdBytes))
+                {
+                    return false;
+                }
+                break;
+
             default:
                 this.Log(LogLevel.Error, "Unsupported block operation ({0})", hdr.Type);
                 break;
@@ -123,6 +150,30 @@ namespace Antmicro.Renode.Peripherals.Storage
 
             WriteStatus(vqueue);
             return true;
+        }
+
+        public string DiskId
+        {
+            get => diskIdBytes is null ? "" : Encoding.ASCII.GetString(diskIdBytes).TrimEnd('\0');
+
+            private set
+            {
+                diskIdBytes = new byte[IdSize]; // Always IdSize as VirtIO requirement
+
+                if(!value.All(char.IsAscii))
+                {
+                    this.Log(LogLevel.Warning, "Disk Id ({0}) contains non-ASCII characters, they will be replaced with '?'", value);
+                }
+
+                var byteCount = Encoding.ASCII.GetByteCount(value);
+                var size = byteCount < diskIdBytes.Length ? byteCount : diskIdBytes.Length;
+                Encoding.ASCII.GetBytes(value, 0, size, diskIdBytes, 0);
+
+                if(size < byteCount)
+                {
+                    this.Log(LogLevel.Warning, "Disk Id longer than {0}, truncating it to '{1}'", diskIdBytes.Length, DiskId);
+                }
+            }
         }
 
         protected override uint DeviceID => 0x2;
@@ -156,8 +207,10 @@ namespace Antmicro.Renode.Peripherals.Storage
         private long capacity;
         private Stream storage;
         private byte status;
+        private byte[] diskIdBytes;
 
         private const int SectorSize = 0x200;
+        private const int IdSize = 20; // VirtIO specification 1.4, section 5.2.6: 20 bytes NUL padded if diskId is less than 20 bytes.
 
         [LeastSignificantByteFirst]
         private struct Header
@@ -198,6 +251,7 @@ namespace Antmicro.Renode.Peripherals.Storage
             In = 0,
             Out = 1,
             Flush = 4,
+            GetId = 8,
             Discard = 11,
             WriteZeroes = 13,
         }
