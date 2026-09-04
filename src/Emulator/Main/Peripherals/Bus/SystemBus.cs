@@ -1007,7 +1007,8 @@ namespace Antmicro.Renode.Peripherals.Bus
                         checked
                         {
                             var peripheralAddress = (long)(target.Offset - target.What.RegistrationPoint.Range.StartAddress + target.What.RegistrationPoint.Offset);
-                            destination = multibytePeripheral.ReadBytes(peripheralAddress, (int)target.SourceLength);
+                            var buffer = multibytePeripheral.ReadBytes(peripheralAddress, (int)target.SourceLength);
+                            Array.Copy(buffer, 0, destination, startIndex + (int)target.SourceIndex, (int)target.SourceLength);
                         }
                     }
                     else
