@@ -153,7 +153,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     var value = state[pinNumber];
                     if(parent.core.CanSetInterruptValue((byte)pinNumber, value, out var _))
                     {
-                        parent.core.UpdatePendingValue((byte)pinNumber, true);
+                        parent.core.UpdatePendingValue((byte)pinNumber, value);
                         parent.Connections[pinNumber].Set(true);
                     }
                 }

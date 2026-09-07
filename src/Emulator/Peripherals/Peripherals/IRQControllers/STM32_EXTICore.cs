@@ -69,17 +69,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         public void UpdatePendingValue(byte bit, bool value)
         {
             IValueRegisterField registerField;
+            // With separate pending registers 'value' is the level the line settled at,
+            // so it selects the register while the pending flag itself is always set.
+            var pending = value;
             if(separateConfigs)
             {
-                var isRaising = (value != true);
-                registerField = isRaising ? PendingRaisingInterrupts : PendingFallingInterrupts;
+                registerField = value ? PendingRaisingInterrupts : PendingFallingInterrupts;
+                pending = true;
             }
             else
             {
                 registerField = PendingInterrupts;
             }
             var reg = registerField.Value;
-            BitHelper.SetBit(ref reg, (byte)bit, value);
+            BitHelper.SetBit(ref reg, (byte)bit, pending);
             registerField.Value = reg;
         }
 
