@@ -155,6 +155,10 @@ namespace Antmicro.Renode.Peripherals.CAN
                 Data = frame.Data;
                 MessageBufferCode = RxMessageCode != RxCode.Empty ? (byte)RxMessageBufferCode.Overrun : (byte)RxMessageBufferCode.Full;
 
+                IdExtendedBit = frame.ExtendedFormat;
+                StandardId = frame.StandardIdPart;
+                ExtensionId = frame.ExtendedIdPart;
+
                 var dataToBeWritten = Packet.Encode<MessageBufferStructure>(this);
                 buffer.WriteBytes((long)offset, dataToBeWritten, 0, (int)MetaSize);
                 buffer.WriteBytes((long)offset + MetaSize, data, 0, (int)data.Length);
