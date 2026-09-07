@@ -296,6 +296,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 EventPending = false;
             }
 
+            public void Resync()
+            {
+                if(TryGetPin(out var pin))
+                {
+                    CurrentState = pin.InputValue;
+                }
+            }
+
             public Mode Mode { get; set; }
 
             public uint SelectedPin { get; set; }
