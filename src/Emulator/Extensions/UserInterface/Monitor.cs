@@ -70,6 +70,10 @@ namespace Antmicro.Renode.UserInterface
                 aliases.Clear();
                 Machine = null;
                 emulationManager.CurrentEmulation.MachineAdded += RegisterResetCommand;
+                foreach (var mach in emulationManager.CurrentEmulation.Machines)
+                {
+                    RegisterResetCommand(mach);
+                }
                 monitorPath.Reset();
             };
             EmulationManager.PreservableManager.RegisterPreservable(this, livesThroughEmulationChange: true);
