@@ -179,9 +179,19 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void SendDataToSlave()
         {
-            if(dataToSlave.Count == 0 || selectedSlave == null)
+            // Empty TX queue is legitimate: this method is invoked unconditionally
+            // from the STOP and repeated-START handlers, but a read-only transaction
+            // never enqueues anything. Silently no-op rather than warn.
+            if(dataToSlave.Count == 0)
             {
-                this.Log(LogLevel.Warning, "Trying to send data to slave, but either no data is available or the slave is not selected");
+                return;
+            }
+
+            // Queue has data but no slave selected -- internal state inconsistency.
+            if(selectedSlave == null)
+            {
+                this.Log(LogLevel.Warning, "Have queued TX data but no slave is currently selected; dropping {0} byte(s)", dataToSlave.Count);
+                dataToSlave.Clear();
                 return;
             }
 
