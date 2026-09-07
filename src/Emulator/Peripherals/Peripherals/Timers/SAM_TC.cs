@@ -18,13 +18,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 {
     public class SAM_TC : BasicDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize
     {
-        public SAM_TC(IMachine machine, ulong masterClockFrequency = 20000000) : base(machine)
+        public SAM_TC(IMachine machine, ulong masterClockFrequency = 20000000, int counterWidth = 16) : base(machine)
         {
             var connections = new Dictionary<int, IGPIO>();
             channels = new Channel[NumberOfChannels];
+            var maxValue = counterWidth == 32 ? 0xFFFFFFFFUL : 0xFFFFUL;
             for(int i = 0; i < NumberOfChannels; i++)
             {
-                channels[i] = new Channel(machine.ClockSource, masterClockFrequency, this, i);
+                channels[i] = new Channel(machine.ClockSource, masterClockFrequency, this, i, maxValue);
                 connections[i] = channels[i].IRQ;
             }
             Connections = new ReadOnlyDictionary<int, IGPIO>(connections);
@@ -323,14 +324,15 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private class Channel
         {
-            public Channel(IClockSource clockSource, ulong masterClockFrequency, IPeripheral owner, int channel)
+            public Channel(IClockSource clockSource, ulong masterClockFrequency, IPeripheral owner, int channel, ulong maxValue = DefaultMaxValue)
             {
                 this.masterClockFrequency = masterClockFrequency;
+                this.maxValue = maxValue;
                 this.channel = channel;
                 parent = owner;
                 IRQ = new GPIO();
-                timer = new LimitTimer(clockSource, masterClockFrequency, owner, $"channel-{channel}", MaxValue, Direction.Ascending, eventEnabled: true, divider: 2);
-                cTimer = new LimitTimer(clockSource, masterClockFrequency, owner, $"channel-{channel} C capture", MaxValue, Direction.Ascending, workMode: WorkMode.OneShot, eventEnabled: true, divider: 2);
+                timer = new LimitTimer(clockSource, masterClockFrequency, owner, $"channel-{channel}", maxValue, Direction.Ascending, eventEnabled: true, divider: 2);
+                cTimer = new LimitTimer(clockSource, masterClockFrequency, owner, $"channel-{channel} C capture", maxValue, Direction.Ascending, workMode: WorkMode.OneShot, eventEnabled: true, divider: 2);
                 timer.LimitReached += LimitReached;
                 cTimer.LimitReached += delegate
                 {
@@ -571,7 +573,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
                 if(!waveformMode)
                 {
-                    parent.ErrorLog("Unimplemented");
+                    // Capture mode: free-running counter up to MaxValue
+                    timer.Direction = Direction.Ascending;
+                    timer.Limit = maxValue;
                 }
                 else
                 {
@@ -579,10 +583,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                     {
                     case WaveSelection.Up:
                         timer.Direction = Direction.Ascending;
-                        timer.Limit = MaxValue;
+                        timer.Limit = maxValue;
                         break;
                     case WaveSelection.UpDown:
-                        timer.Limit = MaxValue;
+                        timer.Limit = maxValue;
                         break;
                     case WaveSelection.UpRC:
                         timer.Direction = Direction.Ascending;
@@ -602,15 +606,15 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             private void UpdateCTimer()
             {
-                if(!enabled || !waveformMode)
+                if(!enabled)
                 {
                     cTimer.Enabled = false;
                     return;
                 }
-                switch(waveformSelected)
+
+                // In capture mode or waveform Up/UpDown, use cTimer for RC compare
+                if(!waveformMode || waveformSelected == WaveSelection.Up || waveformSelected == WaveSelection.UpDown)
                 {
-                case WaveSelection.Up:
-                case WaveSelection.UpDown:
                     var direction = timer.Direction;
                     var value = timer.Value;
                     var limit = timer.Limit;
@@ -633,10 +637,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                         cTimer.Limit = limit - valueC;
                     }
                     cTimer.Enabled = timer.Enabled;
-                    break;
-                default:
+                }
+                else
+                {
                     cTimer.Enabled = false;
-                    break;
                 }
             }
 
@@ -655,7 +659,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 if(!waveformMode)
                 {
-                    parent.ErrorLog("Unimplemented");
+                    // Capture mode: free-running counter overflow
+                    overflow = true;
                 }
                 else
                 {
@@ -669,7 +674,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         compareCInterrupt = true;
                         break;
                     case WaveSelection.UpDown:
-                        if(timer.Value == MaxValue)
+                        if(timer.Value == maxValue)
                         {
                             parent.NoisyLog("Channel #{0} overflow", channel);
                             overflow = true;
@@ -718,7 +723,8 @@ namespace Antmicro.Renode.Peripherals.Timers
             private readonly LimitTimer timer;
             private readonly LimitTimer cTimer;
 
-            private const ulong MaxValue = 0xFFFF;
+            private readonly ulong maxValue;
+            private const ulong DefaultMaxValue = 0xFFFF;
         }
 
         private enum ClockSelection
