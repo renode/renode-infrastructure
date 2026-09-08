@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.UART
         public UARTHub(bool loopback) : base(loopback) { }
     }
 
-    public class UARTHubBase<I, T> : IExternal, IHasOwnLife, IConnectable<I>
+    public class UARTHubBase<I, T> : IExternal, IConnectable<I>
         where I : class, IUART<T>
         where T : IBinaryInteger<T>
     {
@@ -84,21 +84,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public void Start()
-        {
-            Resume();
-        }
-
-        public void Pause()
-        {
-            started = false;
-        }
-
-        public void Resume()
-        {
-            started = true;
-        }
-
         public virtual void DetachFrom(I uart)
         {
             lock(locker)
@@ -112,8 +97,6 @@ namespace Antmicro.Renode.Peripherals.UART
                 uarts.Remove(uart);
             }
         }
-
-        public bool IsPaused => !started;
 
         public bool StrictMode
         {
@@ -172,7 +155,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private static readonly Bits[] allStopBitValues = Enum.GetValues<Bits>();
         private static readonly byte[] allBitPositions = Enumerable.Range(0, default(T).GetByteCount() * 8).Select(x => (byte)x).ToArray();
 
-        protected bool started;
         protected bool strictMode;
         protected readonly bool shouldLoopback;
         protected readonly Dictionary<I, Action<T>> uarts;
@@ -181,11 +163,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void HandleCharReceived(T obj, TimeStamp when, I sender)
         {
-            if(!started)
-            {
-                return;
-            }
-
             DataTransmitted?.Invoke(sender, obj);
 
             lock(locker)

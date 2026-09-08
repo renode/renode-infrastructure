@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Tools.Network
         }
     }
 
-    public class Switch : IExternal, IHasOwnLife, IConnectable<IMACInterface>, INetworkLogSwitch
+    public class Switch : IExternal, IConnectable<IMACInterface>, INetworkLogSwitch
     {
         public void AttachTo(IMACInterface iface)
         {
@@ -115,23 +115,6 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
-        public void Start()
-        {
-            Resume();
-        }
-
-        public void Pause()
-        {
-            started = false;
-        }
-
-        public void Resume()
-        {
-            started = true;
-        }
-
-        public bool IsPaused => !started;
-
         public event Action<IExternal, IMACInterface, IMACInterface, byte[]> FrameTransmitted;
 
         public event Action<IExternal, IMACInterface, byte[]> FrameProcessed;
@@ -142,10 +125,6 @@ namespace Antmicro.Renode.Tools.Network
 
             FrameProcessed?.Invoke(this, sender, frame.Bytes);
 
-            if(!started)
-            {
-                return;
-            }
             lock(innerLock)
             {
                 var interestingIfaces = macMapping.TryGetValue(frame.DestinationMAC, out var destIface)
@@ -177,8 +156,6 @@ namespace Antmicro.Renode.Tools.Network
                 macMapping[frame.SourceMAC] = sender;
             }
         }
-
-        private bool started = true;
 
         private readonly object innerLock = new object();
         private readonly HashSet<InterfaceDescriptor> ifaces = new HashSet<InterfaceDescriptor>();

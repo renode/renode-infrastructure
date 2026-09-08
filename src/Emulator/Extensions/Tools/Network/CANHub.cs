@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Tools.Network
         }
     }
 
-    public sealed class CANHub : IExternal, IHasOwnLife, IConnectable<ICAN>, INetworkLog<ICAN>
+    public sealed class CANHub : IExternal, IConnectable<ICAN>, INetworkLog<ICAN>
     {
         public CANHub(bool loopback = false, bool useNetworkByteOrderForLogging = true)
         {
@@ -64,30 +64,7 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
-        public void Start()
-        {
-            Resume();
-        }
-
-        public void Pause()
-        {
-            lock(sync)
-            {
-                started = false;
-            }
-        }
-
-        public void Resume()
-        {
-            lock(sync)
-            {
-                started = true;
-            }
-        }
-
         public bool UseNetworkByteOrderForLogging { get; set; }
-
-        public bool IsPaused => !started;
 
         public event Action<IExternal, ICAN, ICAN, byte[]> FrameTransmitted;
 
@@ -125,28 +102,21 @@ namespace Antmicro.Renode.Tools.Network
                     FrameProcessed?.Invoke(this, sender, frame);
                 }
 
-                if(!started)
-                {
-                    return;
-                }
                 var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
                 foreach(var iface in attached.Where(x => (x != sender || loopback)))
                 {
                     if(iface is CANTester)
                     {
-                        // CANTester does not belong to a machine so the event has to be handled from MasterTimeSource
-                        EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ExecuteInSyncedState(
-                            (_) => iface.OnFrameReceived(message), vts
-                        );
-                        continue;
+                        TransmitToTester(iface, message, vts);
                     }
-                    iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, vts,
-                        frame != null ? () => FrameTransmitted?.Invoke(this, sender, iface, frame) : (Action)null);
+                    else
+                    {
+                        iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, vts,
+                            frame != null ? () => FrameTransmitted?.Invoke(this, sender, iface, frame) : (Action)null);
+                    }
                 }
             }
         }
-
-        private bool started;
 
         private readonly List<ICAN> attached;
         private readonly Dictionary<ICAN, Action<CANMessageFrame>> handlers;

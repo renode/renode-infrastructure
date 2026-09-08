@@ -41,11 +41,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void HandleLINBreak()
         {
-            if(!started)
-            {
-                return;
-            }
-
             lock(locker)
             {
                 foreach(var item in uarts.Keys)
