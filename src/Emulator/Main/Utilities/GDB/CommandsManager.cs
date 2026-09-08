@@ -190,7 +190,9 @@ namespace Antmicro.Renode.Utilities.GDB
             var port = Machine.GdbStubs.Values.First().Terminal.Port.Value;
             var machineName = Machine.ToString();
 
-            EmulationManager.Instance.LoadLatestSnapshot(beforeTimeStamp - TimeInterval.FromTicks(1));
+            var snapshotPath = EmulationManager.Instance.CurrentEmulation.SnapshotTracker.GetSnapshotForGdbBeforeTimeStamp(beforeTimeStamp);
+            EmulationManager.Instance.Load(snapshotPath, preserveState: true);
+
             if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(machineName, out var newMachine))
             {
                 throw new RecoverableException("Machine was not found in the snapshot.");

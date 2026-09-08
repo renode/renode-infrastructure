@@ -1,12 +1,12 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
@@ -18,54 +18,35 @@ namespace Antmicro.Renode.Utilities
     {
         public SnapshotTracker()
         {
-            snapshots = new List<SnapshotDescriptor>();
-            snapshotComparer = new SnapshotComparer();
         }
 
         public string GetLastSnapshotBeforeOrAtTimeStamp(TimeInterval timeStamp)
         {
-            int index = snapshots.BinarySearch(new SnapshotDescriptor(timeStamp, null), snapshotComparer);
+            // Look through from the latest to the earliest snapshot.
+            var snapshotView = snapshots.GetViewBetween(EarliestSnapshot, new(timeStamp, null, uint.MaxValue)).Reverse();
+            return GetFirstExistingSnapshot(snapshotView).Path;
+        }
 
-            if(index == -1)
-            {
-                throw new RecoverableException("There are no snapshots taken before this timestamp.");
-            }
+        public string GetSnapshotForGdbBeforeTimeStamp(TimeInterval timeStamp)
+        {
+            timeStamp -= TimeInterval.FromTicks(1);
 
-            if(index < 0)
-            {
-                // binary search returned bitwise complement of the index of the least element with larger timestamp
-                // we decrement index to get the largest element less than given one
-                index = ~index;
-                index--;
-            }
+            // Look for an existing snapshot with the latest possible timestamp.
+            var snapshotView = snapshots.GetViewBetween(EarliestSnapshot, new(timeStamp, null, uint.MaxValue)).Reverse();
+            var latestSnapshot = GetFirstExistingSnapshot(snapshotView);
 
-            while(index >= 0 && !File.Exists(snapshots[index].Path))
-            {
-                snapshots.RemoveAt(index);
-                index--;
-            }
+            // Find the first snapshot created on 'latestSnapshot.TimeStamp'.
+            var snapshotsOnTimestamp = snapshots.GetViewBetween(
+                new(latestSnapshot.TimeStamp, null, 0),
+                new(latestSnapshot.TimeStamp, null, uint.MaxValue));
 
-            if(index >= 0)
-            {
-                return snapshots[index].Path;
-            }
-
-            throw new RecoverableException("There are no snapshots taken before this timestamp.");
+            return GetFirstExistingSnapshot(snapshotsOnTimestamp).Path;
         }
 
         public void Save(TimeInterval timeStamp, string path)
         {
-            var newSnap = new SnapshotDescriptor(timeStamp, path);
-
-            int index = snapshots.BinarySearch(newSnap, snapshotComparer);
-
-            // only save snapshot if there is no other with the same timestamp to keep
-            // the oldest snapshot at given virtual time in order to cover more breakpoints
-            if(index < 0)
-            {
-                // binary search returned bitwise complement of the index of the first element larger than the new one
-                snapshots.Insert(~index, newSnap);
-            }
+            var newSnapshot = new SnapshotDescriptor(timeStamp, path, nextSnapshoId++);
+            snapshots.Add(newSnapshot);
         }
 
         public string PrintSnapshotsInfo()
@@ -87,7 +68,32 @@ namespace Antmicro.Renode.Utilities
 
         public int Count => snapshots.Count;
 
-        public long TotalSnapshotsSize => snapshots.Select(x => new FileInfo(x.Path)).Where(x => x.Exists).Sum(x => x.Length);
+        public long TotalSnapshotsSize
+        {
+            get
+            {
+                var totalSize = 0L;
+
+                var snapshotsToRemove = new List<SnapshotDescriptor>();
+                foreach(var snapshot in snapshots)
+                {
+                    var snapshotInfo = new FileInfo(snapshot.Path);
+                    if(snapshotInfo.Exists)
+                    {
+                        totalSize += snapshotInfo.Length;
+                    }
+                    else
+                    {
+                        snapshotsToRemove.Add(snapshot);
+                    }
+                }
+
+                RemoveSnapshots(snapshotsToRemove);
+                return totalSize;
+            }
+        }
+
+        private static readonly SnapshotDescriptor EarliestSnapshot = new(TimeInterval.Empty, null, 0);
 
         private string GetSnapshotSizeText(long size)
         {
@@ -95,28 +101,64 @@ namespace Antmicro.Renode.Utilities
             return $"{value:F2} {unit}";
         }
 
-        private readonly List<SnapshotDescriptor> snapshots;
-        private readonly SnapshotComparer snapshotComparer;
-
-        private class SnapshotDescriptor
+        private SnapshotDescriptor GetFirstExistingSnapshot(IEnumerable<SnapshotDescriptor> snapshotView)
         {
-            public SnapshotDescriptor(TimeInterval timeStamp, string path)
+            SnapshotDescriptor firstSnapshot = null;
+
+            var snapshotsToRemove = new List<SnapshotDescriptor>();
+            foreach(var snapshot in snapshotView)
             {
-                TimeStamp = timeStamp;
-                Path = path;
+                if(File.Exists(snapshot.Path))
+                {
+                    firstSnapshot = snapshot;
+                    break;
+                }
+                else
+                {
+                    snapshotsToRemove.Add(snapshot);
+                }
             }
 
-            public TimeInterval TimeStamp { get; }
+            RemoveSnapshots(snapshotsToRemove);
 
-            public string Path { get; }
+            if(firstSnapshot != null)
+            {
+                return firstSnapshot;
+            }
+
+            throw new RecoverableException("There are no snapshots taken before this timestamp");
         }
 
-        private class SnapshotComparer : IComparer<SnapshotDescriptor>
+        private void RemoveSnapshots(IEnumerable<SnapshotDescriptor> snapshotsToRemove)
         {
-            public int Compare(SnapshotDescriptor snap1, SnapshotDescriptor snap2)
+            foreach(var removedSnapshot in snapshotsToRemove)
             {
-                return snap1.TimeStamp.CompareTo(snap2.TimeStamp);
+                snapshots.Remove(removedSnapshot);
             }
+        }
+
+        private uint nextSnapshoId = 0;
+
+        private readonly SortedSet<SnapshotDescriptor> snapshots = new SortedSet<SnapshotDescriptor>();
+
+        private record SnapshotDescriptor(TimeInterval TimeStamp, string Path, uint SnapshotId) : IComparable<SnapshotDescriptor>
+        {
+            public int CompareTo(SnapshotDescriptor other)
+            {
+                var timestampCompare = TimeStamp.CompareTo(other.TimeStamp);
+                if(timestampCompare == 0)
+                {
+                    return SnapshotId.CompareTo(other.SnapshotId);
+                }
+
+                return timestampCompare;
+            }
+
+            public TimeInterval TimeStamp { get; init; } = TimeStamp;
+
+            public string Path { get; init; } = Path;
+
+            public uint SnapshotId { get; init; } = SnapshotId;
         }
     }
 }
