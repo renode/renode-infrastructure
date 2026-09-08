@@ -20,12 +20,13 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.TAPHelper;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
-    public sealed class LinuxTapInterface : ITapInterface
+    public sealed class LinuxTapInterface : ITapInterface, IHasOwnLife
     {
         public LinuxTapInterface(string name, bool persistent)
         {
@@ -243,12 +244,19 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 {
                     return;
                 }
+
                 if(buffer == null || buffer.Length == 0)
                 {
                     continue;
                 }
+
                 if(Misc.TryCreateFrameOrLogWarning(this, buffer, out var frame, addCrc: true))
                 {
+                    if(IsPaused)
+                    {
+                        this.DebugLog("Emulation is paused. Dropping frame: {0}", frame);
+                        continue;
+                    }
                     FrameReady?.Invoke(frame);
                 }
             }

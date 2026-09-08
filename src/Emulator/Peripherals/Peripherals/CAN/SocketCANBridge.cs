@@ -36,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.CAN
     }
 
     [SupportedRID("linux")]
-    public class SocketCANBridge : ICAN
+    public class SocketCANBridge : ICAN, IHasOwnLife
     {
         public SocketCANBridge(string canInterfaceName = "vcan0", bool ensureFdFrames = false, bool ensureXlFrames = false)
         {
@@ -121,6 +121,29 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
         }
 
+        public void Start()
+        {
+            Resume();
+        }
+
+        public void Pause()
+        {
+            lock(startedLock)
+            {
+                IsPaused = true;
+            }
+        }
+
+        public void Resume()
+        {
+            lock(startedLock)
+            {
+                IsPaused = false;
+            }
+        }
+
+        public bool IsPaused { get; private set; } = true;
+
         public event Action<CANMessageFrame> FrameSent;
 
         private bool TryEnableSocketOption(bool ensure, int option, string optionName)
@@ -188,6 +211,14 @@ namespace Antmicro.Renode.Peripherals.CAN
                     this.Log(LogLevel.Warning, "Failed to convert SocketCAN frame to CANMessageFrame");
                     continue;
                 }
+                lock(startedLock)
+                {
+                    if(IsPaused)
+                    {
+                        this.DebugLog("Emulation is paused. Dropping frame: {0}", message);
+                        continue;
+                    }
+                }
 
                 this.Log(LogLevel.Debug, "Transmitting {0}", message);
                 FrameSent?.Invoke(message);
@@ -198,6 +229,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         private CancellationTokenSource cancellationTokenSource;
         [Transient]
         private Thread thread;
+        private readonly object startedLock = new object();
 
         private readonly int canSocket;
 

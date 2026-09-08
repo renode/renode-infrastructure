@@ -18,11 +18,12 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.HostInterfaces.Network
 {
-    public sealed class OsXTapInterface : ITapInterface
+    public sealed class OsXTapInterface : ITapInterface, IHasOwnLife
     {
         public OsXTapInterface(string interfaceNameOrPath)
         {
@@ -136,17 +137,25 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 {
                     int bytesRead = await deviceFile.ReadAsync(buffer, 0, buffer.Length, cts.Token);
 
-                    if(bytesRead > 0)
+                    if(bytesRead == 0)
                     {
-                        byte[] packet = new byte[bytesRead];
-                        Array.Copy(buffer, packet, bytesRead);
-                        if(!Misc.TryCreateFrameOrLogWarning(this, packet, out var frame, addCrc: true))
-                        {
-                            return;
-                        }
-                        FrameReady?.Invoke(frame);
-                        this.NoisyLog("Frame of length {0} received from host.", frame.Bytes.Length);
+                        continue;
                     }
+                    byte[] packet = new byte[bytesRead];
+                    Array.Copy(buffer, packet, bytesRead);
+                    if(!Misc.TryCreateFrameOrLogWarning(this, packet, out var frame, addCrc: true))
+                    {
+                        return;
+                    }
+
+                    if(IsPaused)
+                    {
+                        this.DebugLog("Emulation is paused. Dropping frame: {0}", frame);
+                        continue;
+                    }
+
+                    FrameReady?.Invoke(frame);
+                    this.NoisyLog("Frame of length {0} received from host.", frame.Bytes.Length);
                 }
                 catch(IOException)
                 {

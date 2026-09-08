@@ -105,9 +105,10 @@ namespace Antmicro.Renode.Tools.Network
                 var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
                 foreach(var iface in attached.Where(x => (x != sender || loopback)))
                 {
-                    if(iface is CANTester)
+                    var isTimeSourceIndependent = iface is CANTester || iface is CANExternalControlBus;
+                    if(isTimeSourceIndependent)
                     {
-                        TransmitToTester(iface, message, vts);
+                        TransmitToNonEmulatedInterface(iface, message, vts);
                     }
                     else
                     {
@@ -115,6 +116,21 @@ namespace Antmicro.Renode.Tools.Network
                             frame != null ? () => FrameTransmitted?.Invoke(this, sender, iface, frame) : (Action)null);
                     }
                 }
+            }
+        }
+
+        private void TransmitToNonEmulatedInterface(ICAN iface, CANMessageFrame message, TimeStamp virtualTimestamp)
+        {
+            if(EmulationManager.Instance.CurrentEmulation.IsStarted)
+            {
+                // CANTester does not belong to a machine so the event has to be handled from MasterTimeSource
+                EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ExecuteInSyncedState(
+                    (_) => iface.OnFrameReceived(message), virtualTimestamp
+                );
+            }
+            else
+            {
+                iface.OnFrameReceived(message);
             }
         }
 

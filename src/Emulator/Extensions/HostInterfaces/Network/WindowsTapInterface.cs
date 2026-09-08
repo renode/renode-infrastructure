@@ -19,6 +19,7 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Network;
+using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Utilities;
 
 using Microsoft.Win32;
@@ -27,7 +28,7 @@ using Microsoft.Win32.SafeHandles;
 namespace Antmicro.Renode.HostInterfaces.Network
 {
     // Windows-only
-    public sealed class WindowsTapInterface : ITapInterface
+    public sealed class WindowsTapInterface : ITapInterface, IHasOwnLife
     {
         public WindowsTapInterface(string name)
         {
@@ -255,15 +256,21 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 {
                     var buffer = new byte[MTU];
                     int bytesRead = stream.Read(buffer, 0, MTU);
-                    if(bytesRead > 0)
+                    if(bytesRead == 0)
                     {
-                        var packet = new byte[bytesRead];
-                        Array.Copy(buffer, packet, bytesRead);
-                        this.Log(LogLevel.Noisy, "Received {0} bytes frame", bytesRead);
-                        if(Misc.TryCreateFrameOrLogWarning(this, packet, out var frame, addCrc: true))
+                        continue;
+                    }
+                    var packet = new byte[bytesRead];
+                    Array.Copy(buffer, packet, bytesRead);
+                    this.Log(LogLevel.Noisy, "Received {0} bytes frame", bytesRead);
+                    if(Misc.TryCreateFrameOrLogWarning(this, packet, out var frame, addCrc: true))
+                    {
+                        if(IsPaused)
                         {
-                            FrameReady?.Invoke(frame);
+                            this.DebugLog("Emulation is paused. Dropping frame: {0}", frame);
+                            continue;
                         }
+                        FrameReady?.Invoke(frame);
                     }
                 }
                 catch(ArgumentException e)
