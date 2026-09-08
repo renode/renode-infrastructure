@@ -210,12 +210,17 @@ namespace Antmicro.Renode.Core
             }
         }
 
+        // Note that 'SequencedFilePath' is not used directly in this method as it wwould corrupt the 'SnapshotTracker' state.
+        // Instead 'SnapshotTracker' uses 'SequencedFilePath' internally during 'MakeSpaceAtPath' call.
         public void Save(string path)
         {
             path = Path.GetFullPath(path);
 
             try
             {
+                // If a snapshot already exists at this path then move it using 'SequencedFilePath'.
+                CurrentEmulation.SnapshotTracker.MakeSpaceAtPath(path);
+
                 using(var stream = new FileStream(path, FileMode.Create))
                 {
                     using(CurrentEmulation.ObtainSafeState())

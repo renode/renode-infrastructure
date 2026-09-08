@@ -10,6 +10,7 @@ using System.IO;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Utilities
@@ -43,10 +44,39 @@ namespace Antmicro.Renode.Utilities
             return GetFirstExistingSnapshot(snapshotsOnTimestamp).Path;
         }
 
+        public void MakeSpaceAtPath(string path)
+        {
+            SequencedFilePath.Create(path, out var replacedFilePath);
+            if(replacedFilePath != null)
+            {
+                // Update the path of the moved snapshot.
+                if(snapshotsByPath.Remove(path, out var movedSnapshot))
+                {
+                    snapshots.Remove(movedSnapshot);
+
+                    var updatedSnapshot = new SnapshotDescriptor(movedSnapshot.TimeStamp, new ReadFilePath(replacedFilePath), movedSnapshot.SnapshotId);
+                    snapshots.Add(updatedSnapshot);
+                    snapshotsByPath[replacedFilePath] = updatedSnapshot;
+                }
+            }
+            else if(snapshotsByPath.TryGetValue(path, out var removedSnapshot))
+            {
+                // A snapshot at this path used to exist, but does not now.
+                RemoveSnapshots(new[] { removedSnapshot });
+            }
+        }
+
         public void Save(TimeInterval timeStamp, ReadFilePath path)
         {
+            if(snapshotsByPath.TryGetValue(path, out var overridenSnapshot))
+            {
+                Logger.LogAs(this, LogLevel.Debug, $"Newly created snapshot '{path}' overriden an existing one created at timestamp {overridenSnapshot.TimeStamp}");
+                snapshots.Remove(overridenSnapshot);
+            }
+
             var newSnapshot = new SnapshotDescriptor(timeStamp, path, nextSnapshoId++);
             snapshots.Add(newSnapshot);
+            snapshotsByPath[path] = newSnapshot;
         }
 
         public string PrintSnapshotsInfo()
@@ -133,12 +163,15 @@ namespace Antmicro.Renode.Utilities
         {
             foreach(var removedSnapshot in snapshotsToRemove)
             {
+                Logger.LogAs(this, LogLevel.Debug, $"Snapshot '{removedSnapshot.Path}' created at timestamp {removedSnapshot.TimeStamp} is no longer available, it was likely deleted by external software");
                 snapshots.Remove(removedSnapshot);
+                snapshotsByPath.Remove(removedSnapshot.Path);
             }
         }
 
         private uint nextSnapshoId = 0;
 
+        private readonly Dictionary<string, SnapshotDescriptor> snapshotsByPath = new Dictionary<string, SnapshotDescriptor>();
         private readonly SortedSet<SnapshotDescriptor> snapshots = new SortedSet<SnapshotDescriptor>();
 
         private record SnapshotDescriptor(TimeInterval TimeStamp, ReadFilePath Path, uint SnapshotId) : IComparable<SnapshotDescriptor>
