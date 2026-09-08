@@ -105,7 +105,7 @@ namespace Antmicro.Renode.UserInterface
 
         private Stack<string> GetDirEntries(string path)
         {
-            var split = path.Split(pathSeparator, StringSplitOptions.RemoveEmptyEntries).Distinct().Reverse();
+            var split = path.Split(PathSeparator, StringSplitOptions.RemoveEmptyEntries).Distinct().Reverse();
             var current = new Stack<string>();
             foreach(string entry in split)
             {
@@ -127,6 +127,6 @@ namespace Antmicro.Renode.UserInterface
         private Stack<string> defaultPath = new Stack<string>();
         private readonly Stack<string> workingDirectory = new Stack<string>();
         private readonly string startingWorkingDirectory;
-        private readonly char[] pathSeparator = new []{';'};
+        private const char PathSeparator = ';';
     }
 }
