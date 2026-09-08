@@ -471,11 +471,12 @@ namespace Antmicro.Renode.Core
                 // dispose externals before machines;
                 // some externals, e.g. execution tracer,
                 // require access to peripherals when operating
-                ExternalsManager.Clear();
+                ExternalsManager.ClearEarlyDisposable();
                 BackendManager.Dispose();
                 Array.ForEach(machs.Rights, x => (x as IDisposable)?.Dispose());
                 MasterTimeSource.Dispose();
                 machs.Dispose();
+                ExternalsManager.Clear();
                 CurrentLogger.Dispose();
                 FileFetcher.Dispose();
                 if(randomGenerator.IsValueCreated)

@@ -122,7 +122,7 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        public void AddExternal(IExternal external, string name)
+        public void AddExternal(IExternal external, string name, bool earlyDisposable = true)
         {
             lock(externals)
             {
@@ -135,6 +135,11 @@ namespace Antmicro.Renode.Core
                     throw new RecoverableException("External's name already in use");
                 }
                 externals.Add(name, external);
+
+                if(earlyDisposable)
+                {
+                    namesEarlyDisposable.Add(name);
+                }
             }
 
             OnExternalsChanged(external, true);
@@ -153,34 +158,28 @@ namespace Antmicro.Renode.Core
                 {
                     throw new RecoverableException("External not registered");
                 }
+
                 if(external is IMassConnectable<IPeripheral> connectable)
                 {
                     connectable.DetachAll();
                 }
 
-                externals.Remove(externals.Single(x => x.Value == external).Key);
+                var name = externals.Single(x => x.Value == external).Key;
+                externals.Remove(name);
+                namesEarlyDisposable.Remove(name);
             }
 
             OnExternalsChanged(external, false);
         }
 
+        public void ClearEarlyDisposable()
+        {
+            ClearInner(namesEarlyDisposable);
+        }
+
         public void Clear()
         {
-            IDisposable[] toDispose;
-            lock(externals)
-            {
-                toDispose = externals.Select(x => x.Value as IDisposable).Where(x => x != null).ToArray();
-                var gpioConnectors = externals.OfType<IMassConnectable<IPeripheral>>();
-                foreach(var connector in gpioConnectors)
-                {
-                    connector.DetachAll();
-                }
-                externals.Clear();
-            }
-            foreach(var td in toDispose)
-            {
-                td.Dispose();
-            }
+            ClearInner(externals.Keys);
         }
 
         public bool TryGetByName<T>(string name, out T result) where T : class
@@ -251,6 +250,7 @@ namespace Antmicro.Renode.Core
                 if(item.Value.GetType().GetCustomAttributes(typeof(TransientAttribute), true).Any())
                 {
                     Logger.Log(LogLevel.Info, "Skipping serialization of the '{0}' external as it's marked as transient", item.Key);
+                    namesEarlyDisposable.Remove(item.Key);
                     continue;
                 }
 
@@ -277,6 +277,32 @@ namespace Antmicro.Renode.Core
             if(ec != null)
             {
                 ec(new ExternalsChangedEventArgs(external, added ? ExternalsChangedEventArgs.ChangeType.Added : ExternalsChangedEventArgs.ChangeType.Removed));
+            }
+        }
+
+        private void ClearInner(IEnumerable<string> namesToClear)
+        {
+            List<IExternal> externalsToClear;
+            lock(externals)
+            {
+                externalsToClear = namesToClear.Select(k => externals[k]).ToList();
+
+                var gpioConnectors = externalsToClear.OfType<IMassConnectable<IPeripheral>>();
+                foreach(var connector in gpioConnectors)
+                {
+                    connector.DetachAll();
+                }
+
+                foreach(var name in namesToClear)
+                {
+                    namesEarlyDisposable.Remove(name);
+                    externals.Remove(name);
+                }
+            }
+
+            foreach(var external in externalsToClear.OfType<IDisposable>())
+            {
+                external.Dispose();
             }
         }
 
@@ -336,6 +362,7 @@ namespace Antmicro.Renode.Core
 
         [Constructor]
         private readonly Dictionary<string, IExternal> externals;
+        private readonly HashSet<string> namesEarlyDisposable = new();
 
         private readonly List<SerializableWeakReference<IHasOwnLife>> registeredIHasOwnLifeObjects;
 
