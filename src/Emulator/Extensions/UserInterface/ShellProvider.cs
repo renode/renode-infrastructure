@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -24,7 +24,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 NormalPrompt = new Prompt("(monitor) ", ConsoleColor.Red),
                 BannerProvider = () => Enumerable.Repeat(Environment.NewLine, NumberOfDummyLines).Aggregate(String.Empty, (x, y) => x + y) + EmulationManager.Instance.VersionString,
-                PreprocessSuggestionsInput = Monitor.SanitizePathSeparator,
+                PreprocessSuggestionsInput = PathHelpers.SanitizePathSeparator,
                 UseBuiltinQuit = false,
                 UseBuiltinHelp = false,
                 UseBuiltinSave = false,

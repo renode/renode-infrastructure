@@ -200,7 +200,7 @@ namespace Antmicro.Renode.UserInterface
                 if(pathToken != null)
                 {
                     string fileName;
-                    if(TryGetFilenameFromAvailablePaths(pathToken.Value, out fileName))
+                    if(PathHelpers.TryGetFilenameFromAvailablePaths(pathToken.Value, monitorPath.PathElements, out fileName))
                     {
                         resultToken = new PathToken("@" + fileName);
                     }
@@ -277,7 +277,7 @@ namespace Antmicro.Renode.UserInterface
 
             Token oldOrigin;
             var originalFilename = filename;
-            if(!TryGetFilenameFromAvailablePaths(filename, out filename))
+            if(!PathHelpers.TryGetFilenameFromAvailablePaths(filename, monitorPath.PathElements, out filename))
             {
                 writer.WriteError($"Could not find file '{originalFilename}'");
                 return false;
@@ -527,15 +527,6 @@ namespace Antmicro.Renode.UserInterface
             Directory.SetCurrentDirectory(baseDirectory);
         }
 
-        private static string StripPrefix(string path, string prefix)
-        {
-            if(String.IsNullOrEmpty(prefix))
-            {
-                return path;
-            }
-            return path.StartsWith(prefix, StringComparison.Ordinal) ? path.Substring(prefix.Length + (prefix.EndsWith(Path.DirectorySeparatorChar) ? 0 : 1)) : path;
-        }
-
         private static string FindLastCommandInString(string origin)
         {
             bool inApostrophes = false;
@@ -569,22 +560,22 @@ namespace Antmicro.Renode.UserInterface
                     return Enumerable.Empty<string>();
                 }
                 var files = Directory.GetFiles(directoryPath, lastElement + '*', SearchOption.TopDirectoryOnly)
-                                     .Select(x => allButLast + "@" + StripPrefix(x, prefix).Replace(" ", @"\ "));
+                                     .Select(x => allButLast + "@" + PathHelpers.StripPathPrefix(x, prefix).Replace(" ", @"\ "));
                 var dirs = Directory.GetDirectories(directoryPath, lastElement + '*', SearchOption.TopDirectoryOnly)
-                                    .Select(x => allButLast + "@" + (StripPrefix(x, prefix) + '/').Replace(" ", @"\ "));
+                                    .Select(x => allButLast + "@" + (PathHelpers.StripPathPrefix(x, prefix) + '/').Replace(" ", @"\ "));
 
                 var result = new List<string>();
                 //We change "\" characters to "/", unless they were followed by the space character, in which case they treated as escape char.
                 foreach(var file in files.Concat(dirs))
                 {
-                    var sanitizedFile = SanitizePathSeparator(file);
+                    var sanitizedFile = PathHelpers.SanitizePathSeparator(file);
                     result.Add(sanitizedFile);
                 }
                 return result;
             }
             catch(UnauthorizedAccessException)
             {
-                return new[] { "{0}@{1}/".FormatWith(allButLast, Path.Combine(StripPrefix(directoryPath, prefix), lastElement)) };
+                return new[] { "{0}@{1}/".FormatWith(allButLast, Path.Combine(PathHelpers.StripPathPrefix(directoryPath, prefix), lastElement)) };
             }
         }
 
@@ -883,22 +874,6 @@ namespace Antmicro.Renode.UserInterface
                 throw new RecoverableException(string.Format("No such variable: ${0}", token.Value));
             }
             return result;
-        }
-
-        private bool TryGetFilenameFromAvailablePaths(string fileName, out string fullPath)
-        {
-            fullPath = String.Empty;
-            //Try to find the given file, then the file with path prefix
-            foreach(var pathElement in monitorPath.PathElements.Prepend(String.Empty))
-            {
-                var currentPath = Path.Combine(pathElement, fileName);
-                if(File.Exists(currentPath) || Directory.Exists(currentPath))
-                {
-                    fullPath = Path.GetFullPath(currentPath);
-                    return true;
-                }
-            }
-            return false;
         }
 
         private void PrintException(string commandName, Exception e, ICommandInteraction writer)

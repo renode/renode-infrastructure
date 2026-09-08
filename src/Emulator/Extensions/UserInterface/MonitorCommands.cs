@@ -34,16 +34,6 @@ namespace Antmicro.Renode.UserInterface
 {
     public partial class Monitor
     {
-        public static string SanitizePathSeparator(string baseString)
-        {
-            var sanitizedFile = baseString.Replace("\\", "/");
-            if(sanitizedFile.Contains("/ "))
-            {
-                sanitizedFile = sanitizedFile.Replace("/ ", "\\ ");
-            }
-            return sanitizedFile;
-        }
-
         public void ClearCache()
         {
             cache.ClearCache();
