@@ -772,7 +772,7 @@ namespace Antmicro.Renode.UserInterface
             }
             if(CurrentMachine != null)
             {
-                newName = String.Format("{0}.{1}", Emulation[CurrentMachine].Replace("-", "_"), varName);
+                newName = $"{MachineNameNormalized}.{varName}";
                 if(collection.TryGetValue(newName, out expandedVariable))
                 {
                     return true;
@@ -873,7 +873,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 var varName = lastElement.Substring(1);
                 var options = variables.Keys.Concat(macros.Keys).Where(x => x.StartsWith(varName, StringComparison.Ordinal)).ToList();
-                var machinePrefix = CurrentMachine == null ? GlobalVariablePrefix : Emulation[CurrentMachine] + ".";
+                var machinePrefix = Machine == null ? GlobalVariablePrefix : MachineName + ".";
                 options.AddRange(variables.Keys.Concat(macros.Keys).Where(x => x.StartsWith(String.Format("{0}{1}", machinePrefix, varName), StringComparison.Ordinal)).Select(x => x.Substring(machinePrefix.Length)));
 
                 if(options.Any())
@@ -1186,11 +1186,11 @@ namespace Antmicro.Renode.UserInterface
             {
                 if(CurrentMachine != null)
                 {
-                    variableName = String.Format("{0}.{1}", EmulationManager.Instance.CurrentEmulation[CurrentMachine].Replace("-", "_"), variableName);
+                    variableName = $"{MachineNameNormalized}.{variableName}";
                 }
                 else
                 {
-                    variableName = String.Format("global.{0}", variableName);
+                    variableName = GlobalVariablePrefix + variableName;
                 }
             }
             return variableName;
@@ -1268,7 +1268,7 @@ namespace Antmicro.Renode.UserInterface
                 var mc = MachineChanged;
                 if(mc != null)
                 {
-                    mc(_currentMachine != null ? Emulation[_currentMachine] : null);
+                    mc(MachineName);
                 }
             }
         }
@@ -1280,6 +1280,10 @@ namespace Antmicro.Renode.UserInterface
                 return emulationManager.CurrentEmulation;
             }
         }
+
+        private string MachineName => Emulation.TryGetMachineName(Machine, out var name) ? name : null;
+
+        private string MachineNameNormalized => MachineName?.Replace("-", "_") ?? null;
 
         private IMachine _currentMachine;
         private string stringEaterVariableName = "";
