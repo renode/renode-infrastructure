@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             if(data.Length == 0)
             {
-                this.Log(LogLevel.Warning, "Unexpected write with no data");
+                this.Log(LogLevel.Noisy, "Write with no data. Ignoring.");
                 return;
             }
 
