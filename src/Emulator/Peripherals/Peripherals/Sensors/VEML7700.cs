@@ -45,6 +45,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
         // address and the other two are the value to write to that address
         public void Write(byte[] data)
         {
+            if(data.Length == 0)
+            {
+                this.Log(LogLevel.Noisy, "Write with no data. Ignoring.");
+                return;
+            }
+
             if(data.Length == 1)
             {
                 addressToRead = data[0];
@@ -54,7 +60,6 @@ namespace Antmicro.Renode.Peripherals.Sensors
             if(data.Length != 3)
             {
                 this.WarningLog("Written {0} bytes when expecting 3", data.Length);
-                if(data.Length == 0) return;
             }
             // data[0] is the address byte, so we read the value from 1
             var value = BitHelper.ToUInt16(data, index: 1, reverse: true);

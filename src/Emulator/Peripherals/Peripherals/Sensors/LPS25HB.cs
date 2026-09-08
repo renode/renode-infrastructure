@@ -70,6 +70,12 @@ public class LPS25HB : II2CPeripheral, IProvidesRegisterCollection<WordRegisterC
             return;
         }
 
+        if(data.Length == 0)
+        {
+            this.Log(LogLevel.Noisy, "Write with no data. Ignoring.");
+            return;
+        }
+
         if(currentAddress != -1)
         {
             WriteToRegister(data[0]);

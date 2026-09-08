@@ -45,6 +45,12 @@ public class IIS2MDC : II2CPeripheral, IProvidesRegisterCollection<ByteRegisterC
     #region I2C
     public void Write(byte[] data)
     {
+        if(data.Length == 0)
+        {
+            this.Log(LogLevel.Noisy, "Write with no data. Ignoring.");
+            return;
+        }
+
         foreach(var b in data)
         {
             switch(state)

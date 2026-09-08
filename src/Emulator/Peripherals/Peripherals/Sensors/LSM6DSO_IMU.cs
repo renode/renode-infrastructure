@@ -129,6 +129,12 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         public void Write(byte[] data)
         {
+            if(data.Length == 0)
+            {
+                this.Log(LogLevel.Noisy, "Write with no data. Ignoring.");
+                return;
+            }
+
             var byteIdx = 0;
             if(commandInProgress == CommandTypes.None)
             {
