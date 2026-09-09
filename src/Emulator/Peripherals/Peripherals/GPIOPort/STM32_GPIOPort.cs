@@ -116,7 +116,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
 
             externalState[number] = value;
-            if(mode[number] != Mode.Output)
+            if(mode[number] == Mode.Input || mode[number] == Mode.AlternateFunction)
             {
                 WritePin(number, value);
             }
@@ -159,6 +159,13 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         {
             mode[number] = newMode;
             alternateFunctionOutputs[number].IsConnected = newMode == Mode.AlternateFunction;
+            if(newMode == Mode.AnalogMode)
+            {
+                // In analog mode the digital input buffer is disabled and IDR reads zero.
+                // See RM0090 section 8.3.12.
+                State[number] = false;
+                return;
+            }
             if(newMode == Mode.AlternateFunction)
             {
                 // Alternate function outputs are driven by their local receivers so the cached output
