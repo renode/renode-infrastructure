@@ -33,6 +33,14 @@
 
 #define USEC_IN_SEC 1000000
 
+#define DISAS_FLAGS_16BIT 1
+#define DISAS_FLAGS_32BIT 0
+#define DISAS_FLAGS_64BIT 2
+
+#define CR0_PE    (1 << 0)
+#define EFLAGS_VM (1 << 17)
+#define EFER_LMA  (1 << 10)
+
 #define CPUID_APIC (1 << 9)
 #define CPUID_ACPI (1 << 22)
 
@@ -575,6 +583,41 @@ void kvm_interrupt_execution()
     kill_cpu_thread(SIGALRM);
 }
 EXC_VOID_0(kvm_interrupt_execution)
+
+uint32_t kvm_get_disas_flags()
+{
+    const reg_t cr0 = get_register_value(CR0);
+    const reg_t eflags = get_register_value(EFLAGS);
+    const struct kvm_segment *cs = get_segment_register(CS);
+
+    /* Real Mode. */
+    if(!(cr0 & CR0_PE)) {
+        return DISAS_FLAGS_16BIT;
+    }
+
+    /* Virtual 8086 Mode. */
+    if(eflags & EFLAGS_VM) {
+        return DISAS_FLAGS_16BIT;
+    }
+
+#if TARGET_X86_64KVM
+    const reg_t efer = get_register_value(EFER);
+
+    /* Long Mode active. */
+    if(efer & EFER_LMA) {
+        if(cs->l) {
+            return DISAS_FLAGS_64BIT;
+        } else {
+            /* In compatibility mode; check Default Operation Size. */
+            return cs->db ? DISAS_FLAGS_32BIT : DISAS_FLAGS_16BIT;
+        }
+    }
+#endif
+
+    /* In legacy protected mode; check Default Operation Size. */
+    return cs->db ? DISAS_FLAGS_32BIT : DISAS_FLAGS_16BIT;
+}
+EXC_VALUE_0(uint32_t, kvm_get_disas_flags, 0)
 
 void kvm_dispose()
 {

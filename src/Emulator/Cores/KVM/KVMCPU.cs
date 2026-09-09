@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 using Antmicro.Migrant;
 using Antmicro.Migrant.Hooks;
@@ -25,7 +26,7 @@ using Range = Antmicro.Renode.Core.Range;
 namespace Antmicro.Renode.Peripherals.CPU
 {
     [SupportedRID("linux")]
-    public abstract class KVMCPU : BaseCPU, IGPIOReceiver, ICPUWithRegisters, IControllableCPU, ICPUWithMappedMemory, ICPUWithMMU, ICpuSupportingGdb
+    public abstract class KVMCPU : BaseCPU, IGPIOReceiver, ICPUWithRegisters, IControllableCPU, ICPUWithMappedMemory, ICPUWithMMU, ICpuSupportingGdb, ICPUSupportingLLVMDisas
     {
         public KVMCPU(string cpuType, IMachine machine, Endianess endianess, CpuBitness cpuBitness, uint cpuId = 0)
             : base(cpuId, cpuType, machine, endianess, cpuBitness)
@@ -34,6 +35,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             hooks = new HookDescriptor(this);
             InitBinding();
             Init();
+            LLVMDisasContainer = new LLVMDisas(this);
             machine.PeripheralsChanged += OnMachinePeripheralsChanged;
         }
 
@@ -169,7 +171,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(ExecutionMode == ExecutionMode.SingleStep || singleStepAfterHook)
             {
-                var result = (ExecutionResult)KvmExecuteSingleStep();
+                ExecutionResult result;
+                lock(executionLock)
+                {
+                    result = (ExecutionResult)KvmExecuteSingleStep();
+                }
 
                 // Hooks are disabled after being hit. They can be reactivated after executing covered instruction.
                 if(singleStepAfterHook)
@@ -192,7 +198,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             var time = TimeInterval.FromCPUCycles(numberOfInstructionsToExecute, PerformanceInMips, out var cyclesResiduum).TotalMicroseconds;
 
             numberOfExecutedInstructions = numberOfInstructionsToExecute;
-            return (ExecutionResult)KvmExecute((ulong)time);
+
+            lock(executionLock)
+            {
+                return (ExecutionResult)KvmExecute((ulong)time);
+            }
         }
 
         public void EnterSingleStepModeSafely(HaltArguments args)
@@ -215,6 +225,26 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        public string GetCurrentLLVMTriple(out ulong pc)
+        {
+            if(Monitor.TryEnter(executionLock))
+            {
+                try
+                {
+                    pc = PC;
+                    return GetLLVMTriple(DisassemblyFlags);
+                }
+                finally
+                {
+                    Monitor.Exit(executionLock);
+                }
+            }
+            else
+            {
+                throw new RecoverableException("Unable to determine current LLVM triple while the KVMCPU is running. Please pause the CPU and try again.");
+            }
+        }
+
         public override string ToString()
         {
             return $"[CPU: {this.GetCPUThreadName(machine)}]";
@@ -231,11 +261,23 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public abstract IEnumerable<CPURegister> GetRegisters();
 
+        public abstract string GetLLVMTriple(uint flags);
+
+        public uint DisassemblyFlags => KvmGetDisasFlags();
+
+        public LLVMDisas LLVMDisasContainer { get; init; }
+
         public override ulong ExecutedInstructions => throw new RecoverableException("ExecutedInstructions property is not implemented");
 
         public virtual uint PageSize => 4096;
 
         public abstract string GDBArchitecture { get; }
+
+        public abstract string[] AllLLVMTriples { get; }
+
+        public abstract string LLVMModel { get; }
+
+        public abstract Endianess DisassemblyHexFormatting { get; }
 
         public abstract List<GDBFeatureDescriptor> GDBFeatures { get; }
 
@@ -430,6 +472,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         protected Action<int, int> KvmSetIrq;
 
+        [Import]
+        protected Func<uint> KvmGetDisasFlags;
+
 #pragma warning restore 649
 
         protected string libraryFile;
@@ -469,6 +514,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 #pragma warning restore 649
 
         private readonly HookDescriptor hooks;
+
+        private readonly object executionLock = new object();
 
         protected class SegmentMappingWithSlotNumber : SegmentMapping
         {

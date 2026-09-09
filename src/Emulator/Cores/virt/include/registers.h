@@ -14,5 +14,6 @@ typedef uint32_t reg_t;
 void kvm_registers_synchronize();
 void kvm_registers_invalidate();
 
+const struct kvm_segment *get_segment_register(Registers reg_number);
 reg_t get_register_value(Registers reg_number);
 void set_register_value(Registers reg_number, reg_t value);

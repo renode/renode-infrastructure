@@ -11,6 +11,8 @@ using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities.Binding;
 
+using ELFSharp.ELF;
+
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class X86KVM : X86KVMBase
@@ -19,6 +21,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             : base(cpuType, machine, CpuBitness.Bits32, cpuId)
         {
             KvmSet64BitBehaviour((uint)on64BitDetected);
+        }
+
+        public override string GetLLVMTriple(uint flags)
+        {
+            if(flags == 1)
+            {
+                return AllLLVMTriples[1];
+            }
+            return AllLLVMTriples[0];
         }
 
         public override string Architecture => "x86";
@@ -154,6 +165,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return features;
             }
         }
+
+        public override string[] AllLLVMTriples => new[] { "i386", "i386-unknown-none-code16" };
+
+        public override Endianess DisassemblyHexFormatting => Endianess.BigEndian;
+
+        public override string LLVMModel => Model == "x86" ? "i386" : Model;
 
         // 649:  Field '...' is never assigned to, and will always have its default value null
 #pragma warning disable 649

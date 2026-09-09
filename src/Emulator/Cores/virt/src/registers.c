@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2025 Antmicro
+ * Copyright (c) 2010-2026 Antmicro
  *
  * This file is licensed under the MIT License.
  */
@@ -224,6 +224,29 @@ EXPAND_ARGUMENTS(EXC_INT_1, reg_t, kvm_get_register_value, int, reg_number)
 reg_t get_register_value(Registers reg_number)
 {
     return kvm_get_register_value(reg_number);
+}
+
+const struct kvm_segment *get_segment_register(Registers reg_number)
+{
+    struct kvm_sregs *sregs = get_sregs();
+
+    switch(reg_number) {
+        case CS:
+            return &sregs->cs;
+        case SS:
+            return &sregs->ss;
+        case DS:
+            return &sregs->ds;
+        case ES:
+            return &sregs->es;
+        case FS:
+            return &sregs->fs;
+        case GS:
+            return &sregs->gs;
+        default:
+            kvm_runtime_abortf("Read from undefined CPU segment register number %d detected", reg_number);
+            return NULL;
+    }
 }
 
 void kvm_set_register_value(int reg_number, reg_t value)

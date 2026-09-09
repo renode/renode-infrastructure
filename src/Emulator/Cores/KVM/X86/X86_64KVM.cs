@@ -8,6 +8,8 @@ using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 
+using ELFSharp.ELF;
+
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class X86_64KVM : X86KVMBase
@@ -15,6 +17,15 @@ namespace Antmicro.Renode.Peripherals.CPU
         public X86_64KVM(string cpuType, IMachine machine, uint cpuId = 0)
             : base(cpuType, machine, CpuBitness.Bits64, cpuId)
         {
+        }
+
+        public override string GetLLVMTriple(uint flags)
+        {
+            if(flags == 1)
+            {
+                return AllLLVMTriples[1];
+            }
+            return AllLLVMTriples[0];
         }
 
         public override string Architecture => "x86_64";
@@ -83,5 +94,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                 return features;
             }
         }
+
+        public override string[] AllLLVMTriples => new[] { "x86_64", "x86_64-unknown-none-code16" };
+
+        public override Endianess DisassemblyHexFormatting => Endianess.BigEndian;
+
+        public override string LLVMModel => Model == "x86_64" ? "x86-64" : Model;
     }
 }
