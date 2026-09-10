@@ -200,7 +200,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldDisconnectGPIOEndpointFromRemovedExternal()
         {
             // init
-            EmulationManager.Instance.CurrentEmulation.Dispose();
+            EmulationManager.Instance.Clear();
 
             var sender = new MockGPIOByNumberConnectorPeripheral(1);
             var receiver = new MockGPIOByNumberConnectorPeripheral(1);
@@ -233,7 +233,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldDisconnectGPIOEndpointFromDisposedMachine()
         {
             // init
-            EmulationManager.Instance.CurrentEmulation.Dispose();
+            EmulationManager.Instance.Clear();
 
             var machine2 = new Machine();
 
@@ -276,7 +276,7 @@ namespace Antmicro.Renode.UnitTests
         public void ShouldDisconnectGPIOEndpointFromUnregisteredPeripheral()
         {
             // init
-            EmulationManager.Instance.CurrentEmulation.Dispose();
+            EmulationManager.Instance.Clear();
 
             var sender = new MockGPIOByNumberConnectorPeripheral(1);
             var receiver = new MockGPIOByNumberConnectorPeripheral(1);
