@@ -151,7 +151,12 @@ namespace Antmicro.Renode.Core
                     throw new RecoverableException("This action is not available when emulation is already started");
                 }
 
-                if(elapsedTime >= targetTimestamp)
+                if(elapsedTime == targetTimestamp)
+                {
+                    return;
+                }
+
+                if(elapsedTime > targetTimestamp)
                 {
                     Logger.Log(LogLevel.Warning, "Given timestamp '{0}' is from the past. Current elapsed virtual time is {1}", targetTimestamp, elapsedTime);
                     return;
