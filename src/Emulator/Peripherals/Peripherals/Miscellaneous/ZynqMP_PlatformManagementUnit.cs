@@ -468,6 +468,21 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         return IpiMessage.CreateInvalidParamResponse();
                     }
                 }
+                else if(clock == Clock.Pl0Ref)
+                {
+                    if(divider == ClockDivider.Div0)
+                    {
+                        response.Payload[0] = Pl0RefDivider0;
+                    }
+                    else if(divider == ClockDivider.Div1)
+                    {
+                        response.Payload[0] = Pl0RefDivider1;
+                    }
+                    else
+                    {
+                        return IpiMessage.CreateInvalidParamResponse();
+                    }
+                }
                 return response;
             }
 
@@ -593,12 +608,15 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             private const int ClockDivider0Shift = 8;
             private const int ClockDivider1Shift = 16;
             private const uint CrlApbUart1RefCtrl = 0x1001800;
+            private const uint Pl0RefDivider0 = 7;
+            private const uint Pl0RefDivider1 = 1;
 
             // We only list clocks that we need.
             // This enum corresponds to XPmClock enum in PMU FW source code.
             private enum Clock
             {
-                Uart1Ref = 0x39
+                Uart1Ref = 0x39,
+                Pl0Ref = 0x47,
             }
 
             private enum ClockDivider
