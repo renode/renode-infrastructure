@@ -263,7 +263,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             public PowerManagementModule(ZynqMP_PlatformManagementUnit pmu)
             {
                 this.pmu = pmu;
-                resetStatus = new Dictionary<uint, uint>();
             }
 
             public void Reset()
@@ -521,7 +520,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             private readonly ZynqMP_PlatformManagementUnit pmu;
-            private readonly Dictionary<uint, uint> resetStatus;
+            private readonly Dictionary<uint, uint> resetStatus = new Dictionary<uint, uint>();
             private readonly HashSet<PmApi> receivedUnhandledMessageTypes = new HashSet<PmApi>();
 
             private const uint ApiVersion = 0x10001;
