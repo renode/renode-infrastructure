@@ -23,7 +23,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public sealed class STM32H7_RCC : BasicDoubleWordPeripheral, IKnownSize, IRegisterablePeripheral<IPeripheral, EnumRegistrationPoint<STM32H7_RCC.RegistrationPeripheralAlias>>
     {
-        public STM32H7_RCC(IMachine machine, IHasDivisibleFrequency systick = null, ulong hseFrequency = DefaultHseFrequency,
+        public STM32H7_RCC(IMachine machine, IHasDivisibleFrequency systick = null, IHasFrequency dwt = null, ulong hseFrequency = DefaultHseFrequency,
             ulong csiFrequency = FallbackCsiFrequency) : base(machine)
         {
             if(systick == null)
@@ -31,7 +31,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.Log(LogLevel.Warning, "Systick not passed in the RCC constructor. Changes to the system clock will be ignored");
             }
 
+            if(dwt == null)
+            {
+                this.Log(LogLevel.Warning, "DWT not passed in the RCC constructor. Changes to the system clock will be ignored");
+            }
+
             this.systick = systick;
+            this.dwt = dwt;
             this.csiFrequency = csiFrequency;
             this.hseFrequency = hseFrequency;
             this.RegisteredPeripherals = new Dictionary<RegistrationPeripheralAlias, IPeripheral>();
@@ -1383,28 +1389,37 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
         }
 
-        private void UpdateSystick()
+        private void UpdateCoreClocks()
         {
-            if(systick == null)
-            {
-                return;
-            }
-
-            var old = systick.Frequency;
             if(SysCkBaseFrequency is ulong freq)
             {
+                var coreFrequency = freq / d1CpreDivider;
+
                 // Figure 49 Core and bus clock generation
                 // We use the rcc_c_ck as the systick clock
-                systick.Frequency = freq / d1CpreDivider;
+                if(systick != null)
+                {
+                    var oldSystick = systick.Frequency;
+                    systick.Frequency = freq / d1CpreDivider;
+                    if(oldSystick != systick.Frequency)
+                    {
+                        this.Log(LogLevel.Debug, "Systick clock frequency changed to {0}. Current effective frequency: {1}", systick.Frequency, systick.Frequency / systick.Divider);
+                    }
+                }
+
+                if(dwt != null)
+                {
+                    var oldDwt = dwt.Frequency;
+                    dwt.Frequency = coreFrequency;
+                    if(oldDwt != dwt.Frequency)
+                    {
+                        this.Log(LogLevel.Debug, "DWT clock frequency changed to {0}.", dwt.Frequency);
+                    }
+                }
             }
             else
             {
                 this.Log(LogLevel.Error, "Cannot update systick - invalid configuration of the sys_ck");
-            }
-
-            if(old != systick.Frequency)
-            {
-                this.Log(LogLevel.Debug, "systick clock frequency changed to {0}. Current effective frequency: {1}", systick.Frequency, systick.Frequency / systick.Divider);
             }
         }
 
@@ -1507,7 +1522,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             UpdateAPB3Frequencies();
             UpdateAPB4Frequencies();
             UpdateAHBFrequencies();
-            UpdateSystick();
+            UpdateCoreClocks();
         }
 
         // On success returns the base frequency (without any prescalers) of the sys_ck clock,
@@ -1622,6 +1637,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private readonly Dictionary<RegistrationPeripheralAlias, IPeripheral> RegisteredPeripherals;
 
         private readonly IHasDivisibleFrequency systick;
+        private readonly IHasFrequency dwt;
         // Low-power internal oscillator
         private readonly ulong csiFrequency;
         // High-speed external oscillator, can be null if not configured
