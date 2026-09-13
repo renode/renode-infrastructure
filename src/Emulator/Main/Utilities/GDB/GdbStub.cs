@@ -178,12 +178,16 @@ namespace Antmicro.Renode.Utilities.GDB
                 else
                 {
                     IEnumerable<PacketData> packetDatas;
+                    // The CPU can halt before `Execute` returns, so the reply has to be expected
+                    // before dispatching and unexpected again if the command answers on its own.
+                    ExpectStopReply();
                     try
                     {
                         packetDatas = Command.Execute(command, result.Packet);
                     }
                     catch(Exception e)
                     {
+                        ConsumeStopReply();
                         if(e.InnerException is InvalidRegisterAccessException)
                         {
                             ctx.Send(new Packet(PacketData.ErrorReply(Error.OperationNotPermitted)));
@@ -209,6 +213,10 @@ namespace Antmicro.Renode.Utilities.GDB
                     }
 
                     // If there is no data here, we will respond later with Stop Reply Response
+                    if(packetDatas.Any())
+                    {
+                        ConsumeStopReply();
+                    }
                     foreach(var packetData in packetDatas)
                     {
                         ctx.Send(new Packet(packetData));
@@ -240,11 +248,11 @@ namespace Antmicro.Renode.Utilities.GDB
                         if(commandsManager.Machine.SystemBus.IsMultiCore)
                         {
                             commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
-                            ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, commandsManager.ManagedCpus[cpuSupportingGdb], args.Address)));
+                            SendStopReply(ctx, PacketData.StopReply(args.BreakpointType.Value, commandsManager.ManagedCpus[cpuSupportingGdb], args.Address));
                         }
                         else
                         {
-                            ctx.Send(new Packet(PacketData.StopReply(args.BreakpointType.Value, args.Address)));
+                            SendStopReply(ctx, PacketData.StopReply(args.BreakpointType.Value, args.Address));
                         }
                         break;
                     }
@@ -262,23 +270,31 @@ namespace Antmicro.Renode.Utilities.GDB
                         if(sendStopResponse)
                         {
                             commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
-                            ctx.Send(new Packet(PacketData.StopReply(InterruptSignal, commandsManager.ManagedCpus[cpuSupportingGdb])));
+                            SendStopReply(ctx, PacketData.StopReply(InterruptSignal, commandsManager.ManagedCpus[cpuSupportingGdb]));
                         }
                     }
                     else
                     {
-                        ctx.Send(new Packet(PacketData.StopReply(InterruptSignal)));
+                        SendStopReply(ctx, PacketData.StopReply(InterruptSignal));
                     }
                     return;
                 case HaltReason.Step:
+                    // A single-stepping CPU reports itself as halted every time it enters the wait
+                    // for the next step command, not once per completed step, so only the report
+                    // that answers a resume is a stop. Sending the rest would desync the session:
+                    // the surplus packet is read as the answer to the next resume.
+                    if(!ConsumeStopReply())
+                    {
+                        return;
+                    }
                     if(commandsManager.Machine.SystemBus.IsMultiCore)
                     {
                         commandsManager.SelectCpuForDebugging(cpuSupportingGdb);
-                        ctx.Send(new Packet(PacketData.StopReply(TrapSignal, commandsManager.ManagedCpus[cpuSupportingGdb])));
+                        SendStopReply(ctx, PacketData.StopReply(TrapSignal, commandsManager.ManagedCpus[cpuSupportingGdb]));
                     }
                     else
                     {
-                        ctx.Send(new Packet(PacketData.StopReply(TrapSignal)));
+                        SendStopReply(ctx, PacketData.StopReply(TrapSignal));
                     }
                     return;
                 case HaltReason.Abort:
@@ -288,6 +304,36 @@ namespace Antmicro.Renode.Utilities.GDB
                     throw new ArgumentException("Unexpected halt reason");
                 }
             }
+        }
+
+        // Commands that resume the CPU are answered by an asynchronous Stop Reply sent from
+        // `OnHalted`, and exactly one is owed per resume. The CPU may however report being halted
+        // several times for a single stop, so the surplus reports have to be dropped.
+        private void ExpectStopReply()
+        {
+            lock(stopReplyLock)
+            {
+                stopReplyOwed = true;
+            }
+        }
+
+        // Whether a reply was owed, and no longer is.
+        private bool ConsumeStopReply()
+        {
+            lock(stopReplyLock)
+            {
+                var owed = stopReplyOwed;
+                stopReplyOwed = false;
+                return owed;
+            }
+        }
+
+        // Sending is what settles the debt, rather than reaching `OnHalted`: the branches that
+        // report nothing leave the reply owed, so a later halt can still answer the resume.
+        private void SendStopReply(CommunicationHandler.Context ctx, PacketData data)
+        {
+            ConsumeStopReply();
+            ctx.Send(new Packet(data));
         }
 
         private void OnConnectionAccepted()
@@ -303,6 +349,7 @@ namespace Antmicro.Renode.Utilities.GDB
 
         private void OnConnectionClosed()
         {
+            ConsumeStopReply();
             foreach(var cpu in commandsManager.ManagedCpus)
             {
                 cpu.Halted -= OnHalted;
@@ -313,8 +360,10 @@ namespace Antmicro.Renode.Utilities.GDB
         }
 
         private ICpuSupportingGdb stopReplyingCpu;
+        private bool stopReplyOwed;
         private bool disconnectedState;
 
+        private readonly object stopReplyLock = new object();
         private readonly PacketBuilder pcktBuilder;
         private readonly IEnumerable<ICpuSupportingGdb> cpus;
         private readonly SocketServerProvider terminal;
