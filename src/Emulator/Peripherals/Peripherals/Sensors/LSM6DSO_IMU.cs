@@ -458,7 +458,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
 
             return CreateDefaultSampleFeeder(
-                () => commonFifo.FeedAccelerationSample(DefaultAccelerationX, DefaultAccelerationY, DefaultAccelerationZ),
+                () => FeedAccelerationSample(DefaultAccelerationX, DefaultAccelerationY, DefaultAccelerationZ),
                 DataRateToFrequency(AccelerometerODR),
                 "acceleration");
         }
@@ -471,7 +471,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
 
             return CreateDefaultSampleFeeder(
-                () => commonFifo.FeedAngularRateSample(DefaultAngularRateX, DefaultAngularRateY, DefaultAngularRateZ),
+                () => FeedAngularRateSample(DefaultAngularRateX, DefaultAngularRateY, DefaultAngularRateZ),
                 DataRateToFrequency(GyroscopeODR),
                 "gyro");
         }
