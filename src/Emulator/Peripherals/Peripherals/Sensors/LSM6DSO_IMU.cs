@@ -519,7 +519,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
             else
             {
-                accelerometerFeederThread.Stop();
+                gyroFeederThread.Stop();
             }
         }
 
