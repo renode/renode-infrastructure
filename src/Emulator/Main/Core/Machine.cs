@@ -1088,7 +1088,16 @@ namespace Antmicro.Renode.Core
                 {
                     return;
                 }
-                (LocalTimeSource as SlaveTimeSource)?.Pause();
+                // Pausing a SlaveTimeSource waits for its dispatcher to finish the current
+                // quantum. On one of our own CPU threads that quantum cannot finish until we
+                // return, so pausing it here would deadlock; this happens when a peripheral
+                // pauses the machine from a register access (e.g. a TerminalTester match on a
+                // UART write). The CPUs below can be paused from their own thread, and
+                // PauseAndRequestEmulationPause stops the master at the next sync point.
+                if(!(SystemBus.TryGetCurrentCPU(out var currentCpu) && currentCpu.OnPossessedThread))
+                {
+                    (LocalTimeSource as SlaveTimeSource)?.Pause();
+                }
                 foreach(var ownLife in ownLifes.OrderBy(x => x is ICPU ? 0 : 1))
                 {
                     var ownLifeName = GetNameForOwnLife(ownLife);
@@ -1155,14 +1164,20 @@ namespace Antmicro.Renode.Core
                     }
                 }
 
-                // We will pause this machine right now, but the whole emulation at the next sync point
+                // We will pause this machine right now, but the whole emulation at the next sync point.
+                // The hook goes on the master rather than LocalTimeSource: PauseAll stops the master,
+                // which needs the master's sync lock, and a machine with its own SlaveTimeSource would
+                // run this hook on that slave's dispatcher thread while the master still holds that
+                // lock waiting for the slave's quantum to end. On the master's own dispatcher thread
+                // the lock is free. For machines whose LocalTimeSource is the master this is unchanged.
+                var masterTimeSource = EmulationManager.Instance.CurrentEmulation.MasterTimeSource;
                 Action pauseEmulation = null;
                 pauseEmulation = () =>
                 {
                     EmulationManager.Instance.CurrentEmulation.PauseAll();
-                    LocalTimeSource.SinksReportedHook -= pauseEmulation;
+                    masterTimeSource.SinksReportedHook -= pauseEmulation;
                 };
-                LocalTimeSource.SinksReportedHook += pauseEmulation;
+                masterTimeSource.SinksReportedHook += pauseEmulation;
 
                 // Pause is harmless to call even if the machine is already paused
                 Pause();
