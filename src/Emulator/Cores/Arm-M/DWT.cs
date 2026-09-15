@@ -28,6 +28,24 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         public long Size => 0x1000;
 
+        public ulong Frequency
+        {
+            get => cycleCounter.Frequency;
+            set
+            {
+                cycleCounter.Frequency = value;
+            }
+        }
+
+        public bool Clocked
+        {
+            get => cycleCounter.Clocked;
+            set
+            {
+                cycleCounter.Clocked = value;
+            }
+        }
+
         private void CreateRegisters()
         {
             Registers.Control.Define(this)
