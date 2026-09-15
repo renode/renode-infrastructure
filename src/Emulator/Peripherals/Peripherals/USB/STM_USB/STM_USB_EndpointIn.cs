@@ -83,6 +83,12 @@ public partial class STM_USB
 
         public event Action NewPacket;
 
+        // The STALL handshake flag (DIEPCTL.STALL) isn't modeled here, so this is never raised;
+        // see `IUSBPipeRead.Stalled`.
+#pragma warning disable 67
+        public event Action Stalled;
+#pragma warning restore 67
+
         protected override void OnEndpointEnable()
         {
             if(transferSizeField.Value == 0)

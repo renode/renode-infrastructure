@@ -611,6 +611,12 @@ public partial class STM_USB : BasicDoubleWordPeripheral, IUSBDevice, IDoubleWor
             remove => epIn.NewPacket -= value;
         }
 
+        public event Action Stalled
+        {
+            add => epIn.Stalled += value;
+            remove => epIn.Stalled -= value;
+        }
+
         private readonly byte endpointNumber;
         private readonly EndpointIn epIn;
         private readonly EndpointOut epOut;

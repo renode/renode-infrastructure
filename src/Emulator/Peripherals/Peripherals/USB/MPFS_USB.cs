@@ -383,6 +383,11 @@ namespace Antmicro.Renode.Peripherals.USB
                             var ep0 = peripheral.ConnectEndpointSetup(0);
                             ep0.SetupRead(packet, receivedBytes =>
                             {
+                                if(receivedBytes == null)
+                                {
+                                    this.Log(LogLevel.Warning, "The device stalled the control transfer");
+                                    return;
+                                }
                                 fifoFromDeviceToHost[0].EnqueueRange(receivedBytes);
                                 txInterruptsManager.SetInterrupt(TxInterrupt.Endpoint0);
                             });
@@ -445,6 +450,11 @@ namespace Antmicro.Renode.Peripherals.USB
                             endpoint.ReadPacket(
                                 bytes =>
                                 {
+                                    if(bytes == null)
+                                    {
+                                        this.Log(LogLevel.Warning, "The device stalled endpoint #{0}", endpointId);
+                                        return;
+                                    }
                                     fifoFromDeviceToHost[endpointId].EnqueueRange(bytes);
                                     requestInTransaction[endpointId].Value = false;
                                     localReceivedPacketReady.Value = true;
