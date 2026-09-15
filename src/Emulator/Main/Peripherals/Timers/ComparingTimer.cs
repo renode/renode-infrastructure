@@ -57,6 +57,21 @@ namespace Antmicro.Renode.Peripherals.Timers
             InternalReset();
         }
 
+        public bool Clocked
+        {
+            get
+            {
+                return clockSource.GetClockEntry(CompareReachedInternal).Clocked;
+            }
+
+            set
+            {
+                clockSource.ExchangeClockEntryWith(CompareReachedInternal, oldEntry => oldEntry.With(clocked: value));
+
+                RequestReturnOnCurrentCpu();
+            }
+        }
+
         public bool Enabled
         {
             get
@@ -250,7 +265,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             var clockEntry = new ClockEntry(initialCompare, frequency / divider, CompareReachedInternal, owner, localName, initialEnabled, initialDirection, initialWorkMode, step)
             { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
-            clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry => clockEntry, () => clockEntry);
+            clockSource.ExchangeClockEntryWith(CompareReachedInternal, entry => clockEntry.With(clocked: entry.Clocked), () => clockEntry);
             valueAccumulatedSoFar = 0;
             compareValue = initialCompare;
             EventEnabled = initialEventEnabled;

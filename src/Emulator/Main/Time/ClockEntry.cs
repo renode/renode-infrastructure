@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Time
 {
     public struct ClockEntry
     {
-        public ClockEntry(ulong period, ulong frequency, Action handler, IEmulationElement owner, string localName, bool enabled = true, Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic, ulong step = 1) : this()
+        public ClockEntry(ulong period, ulong frequency, Action handler, IEmulationElement owner, string localName, bool enabled = true, Direction direction = Direction.Ascending, WorkMode workMode = WorkMode.Periodic, ulong step = 1, bool clocked = true) : this()
         {
             this.Value = direction == Direction.Ascending ? 0 : period;
             this.Frequency = frequency;
@@ -27,10 +27,11 @@ namespace Antmicro.Renode.Time
             this.LocalName = localName;
             this.Ratio = FrequencyToRatio(Step * Frequency);
             this.ValueResiduum = Fraction.Zero;
+            this.Clocked = clocked;
         }
 
         public ClockEntry With(ulong? period = null, ulong? frequency = null, Action handler = null, bool? enabled = null,
-            ulong? value = null, Direction? direction = null, WorkMode? workMode = null, ulong? step = null)
+            ulong? value = null, Direction? direction = null, WorkMode? workMode = null, ulong? step = null, bool? clocked = null)
         {
             var result = new ClockEntry(
                 period ?? Period,
@@ -41,7 +42,8 @@ namespace Antmicro.Renode.Time
                 enabled ?? Enabled,
                 direction ?? Direction,
                 workMode ?? WorkMode,
-                step ?? Step);
+                step ?? Step,
+                clocked ?? Clocked);
 
             result.Value = value ?? Value;
             result.ValueResiduum = frequency != null ? Fraction.Zero : ValueResiduum;
@@ -55,7 +57,21 @@ namespace Antmicro.Renode.Time
 
         public Action Handler { get; }
 
+        /// <summary>
+        /// Soft property for an internally driven, low-level state of a clock entry.
+        /// If true, this marks an intent of this clock entry to participate 
+        /// in clock source time management tasks. If <see cref="Clocked"/> is set,
+        /// <see cref="Value"/> is updated as part of time progress.
+        /// </summary>
+        /// <seealso cref="Clocked"/>
         public bool Enabled { get; }
+
+        /// <summary>
+        /// Hard property for externally driven, high-level state of a clock entry.
+        /// It's a clock gating feature and corresponds to physically stopping a clock pulse.
+        /// </summary>
+        /// <seealso cref="Enabled"/>
+        public bool Clocked { get; }
 
         public Direction Direction { get; }
 

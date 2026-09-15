@@ -269,6 +269,21 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
+        public bool Clocked
+        {
+            get
+            {
+                return clockSource.GetClockEntry(OnLimitReached).Clocked;
+            }
+
+            set
+            {
+                clockSource.ExchangeClockEntryWith(OnLimitReached, oldEntry => oldEntry.With(clocked: value));
+
+                RequestReturnOnCurrentCpu();
+            }
+        }
+
         public virtual bool Enabled
         {
             get
@@ -327,7 +342,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             var clockEntry = new ClockEntry(initialLimit,  frequency / divider, OnLimitReached, owner, localName, initialEnabled, initialDirection, initialWorkMode)
             { Value = initialDirection == Direction.Ascending ? 0 : initialLimit };
 
-            clockSource.ExchangeClockEntryWith(OnLimitReached, x => clockEntry, () => clockEntry);
+            clockSource.ExchangeClockEntryWith(OnLimitReached, x => clockEntry.With(clocked: x.Clocked), () => clockEntry);
             EventEnabled = initialEventEnabled;
             AutoUpdate = initialAutoUpdate;
             rawInterrupt = false;
