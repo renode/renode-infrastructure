@@ -197,15 +197,15 @@ namespace Antmicro.Renode.Peripherals.Timers
                 );
 
                 registersMap.Add((long)Register.CaptureCompareAdd + j * 0x10, new DoubleWordRegister(this)
+                    .WithFlag(31, out var addToCompare, name: "REFERENCE")
                     .WithValueField(0, 31, name: $"CCADD[{j}]",
                         writeCallback: (_, value) =>
                         {
                             compareReached[j].Value = false;
                             UpdateInterrupts();
-                            compareTimers[j].Compare += value;
+                            compareTimers[j].Compare = (addToCompare.Value ? compareTimers[j].Compare : sysCounter.Value) + value;
                         },
                         valueProviderCallback: _ => (uint)compareTimers[j].Compare)
-                    .WithTag("REFERENCE", 31, 1)
                 );
 
                 registersMap.Add((long)Register.CaptureCompareConfig + j * 0x10, new DoubleWordRegister(this)
