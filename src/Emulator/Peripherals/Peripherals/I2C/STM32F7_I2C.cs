@@ -247,7 +247,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                             } , name: "TXIS")
                         .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => RxNotEmpty, name: "RXNE")
                         .WithFlag(3, out addressMatched, FieldMode.Read, name: "ADDR")
-                        .WithTag("NACKF", 4, 1)
+                        .WithFlag(4, out nackReceived, FieldMode.Read, name: "NACKF")
                         .WithFlag(5, out stopDetection, FieldMode.Read, name: "STOPF")
                         .WithFlag(6, out transferComplete, FieldMode.Read, name: "TC")
                         .WithFlag(7, out transferCompleteReload, FieldMode.Read, name: "TCR")
@@ -275,7 +275,14 @@ namespace Antmicro.Renode.Peripherals.I2C
                                     addressMatched.Value = false;
                                 }
                             }, name: "ADDRCF")
-                        .WithTag("NACKCF", 4, 1)
+                        .WithFlag(4, FieldMode.WriteOneToClear,
+                            writeCallback: (_, value) =>
+                            {
+                                if(value)
+                                {
+                                    nackReceived.Value = false;
+                                }
+                            }, name: "NACKF")
                         .WithFlag(5, FieldMode.WriteOneToClear,
                             writeCallback: (_, value) =>
                             {
@@ -347,10 +354,11 @@ namespace Antmicro.Renode.Peripherals.I2C
             if(!TryGetByAddress(currentSlaveAddress, out currentSlave))
             {
                 this.Log(LogLevel.Warning, "Unknown slave at address {0}.", currentSlaveAddress);
-                return;
+                nackReceived.Value = true;
+                // Receiving a NACK causes an automatic STOP condition
+                stopDetection.Value = true;
             }
-
-            if(isReadTransfer.Value)
+            else if(isReadTransfer.Value)
             {
                 transmitInterruptStatus = false;
                 var data = currentSlave.Read((int)bytesToTransfer.Value);
@@ -462,7 +470,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 || (transferInterruptEnabled.Value && transmitInterruptStatus)
                 || (receiveInterruptEnabled.Value && isReadTransfer.Value && rxData.Count > 0) //RXNE is calculated dynamically
                 || (stopDetectionInterruptEnabled.Value && stopDetection.Value)
-                || (nackReceivedInterruptEnabled.Value && false) //TODO: implement NACKF
+                || (nackReceivedInterruptEnabled.Value && nackReceived.Value)
                 || (addressMatchedInterruptEnabled.Value && addressMatched.Value);
             EventInterrupt.Set(value);
 
@@ -503,6 +511,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private IFlagRegisterField start;
         private IFlagRegisterField stop;
         private IFlagRegisterField rxDmaReceive;
+        private IFlagRegisterField nackReceived;
 
         private readonly DoubleWordRegisterCollection registers;
 
