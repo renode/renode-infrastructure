@@ -971,6 +971,20 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             }
         }
 
+        public bool Clocked
+        {
+            get => systick.NonSecureVal.Clocked;
+            set
+            {
+                // Propagate setting to both security banks.
+                systick.NonSecureVal.Clocked = value;
+                if(cpu.TrustZoneEnabled)
+                {
+                    systick.SecureVal.Clocked = value;
+                }
+            }
+        }
+
         public bool HaltSystickOnDeepSleep { get; set; }
 
         /// <summary>
@@ -2954,6 +2968,15 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 set
                 {
                     systick.Divider = value;
+                }
+            }
+
+            public bool Clocked
+            {
+                get => systick.Clocked;
+                set
+                {
+                    systick.Clocked = value;
                 }
             }
 
