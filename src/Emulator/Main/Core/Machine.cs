@@ -147,7 +147,7 @@ namespace Antmicro.Renode.Core
         {
             var entries = ClockSource.GetAllClockEntries();
 
-            var table = new Table().AddRow("Owner", "Enabled", "Frequency", "Limit", "Value", "Step", "Event frequency", "Event period");
+            var table = new Table().AddRow("Owner", "Clocked", "Enabled", "Frequency", "Limit", "Value", "Step", "Event frequency", "Event period");
             table.AddRows(entries,
                 x =>
                 {
@@ -164,6 +164,7 @@ namespace Antmicro.Renode.Core
                                 ? GetAnyNameOrTypeName(ownerAsPeripheral)
                                 : owner.GetType().Name;
                 },
+                x => x.Clocked.ToString(),
                 x => x.Enabled.ToString(),
                 x => Misc.NormalizeDecimal(x.Frequency) + "Hz",
                 x => x.Period.ToString(),
