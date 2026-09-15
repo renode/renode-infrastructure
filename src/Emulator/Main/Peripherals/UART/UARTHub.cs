@@ -155,6 +155,16 @@ namespace Antmicro.Renode.Peripherals.UART
             set => frameErrorRate = ValidateRate(nameof(FrameErrorRate), value);
         }
 
+        // NOTE: This is required by some of the UART models due to the fact, that some implementations
+        //       can have the delay "baked-in" into the TX/RX FIFO. Due to "hacky" nature of this option,
+        //       it shouldn't be relied upon and instead proper, general solution for handling baudrate-related
+        //       delay should be developed.
+        public bool ImmediateLoopback
+        {
+            get => immediateLoopback;
+            set => immediateLoopback = value;
+        }
+
         public event Action<I, T> DataTransmitted;
 
         public event Action<I, I, T> DataRouted;
@@ -198,6 +208,11 @@ namespace Antmicro.Renode.Peripherals.UART
                     if(recipient is IDelayableUART drecipient)
                     {
                         localWhen = when + drecipient.CharacterReceptionDelay;
+                    }
+
+                    if(recipient == sender && immediateLoopback)
+                    {
+                        localWhen = TimeDomainsManager.Instance.VirtualTimeStamp;
                     }
 
                     // Only send extra info in strict mode, as the model might otherwise not deliver the message
@@ -321,5 +336,6 @@ namespace Antmicro.Renode.Peripherals.UART
         private int maximumFlippedBits;
         private double droppedCharacterRate;
         private double frameErrorRate;
+        private bool immediateLoopback;
     }
 }
