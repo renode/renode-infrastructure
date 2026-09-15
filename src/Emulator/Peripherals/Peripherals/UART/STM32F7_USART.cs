@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
 using System.Threading;
 
 using Antmicro.Renode.Core;
@@ -25,7 +26,9 @@ namespace Antmicro.Renode.Peripherals.UART
             RegistersCollection = new DoubleWordRegisterCollection(this);
             this.frequency = frequency;
             this.lowPowerMode = lowPowerMode;
+            this.machine = machine;
             DefineRegisters();
+            ConfigureReceiverThread();
         }
 
         public override void Reset()
@@ -35,6 +38,20 @@ namespace Antmicro.Renode.Peripherals.UART
             IRQ.Unset();
             receiverTimeoutCancellationTokenSrc?.Cancel();
             ReceiveDmaRequest.Unset();
+        }
+
+        public override void WriteChar(byte value)
+        {
+            bool needRestart;
+            lock(intermediateReceiveQueue)
+            {
+                intermediateReceiveQueue.Enqueue(value);
+                needRestart = intermediateReceiveQueue.Count == 1;
+            }
+            if(needRestart)
+            {
+                receiverThread?.Restart();
+            }
         }
 
         public uint ReadDoubleWord(long offset)
@@ -214,6 +231,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     {
                         baudRateDivisor.Value = oldVal;
                     }
+                    BaudRateChanged();
                 }, name: "BRR")
                 .WithReservedBits(lowPowerMode ? 20 : 16, lowPowerMode ? 12 : 16);
 
@@ -327,6 +345,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         {
                             over8.Value = oldVal;
                         }
+                        BaudRateChanged();
                     }, name: "OVER8")
                     .WithFlag(26, out receiverTimeoutInterruptEnable, name: "RTOIE")
                     .WithTaggedFlag("EOBIE", 27)
@@ -436,6 +455,49 @@ namespace Antmicro.Renode.Peripherals.UART
             field.Value = oldValue;
         };
 
+        private void BaudRateChanged()
+        {
+            ConfigureReceiverThread();
+        }
+
+        private void ConfigureReceiverThread()
+        {
+            lock(receiverThreadLock)
+            {
+                receiverThread?.Dispose();
+                receiverThread = machine.ObtainManagedThread(
+                    action: () =>
+                    {
+                        byte value;
+                        lock(intermediateReceiveQueue)
+                        {
+                            if(!intermediateReceiveQueue.TryDequeue(out value))
+                            {
+                                return;
+                            }
+                        }
+
+                        WriteCharInner(value, null);
+                    },
+                    period: this.GetActualTransmissionDuration(8),
+                    name: $"{nameof(STM32F7_USART)} receiver",
+                    owner: this,
+                    stopCondition: () =>
+                    {
+                        lock(intermediateReceiveQueue)
+                        {
+                            return intermediateReceiveQueue.Count == 0;
+                        }
+                    }
+                );
+
+                if(intermediateReceiveQueue.Count > 0)
+                {
+                    receiverThread.Restart();
+                }
+            }
+        }
+
         private bool Over8 => over8 == null ? false : over8.Value;
 
         private uint BaudRateMultiplier => lowPowerMode ? 256u : Over8 ? 2u : 1u;
@@ -493,6 +555,12 @@ namespace Antmicro.Renode.Peripherals.UART
         private BufferState bufferState;
 
         private bool wasEnabledBeforeCurrentWrite;
+
+        private IManagedThread receiverThread;
+
+        private readonly Queue<byte> intermediateReceiveQueue = new();
+        private readonly object receiverThreadLock = new();
+        private readonly IMachine machine;
 
         private readonly uint frequency;
         private readonly bool lowPowerMode;
