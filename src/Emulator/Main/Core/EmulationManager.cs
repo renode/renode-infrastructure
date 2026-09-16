@@ -212,6 +212,8 @@ namespace Antmicro.Renode.Core
 
         public void Save(string path)
         {
+            path = Path.GetFullPath(path);
+
             try
             {
                 using(var stream = new FileStream(path, FileMode.Create))
