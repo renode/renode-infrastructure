@@ -21,9 +21,10 @@ namespace Antmicro.Renode.Testing
 {
     public class CANTester : ICAN, IExternal
     {
-        public CANTester(TimeInterval defaultTimeout)
+        public CANTester(TimeInterval defaultTimeout, bool defaultStartEmulation = true)
         {
             this.defaultTimeout = defaultTimeout;
+            this.defaultStartEmulation = defaultStartEmulation;
             frames = new List<CANMessageFrame>();
             matchedEvent = new AutoResetEvent(false);
             pauseEmulation = true;
@@ -122,7 +123,7 @@ namespace Antmicro.Renode.Testing
                     frameIndex++;
                 }
 
-                if(!emulation.IsStarted)
+                if(defaultStartEmulation && !emulation.IsStarted)
                 {
                     emulation.StartAll();
                 }
@@ -214,7 +215,7 @@ namespace Antmicro.Renode.Testing
         public void SendFrame(CANMessageFrame frame)
         {
             var emulation = EmulationManager.Instance.CurrentEmulation;
-            if(!emulation.IsStarted)
+            if(defaultStartEmulation && !emulation.IsStarted)
             {
                 emulation.StartAll();
             }
@@ -247,6 +248,7 @@ namespace Antmicro.Renode.Testing
                     }
                 }
             }
+
             // No matching frames received so setup for waiting
             var timeoutEvent = emulation.MasterTimeSource.EnqueueTimeoutEvent(((ulong)(timeout ?? defaultTimeout).TotalMilliseconds), () =>
             {
@@ -259,7 +261,7 @@ namespace Antmicro.Renode.Testing
             matchedEvent.Reset();
             pendingMatch = filter;
             // If emulation is paused, resume it
-            if(!emulation.IsStarted)
+            if(defaultStartEmulation && !emulation.IsStarted)
             {
                 emulation.StartAll();
             }
@@ -308,6 +310,7 @@ namespace Antmicro.Renode.Testing
         private readonly AutoResetEvent matchedEvent;
 
         private readonly TimeInterval defaultTimeout;
+        private readonly bool defaultStartEmulation;
 
         public class CANMatcher(uint? singleId = null, ISOTP_PCI? isotpType = null)
         {

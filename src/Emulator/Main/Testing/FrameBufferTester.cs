@@ -34,11 +34,12 @@ namespace Antmicro.Renode.Testing
 
     public class FrameBufferTester : IExternal, IConnectable<IVideo>
     {
-        public FrameBufferTester(TimeSpan timeout)
+        public FrameBufferTester(TimeSpan timeout, bool defaultStartEmulation = true)
         {
             framesQueue = new BlockingCollection<byte[]>();
             globalTimeout = timeout;
             newFrameEvent = new AutoResetEvent(false);
+            this.defaultStartEmulation = defaultStartEmulation;
         }
 
         public FrameBufferTester WaitForFrame(string fileName, float? timeout = null)
@@ -55,7 +56,7 @@ namespace Antmicro.Renode.Testing
             var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)finalTimeout.TotalMilliseconds);
 
             var emulation = EmulationManager.Instance.CurrentEmulation;
-            if(!emulation.IsStarted)
+            if(defaultStartEmulation && !emulation.IsStarted)
             {
                 emulation.StartAll();
             }
@@ -100,7 +101,7 @@ namespace Antmicro.Renode.Testing
             var timeoutEvent = machine.LocalTimeSource.EnqueueTimeoutEvent((ulong)finalTimeout.TotalMilliseconds);
 
             var emulation = EmulationManager.Instance.CurrentEmulation;
-            if(!emulation.IsStarted)
+            if(defaultStartEmulation && !emulation.IsStarted)
             {
                 emulation.StartAll();
             }
@@ -221,6 +222,7 @@ namespace Antmicro.Renode.Testing
         // as we ultimately would have to start the `WaitForFrame` loop from the beginning either way
         [Constructor(false)]
         private readonly AutoResetEvent newFrameEvent;
+        private readonly bool defaultStartEmulation;
         private readonly TimeSpan globalTimeout;
         private readonly BlockingCollection<byte[]> framesQueue;
     }

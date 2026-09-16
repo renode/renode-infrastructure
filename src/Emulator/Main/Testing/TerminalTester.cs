@@ -31,7 +31,7 @@ namespace Antmicro.Renode.Testing
 {
     public class TerminalTester : BackendTerminal
     {
-        public TerminalTester(TimeInterval timeout, EndLineOption endLineOption = EndLineOption.TreatLineFeedAsEndLine, bool binaryMode = false)
+        public TerminalTester(TimeInterval timeout, EndLineOption endLineOption = EndLineOption.TreatLineFeedAsEndLine, bool binaryMode = false, bool defaultStartEmulation = true)
         {
             GlobalTimeout = timeout;
             this.endLineOption = endLineOption;
@@ -43,6 +43,7 @@ namespace Antmicro.Renode.Testing
             sgrDecodingBuffer = new SafeStringBuilder();
             report = new SafeStringBuilder();
             failingStrings = new List<FailingString>();
+            this.defaultStartEmulation = defaultStartEmulation;
         }
 
         public override void AttachTo(IUART uart)
@@ -261,7 +262,7 @@ namespace Antmicro.Renode.Testing
             );
 
             charEvent.Reset();
-            if(!emulation.IsStarted)
+            if(defaultStartEmulation && !emulation.IsStarted)
             {
                 emulation.StartAll();
             }
@@ -487,7 +488,7 @@ namespace Antmicro.Renode.Testing
             var waitHandles = new [] { matchEvent, timeoutEvent.WaitHandle };
 
             var emulationPausedEvent = emulation.GetStartedStateChangedEvent(false);
-            if(!emulation.IsStarted)
+            if(defaultStartEmulation && !emulation.IsStarted)
             {
                 emulation.StartAll();
             }
@@ -758,6 +759,7 @@ namespace Antmicro.Renode.Testing
         private readonly SafeStringBuilder sgrDecodingBuffer;
         private readonly EndLineOption endLineOption;
         private readonly bool binaryMode;
+        private readonly bool defaultStartEmulation;
         private readonly List<Line> lines;
         private readonly SafeStringBuilder report;
         private readonly Queue<Tuple<TimeSpan, char>> delayedChars = new Queue<Tuple<TimeSpan, char>>();
