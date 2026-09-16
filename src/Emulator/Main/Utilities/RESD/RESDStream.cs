@@ -55,7 +55,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 {
                     cpu.SyncTime();
                 }
-                sampleOffsetTime += (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L;
+                sampleOffsetTime -= (long)machine.ClockSource.CurrentValue.TotalNanoseconds;
             }
 
             var stream = new RESDStream<T>(path, channel, sampleOffsetTime, extraFilter);
@@ -80,7 +80,7 @@ namespace Antmicro.Renode.Utilities.RESD
                 {
                     cpu.SyncTime();
                 }
-                sampleOffsetTime += (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L;
+                sampleOffsetTime -= (long)machine.ClockSource.CurrentValue.TotalNanoseconds;
             }
 
             var stream = new RESDStream<T, Out>(path, channel, transformer, sampleOffsetTime, extraFilter);
@@ -455,7 +455,7 @@ namespace Antmicro.Renode.Utilities.RESD
             };
 
             var thread = machine.ObtainManagedThread(feedSample, frequency, "RESD stream thread", owner, stopCondition);
-            var delayInterval = TimeInterval.FromMicroseconds(startTime / 1000);
+            var delayInterval = TimeInterval.FromNanoseconds(startTime);
             Owner?.Log(LogLevel.Debug, "RESD: Starting samples feeding thread at frequency {0}Hz delayed by {1}us", frequency, delayInterval);
             thread.StartDelayed(delayInterval);
             managedThreads.Add(thread);
@@ -486,7 +486,7 @@ namespace Antmicro.Renode.Utilities.RESD
             };
 
             var thread = machine.ObtainManagedThread(feedSample, period, "RESD stream thread", owner, stopCondition);
-            var delayInterval = TimeInterval.FromMicroseconds(startTime / 1000);
+            var delayInterval = TimeInterval.FromNanoseconds(startTime);
             Owner?.Log(LogLevel.Debug, "RESD: Starting samples feeding thread at period {0} delayed by {1}us", period, delayInterval);
             thread.StartDelayed(delayInterval);
             managedThreads.Add(thread);
@@ -700,7 +700,7 @@ namespace Antmicro.Renode.Utilities.RESD
             private readonly IMachine machine;
             private readonly Action<TimeInterval, ISimpleManagedThread> eventCallback;
 
-            private const long NanosecondsInSecond = 1 * 1000 * 1000 * 1000;
+            private const ulong NanosecondsInSecond = TimeInterval.TicksPerSecond / TimeInterval.TicksPerNanosecond;
         }
     }
 }

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -402,7 +402,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     path,
                     block.Channel,
                     RESDStreamSampleOffset.Specified,
-                    (long)machine.ClockSource.CurrentValue.TotalMicroseconds * -1000L + (long)block.StartTime - (init ? (long)startTime : 0),
+                    -(long)machine.ClockSource.CurrentValue.TotalNanoseconds + (long)block.StartTime - (init ? (long)startTime : 0),
                     b => (b as ConstantFrequencySamplesDataBlock<AccelerationSample>)?.Frequency == sampleRate
                 );
                 resdStream.Owner = null; // turn off verbose internal RESD logging and use custom logs
