@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override void OnGPIO(int number, bool value)
         {
-            var sourceIsPIC = PIC.IRQ.Endpoints.Where(x => x.Receiver == this).Any(x => x.Number == number);
+            var sourceIsPIC = PIC != null && PIC.IRQ.Endpoints.Where(x => x.Receiver == this).Any(x => x.Number == number);
             if(isInFWHalt && sourceIsPIC && !PIC.MaxPriorityIRQ.IsSet && value)
             {
                 // Don't wake the core for non-highest priority PIC IRQ in fw_halt
