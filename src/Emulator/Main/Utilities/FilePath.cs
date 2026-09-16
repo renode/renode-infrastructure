@@ -176,9 +176,23 @@ namespace Antmicro.Renode.Utilities
 
     public class SequencedFilePath : WriteFilePath
     {
+        public static SequencedFilePath Create(string path, out string movedFilePath)
+        {
+            var sequencedFilePath = new SequencedFilePath(path, false);
+            sequencedFilePath.Validate(out movedFilePath);
+            return sequencedFilePath;
+        }
+
         public SequencedFilePath(string path, bool validate = true) : base(path, validate) { }
 
-        public override void Validate()
+        public override void Validate() => Validate(out _);
+
+        public static implicit operator SequencedFilePath(string path)
+        {
+            return new SequencedFilePath(path);
+        }
+
+        private bool Validate(out string movedFilePath)
         {
             if(!File.Exists(path))
             {
@@ -186,7 +200,8 @@ namespace Antmicro.Renode.Utilities
                 {
                     throw new RecoverableException($"File {path} could not be created");
                 }
-                return;
+                movedFilePath = null;
+                return false;
             }
 
             var lastSplit = path.LastIndexOf(Path.DirectorySeparatorChar);
@@ -206,28 +221,25 @@ namespace Antmicro.Renode.Utilities
                 .Concat(new [] { 0 })
                 .Max();
 
-            var newPath = string.Format("{0}.{1}", path, lastIndex + 1);
+            movedFilePath = $"{path}.{lastIndex + 1}";
 
             try
             {
-                File.Move(path, newPath);
+                File.Move(path, movedFilePath);
             }
             catch(Exception e)
             {
-                throw new RecoverableException($"Error occured while moving old file to {newPath}: {e.Message}");
+                throw new RecoverableException($"Error occured while moving old file to {movedFilePath}: {e.Message}");
             }
 
-            Logger.Log(LogLevel.Info, "Old file {0} moved to {1}", path, newPath);
+            Logger.Log(LogLevel.Info, "Old file {0} moved to {1}", path, movedFilePath);
 
             if(!CanBeCreated())
             {
-                throw new RecoverableException($"File {newPath} could not be created");
+                throw new RecoverableException($"File {movedFilePath} could not be created");
             }
-        }
 
-        public static implicit operator SequencedFilePath(string path)
-        {
-            return new SequencedFilePath(path);
+            return true;
         }
     }
 }
