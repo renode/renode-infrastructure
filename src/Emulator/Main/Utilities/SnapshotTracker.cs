@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Utilities
             return GetFirstExistingSnapshot(snapshotsOnTimestamp).Path;
         }
 
-        public void Save(TimeInterval timeStamp, string path)
+        public void Save(TimeInterval timeStamp, ReadFilePath path)
         {
             var newSnapshot = new SnapshotDescriptor(timeStamp, path, nextSnapshoId++);
             snapshots.Add(newSnapshot);
@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Utilities
             var snapshotsToRemove = new List<SnapshotDescriptor>();
             foreach(var snapshot in snapshotView)
             {
-                if(File.Exists(snapshot.Path))
+                if(snapshot.Path.IsValid())
                 {
                     firstSnapshot = snapshot;
                     break;
@@ -141,7 +141,7 @@ namespace Antmicro.Renode.Utilities
 
         private readonly SortedSet<SnapshotDescriptor> snapshots = new SortedSet<SnapshotDescriptor>();
 
-        private record SnapshotDescriptor(TimeInterval TimeStamp, string Path, uint SnapshotId) : IComparable<SnapshotDescriptor>
+        private record SnapshotDescriptor(TimeInterval TimeStamp, ReadFilePath Path, uint SnapshotId) : IComparable<SnapshotDescriptor>
         {
             public int CompareTo(SnapshotDescriptor other)
             {
@@ -156,7 +156,7 @@ namespace Antmicro.Renode.Utilities
 
             public TimeInterval TimeStamp { get; init; } = TimeStamp;
 
-            public string Path { get; init; } = Path;
+            public ReadFilePath Path { get; init; } = Path;
 
             public uint SnapshotId { get; init; } = SnapshotId;
         }
