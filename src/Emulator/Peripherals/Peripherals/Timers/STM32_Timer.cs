@@ -59,7 +59,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                     enableRequested = false;
                 }
 
-                Limit = autoReloadValue;
+                // The counter runs 0..ARR inclusive, so one period is ARR + 1 ticks (RM0090 18.3.1);
+                // it also lets the counter hold ARR itself, which encoder mode needs when wrapping.
+                Limit = (ulong)autoReloadValue + 1;
                 this.Log(LogLevel.Noisy, "IRQ pending");
                 updateInterruptFlag = true;
 
@@ -364,7 +366,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         Enabled = enableRequested && autoReloadValue > 0;
                         if(!autoReloadPreloadEnable.Value)
                         {
-                            Limit = autoReloadValue;
+                            Limit = (ulong)autoReloadValue + 1;
                         }
                     }, valueProviderCallback: _ => autoReloadValue, name: "Auto-reload value (ARR)")
                     .WithReservedBits(timerCounterLengthInBits, 32 - timerCounterLengthInBits)
@@ -630,14 +632,58 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         private void HandleEncoderMode(int tiSource, bool value)
         {
+            bool countUp;
             if(tiSource == 0 && (IsEncoderMode1 || IsEncoderMode3))
             {
-                Value = (value ^ channels[1].Connection.IsSet) ? Value + 1 : Value - 1;
+                countUp = value ^ channels[1].Connection.IsSet;
             }
             else if(tiSource == 1 && (IsEncoderMode2 || IsEncoderMode3))
             {
-                Value = (value ^ channels[0].Connection.IsSet) ? Value - 1 : Value + 1;
+                countUp = !(value ^ channels[0].Connection.IsSet);
             }
+            else
+            {
+                return;
+            }
+
+            // RM0090 18.3.12: in encoder mode the counter counts continuously between 0 and ARR,
+            // wrapping in both directions, and DIR reflects the direction of the last count.
+            // Without the wrap, counting down from 0 underflows the ulong and the Value setter throws.
+            Direction = countUp ? Direction.Ascending : Direction.Descending;
+            if(countUp)
+            {
+                if(Value >= autoReloadValue)
+                {
+                    Value = 0;
+                    HandleEncoderUpdateEvent();
+                }
+                else
+                {
+                    Value = Value + 1;
+                }
+            }
+            else
+            {
+                if(Value == 0)
+                {
+                    Value = autoReloadValue;
+                    HandleEncoderUpdateEvent();
+                }
+                else
+                {
+                    Value = Value - 1;
+                }
+            }
+        }
+
+        private void HandleEncoderUpdateEvent()
+        {
+            if(updateDisable.Value)
+            {
+                return;
+            }
+            updateInterruptFlag = true;
+            UpdateInterrupts();
         }
 
         private void HandleResetMode(int tiSource, bool value)
