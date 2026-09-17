@@ -1,9 +1,10 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Globalization;
 
 using Antmicro.Renode.Exceptions;
@@ -12,7 +13,7 @@ namespace Antmicro.Renode.Utilities.GDB
 {
     // Based on the extended "thread-id" syntax information from https://sourceware.org/gdb/current/onlinedocs/gdb.html/Packets.html
     // Shouldn't be used for "those packets and replies explicitly documented to include a process ID, rather than a thread-id".
-    public struct PacketThreadId
+    public readonly struct PacketThreadId
     {
         /// <param name="gdbArgument">It must be a full argument, i.e., including <c>"p"</c> if it was present.</param>
         public PacketThreadId(string gdbArgument)
@@ -44,32 +45,36 @@ namespace Antmicro.Renode.Utilities.GDB
             }
         }
 
-        public override string ToString()
+        public PacketThreadId(int? processId, int threadId)
         {
-            return string.Empty
-                .AppendIf(ProcessId.HasValue, $"process-id: {IdToString(ProcessId.Value)}, ")
-                .Append($"thread-id: {IdToString(ThreadId)}").ToString();
+            ProcessId = processId;
+            ThreadId = threadId;
         }
 
-        public int? ProcessId;
-        public int ThreadId;
+        public override string ToString()
+        {
+            var processId = ProcessId.HasValue ? $"p{ProcessId:x2}." : "";
+            return $"{processId}{ThreadId:x2}";
+        }
+
+        public override bool Equals(object obj)
+        {
+            if(obj is PacketThreadId id)
+            {
+                return ProcessId == id.ProcessId && ThreadId == id.ThreadId;
+            }
+            return false;
+        }
+
+        public override int GetHashCode() => HashCode.Combine(ProcessId, ThreadId);
+
+        public int? ProcessId { get; }
+
+        public int ThreadId { get; }
 
         // All and Any can be passed as a part of a valid argument.
         public const int All = -1;
         public const int Any = 0;
-
-        private static string IdToString(int id)
-        {
-            switch(id)
-            {
-            case All:
-                return "all";
-            case Any:
-                return "any";
-            default:
-                return id.ToString();
-            }
-        }
 
         private static bool TryParseId(string s, out int result)
         {
