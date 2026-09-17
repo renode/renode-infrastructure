@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -18,14 +18,14 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
         public PacketData Execute(
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.ThreadId)] PacketThreadId threadId)
         {
-            var cpuId = threadId.ProcessId ?? threadId.ThreadId;
+            var cpuId = threadId.ThreadId;
             if(cpuId == PacketThreadId.All)
             {
                 // Choosing all isn't currently supported.
                 return PacketData.ErrorReply(Error.OperationNotPermitted);
             }
 
-            manager.SelectCpuForDebugging(manager.ManagedCpus[cpuId]);
+            manager.SelectCpuForDebugging(manager.ManagedCpus[threadId]);
             return PacketData.Success;
         }
     }

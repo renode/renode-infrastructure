@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -70,8 +70,8 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
              *  At this point all cores have finished current time interval and it's safe to perform Step for cores from `blocked`.
              */
             // step 1)
-            var blocking = operations.Where(operation => !manager.ManagedCpus[operation.CoreId].TimeHandle.IsDone).ToList();
-            var blocked = operations.Where(operation => manager.ManagedCpus[operation.CoreId].TimeHandle.IsDone).ToList();
+            var blocking = operations.Where(operation => !manager.ManagedCpus[operation.ThreadId].TimeHandle.IsDone).ToList();
+            var blocked = operations.Where(operation => manager.ManagedCpus[operation.ThreadId].TimeHandle.IsDone).ToList();
 
             // if there is no operation that would block then return and execute `operations` in any order
             var blockedStep = blocked.Where(operation => operation.Type == OperationType.Step).ToList();
@@ -91,8 +91,8 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             {
                 // Switching the core into SingleStep will cause a spurious StopReply to be sent to Gdb
                 // TODO: this should be addressed
-                manager.ManagedCpus[operation.CoreId].ExecutionMode = ExecutionMode.SingleStep;
-                manager.ManagedCpus[operation.CoreId].TimeHandle.DelayGrant = true;
+                manager.ManagedCpus[operation.ThreadId].ExecutionMode = ExecutionMode.SingleStep;
+                manager.ManagedCpus[operation.ThreadId].TimeHandle.DelayGrant = true;
             }
 
             // we support only all-stop mode, skip `continue` requests
@@ -107,8 +107,8 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             // pause execution at sync-point or skip time if core stopped before sync-point
             foreach(var operation in blockingContinue)
             {
-                var callbacks = new Dictionary<uint, Action>();
-                var cpu = manager.ManagedCpus[operation.CoreId];
+                var callbacks = new Dictionary<PacketThreadId, Action>();
+                var cpu = manager.ManagedCpus[operation.ThreadId];
                 Action callback = () =>
                 {
                     var isDone = cpu.TimeHandle.IsDone;
@@ -117,14 +117,14 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                     {
                         return;
                     }
-                    cpu.TimeHandle.ReportedBack -= callbacks[operation.CoreId];
+                    cpu.TimeHandle.ReportedBack -= callbacks[operation.ThreadId];
                     cpu.ExecutionMode = ExecutionMode.SingleStep;
                     // skip time if core stopped before sync-point
                     if(!isDone)
                     {
                         if(!cpu.TimeHandle.TrySkipToSyncPoint(out var interval))
                         {
-                            cpu.Log(LogLevel.Error, "Aborted execution of gdb command, core #{0} would block.", operation.CoreId);
+                            cpu.Log(LogLevel.Error, "Aborted execution of gdb command, core #{0} would block.", operation.ThreadId);
                             abort = true;
                             return;
                         }
@@ -133,7 +133,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                     cde.Signal();
                 };
                 cpu.TimeHandle.ReportedBack += callback;
-                callbacks.Add(operation.CoreId, callback);
+                callbacks.Add(operation.ThreadId, callback);
             }
             // step 2)
             // run blocking cores
@@ -150,13 +150,13 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             }
             foreach(var operation in blocking.Where(operation => operation.Type != OperationType.Continue))
             {
-                var cpu = manager.ManagedCpus[operation.CoreId];
+                var cpu = manager.ManagedCpus[operation.ThreadId];
                 // skip time if core didn't get to the sync-point
                 if(!cpu.TimeHandle.IsDone)
                 {
                     if(!cpu.TimeHandle.TrySkipToSyncPoint(out var interval))
                     {
-                        cpu.Log(LogLevel.Error, "Aborted execution of gdb command, core #{0} would block.", operation.CoreId);
+                        cpu.Log(LogLevel.Error, "Aborted execution of gdb command, core #{0} would block.", operation.ThreadId);
                         abort = true;
                     }
                     cpu.Log(LogLevel.Warning, "Jumped {0}s in time.", interval);
@@ -172,15 +172,15 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             // ATM we support only all-stop mode, so if we receive a `step` request in the packet we skip the `continue` request,
             // but don't skip for synchronus execution, its needed in TryHandleBlockingExecution
             var skipContinue = !EmulationManager.Instance.CurrentEmulation.SingleStepBlocking && data.Contains('s') && data.Contains('c');
-            var gdbCpuIdsToHandle = new HashSet<uint>(manager.ManagedCpus.GdbCpuIds);
+            var gdbCpuIdsToHandle = new HashSet<PacketThreadId>(manager.ManagedCpus.All);
             foreach(var pair in data.Split(';'))
             {
                 // No id means that command should be applied to the rest of the threads
-                var coreId = AllCores;
+                var threadId = new PacketThreadId(null, PacketThreadId.All);
                 var operation = pair.Split(':');
                 if(pair.Length > 1)
                 {
-                    coreId = int.Parse(operation[1]);
+                    threadId = new PacketThreadId(operation[1]);
                 }
 
                 var type = Operation.ParseType(operation[0]);
@@ -194,34 +194,34 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                     continue;
                 }
 
-                if(coreId == AllCores)
+                if(threadId.ThreadId == AllCores)
                 {
-                    foreach(var id in gdbCpuIdsToHandle)
+                    foreach(var id in gdbCpuIdsToHandle.Where(id => ProcessMatches(id, threadId)))
                     {
                         operationsList.Add(new Operation(id, type.Value));
                     }
-                    gdbCpuIdsToHandle.Clear();
+                    gdbCpuIdsToHandle.RemoveWhere(id => ProcessMatches(id, threadId));
                 }
-                else if(coreId == AnyCore)
+                else if(threadId.ThreadId == AnyCore)
                 {
                     if(gdbCpuIdsToHandle.Count == 0)
                     {
                         manager.Cpu.Log(LogLevel.Error, "No CPUs available to execute \"{0}\" command.", pair);
                         return false;
                     }
-                    var firstAvailable = gdbCpuIdsToHandle.First();
+                    var firstAvailable = gdbCpuIdsToHandle.Where(id => ProcessMatches(id, threadId)).First();
                     operationsList.Add(new Operation(firstAvailable, type.Value));
                     gdbCpuIdsToHandle.Remove(firstAvailable);
                 }
                 else
                 {
-                    // coreId has proper core id
-                    if(!gdbCpuIdsToHandle.Remove((uint)coreId))
+                    // threadId identifies a single thread
+                    if(!gdbCpuIdsToHandle.Remove(threadId))
                     {
-                        var index = operationsList.FindIndex(op => op.CoreId == (uint)coreId);
+                        var index = operationsList.FindIndex(op => op.ThreadId.Equals(threadId));
                         if(index != -1)
                         {
-                            manager.Cpu.Log(LogLevel.Error, "CPU #{1} already set to {2}, error in \"{0}\" command.", pair, coreId, operationsList[index].Type);
+                            manager.Cpu.Log(LogLevel.Error, "CPU #{1} already set to {2}, error in \"{0}\" command.", pair, threadId, operationsList[index].Type);
                         }
                         else
                         {
@@ -229,7 +229,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                         }
                         return false;
                     }
-                    operationsList.Add(new Operation((uint)coreId, type.Value));
+                    operationsList.Add(new Operation(threadId, type.Value));
                 }
             }
             if(!operationsList.Any())
@@ -247,7 +247,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
 
         private void ManageOperation(Operation operation)
         {
-            var cpu = manager.ManagedCpus[operation.CoreId];
+            var cpu = manager.ManagedCpus[operation.ThreadId];
             switch(operation.Type)
             {
             case OperationType.Continue:
@@ -265,14 +265,19 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             }
         }
 
+        private bool ProcessMatches(PacketThreadId id, PacketThreadId expectedId)
+        {
+            return (id.ProcessId ?? expectedId.ProcessId) == expectedId.ProcessId;
+        }
+
         private const int AllCores = PacketThreadId.All;
         private const int AnyCore = PacketThreadId.Any;
 
-        private struct Operation
+        private readonly struct Operation
         {
-            public Operation(uint id, OperationType type) : this()
+            public Operation(PacketThreadId id, OperationType type) : this()
             {
-                this.CoreId = id;
+                this.ThreadId = id;
                 this.Type = type;
             }
 
@@ -289,7 +294,7 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
                 }
             }
 
-            public uint CoreId { get; }
+            public PacketThreadId ThreadId { get; }
 
             public OperationType Type { get; }
         }

@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -52,9 +52,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             else if(objectType == "threads")
             {
                 xmlFile.Append("<?xml version=\"1.0\"?>\n<threads>\n");
-                foreach(var gdbCpuId in manager.ManagedCpus.GdbCpuIds)
+                foreach(var id in manager.ManagedCpus.All)
                 {
-                    xmlFile.Append($"<thread id=\"{gdbCpuId:x}\" core=\"{gdbCpuId - 1}\" name=\"{manager.ManagedCpus[gdbCpuId].GetName()}\"></thread>\n");
+                    xmlFile.Append($"<thread id=\"{id.ThreadId:x}\" core=\"{id.ThreadId - 1}\" name=\"{manager.ManagedCpus[id].GetName()}\"></thread>\n");
                 }
                 xmlFile.Append("</threads>\n");
             }
