@@ -1380,6 +1380,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 this.Log(LogLevel.Debug, "Resetting {0}", peripheral);
                 peri.Reset();
+                // A peripheral's Reset() restores its construction-time frequency (e.g.
+                // LimitTimer goes back to the .repl value), silently dropping the clock this
+                // RCC had derived for it. Firmware routinely resets a peripheral through
+                // RCC right before using it (enable + reset), so re-apply the current clock
+                // tree - otherwise e.g. a timer runs at the .repl default instead of the
+                // configured kernel clock and every timing derived from it is off.
+                PropagateClock();
             }
         }
 
