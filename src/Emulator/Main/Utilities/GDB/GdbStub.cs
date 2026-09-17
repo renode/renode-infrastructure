@@ -88,6 +88,10 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public CommandsManager CommandsManager => commandsManager;
 
+        public const int InterruptSignal = 2;
+        public const int TrapSignal = 5;
+        public const int AbortSignal = 6;
+
         private GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, int? pid)
         {
             LogsEnabled = true;
@@ -336,10 +340,6 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly SocketServerProvider terminal;
         private readonly CommandsManager commandsManager;
         private readonly CommunicationHandler commHandler;
-
-        private const int InterruptSignal = 2;
-        private const int TrapSignal = 5;
-        private const int AbortSignal = 6;
 
         private class CommunicationHandler
         {
