@@ -156,8 +156,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(6, out transferCompleteInterruptEnabled, name: "TCIE")
                 .WithFlag(7, out transmitRegisterEmptyInterruptEnabled, name: "TXEIE")
                 .WithFlag(8, name: "PEIE")
-                .WithFlag(9, out paritySelection, name: "PS")
-                .WithFlag(10, out parityControlEnabled, name: "PCE")
+                .WithFlag(9, out paritySelection, changeCallback: UndoIfEnabledCallback(paritySelection, "PS"), name: "PS")
+                .WithFlag(10, out parityControlEnabled, changeCallback: UndoIfEnabledCallback(parityControlEnabled, "PCE"), name: "PCE")
                 .WithTaggedFlag("WAKE", 11)
                 .WithTaggedFlag("MO", 12)
                 .WithTaggedFlag("MME", 13)
@@ -166,13 +166,22 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTag("DEAT", 21, 5)
                 .WithTaggedFlag("M1", 28)
                 .WithReservedBits(29, 3)
-                .WithWriteCallback((_, __) => UpdateInterrupt());
+                .WithWriteCallback((_, __) =>
+                {
+                    // Register callbacks are called after field callbacks,
+                    // so `wasEnabledBeforeCurrentWrite` is updated after all
+                    // `UndoIfEnableCallback`s are called, which is what we
+                    // want, since the undos judge based on the old value of the
+                    // enabled field
+                    wasEnabledBeforeCurrentWrite = enabled.Value;
+                    UpdateInterrupt();
+                });
 
             var cr2 = Registers.ControlRegister2.Define(RegistersCollection)
                 .WithReservedBits(0, 4)
                 .WithTaggedFlag("ADDM7", 4)
                 .WithReservedBits(7, 1)
-                .WithValueField(12, 2, out stopBits, name: "STOP")
+                .WithValueField(12, 2, out stopBits, changeCallback: UndoIfEnabledCallback(stopBits, "STOP"), name: "STOP")
                 .WithTaggedFlag("SWAP", 15)
                 .WithTaggedFlag("RXINV", 16)
                 .WithTaggedFlag("TXINV", 17)
@@ -314,7 +323,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTag("BLEN (Block length)", 24, 8);
 
                 cr1
-                    .WithFlag(15, out over8, name: "OVER8")
+                    .WithFlag(15, out over8, changeCallback: UndoIfEnabledCallback(over8, "OVER8"), name: "OVER8")
                     .WithFlag(26, out receiverTimeoutInterruptEnable, name: "RTOIE")
                     .WithTaggedFlag("EOBIE", 27)
                     .WithWriteCallback((_, __) =>
@@ -413,6 +422,16 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        private Action<T, T> UndoIfEnabledCallback<T>(IRegisterField<T> field, string fieldName) => (T oldValue, T _) =>
+        {
+            if(!wasEnabledBeforeCurrentWrite)
+            {
+                return;
+            }
+            this.WarningLog("{0} field was written to while UART was enabled", fieldName);
+            field.Value = oldValue;
+        };
+
         private uint BaudRateMultiplier => lowPowerMode ? 256u : over8.Value ? 2u : 1u;
 
         private CancellationTokenSource receiverTimeoutCancellationTokenSrc;
@@ -435,6 +454,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField receiverTimeout;
 
         private BufferState bufferState;
+
+        private bool wasEnabledBeforeCurrentWrite;
 
         private readonly uint frequency;
         private readonly bool lowPowerMode;
