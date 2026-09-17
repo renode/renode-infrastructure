@@ -207,18 +207,15 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("UCESM", 23)
                 .WithReservedBits(25, 7);
 
-            if(lowPowerMode)
-            {
-                Registers.BaudRate.Define(RegistersCollection)
-                    .WithValueField(0, 20, out baudRateDivisor, name: "BRR")
-                    .WithReservedBits(20, 12);
-            }
-            else
-            {
-                Registers.BaudRate.Define(RegistersCollection)
-                    .WithValueField(0, 16, out baudRateDivisor, name: "BRR")
-                    .WithReservedBits(16, 16);
-            }
+            Registers.BaudRate.Define(RegistersCollection)
+                .WithValueField(0, lowPowerMode ? 20 : 16, out baudRateDivisor, changeCallback: (oldVal, newVal) =>
+                {
+                    if(BaudRateDivisorIsBad)
+                    {
+                        baudRateDivisor.Value = oldVal;
+                    }
+                }, name: "BRR")
+                .WithReservedBits(lowPowerMode ? 20 : 16, lowPowerMode ? 12 : 16);
 
             var request = Registers.Request.Define(RegistersCollection)
                 .WithFlag(1, FieldMode.Write, name: "SBKRQ")
@@ -323,7 +320,14 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithTag("BLEN (Block length)", 24, 8);
 
                 cr1
-                    .WithFlag(15, out over8, changeCallback: UndoIfEnabledCallback(over8, "OVER8"), name: "OVER8")
+                    .WithFlag(15, out over8, changeCallback: (oldVal, newVal) =>
+                    {
+                        UndoIfEnabledCallback(over8, "OVER8")(oldVal, newVal);
+                        if(BaudRateDivisorIsBad)
+                        {
+                            over8.Value = oldVal;
+                        }
+                    }, name: "OVER8")
                     .WithFlag(26, out receiverTimeoutInterruptEnable, name: "RTOIE")
                     .WithTaggedFlag("EOBIE", 27)
                     .WithWriteCallback((_, __) =>
@@ -446,6 +450,24 @@ namespace Antmicro.Renode.Peripherals.UART
                     return baseDivisor;
                 }
                 return (baseDivisor & 0xfff0) | ((baseDivisor & 0x0007) << 1);
+            }
+        }
+
+        private bool BaudRateDivisorIsBad
+        {
+            get
+            {
+                if(Over8 && (baudRateDivisor.Value & 0x0080) != 0)
+                {
+                    this.WarningLog("USARTDIV[3] must be 0 when in OVER8 mode");
+                    return true;
+                }
+                if(BaudRateDivisor < 16)
+                {
+                    this.WarningLog("Baud rate divisior must be at least 16");
+                    return true;
+                }
+                return false;
             }
         }
 
