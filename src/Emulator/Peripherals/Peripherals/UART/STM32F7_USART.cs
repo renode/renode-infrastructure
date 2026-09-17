@@ -172,7 +172,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(0, 4)
                 .WithTaggedFlag("ADDM7", 4)
                 .WithReservedBits(7, 1)
-                .WithValueField(12, 2, out stopBits)
+                .WithValueField(12, 2, out stopBits, name: "STOP")
                 .WithTaggedFlag("SWAP", 15)
                 .WithTaggedFlag("RXINV", 16)
                 .WithTaggedFlag("TXINV", 17)
