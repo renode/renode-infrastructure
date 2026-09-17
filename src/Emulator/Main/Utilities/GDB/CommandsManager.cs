@@ -280,10 +280,8 @@ namespace Antmicro.Renode.Utilities.GDB
 
         private void InvalidateCompiledFeatures()
         {
-            if(unifiedFeatures.Any())
-            {
-                unifiedFeatures.RemoveAll(_ => true);
-            }
+            unifiedFeatures.Clear();
+            unifiedRegisters.Clear();
         }
 
         private bool TryAddManagedCPU(ICpuSupportingGdb cpu)
