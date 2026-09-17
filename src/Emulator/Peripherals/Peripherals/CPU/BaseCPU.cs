@@ -252,38 +252,43 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public override bool IsHalted
+        public bool Clocked
         {
             get
             {
-                return isHaltedRequested;
+                return clocked;
             }
 
             set
             {
                 this.Trace();
-                if(value == isHaltedRequested)
+                if(value == clocked)
                 {
                     return;
                 }
+                clocked = value;
 
-                lock(pauseLock)
+                UpdateRequestedHaltedState();
+            }
+        }
+
+        public override bool IsHalted
+        {
+            get
+            {
+                return isHalted;
+            }
+
+            set
+            {
+                this.Trace();
+                if(value == isHalted)
                 {
-                    this.Trace();
-                    isHaltedRequested = value;
-
-                    if(value)
-                    {
-                        DoPause(new HaltArguments(HaltReason.Pause, this), checkPauseGuard: false);
-                    }
-                    else
-                    {
-                        if(!isPausedRequested)
-                        {
-                            Resume();
-                        }
-                    }
+                    return;
                 }
+                isHalted = value;
+
+                UpdateRequestedHaltedState();
             }
         }
 
@@ -362,6 +367,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.machine = machine;
             this.bitness = bitness;
             isPaused = true;
+            clocked = true;
 
             singleStepSynchronizer = new Synchronizer();
             EmulationManager.Instance.CurrentEmulation.SingleStepBlockingChanged += UpdateHaltedState;
@@ -417,6 +423,32 @@ namespace Antmicro.Renode.Peripherals.CPU
             lock(pauseLock)
             {
                 StartCPUThreadInner();
+            }
+        }
+
+        protected virtual void UpdateRequestedHaltedState()
+        {
+            lock(pauseLock)
+            {
+                this.Trace();
+                var value = isHalted || !clocked;
+                if(isHaltedRequested == value)
+                {
+                    return;
+                }
+                isHaltedRequested = value;
+
+                if(isHaltedRequested)
+                {
+                    DoPause(new HaltArguments(HaltReason.Pause, this), checkPauseGuard: false);
+                }
+                else
+                {
+                    if(!isPausedRequested)
+                    {
+                        Resume();
+                    }
+                }
             }
         }
 
@@ -914,6 +946,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected bool shouldEnterDebugMode;
         protected bool neverWaitForInterrupt;
         protected bool dispatcherRestartRequested;
+        protected bool clocked;
+        protected bool isHalted;
         protected bool isHaltedRequested;
         protected bool currentHaltedState;
 

@@ -27,6 +27,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         RegisterValue PC { get; set; }
 
+        bool Clocked { get; set; }
+
         // Extend `IsHalted` with a getter by using the `new` keyword
         new bool IsHalted { get; set; }
 

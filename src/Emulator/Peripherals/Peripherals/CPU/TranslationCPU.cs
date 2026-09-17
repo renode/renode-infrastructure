@@ -1064,21 +1064,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool DisableInterruptsWhileStepping { get; set; }
 
-        public override bool IsHalted
-        {
-            get => base.IsHalted;
-            set
-            {
-                if(base.IsHalted == value)
-                {
-                    return;
-                }
-                base.IsHalted = value;
-
-                TlibInvalidateTranslationCache();
-            }
-        }
-
         public abstract List<GDBFeatureDescriptor> GDBFeatures { get; }
 
         public abstract string GDBArchitecture { get; }
@@ -1131,6 +1116,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected virtual void LogAsCpu(int level, string s)
         {
             this.Log((LogLevel)level, s);
+        }
+
+        protected override void UpdateRequestedHaltedState()
+        {
+            base.UpdateRequestedHaltedState();
+            TlibInvalidateTranslationCache();
         }
 
         protected override void DisposeInner(bool silent = false)
