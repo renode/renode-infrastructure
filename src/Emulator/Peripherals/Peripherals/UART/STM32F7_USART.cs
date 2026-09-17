@@ -48,7 +48,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public override uint BaudRate =>
-            BaudRateMultiplier * frequency / Math.Max(1, (uint)baudRateDivisor.Value);
+            BaudRateMultiplier * frequency / Math.Max(1, BaudRateDivisor);
 
         public override Bits StopBits
         {
@@ -432,7 +432,22 @@ namespace Antmicro.Renode.Peripherals.UART
             field.Value = oldValue;
         };
 
-        private uint BaudRateMultiplier => lowPowerMode ? 256u : over8.Value ? 2u : 1u;
+        private bool Over8 => over8 == null ? false : over8.Value;
+
+        private uint BaudRateMultiplier => lowPowerMode ? 256u : Over8 ? 2u : 1u;
+
+        private uint BaudRateDivisor
+        {
+            get
+            {
+                var baseDivisor = (uint)baudRateDivisor.Value;
+                if(!Over8)
+                {
+                    return baseDivisor;
+                }
+                return (baseDivisor & 0xfff0) | ((baseDivisor & 0x0007) << 1);
+            }
+        }
 
         private CancellationTokenSource receiverTimeoutCancellationTokenSrc;
 
