@@ -420,7 +420,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                     (outputOffset + byteIndex).Define(asByteCollection)
                         .WithValueField(0, 8, name: $"ParallelPadDataOutput{registerIndex}.{byteIndex}",
-                            valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(padRange.Select(pinIndex => Connections[pinIndex].IsSet)),
+                            valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(padRange.Select(pinIndex =>
+                                validPadIndexes.Contains(pinIndex) ? Connections[pinIndex].IsSet : false)),
                             changeCallback: (previousValue, currentValue) =>
                             {
                                 var difference = previousValue ^ currentValue;
@@ -436,7 +437,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                     (inputOffset + byteIndex).Define(asByteCollection)
                         .WithValueField(0, 8, FieldMode.Read, name: $"ParallelPadDataInput{registerIndex}.{byteIndex}",
-                            valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(padRange.Select(pinIndex => State[pinIndex])))
+                            valueProviderCallback: _ => BitHelper.GetValueFromBitsArray(padRange.Select(pinIndex =>
+                                validPadIndexes.Contains(pinIndex) ? State[pinIndex] : false)))
                     ;
                 }
             }
