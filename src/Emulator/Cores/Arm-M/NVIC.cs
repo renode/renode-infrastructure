@@ -78,6 +78,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return targetInterruptSecurityState[interruptNumber];
         }
 
+        /// <remarks>
+        /// NOTE: RFKXX is not respected here. `tlib_nvic_find_pending_irq()`
+        /// does not respect PRIMASK/BASEPRI/FAULTMASK.
+        /// </remarks>
         public int? FindPendingInterrupt()
         {
             lock(irqs)
