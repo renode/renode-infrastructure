@@ -36,6 +36,7 @@ namespace Antmicro.Renode.Tools.Network
             sync = new object();
             attached = new List<ICAN>();
             handlers = new Dictionary<ICAN, Action<CANMessageFrame>>();
+            pendingWhilePaused = new Queue<Tuple<ICAN, CANMessageFrame, byte[]>>();
             this.loopback = loopback;
             UseNetworkByteOrderForLogging = useNetworkByteOrderForLogging;
         }
@@ -82,6 +83,13 @@ namespace Antmicro.Renode.Tools.Network
             lock(sync)
             {
                 started = true;
+                // Frames from host-side bridges (e.g. SocketCANBridge) can arrive while the emulation
+                // is paused; deliver them now, at the resume timestamp, instead of dropping them.
+                while(pendingWhilePaused.Count > 0)
+                {
+                    var pending = pendingWhilePaused.Dequeue();
+                    Deliver(pending.Item1, pending.Item2, pending.Item3);
+                }
             }
         }
 
@@ -127,22 +135,32 @@ namespace Antmicro.Renode.Tools.Network
 
                 if(!started)
                 {
+                    // Machines are paused too, so a frame here comes from a host-side bridge running on its
+                    // own thread. Dropping it loses host traffic silently every time the emulation is stepped
+                    // with RunFor; queue it for Resume instead.
+                    this.Log(LogLevel.Debug, "Queued a frame from {0} received while paused", senderName);
+                    pendingWhilePaused.Enqueue(Tuple.Create(sender, message, frame));
                     return;
                 }
-                var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
-                foreach(var iface in attached.Where(x => (x != sender || loopback)))
+                Deliver(sender, message, frame);
+            }
+        }
+
+        private void Deliver(ICAN sender, CANMessageFrame message, byte[] frame)
+        {
+            var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
+            foreach(var iface in attached.Where(x => (x != sender || loopback)))
+            {
+                if(iface is CANTester)
                 {
-                    if(iface is CANTester)
-                    {
-                        // CANTester does not belong to a machine so the event has to be handled from MasterTimeSource
-                        EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ExecuteInSyncedState(
-                            (_) => iface.OnFrameReceived(message), vts
-                        );
-                        continue;
-                    }
-                    iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, vts,
-                        frame != null ? () => FrameTransmitted?.Invoke(this, sender, iface, frame) : (Action)null);
+                    // CANTester does not belong to a machine so the event has to be handled from MasterTimeSource
+                    EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ExecuteInSyncedState(
+                        (_) => iface.OnFrameReceived(message), vts
+                    );
+                    continue;
                 }
+                iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, vts,
+                    frame != null ? () => FrameTransmitted?.Invoke(this, sender, iface, frame) : (Action)null);
             }
         }
 
@@ -150,6 +168,7 @@ namespace Antmicro.Renode.Tools.Network
 
         private readonly List<ICAN> attached;
         private readonly Dictionary<ICAN, Action<CANMessageFrame>> handlers;
+        private readonly Queue<Tuple<ICAN, CANMessageFrame, byte[]>> pendingWhilePaused;
         private readonly object sync;
         private readonly bool loopback;
     }
