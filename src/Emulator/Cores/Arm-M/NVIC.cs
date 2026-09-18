@@ -2257,6 +2257,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private void SetPendingWithoutEscalation(int i)
         {
+            if(IsAnException(i) && (irqs[i] & IRQState.Active) != 0)
+            {
+                this.ErrorLog($"Ignoring request to set {ExceptionToString(i)} pending.");
+                return;
+            }
+
             var before = irqs[i];
             irqs[i] |= IRQState.Pending;
             pendingIRQs.Add(i);
