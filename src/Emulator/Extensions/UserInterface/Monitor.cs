@@ -470,6 +470,11 @@ namespace Antmicro.Renode.UserInterface
             return DisposableWrapper.New(() => monitorContextOverride.Value = oldContext);
         }
 
+        public bool IsContextOverriden
+        {
+            get => !(monitorContextOverride.Value is null);
+        }
+
         public IEnumerable<Command> RegisteredCommands => Commands;
 
         public ICommandInteraction Interaction { get; set; }
@@ -857,6 +862,7 @@ namespace Antmicro.Renode.UserInterface
             Commands.Add(new ResdCommand(this));
             Commands.Add(new VerboseCommand(this, x => MonitorContext.VerboseMode = x));
             Commands.Add(new SetAndRevertAfterCommand(this, new DeviceHandlingHelpers(this)));
+            Commands.Add(new PrintEnvironmentCommand(this));
         }
 
         private void DisableStringEater()
