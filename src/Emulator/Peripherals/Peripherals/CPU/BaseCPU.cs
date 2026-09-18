@@ -33,6 +33,11 @@ namespace Antmicro.Renode.Peripherals.CPU
     /// </summary>
     public abstract class BaseCPU : CPUCore, ICluster<BaseCPU>, ICPU, IDisposable, ITimeSink, IInitableCPU
     {
+        // Upper bound on a single realtime catch-up nap at the end of a round
+        // (see its use below) - keeps a large ElapsedVirtualHostTimeDifference
+        // backlog from turning into one multi-minute uninterruptible sleep.
+        private static readonly TimeInterval MaxRealtimeCatchUpSleep = TimeInterval.FromMilliseconds(200);
+
         public virtual void InitFromElf(IELF elf)
         {
             if(elf.GetBitness() > (int)bitness)
@@ -853,7 +858,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                     // remaining difference next time. Preserve the interrupt request so that if this
                     // extra sleep is interrupted due to a CPU pause, it will be picked up by the WFI
                     // handling above.
-                    sleeper.Sleep(virtualTimeAhead.ToTimeSpan(), out var _, preserveInterruptRequest: true);
+                    //
+                    // Capped (unlike a naive sleep of the full backlog): if virtualTimeAhead has
+                    // built up a large backlog (e.g. during a fast boot burst before the first WFI),
+                    // sleeping it off in one uninterruptible call can block this CPU - and everything
+                    // that depends on its time progress (bus peripherals included) - for minutes at a
+                    // stretch. Capping forces the catch-up to happen over many short, bounded naps
+                    // instead of one huge one, each followed by a normal ReportProgress/time-sync
+                    // round trip, so dependents keep making progress while the backlog drains.
+                    var cappedSleep = virtualTimeAhead.WithTicksMin(MaxRealtimeCatchUpSleep.Ticks);
+                    sleeper.Sleep(cappedSleep.ToTimeSpan(), out var _, preserveInterruptRequest: true);
                 }
 
                 this.Trace("CPU thread body finished");
