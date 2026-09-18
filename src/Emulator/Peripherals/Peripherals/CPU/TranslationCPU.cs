@@ -445,24 +445,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             sleeper.Interrupt();
         }
 
-        public uint AssembleBlock(ulong addr, string instructions, string triple = null, bool alternateDialect = false)
-        {
-            if(Assembler == null)
-            {
-                throw new RecoverableException("Assembler not available");
-            }
-
-            triple ??= DetermineLLVMTriple(infer: false);
-
-            // Instruction fetch access used as we want to be able to write even pages mapped for execution only
-            // We don't care if translation fails here (the address is unchanged in this case)
-            TryTranslateAddress(addr, MpuAccess.InstructionFetch, out addr);
-
-            var result = Assembler.AssembleBlock(addr, instructions, triple, alternateDialect);
-            Bus.WriteBytes(result, addr, context: this);
-            return (uint)result.Length;
-        }
-
         public uint GetMmuWindowPrivileges(ulong id)
         {
             return AssertMmuEnabled() ? TlibGetWindowPrivileges(id) : 0;
@@ -688,28 +670,13 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void ActivateNewHooks() => hooks.ActivateNewHooks();
 
-        public string DisassembleBlock(ulong addr = ulong.MaxValue, uint blockSize = 40, string triple = null, bool alternateDialect = false)
+        public string GetCurrentLLVMTriple(out ulong pc)
         {
-            if(Disassembler == null)
-            {
-                throw new RecoverableException("Disassembly engine not available");
-            }
             lock(executionLock)
             {
-                triple ??= DetermineLLVMTriple(infer: addr == ulong.MaxValue);
-                if(addr == ulong.MaxValue)
-                {
-                    addr = PC;
-                }
+                pc = PC;
+                return GetLLVMTriple(DisassemblyFlags);
             }
-
-            // Instruction fetch access used as we want to be able to read even pages mapped for execution only
-            // We don't care if translation fails here (the address is unchanged in this case)
-            TryTranslateAddress(addr, MpuAccess.InstructionFetch, out addr);
-
-            var opcodes = Bus.ReadBytes(addr, (int)blockSize, context: this);
-            Disassembler.DisassembleBlock(addr, opcodes, triple, alternateDialect, out var result);
-            return result;
         }
 
         public override ExecutionResult ExecuteInstructions(ulong numberOfInstructionsToExecute, out ulong numberOfExecutedInstructions)
@@ -842,7 +809,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public string PreservableName => $"TranslationCPU:{this.GetName()}";
 
-        public LLVMDisassembler Disassembler => disassembler;
+        public LLVMDisas LLVMDisasContainer { get; init; }
+
+        public LLVMAssembler Assembler => LLVMDisasContainer.Assembler;
+
+        public LLVMDisassembler Disassembler => LLVMDisasContainer.Disassembler;
 
         public uint PageSize
         {
@@ -1038,8 +1009,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public uint IRQ { get { return TlibIsIrqSet(); } }
 
-        public LLVMAssembler Assembler => assembler;
-
         // TODO: improve this when backend/analyser stuff is done
 
         public bool UpdateContextOnLoadAndStore { get; set; }
@@ -1098,7 +1067,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.UseMachineAtomicState = useMachineAtomicState;
             InitializeRegisters();
             Init();
-            InitDisas();
+            InitDirtyPointers();
+            LLVMDisasContainer = new LLVMDisas(this);
             Clustered = new TranslationCPU[] { this };
         }
 
@@ -1159,24 +1129,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         [PostDeserialization]
-        protected void InitDisas()
+        protected void InitDirtyPointers()
         {
-            try
-            {
-                disassembler = new LLVMDisassembler(this);
-            }
-            catch(ArgumentOutOfRangeException)
-            {
-                this.Log(LogLevel.Warning, "Could not initialize disassembly engine");
-            }
-            try
-            {
-                assembler = new LLVMAssembler(this);
-            }
-            catch(ArgumentOutOfRangeException)
-            {
-                this.Log(LogLevel.Warning, "Could not initialize assembly engine");
-            }
             dirtyAddressesPtr = IntPtr.Zero;
             addressesToInvalidate = new List<IntPtr>();
         }
@@ -2109,19 +2063,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        private string DetermineLLVMTriple(bool infer)
-        {
-            if(AllLLVMTriples.Length == 1)
-            {
-                return AllLLVMTriples[0];
-            }
-            if(!infer)
-            {
-                throw new RecoverableException($"Triple must be specified because this CPU supports more than one triple: {Misc.PrettyPrintCollection(AllLLVMTriples)}");
-            }
-            return GetLLVMTriple(DisassemblyFlags);
-        }
-
         private IntPtr AtomicMemoryStatePointer =>
             UseMachineAtomicState
                 ? machine.AtomicMemoryStatePointer
@@ -2186,12 +2127,6 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Transient]
         private SimpleMemoryManager memoryManager;
-
-        [Transient]
-        private LLVMAssembler assembler;
-
-        [Transient]
-        private LLVMDisassembler disassembler;
 
         [Transient]
         private bool disposed;
