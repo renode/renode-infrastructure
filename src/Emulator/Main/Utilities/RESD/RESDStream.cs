@@ -254,9 +254,9 @@ namespace Antmicro.Renode.Utilities.RESD
             this.transformer = transformer;
         }
 
-        public RESDStreamStatus TryGetSample(ulong timestamp, out Out sample, long? overrideSampleOffsetTime = null)
+        public RESDStreamStatus TryGetSample(ulong timestamp, out Out sample)
         {
-            var result = TryGetSample(timestamp, out T originalSample, overrideSampleOffsetTime);
+            var result = TryGetSample(timestamp, out T originalSample);
             sample = transformer.TransformSample(originalSample);
             return result;
         }
@@ -322,27 +322,26 @@ namespace Antmicro.Renode.Utilities.RESD
             return TryGetSample(timestampInNanoseconds, out sample);
         }
 
-        public RESDStreamStatus TryGetSample(ulong timestamp, out T sample, long? overrideSampleOffsetTime = null)
+        public RESDStreamStatus TryGetSample(ulong timestamp, out T sample)
         {
             currentTimestampInNanoseconds = timestamp;
-            var currentSampleOffsetTime = overrideSampleOffsetTime ?? sampleOffsetTime;
-            if(currentSampleOffsetTime < 0)
+            if(sampleOffsetTime < 0)
             {
-                if(timestamp >= (ulong)(-currentSampleOffsetTime))
+                if(timestamp >= (ulong)(-sampleOffsetTime))
                 {
-                    timestamp = timestamp - (ulong)(-currentSampleOffsetTime);
+                    timestamp = timestamp - (ulong)(-sampleOffsetTime);
                 }
                 else
                 {
                     Owner?.Log(LogLevel.Debug, "RESD: Tried getting sample at timestamp {0}ns, before the start time of the current block"
-                        + " after applying the {1}ns offset", timestamp, currentSampleOffsetTime);
+                        + " after applying the {1}ns offset", timestamp, sampleOffsetTime);
                     sample = null;
                     return RESDStreamStatus.BeforeStream;
                 }
             }
             else
             {
-                timestamp = timestamp + (ulong)currentSampleOffsetTime;
+                timestamp = timestamp + (ulong)sampleOffsetTime;
             }
 
             if(blockEnumerator == null)
@@ -385,10 +384,8 @@ namespace Antmicro.Renode.Utilities.RESD
             return RESDStreamStatus.AfterStream;
         }
 
-        public RESDStreamStatus TryGetNextSample(out TimeInterval timestamp, out T sample, long? overrideSampleOffsetTime = null)
+        public RESDStreamStatus TryGetNextSample(out TimeInterval timestamp, out T sample)
         {
-            var currentSampleOffsetTime = overrideSampleOffsetTime ?? sampleOffsetTime;
-
             while(blockEnumerator != null)
             {
                 if(currentBlock == null)
@@ -404,13 +401,13 @@ namespace Antmicro.Renode.Utilities.RESD
                 {
                 case RESDStreamStatus.OK:
                     // Just return sample
-                    if(currentSampleOffsetTime < 0)
+                    if(sampleOffsetTime < 0)
                     {
-                        timestamp += TimeInterval.FromNanoseconds((ulong)-currentSampleOffsetTime);
+                        timestamp += TimeInterval.FromNanoseconds((ulong)-sampleOffsetTime);
                     }
                     else
                     {
-                        timestamp -= TimeInterval.FromNanoseconds((ulong)currentSampleOffsetTime);
+                        timestamp -= TimeInterval.FromNanoseconds((ulong)sampleOffsetTime);
                     }
                     Owner?.Log(LogLevel.Debug, "RESD: Getting next sample: {1} at timestamp {0}ns", timestamp.TotalNanoseconds, sample);
                     currentTimestampInNanoseconds = timestamp.TotalNanoseconds;
