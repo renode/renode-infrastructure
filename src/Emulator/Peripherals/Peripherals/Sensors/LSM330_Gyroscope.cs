@@ -4,6 +4,8 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 
@@ -30,6 +32,23 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         protected override void DefineRegisters()
         {
+            // LSM330 datasheet (DocID023426 Rev 3), Table 17: register address map and default values
+            Registers.WhoaAmI.Define(this, WhoAmIValue)
+                .WithValueField(0, 8, FieldMode.Read, name: "WHO_AM_I_G", valueProviderCallback: _ => WhoAmIValue)
+            ;
+
+            Registers.Control1.Define(this, 0x07)
+                .WithValueField(0, 8, name: "CTRL_REG1_G")
+            ;
+
+            Registers.Control2.Define(this)
+                .WithValueField(0, 8, name: "CTRL_REG2_G")
+            ;
+
+            Registers.Control3.Define(this)
+                .WithValueField(0, 8, name: "CTRL_REG3_G")
+            ;
+
             Registers.Control4.Define(this)
                 .WithTaggedFlag("SIM", 0)
                 .WithReservedBits(1, 3)
@@ -39,57 +58,65 @@ namespace Antmicro.Renode.Peripherals.Sensors
             ;
 
             Registers.OutputXLow.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, name: "OUT_X_L_G", valueProviderCallback: _ => GetScaledValue(AngularRateX, sensitivity, false))
+                .WithValueField(0, 8, FieldMode.Read, name: "OUT_X_L_G", valueProviderCallback: _ => GetOutputByte(AngularRateX, false))
             ;
 
             Registers.OutputXHigh.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, name: "OUT_X_H_G", valueProviderCallback: _ => GetScaledValue(AngularRateX, sensitivity, true))
+                .WithValueField(0, 8, FieldMode.Read, name: "OUT_X_H_G", valueProviderCallback: _ => GetOutputByte(AngularRateX, true))
             ;
 
             Registers.OutputYLow.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, name: "OUT_Y_L_G", valueProviderCallback: _ => GetScaledValue(AngularRateY, sensitivity, false))
+                .WithValueField(0, 8, FieldMode.Read, name: "OUT_Y_L_G", valueProviderCallback: _ => GetOutputByte(AngularRateY, false))
             ;
 
             Registers.OutputYHigh.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, name: "OUT_Y_H_G", valueProviderCallback: _ => GetScaledValue(AngularRateY, sensitivity, true))
+                .WithValueField(0, 8, FieldMode.Read, name: "OUT_Y_H_G", valueProviderCallback: _ => GetOutputByte(AngularRateY, true))
             ;
 
             Registers.OutputZLow.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, name: "OUT_Z_L_G", valueProviderCallback: _ => GetScaledValue(AngularRateZ, sensitivity, false))
+                .WithValueField(0, 8, FieldMode.Read, name: "OUT_Z_L_G", valueProviderCallback: _ => GetOutputByte(AngularRateZ, false))
             ;
 
             Registers.OutputZHigh.Define(this)
-                .WithValueField(0, 8, FieldMode.Read, name: "OUT_Z_H_G", valueProviderCallback: _ => GetScaledValue(AngularRateZ, sensitivity, true))
+                .WithValueField(0, 8, FieldMode.Read, name: "OUT_Z_H_G", valueProviderCallback: _ => GetOutputByte(AngularRateZ, true))
             ;
+        }
+
+        private byte GetOutputByte(decimal angularRate, bool upperByte)
+        {
+            // two's complement, saturated at the 16-bit output range
+            var digits = Math.Round(angularRate / sensitivityDpsPerDigit);
+            var clamped = (short)Math.Max(short.MinValue, Math.Min(short.MaxValue, digits));
+            return upperByte
+                ? (byte)(clamped >> 8)
+                : (byte)clamped;
         }
 
         private void UpdateSensitivity(uint val)
         {
-            var range = 0;
+            // LSM330 datasheet (DocID023426 Rev 3), Table 3 (G_So): 8.75 / 17.50 / 70 mdps/digit for FS = 250 / 500 / 2000 dps
             switch(val)
             {
             case 0:
-                range = 250;
+                sensitivityDpsPerDigit = 0.00875m;
                 break;
             case 1:
-                range = 500;
+                sensitivityDpsPerDigit = 0.0175m;
                 break;
             // yes, both cases 0b10 and 0b11 encodes scale of 2000 dps
             case 2:
             case 3:
-                range = 2000;
+                sensitivityDpsPerDigit = 0.07m;
                 break;
             default:
                 this.Log(LogLevel.Warning, "Tried to set an unsupported sensitivity value: {0}", val);
                 return;
             }
-
-            sensitivity = CalculateScale(-range, range, OutputWidth);
         }
 
-        private short sensitivity;
+        private decimal sensitivityDpsPerDigit;
 
-        private const int OutputWidth = 16;
+        private const byte WhoAmIValue = 0xD4;
 
         public enum Registers
         {
