@@ -240,14 +240,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithEnumField(2, 2, out accelerationFullScaleSelection, name: "FS_XL: Accelerometer full-scale selection",
                     changeCallback: (_, __) => UpdateAccelerationSensitivity())
                 .WithEnumField(4, 4, out accelerometerOutputDataRateSelection, name: "ODR_XL: Accelerometer Output Data Rate",
-                    changeCallback: (_, __) =>
-                    {
-                        UpdateAccelerationSampleFrequency();
-                        if(accelerometerOutputDataRateSelection.Value != DataRates.Disabled && accelerometerFeederThread == null)
-                        {
-                            accelerometerFeederThread = CreateAccelerationDefaultSampleFeeder();
-                        }
-                    })
+                    changeCallback: (_, __) => UpdateOrInitAccelerometerFeeder())
                 ;
 
             Registers.Control2_Gyroscope.Define(this)
@@ -257,14 +250,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithEnumField(2, 2, out angularRateFullScaleSelection, name: "FS_G: Gyroscope UI chain full-scale selection",
                     changeCallback: (_, __) => UpdateAngularRateSensitivity())
                 .WithEnumField(4, 4, out gyroscopeOutputDataRateSelection, name: "ODR_G: Gyroscope Output Data Rate",
-                    changeCallback: (_, __) =>
-                    {
-                        UpdateAngularRateSampleFrequency();
-                        if(gyroscopeOutputDataRateSelection.Value != DataRates.Disabled && gyroFeederThread == null)
-                        {
-                            gyroFeederThread = CreateAngularRateDefaultSampleFeeder();
-                        }
-                    })
+                    changeCallback: (_, __) => UpdateOrInitGyroscopeFeeder())
                 ;
 
             Registers.Control3.Define(this, resetValue: 0b00000100)
@@ -390,25 +376,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             Registers.FifoControl3.Define(this)
                 .WithEnumField(0, 4, out accelerometerFifoBatchingDataRateSelection, name: "BDR_XL",
-                    changeCallback: (_, __) =>
-                    {
-                        UpdateAccelerationSampleFrequency();
-                        if(accelerometerFifoBatchingDataRateSelection.Value != DataRates.Disabled && accelerometerFeederThread == null)
-                        {
-                            accelerometerFeederThread = CreateAccelerationDefaultSampleFeeder();
-                        }
-                    }
-                )
+                    changeCallback: (_, __) => UpdateOrInitAccelerometerFeeder())
                 .WithEnumField(4, 4, out gyroscopeFifoBatchingDataRateSelection, name: "BDR_GY",
-                    changeCallback: (_, __) =>
-                    {
-                        UpdateAngularRateSampleFrequency();
-                        if(gyroscopeFifoBatchingDataRateSelection.Value != DataRates.Disabled && gyroFeederThread == null)
-                        {
-                            gyroFeederThread = CreateAngularRateDefaultSampleFeeder();
-                        }
-                    }
-                )
+                    changeCallback: (_, __) => UpdateOrInitGyroscopeFeeder())
                 ;
 
             Registers.FifoControl4.Define(this)
@@ -485,42 +455,40 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return feeder;
         }
 
-        private void UpdateAccelerationSampleFrequency()
+        private void UpdateOrInitAccelerometerFeeder()
         {
+            if(AccelerometerODR == DataRates.Disabled)
+            {
+                accelerometerFeederThread?.Stop();
+                return;
+            }
+
             if(accelerometerFeederThread == null)
             {
-                return;
+                accelerometerFeederThread = CreateAccelerationDefaultSampleFeeder();
             }
 
-            if(AccelerometerODR != DataRates.Disabled)
-            {
-                var freq = DataRateToFrequency(AccelerometerODR);
-                accelerometerFeederThread.Frequency = freq;
-                accelerometerFeederThread.Start();
-            }
-            else
-            {
-                accelerometerFeederThread.Stop();
-            }
+            var freq = DataRateToFrequency(AccelerometerODR);
+            accelerometerFeederThread.Frequency = freq;
+            accelerometerFeederThread.Start();
         }
 
-        private void UpdateAngularRateSampleFrequency()
+        private void UpdateOrInitGyroscopeFeeder()
         {
-            if(gyroFeederThread == null)
+            if(GyroscopeODR == DataRates.Disabled)
             {
+                gyroFeederThread?.Stop();
                 return;
             }
 
-            if(GyroscopeODR != DataRates.Disabled)
+            if(gyroFeederThread == null)
             {
-                var freq = DataRateToFrequency(GyroscopeODR);
-                gyroFeederThread.Frequency = freq;
-                gyroFeederThread.Start();
+                gyroFeederThread = CreateAngularRateDefaultSampleFeeder();
             }
-            else
-            {
-                gyroFeederThread.Stop();
-            }
+
+            var freq = DataRateToFrequency(GyroscopeODR);
+            gyroFeederThread.Frequency = freq;
+            gyroFeederThread.Start();
         }
 
         private void DefineOutputRegistersGroup(Registers firstGroupRegister, string nameFormat, Func<LSM6DSO_Vector3DSample> sampleProvider)
