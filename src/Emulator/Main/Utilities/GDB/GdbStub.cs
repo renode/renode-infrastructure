@@ -147,12 +147,33 @@ namespace Antmicro.Renode.Utilities.GDB
                     commandsManager.Cpu.Log(LogLevel.Noisy, "GDB CTRL-C occured - pausing CPU");
                 }
 
-                // This weird syntax ensures we have unpaused cores to report first, and only if there are none, we will fall-back to halted ones
-                stopReplyingCpu = commandsManager.ManagedCpus.OrderByDescending(cpu => !cpu.IsHalted).FirstOrDefault();
-                foreach(var cpu in commandsManager.ManagedCpus)
+                var pauseOrder = commandsManager.ManagedCpus.OrderByDescending(cpu => !cpu.HasAnyHaltingCondition);
+                if(commandsManager.MultiprocessEnabled)
                 {
+                    pauseOrder = pauseOrder.OrderBy(cpu => commandsManager.ManagedCpus[cpu].ProcessId == commandsManager.Process ? -1 : 1);
+                }
+
+                stopReplyingCpu = pauseOrder.First();
+                var sendExplicitStopResponse = false;
+                foreach(var cpu in pauseOrder)
+                {
+                    if(cpu.IsPaused || cpu.HasAnyHaltingCondition)
+                    {
+                        sendExplicitStopResponse = true;
+                    }
                     // This call is synchronous, so it's safe to assume that `stopReplyingCpu` will still be valid
                     cpu.Pause();
+                }
+
+                // In case all of the CPUs are already paused they won't send the stop replay automatically.
+                // In such cases send the response manually to unblock the GDB client.
+                if(sendExplicitStopResponse)
+                {
+                    using(var ctx = commHandler.OpenContext())
+                    {
+                        commandsManager.SelectCpuForDebugging(stopReplyingCpu);
+                        ctx.Send(new Packet(PacketData.StopReply(InterruptSignal, commandsManager.ManagedCpus[stopReplyingCpu])));
+                    }
                 }
                 stopReplyingCpu = null;
                 return;
