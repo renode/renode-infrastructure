@@ -581,7 +581,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             pendingTranslationCacheClearing = false;
             TlibReset();
             ResetOpcodesCounters();
-            profiler?.Dispose();
+            profiler?.Reset();
             localAtomicState?.Reset();
         }
 

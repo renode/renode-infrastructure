@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,6 +25,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             fileStream = File.Open(filename, FileMode.OpenOrCreate);
             writer = new PerfettoTraceWriter();
             currentTrack = MainTrack;
+            timeOffset = 0;
             writer.CreateTrack(cpu.GetName(), currentTrack);
         }
 
@@ -32,6 +33,21 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         {
             base.Dispose();
             fileStream.Close();
+        }
+
+        public override void Reset()
+        {
+            timeOffset = cpu.TimeHandle.TotalElapsedTime.TotalNanoseconds;
+            FinishCurrentStack(timeOffset, currentTrack);
+
+            base.Dispose();
+
+            currentContextId = 0;
+            currentTrack = MainTrack;
+            isFirstFrame = true;
+            blockFlush = false;
+            wholeExecution.Add(currentContextId, new ProfilerContext());
+            CheckAndFlush(timeOffset);
         }
 
         public override void StackFrameAdd(ulong currentAddress, ulong returnAddress, ulong instructionsCount)
@@ -46,11 +62,11 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 // To infer this frame we use the current PC value, which should point to the jump instruction that triggered this event
                 var prevSymbol = GetSymbolName(cpu.PC.RawValue);
                 CurrentStack.Push(prevSymbol);
-                writer.CreateEventBegin(0, prevSymbol, currentTrack);
+                writer.CreateEventBegin(timeOffset, prevSymbol, currentTrack);
             }
 
             CurrentStack.Push(currentSymbol);
-            ulong time = InstructionCountToNs(instructionsCount);
+            ulong time = InstructionCountToNsOffset(instructionsCount);
             writer.CreateEventBegin(time, currentSymbol, currentTrack);
             CheckAndFlush(time);
         }
@@ -64,7 +80,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
                 return;
             }
 
-            ulong time = InstructionCountToNs(instructionsCount);
+            ulong time = InstructionCountToNsOffset(instructionsCount);
             writer.CreateEventEnd(time, currentTrack);
             CurrentStack.Pop();
             CheckAndFlush(time);
@@ -84,7 +100,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             cpu.Log(LogLevel.Debug, "Profiler: Changing context from: 0x{0:X} to 0x{1:X}", currentContextId, newContextId);
 
             ulong track = enableMultipleTracks ? currentContextId : MainTrack;
-            ulong time = InstructionCountToNs(cpu.ExecutedInstructions);
+            ulong time = InstructionCountToNsOffset(cpu.ExecutedInstructions);
 
             // End the current thread's stack frame
             for(int i = 0; i < CurrentStack.Count; i++)
@@ -127,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         public override void InterruptEnter(ulong interruptIndex)
         {
-            ulong time = InstructionCountToNs(cpu.ExecutedInstructions);
+            ulong time = InstructionCountToNsOffset(cpu.ExecutedInstructions);
             if(lastInterruptExitTime == time)
             {
                 // If we entered another interrupt just after exiting the previous one
@@ -149,7 +165,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         public override void InterruptExit(ulong interruptIndex)
         {
-            ulong time = InstructionCountToNs(cpu.ExecutedInstructions);
+            ulong time = InstructionCountToNsOffset(cpu.ExecutedInstructions);
             FinishCurrentStack(time, currentTrack);
             lastInterruptExitTime = time;
             // We have to temporarily disable flushing to a file, since the next few packets can be removed
@@ -228,10 +244,16 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             return (1000 * instructionCount) / cpu.PerformanceInMips;
         }
 
+        private ulong InstructionCountToNsOffset(ulong instructionCount)
+        {
+            return InstructionCountToNs(instructionCount) + timeOffset;
+        }
+
         private bool isDisposing;
         private bool blockFlush;
         private ulong lastInterruptExitTime;
         private ulong currentTrack;
+        private ulong timeOffset;
 
         private readonly PerfettoTraceWriter writer;
         private readonly bool enableMultipleTracks;

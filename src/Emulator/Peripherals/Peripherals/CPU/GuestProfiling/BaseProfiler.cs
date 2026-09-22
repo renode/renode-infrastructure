@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -44,6 +44,11 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             CurrentStack.Clear();
             CurrentContext.Clear();
             wholeExecution.Clear();
+        }
+
+        public virtual void Reset()
+        {
+            Dispose();
         }
 
         public abstract void StackFrameAdd(ulong currentAddress, ulong returnAddress, ulong instructionsCount);
