@@ -424,7 +424,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 Misc.FillByteArrayWithArray(generatedBytes, fixedData);
                 break;
             case RandomType.HardwareCompliant:
-                if(drbgEngine.Generate(generatedBytes, additionalInput: null, predictionResistant: false) == -1)
+                if(drbgEngine.Generate(generatedBytes, 0, bytesToGenerate, additionalInput: null, predictionResistant: false) == -1)
                 {
                     requestFailedFlag.Value = true;
                     generatedValidFlag.Value = false;
@@ -734,6 +734,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     return new byte[entropySizeInBytes];
                 }
                 return function();
+            }
+
+            public int GetEntropy(Span<byte> output)
+            {
+                int length = Math.Min(output.Length, entropySizeInBytes);
+                GetEntropy()[..length].CopyTo(output);
+                return length;
             }
 
             public bool IsPredictionResistant => predictionResistant;

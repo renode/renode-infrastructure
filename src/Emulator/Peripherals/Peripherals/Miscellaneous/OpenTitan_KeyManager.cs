@@ -105,7 +105,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             var dataArray = data.ToArray();
             mac.BlockUpdate(dataArray, 0, dataArray.Length);
             var output = new byte[outputLength];
-            mac.DoFinal(output, 0, outputLength);
+            mac.OutputFinal(output, 0, outputLength);
             return output;
         }
 

@@ -532,7 +532,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     if(outputLength != 0) // fixed-length output
                     {
                         var output = new byte[outputLength];
-                        kmac.DoFinal(output, 0, outputLength);
+                        kmac.OutputFinal(output, 0, outputLength);
                         stateBuffer = new Queue<byte[]>(output.Split(kmac.GetByteLength()));
                         var buffer = stateBuffer.Dequeue();
                         Array.Copy(buffer, state, buffer.Length);
@@ -542,7 +542,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     else // arbitrary-length output
                     {
                         stateBuffer = null;
-                        return kmac.DoOutput(state, 0, kmac.GetByteLength());
+                        return kmac.Output(state, 0, kmac.GetByteLength());
                     }
                 }
 
@@ -563,14 +563,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 if(shake != null)
                 {
                     shake.BlockUpdate(data, 0, data.Length);
-                    return shake.DoOutput(state, 0, shake.GetByteLength());
+                    return shake.Output(state, 0, shake.GetByteLength());
                 }
                 break;
             case HashingMode.CSHAKE:
                 if(cshake != null)
                 {
                     cshake.BlockUpdate(data, 0, data.Length);
-                    return cshake.DoOutput(state, 0, cshake.GetByteLength());
+                    return cshake.Output(state, 0, cshake.GetByteLength());
                 }
                 break;
             default:
@@ -595,7 +595,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                 if(kmac != null)
                 {
-                    return kmac.DoOutput(state, 0, kmac.GetByteLength());
+                    return kmac.Output(state, 0, kmac.GetByteLength());
                 }
 
                 this.Log(LogLevel.Warning, "No digest data available for `Run` command in KMAC mode");
@@ -607,13 +607,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             case HashingMode.SHAKE:
                 if(shake != null)
                 {
-                    return shake.DoOutput(state, 0, shake.GetByteLength());
+                    return shake.Output(state, 0, shake.GetByteLength());
                 }
                 break;
             case HashingMode.CSHAKE:
                 if(cshake != null)
                 {
-                    return cshake.DoOutput(state, 0, cshake.GetByteLength());
+                    return cshake.Output(state, 0, cshake.GetByteLength());
                 }
                 break;
             default:

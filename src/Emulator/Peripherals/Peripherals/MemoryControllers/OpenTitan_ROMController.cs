@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                 hasher.BlockUpdate(BitConverter.GetBytes(word), 0, 8);
             }
 
-            hasher.DoFinal(digest, 0, digest.Length);
+            hasher.OutputFinal(digest, 0, digest.Length);
             CheckDigest();
         }
 
