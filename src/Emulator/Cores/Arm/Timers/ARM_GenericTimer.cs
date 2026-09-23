@@ -141,7 +141,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {(long)RegistersAArch64.VirtualCount,
                     BuildTimerCountValueRegister(el1VirtualTimer, "EL1Virtual")
                 },
-            
+                {(long)RegistersAArch64.KernelControl,
+                    BuildKernelControlRegister(new QuadWordRegister(this))
+                },
                 // There is no implementation of the PhysicalTimerOffset register, because it require the Enhanced Counter Virtualization support.
                 {(long)RegistersAArch64.VirtualOffset,
                     BuildTimerOffsetRegister(el1VirtualTimer, "EL1Virtual")
@@ -193,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
             };
 
-            // Specultative access doesn't occure in Renode.
+            // Specultative access doesn't occur in Renode.
             // Self synchronized registers can be just mapped to normal registers.
             registersMap[(long)RegistersAArch64.PhysicalSelfSynchronizedCount] =
                 registersMap[(long)RegistersAArch64.PhysicalCount];
@@ -304,6 +306,19 @@ namespace Antmicro.Renode.Peripherals.Timers
                     writeCallback: (_, val) => timer.InterruptEnable = val,
                     valueProviderCallback: _ => timer.InterruptEnable
                 );
+        }
+
+        private QuadWordRegister BuildKernelControlRegister(QuadWordRegister register)
+        {
+            return register
+                .WithReservedBits(10, 54)
+                .WithFlag(9, name: "TrapPhysical")
+                .WithFlag(8, name: "TrapVirtual")
+                .WithTag(name: "EventStreamTriggerSelect", 4, 4)
+                .WithTaggedFlag(name: "EventStreamDirection", 3)
+                .WithTaggedFlag(name: "EventStreamEnable", 2)
+                .WithTaggedFlag(name: "CNTKCTL_EL1_EL0VCTEN", 1)
+                .WithFlag(0, name: "CNTKCTL_EL1_EL0PCTEN");
         }
 
         private T BuildTimerCountDownValueRegister<T>(T register, TimerUnit timer, string namePrefix, int registerWidth) where T : PeripheralRegister
