@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
@@ -17,7 +18,7 @@ using Antmicro.Renode.Utilities.Collections;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
-    public sealed class STM32SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IWordPeripheral, IDoubleWordPeripheral, IBytePeripheral, IKnownSize
+    public sealed class STM32SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IWordPeripheral, IDoubleWordPeripheral, IBytePeripheral, IKnownSize, ISPIController
     {
         public STM32SPI(IMachine machine, STM32Series series, int bufferCapacity = DefaultBufferCapacity) : base(machine)
         {
@@ -118,6 +119,8 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public GPIO DMASend { get; }
 
+        public event Action<(byte pico, byte poci), IPeripheral> BytesExchanged;
+
         private uint HandleDataRead()
         {
             IRQ.Unset();
@@ -149,6 +152,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     return;
                 }
                 var response = peripheral.Transmit((byte)value); // currently byte mode is the only one we support
+                BytesExchanged?.Invoke(((byte)value, response), peripheral);
                 if(receiveBuffer.Count == receiveBuffer.Capacity)
                 {
                     this.Log(LogLevel.Debug, "Receiving response while RXFIFO is full, dropping it");
