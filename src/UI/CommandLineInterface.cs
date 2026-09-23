@@ -106,6 +106,7 @@ namespace Antmicro.Renode.UI
                     uartAnalyzerType = typeof(WebSocketUartAnalyzer);
                     videoAnalyzerType = typeof(WebSocketVideoAnalyzer);
                     canAnalyzerType = typeof(WebSocketCANAnalyzer);
+                    spiAnalyzerType = typeof(WebSocketSPIAnalyzer);
                 }
                 else if(ui == null || options.RobotDebug)
                 {
