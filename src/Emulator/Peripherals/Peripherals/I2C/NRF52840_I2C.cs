@@ -74,6 +74,11 @@ namespace Antmicro.Renode.Peripherals.I2C
                         return;
                     }
 
+                    if(ReportAddressNack())
+                    {
+                        return;
+                    }
+
                     transmissionInProgress = true;
                     // send what is buffered as this might be a repeated start condition
                     TrySendDataToSlave();
@@ -96,6 +101,11 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithFlag(0, FieldMode.Write, name: "TASKS_STARTTX", writeCallback: (_, val) =>
                 {
                     if(!val)
+                    {
+                        return;
+                    }
+
+                    if(ReportAddressNack())
                     {
                         return;
                     }
@@ -341,6 +351,25 @@ namespace Antmicro.Renode.Peripherals.I2C
                 })
                 .WithReservedBits(8, 24)
             ;
+        }
+
+        // Whether the address was acknowledged is settled when the
+        // transfer starts, not when the first data byte is written. 
+        // A probe checking for a device presence writes no data at all - it starts
+        // a transfer and looks at whether the address was acknowledged.
+        private bool ReportAddressNack()
+        {
+            if(selectedSlave != null)
+            {
+                return false;
+            }
+
+            this.Log(LogLevel.Debug, "No slave is attached at selected address 0x{0:X}", address.Value);
+            addressNackError.Value = true;
+            errorInterruptPending.Value = true;
+            EventTriggered?.Invoke((uint)Registers.ErrorInterruptPending);
+            UpdateInterrupts();
+            return true;
         }
 
         private bool TryFillReceivedBuffer(bool generateInterrupt)
