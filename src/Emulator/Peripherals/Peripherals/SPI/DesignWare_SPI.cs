@@ -6,6 +6,7 @@
 //
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -17,9 +18,10 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
 {
+    [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class DesignWare_SPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public DesignWare_SPI(IMachine machine, uint transmitDepth, uint receiveDepth, uint idCode = 0xFFFFFFFF, uint componentVersion = 0x3332332A, int maxTransferSize = 16) : base(machine)
+        public DesignWare_SPI(IMachine machine, uint transmitDepth, uint receiveDepth, uint idCode = 0xFFFFFFFF, uint componentVersion = 0x3332332A, int maxTransferSize = 16, bool levelTrigger = true) : base(machine)
         {
             if(maxTransferSize != 16 && maxTransferSize != 32)
             {
@@ -33,14 +35,15 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 throw new ConstructionException($"Unsupported '{nameof(receiveDepth)}' value ({receiveDepth}), must be less than {MaxFifoDepth}");
             }
-            transmitBuffer = new Queue<uint>();
-            receiveBuffer = new Queue<uint>();
+            transmitFifo = new Queue<uint>();
+            receiveFifo = new Queue<uint>();
 
             this.transmitDepth = transmitDepth;
             this.receiveDepth = receiveDepth;
             this.idCode = idCode;
             this.componentVersion = componentVersion;
             this.maxTransferSize = maxTransferSize;
+            this.levelTrigger = levelTrigger;
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();
         }
@@ -58,14 +61,14 @@ namespace Antmicro.Renode.Peripherals.SPI
         public override void Reset()
         {
             FrameSize = TransferSize.SingleByte;
-
-            transmitThreshold = 0;
-            receiveThreshold = 0;
+            slaveId = 0;
+            target = null;
+            transferStartFifoLevel = 1;
 
             ClearBuffers();
 
             RegistersCollection.Reset();
-            UpdateInterrupt();
+            UpdateInterrupts();
         }
 
         public uint ReadDoubleWord(long offset)
@@ -80,21 +83,16 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public bool TryDequeueFromReceiveBuffer(out uint data)
         {
-            if(!receiveBuffer.TryDequeue(out data))
+            if(!receiveFifo.TryDequeue(out data))
             {
                 receiveUnderflow.Value = true;
-                UpdateInterrupt();
+                UpdateInterrupts();
 
                 data = 0;
                 return false;
             }
 
-            if(receiveBuffer.Count <= receiveThreshold)
-            {
-                receiveFull.Value = false;
-                UpdateInterrupt();
-            }
-
+            UpdateInterrupts();
             return true;
         }
 
@@ -104,7 +102,14 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public TransferSize FrameSize { get; private set; }
 
+        public TransferSize MaxTransferSize => maxTransferSize == 32 ? TransferSize.QuadByte : TransferSize.DoubleByte;
+
         public DoubleWordRegisterCollection RegistersCollection { get; }
+
+        private static int GetByteSize(int bits)
+        {
+            return Misc.NextPowerOfTwo(bits.AlignUpToMultipleOf(8) / 8);
+        }
 
         private void DefineRegisters()
         {
@@ -121,7 +126,9 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithTag("FRF", 4, 2)
                 .WithTaggedFlag("SCPH", 6)
                 .WithTaggedFlag("SCPOL", 7)
-                .WithEnumField(8, 2, out transferMode, name: "TMOD")
+                .WithEnumField(8, 2, out transferMode, name: "TMOD",
+                    changeCallback: (_, __) => this.NoisyLog("Transmit mode {0} selected", transferMode.Value)
+                )
                 .WithTaggedFlag("SLV_OE", 10)
                 .WithTaggedFlag("SRL", 11)
                 .WithTag("CFS", 12, 4)
@@ -154,7 +161,14 @@ namespace Antmicro.Renode.Peripherals.SPI
                         if(!enabled.Value)
                         {
                             ClearBuffers();
+                            this.DebugLog("Finishing transmission");
+                            target?.FinishTransmission();
                         }
+                        else
+                        {
+                            AttemptDataTransfer();
+                        }
+                        UpdateInterrupts();
                     }
                 )
                 .WithReservedBits(1, 31)
@@ -169,33 +183,30 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             Registers.SlaveSelect.Define(this)
                 .WithEnumField<DoubleWordRegister, SlaveSelect>(0, 3, name: "SER",
-                    writeCallback: (previousVal, val) =>
+                    writeCallback: (previousValue, value) =>
                     {
-                        if(!TryDecodeSlaveId(val, out var newId))
+                        if(!TryDecodeSlaveId(value, out var newSlaveId))
                         {
                             return;
                         }
+                        slaveId = newSlaveId;
 
-                        // no slave selected
-                        if(newId == 0)
+                        if(slaveId == 0)
                         {
-                            if(!TryDecodeSlaveId(previousVal, out var oldId))
-                            {
-                                return;
-                            }
-
-                            if(!TryGetByAddress(oldId, out var slave))
-                            {
-                                this.Log(LogLevel.Warning, "Trying to de-select slave #{0} that is not connected", oldId);
-                                return;
-                            }
-
-                            slave.FinishTransmission();
+                            this.DebugLog("Finishing transmission");
+                            target?.FinishTransmission();
+                            target = null;
+                            return;
                         }
-                        else
+
+                        if(!this.TryGetByAddress(slaveId, out target))
                         {
-                            TrySendData(newId);
+                            target = null;
+                            this.Log(LogLevel.Warning, "Trying to send data to a not attached slave #{0}", slaveId);
+                            return;
                         }
+
+                        AttemptDataTransfer();
                     }
                 )
                 .WithReservedBits(3, 29)
@@ -209,92 +220,107 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             var transmitThresholdBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)transmitDepth));
             Registers.TransmitThreshold.Define(this)
-                .WithValueField(0, transmitThresholdBits, name: "TFT",
-                    writeCallback: (_, val) =>
+                .WithValueField(0, transmitThresholdBits, out transmitThreshold, name: "TFT",
+                    changeCallback: (previousValue, value) =>
                     {
-                        if(val <= transmitDepth)
+                        if(value > transmitDepth)
                         {
-                            transmitThreshold = (uint)val;
+                            transmitThreshold.Value = previousValue;
+                            this.Log(LogLevel.Warning, "Ignored setting transmit threshold to a value (0x{0:X}) greater than the fifo depth (0x{1:X})", value, transmitDepth);
                         }
-                        else
-                        {
-                            this.Log(LogLevel.Warning, "Ignored setting transmit threshold to a value (0x{0:X}) greater than the fifo depth (0x{1:X})", val, transmitDepth);
-                        }
-                    },
-                    valueProviderCallback: _ => transmitThreshold
+                    }
                 )
-                .WithReservedBits(transmitTresholdBits, 32 - transmitTresholdBits)
+                .If(levelTrigger)
+                    .Then(reg => reg
+                        .WithReservedBits(transmitThresholdBits, 32 - transmitThresholdBits)
+                    )
+                    .Else(reg => reg
+                        .WithReservedBits(transmitThresholdBits, 16 - transmitThresholdBits)
+                        .WithValueField(16, transmitThresholdBits, name: "TXFTHR",
+                            changeCallback: (previousValue, value) =>
+                            {
+                                if(value > transmitDepth)
+                                {
+                                    this.WarningLog("Ignored setting transmit threshold to a value (0x{0:X}) greater than the fifo depth (0x{1:X})", value, transmitDepth);
+                                    return;
+                                }
+
+                                transferStartFifoLevel = value + 1;
+                                AttemptDataTransfer();
+                            }
+                        )
+                        .WithReservedBits(16 + transmitThresholdBits, 16 - transmitThresholdBits)
+                    )
+                .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
 
             var receiveThresholdBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)receiveDepth));
             Registers.ReceiveThreshold.Define(this)
-                .WithValueField(0, receiveThresholdBits, name: "RFT",
-                    writeCallback: (_, val) =>
+                .WithValueField(0, receiveThresholdBits, out receiveThreshold, name: "RFT",
+                    changeCallback: (previousValue, value) =>
                     {
-                        if(val <= receiveDepth)
+                        if(value > receiveDepth)
                         {
-                            receiveThreshold = (uint)val;
+                            receiveThreshold.Value = previousValue;
+                            this.Log(LogLevel.Warning, "Ignored setting receive threshold to a value (0x{0:X}) greater than the fifo depth (0x{1:X})", value, receiveDepth);
+                            return;
                         }
-                        else
-                        {
-                            this.Log(LogLevel.Warning, "Ignored setting receive threshold to a value (0x{0:X}) greater than the fifo depth (0x{1:X})", val, receiveDepth);
-                        }
-                    },
-                    valueProviderCallback: _ => receiveThreshold
+                        UpdateInterrupts();
+                    }
                 )
                 .WithReservedBits(receiveThresholdBits, 32 - receiveThresholdBits)
             ;
 
             var transmitLeveldBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)transmitDepth + 1));
             Registers.TransmitLevel.Define(this)
-                .WithValueField(0, transmitLeveldBits, FieldMode.Read, valueProviderCallback: _ => (uint)transmitBuffer.Count, name: "TXFLR")
+                .WithValueField(0, transmitLeveldBits, FieldMode.Read, valueProviderCallback: _ => (uint)transmitFifo.Count, name: "TXFLR")
                 .WithReservedBits(transmitLeveldBits, 32 - transmitLeveldBits)
             ;
 
             var receiveLevelBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)receiveDepth + 1));
             Registers.ReceiveLevel.Define(this)
-                .WithValueField(0, receiveLevelBits, FieldMode.Read, valueProviderCallback: _ => (uint)receiveBuffer.Count, name: "RXFLR")
+                .WithValueField(0, receiveLevelBits, FieldMode.Read, valueProviderCallback: _ => (uint)receiveFifo.Count, name: "RXFLR")
                 .WithReservedBits(receiveLevelBits, 32 - receiveLevelBits)
             ;
 
             Registers.Status.Define(this)
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => false, name: "BUSY") // in Renode transfers are instant, so BUSY is always 'false'
-                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => transmitBuffer.Count < transmitDepth, name: "TFNF")
-                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => transmitBuffer.Count == 0, name: "TFE")
-                .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => receiveBuffer.Count != 0, name: "RFNE")
-                .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => receiveBuffer.Count == receiveDepth, name: "RFF")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => transmitFifo.Count < transmitDepth, name: "TFNF")
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => transmitFifo.Count == 0, name: "TFE")
+                .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => receiveFifo.Count != 0, name: "RFNE")
+                .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => receiveFifo.Count == receiveDepth, name: "RFF")
                 .WithTag("TXE", 5, 1) // read-to-clear, available in slave mode only
                 .WithTag("DCOL", 6, 1) // read-to-clear
                 .WithReservedBits(7, 25)
             ;
 
-            Registers.InterruptMask.Define(this)
+            Registers.InterruptMask.Define(this, 0x3F)
                 .WithFlag(0, out transmitEmptyMask, name: "TXEIM")
                 .WithFlag(1, out transmitOverflowMask, name: "TXOIM")
                 .WithFlag(2, out receiveUnderflowMask, name: "RXUIM")
-                .WithFlag(3, out receiveOverflowMask, name: "RXFOIM")
+                .WithFlag(3, out receiveOverrunMask, name: "RXFOIM")
                 .WithFlag(4, out receiveFullMask, name: "RXFIM")
                 .WithFlag(5, out multiMasterContentionMask, name: "MSTIM")
                 .WithReservedBits(6, 26)
-                .WithWriteCallback((_, __) => UpdateInterrupt())
+                .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
 
             Registers.InterruptStatus.Define(this)
-                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => transmitEmpty.Value && transmitEmptyMask.Value, name: "TXEIS")
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => TransmitEmpty && transmitEmptyMask.Value, name: "TXEIS")
                 .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => transmitOverflow.Value && transmitOverflowMask.Value, name: "TXOIS")
                 .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => receiveUnderflow.Value && receiveUnderflowMask.Value, name: "RXUIS")
-                .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => receiveOverflow.Value && receiveOverflowMask.Value, name: "RXFOIS")
-                .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => receiveFull.Value && receiveFullMask.Value, name: "RXFIS")
+                .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => receiveOverrun.Value && receiveOverrunMask.Value, name: "RXFOIS")
+                .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => ReceiveFull && receiveFullMask.Value, name: "RXFIS")
                 .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => multiMasterContention.Value && multiMasterContentionMask.Value, name: "MSTIS")
                 .WithReservedBits(6, 26)
             ;
 
             Registers.InterruptRawStatus.Define(this)
-                .WithFlag(0, out transmitEmpty, FieldMode.Read, name: "TXEIR")
+                .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => TransmitEmpty, name: "TXEIR")
                 .WithFlag(1, out transmitOverflow, FieldMode.Read, name: "TXOIR")
                 .WithFlag(2, out receiveUnderflow, FieldMode.Read, name: "RXUIR")
-                .WithFlag(3, out receiveOverflow, FieldMode.Read, name: "RXOIR")
-                .WithFlag(4, out receiveFull, FieldMode.Read, name: "RXFIR")
+                .WithFlag(3, out receiveOverrun, FieldMode.Read, name: "RXOIR")
+                .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => ReceiveFull, name: "RXFIR")
                 .WithFlag(5, out multiMasterContention, FieldMode.Read, name: "MSTIR")
                 .WithReservedBits(6, 26)
             ;
@@ -304,18 +330,18 @@ namespace Antmicro.Renode.Peripherals.SPI
                     readCallback: (_, __) =>
                     {
                         transmitOverflow.Value = false;
-                        UpdateInterrupt();
+                        UpdateInterrupts();
                     }
                 )
                 .WithReservedBits(1, 31)
             ;
 
-            Registers.ReceiveOverflowInterruptClear.Define(this)
+            Registers.ReceiveOverrunInterruptClear.Define(this)
                 .WithFlag(0, FieldMode.Read, name: "RXOICR",
                     readCallback: (_, __) =>
                     {
-                        receiveOverflow.Value = false;
-                        UpdateInterrupt();
+                        receiveOverrun.Value = false;
+                        UpdateInterrupts();
                     }
                 )
                 .WithReservedBits(1, 31)
@@ -326,7 +352,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     readCallback: (_, __) =>
                     {
                         receiveUnderflow.Value = false;
-                        UpdateInterrupt();
+                        UpdateInterrupts();
                     }
                 )
                 .WithReservedBits(1, 31)
@@ -337,7 +363,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                     readCallback: (_, __) =>
                     {
                         multiMasterContention.Value = false;
-                        UpdateInterrupt();
+                        UpdateInterrupts();
                     }
                 )
                 .WithReservedBits(1, 31)
@@ -348,11 +374,11 @@ namespace Antmicro.Renode.Peripherals.SPI
                     readCallback: (_, __) =>
                     {
                         transmitOverflow.Value = false;
-                        receiveOverflow.Value = false;
+                        receiveOverrun.Value = false;
                         receiveUnderflow.Value = false;
                         multiMasterContention.Value = false;
 
-                        UpdateInterrupt();
+                        UpdateInterrupts();
                     }
                 )
                 .WithReservedBits(1, 31)
@@ -388,27 +414,28 @@ namespace Antmicro.Renode.Peripherals.SPI
                     {
                         if(!enabled.Value)
                         {
-                            this.Log(LogLevel.Warning, "Trying to read value from a disabled SPI");
+                            this.WarningLog("Trying to read value from a disabled SPI");
                             return 0;
                         }
 
                         if(!TryDequeueFromReceiveBuffer(out var data))
                         {
-                            this.Log(LogLevel.Warning, "Trying to read from an empty FIFO");
+                            this.WarningLog("Trying to read from an empty FIFO");
                             return 0;
                         }
 
                         return data;
                     },
-                    writeCallback: (_, val) =>
+                    writeCallback: (_, value) =>
                     {
                         if(!enabled.Value)
                         {
-                            this.Log(LogLevel.Warning, "Cannot write to SPI buffer while disabled");
+                            this.WarningLog("Cannot write to SPI buffer while disabled");
                             return;
                         }
 
-                        EnqueueToTransmitBuffer((uint)val);
+                        EnqueueToTransmitBuffer((uint)value);
+                        AttemptDataTransfer();
                     }
                 )
                 .WithReservedBits(maxTransferSize, 32 - maxTransferSize)
@@ -420,19 +447,24 @@ namespace Antmicro.Renode.Peripherals.SPI
             ;
         }
 
-        private void UpdateInterrupt()
+        private void UpdateInterrupts()
         {
-            var value = false;
+            var irqs = new (bool IsSet, string Name)[]
+            {
+                (TransmitEmpty && transmitEmptyMask.Value, "TXE"),
+                (transmitOverflow.Value && transmitOverflowMask.Value, "TXO"),
+                (receiveUnderflow.Value && receiveUnderflowMask.Value, "RXU"),
+                (receiveOverrun.Value && receiveOverrunMask.Value, "RXO"),
+                (ReceiveFull && receiveFullMask.Value, "RXF"),
+                (multiMasterContention.Value && multiMasterContentionMask.Value, "MST")
+            }.Where(x => x.IsSet).Select(x => x.Name).ToArray();
 
-            value |= multiMasterContention.Value && multiMasterContentionMask.Value;
-            value |= receiveFull.Value && receiveFullMask.Value;
-            value |= receiveOverflow.Value && receiveOverflowMask.Value;
-            value |= receiveUnderflow.Value && receiveUnderflowMask.Value;
-            value |= transmitOverflow.Value && transmitOverflowMask.Value;
-            value |= transmitEmpty.Value && transmitEmptyMask.Value;
-
-            this.Log(LogLevel.Noisy, "Setting IRQ to {0}", value);
-            IRQ.Set(value);
+            var value = irqs.Length > 0;
+            if(IRQ.IsSet != value)
+            {
+                this.NoisyLog("Setting IRQ to {0} {1}", value, Misc.PrettyPrintCollection(irqs));
+                IRQ.Set(value);
+            }
         }
 
         private void HandleDataFrameSizeChange(ulong previousValue, ulong newValue)
@@ -449,93 +481,83 @@ namespace Antmicro.Renode.Peripherals.SPI
             case 0xf:
             case 0x1f:
                 FrameSize = (TransferSize)((newValue + 1) >> 3);
+                this.DebugLog("Frame size set to {0}", FrameSize);
                 break;
             default:
-                this.Log(LogLevel.Error, "Only 8/16/32-bit transfers are supported, falling back to the default 8-bit mode");
-                FrameSize = TransferSize.SingleByte;
-                dataFrameSize.Value = 7;
+                var newSize = GetByteSize((int)newValue + 1);
+                if(newSize > (int)MaxTransferSize)
+                {
+                    this.ErrorLog("Only 8/16{0}-bit transfers are supported, attempted to set a value ({1:X}-bit mode) greater than max transfer size, falling back to the default 8-bit mode", maxTransferSize == 32 ? "/32" : "", newValue + 1);
+                    FrameSize = TransferSize.SingleByte;
+                    dataFrameSize.Value = 7;
+                    break;
+                }
+
+                this.ErrorLog("Only 8/16{0}-bit transfers are supported, falling back to next supported mode ({1}-bit mode)", maxTransferSize == 32 ? "/32" : "", newSize << 3);
+                FrameSize = (TransferSize)newSize;
+                dataFrameSize.Value = ((ulong)FrameSize << 3) - 1;
                 break;
             }
         }
 
-        private bool TrySendData(int slaveAddress)
+        private void AttemptDataTransfer()
         {
-            if(!enabled.Value)
+            if(!enabled.Value || slaveId == 0 || transmitFifo.Count < TransferStartFifoLevel)
             {
-                this.Log(LogLevel.Warning, "Cannot transmit data while SPI is disabled");
-                return false;
+                return;
             }
 
-            if(!this.TryGetByAddress(slaveAddress, out var peripheral))
-            {
-                this.Log(LogLevel.Warning, "Trying to send data to a not attached slave #{0}", slaveAddress);
-                return false;
-            }
-
-            this.Log(LogLevel.Noisy, "Transmit mode {0} selected", transferMode.Value);
-
-            if(transmitBuffer.Count == 0 && transferMode.Value != TransferMode.Receive)
-            {
-                this.Log(LogLevel.Warning, "No data to transmit");
-                return false;
-            }
-
-            var bytesFromFrames = ((int)numberOfFrames.Value + 1) * (FrameSize == TransferSize.SingleByte ? 1 : 2 /* TransferSize.DoubleByte */);
             switch(transferMode.Value)
             {
             case TransferMode.TransmitReceive:
-                DoTransfer(peripheral, transmitBuffer.Count, readFromFifo: true, writeToFifo: true);
+                DoTransfer(transmitFifo.Count, readFromFifo: true, writeToFifo: true);
                 break;
             case TransferMode.Transmit:
-                DoTransfer(peripheral, transmitBuffer.Count, readFromFifo: true, writeToFifo: false);
+                DoTransfer(transmitFifo.Count, readFromFifo: true, writeToFifo: false);
                 break;
             case TransferMode.Receive:
-                DoTransfer(peripheral, bytesFromFrames, readFromFifo: false, writeToFifo: true);
+                DoTransfer(NumberOfFrames, readFromFifo: false, writeToFifo: true);
+                var dummy = transmitFifo.Dequeue();
+                if(transmitFifo.Count > 0)
+                {
+                    this.WarningLog("In receive mode Rx FIFO doesn't contain a single dummy word (dummy: 0x{0:X}, FIFO: {1})", dummy, Misc.PrettyPrintCollectionHex(transmitFifo));
+                }
                 break;
             case TransferMode.EEPROM:
                 // control bytes
-                DoTransfer(peripheral, transmitBuffer.Count, readFromFifo: true, writeToFifo: false);
+                DoTransfer(transmitFifo.Count, readFromFifo: true, writeToFifo: false);
                 // data bytes
-                DoTransfer(peripheral, bytesFromFrames, readFromFifo: false, writeToFifo: true);
+                DoTransfer(NumberOfFrames, readFromFifo: false, writeToFifo: true);
                 break;
             default:
                 throw new UnreachableException();
             }
 
-            return true;
+            UpdateInterrupts();
         }
 
-        private void DoTransfer(ISPIPeripheral peripheral, int size, bool readFromFifo, bool writeToFifo)
+        private void DoTransfer(int size, bool readFromFifo, bool writeToFifo)
         {
-            this.Log(LogLevel.Noisy, "Doing an SPI transfer of size {0} bytes (reading from fifo: {1}, writing to fifo: {2})", size, readFromFifo, writeToFifo);
+            this.NoisyLog("Doing an SPI transfer of size {0} bytes (reading from fifo: {1}, writing to fifo: {2})", size, readFromFifo, writeToFifo);
+
             for(var i = 0; i < size; i++)
             {
-                var dataFromSlave = 0U;
-                var dataToSlave = readFromFifo ? transmitBuffer.Dequeue() : 0U;
+                var dataToSlave = readFromFifo ? transmitFifo.Dequeue() : 0U;
+                var bytesToSlave = BitHelper.GetBytesFromValue(dataToSlave, (int)FrameSize, reverse: true);
+                var receivedBytes = bytesToSlave.Select(byteToSlave => target?.Transmit(byteToSlave) ?? 0x0).ToArray();
+                var dataFromSlave = BitHelper.ToUInt32(receivedBytes, 0, (int)FrameSize, reverse: true);
 
-                var bytes = (int)FrameSize;
-                var bytesToSlave = new byte[bytes];
-                BitHelper.GetBytesFromValue(bytesToSlave, 0, dataToSlave, bytes);
-                for(var n = bytes - 1; n >= 0; --n)
+                this.NoisyLog("Sent 0x{0:X}, received 0x{1:X}", dataToSlave, dataFromSlave);
+
+                if(writeToFifo)
                 {
-                    dataFromSlave <<= 8;
-                    dataFromSlave |= peripheral.Transmit(bytesToSlave[n]);
-                }
-
-                this.Log(LogLevel.Noisy, "Sent 0x{0:X}, received 0x{1:X}", dataToSlave, dataFromSlave);
-
-                if(!writeToFifo)
-                {
-                    continue;
-                }
-
-                lock(innerLock)
-                {
-                    receiveBuffer.Enqueue(dataFromSlave);
-                    if(receiveBuffer.Count > receiveThreshold)
+                    if(receiveFifo.Count < receiveDepth)
                     {
-                        receiveFull.Value = true;
-                        UpdateInterrupt();
+                        receiveFifo.Enqueue(dataFromSlave);
+                    }
+                    else
+                    {
+                        receiveOverrun.Value = true;
                     }
                 }
             }
@@ -543,21 +565,16 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void EnqueueToTransmitBuffer(uint val)
         {
-            if(transmitBuffer.Count == transmitDepth)
+            if(transmitFifo.Count == transmitDepth)
             {
-                this.Log(LogLevel.Warning, "Trying to write to a full FIFO. Dropping the data");
+                this.WarningLog("Trying to write to a full FIFO. Dropping the data");
                 transmitOverflow.Value = true;
-                UpdateInterrupt();
+                UpdateInterrupts();
                 return;
             }
 
-            transmitBuffer.Enqueue(val);
-
-            if(transmitBuffer.Count <= transmitThreshold)
-            {
-                transmitEmpty.Value = true;
-                UpdateInterrupt();
-            }
+            transmitFifo.Enqueue(val);
+            UpdateInterrupts();
         }
 
         private bool TryDecodeSlaveId(SlaveSelect val, out int id)
@@ -585,49 +602,52 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void ClearBuffers()
         {
-            lock(innerLock)
-            {
-                receiveBuffer.DequeueAll();
-                transmitBuffer.DequeueAll();
-
-                transmitEmpty.Value = true;
-                receiveFull.Value = false;
-                UpdateInterrupt();
-            }
+            receiveFifo.DequeueAll();
+            transmitFifo.DequeueAll();
+            UpdateInterrupts();
         }
 
-        private uint transmitThreshold;
-        private uint receiveThreshold;
+        private bool TransmitEmpty => enabled.Value && transmitFifo.Count <= (int)transmitThreshold.Value;
+
+        private bool ReceiveFull => enabled.Value && receiveFifo.Count > (int)receiveThreshold.Value;
+
+        private int NumberOfFrames => (int)numberOfFrames.Value + 1;
+
+        private int TransferStartFifoLevel => transferMode.Value != TransferMode.Receive ? (int)transferStartFifoLevel : 1;
+
+        private int slaveId;
+        private ISPIPeripheral target;
+        private ulong transferStartFifoLevel;
 
         private IValueRegisterField dataFrameSize;
         private IEnumRegisterField<TransferMode> transferMode;
         private IValueRegisterField numberOfFrames;
         private IFlagRegisterField enabled;
+        private IValueRegisterField transmitThreshold;
+        private IValueRegisterField receiveThreshold;
 
         private IFlagRegisterField multiMasterContentionMask;
         private IFlagRegisterField receiveFullMask;
-        private IFlagRegisterField receiveOverflowMask;
+        private IFlagRegisterField receiveOverrunMask;
         private IFlagRegisterField receiveUnderflowMask;
         private IFlagRegisterField transmitOverflowMask;
         private IFlagRegisterField transmitEmptyMask;
 
         private IFlagRegisterField multiMasterContention; // this IRQ is never set in the current implementation
-        private IFlagRegisterField receiveFull;
-        private IFlagRegisterField receiveOverflow;
+        private IFlagRegisterField receiveOverrun;
         private IFlagRegisterField receiveUnderflow;
         private IFlagRegisterField transmitOverflow;
-        private IFlagRegisterField transmitEmpty;
 
         private readonly uint transmitDepth;
         private readonly uint receiveDepth;
         private readonly uint idCode;
         private readonly uint componentVersion;
         private readonly int maxTransferSize;
+        private readonly bool levelTrigger;
 
         // a single frame can have up to 32-bits
-        private readonly Queue<uint> receiveBuffer;
-        private readonly Queue<uint> transmitBuffer;
-        private readonly object innerLock = new object();
+        private readonly Queue<uint> receiveFifo;
+        private readonly Queue<uint> transmitFifo;
 
         private const int NumberOfDataRegisters = 36;
         private const int MaxFifoDepth = (1 << 16) - 1;
@@ -672,7 +692,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             InterruptStatus = 0x30,
             InterruptRawStatus = 0x34,
             TransmitOverflowInterruptClear = 0x38,
-            ReceiveOverflowInterruptClear = 0x3C,
+            ReceiveOverrunInterruptClear = 0x3C,
             ReceiveUnderflowInterruptClear = 0x40,
             MultiMasterContentionInterruptClear = 0x44,
             InterruptClear = 0x48,
