@@ -40,6 +40,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             selectedSlave = null;
             enabled = false;
             transmissionInProgress = false;
+            suspended = false;
 
             RegistersCollection.Reset();
             UpdateInterrupts();
@@ -76,8 +77,15 @@ namespace Antmicro.Renode.Peripherals.I2C
                     transmissionInProgress = true;
                     // send what is buffered as this might be a repeated start condition
                     TrySendDataToSlave();
-                    // prepare to receive data from slave
-                    slaveToMasterBuffer.Clear();
+                    // Only discard buffered data when START begins a
+                    // fresh transaction. After a TASKS_SUSPEND the bus was held
+                    // for a repeated start, so anything already read is the
+                    // answer to the register index we just sent
+                    if(!suspended)
+                    {
+                        slaveToMasterBuffer.Clear();
+                    }
+                    suspended = false;
                     // try read the response
                     TryFillReceivedBuffer(true);
                 })
@@ -133,8 +141,42 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithReservedBits(1, 31)
             ;
 
+            // Suspending must flush what the master has buffered - that is the
+            // byte the slave needs in order to answer - while keeping the
+            // transaction open. In particular it must not call
+            // FinishTransmission, which is what ends a transfer.
+            Registers.SuspendTransmitting.Define(this)
+                .WithFlag(0, FieldMode.Write, name: "TASKS_SUSPEND", writeCallback: (_, val) =>
+                {
+                    if(!val)
+                    {
+                        return;
+                    }
+
+                    if(!transmissionInProgress)
+                    {
+                        this.Log(LogLevel.Warning, "Tranmission is not running, ignoring SUSPEND operation");
+                        return;
+                    }
+
+                    TrySendDataToSlave();
+                    suspended = true;
+
+                    suspendedInterruptPending.Value = true;
+                    EventTriggered?.Invoke((uint)Registers.SuspendedInterruptPending);
+                    UpdateInterrupts();
+                })
+                .WithReservedBits(1, 31)
+            ;
+
             Registers.StoppedInterruptPending.Define(this)
                 .WithFlag(0, out stoppedInterruptPending, name: "EVENTS_STOPPED")
+                .WithReservedBits(1, 31)
+                .WithWriteCallback((_, __) => UpdateInterrupts())
+            ;
+
+            Registers.SuspendedInterruptPending.Define(this)
+                .WithFlag(0, out suspendedInterruptPending, name: "EVENTS_SUSPENDED")
                 .WithReservedBits(1, 31)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
@@ -181,7 +223,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithReservedBits(10, 4)
                 .WithFlag(14, name: "BB") // this is a flag to limit warnings, we don't support the byte-boundary interrupt
                 .WithReservedBits(15, 3)
-                .WithFlag(18, name: "SUSPENDED") // this is a flag to limit warnings, we don't support the suspended interrupt
+                .WithFlag(18, out suspendedInterruptEnabled, FieldMode.Read | FieldMode.Set, name: "SUSPENDED")
                 .WithReservedBits(19, 13)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
@@ -205,7 +247,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithReservedBits(10, 4)
                 .WithFlag(14, name: "BB") // this is a flag to limit warnings, we don't support the byte-boundary interrupt
                 .WithReservedBits(15, 3)
-                .WithFlag(18, name: "SUSPENDED") // this is a flag to limit warnings, we don't support the suspended interrupt
+                .WithFlag(18, name: "SUSPENDED",
+                    writeCallback: (_, val) => { if(val) suspendedInterruptEnabled.Value = false; },
+                    valueProviderCallback: _ => suspendedInterruptEnabled.Value)
                 .WithReservedBits(19, 13)
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
@@ -362,6 +406,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private void StopTransmission()
         {
             transmissionInProgress = false;
+            suspended = false;
 
             // send out buffered data to slave;
             // in reality there is no fifo - each
@@ -384,6 +429,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             flag |= txInterruptEnabled.Value && txInterruptPending.Value;
             flag |= rxInterruptEnabled.Value && rxInterruptPending.Value;
             flag |= stoppedInterruptEnabled.Value && stoppedInterruptPending.Value;
+            flag |= suspendedInterruptEnabled.Value && suspendedInterruptPending.Value;
             flag |= errorInterruptEnabled.Value && errorInterruptPending.Value;
 
             this.Log(LogLevel.Noisy, "Setting IRQ to {0}", flag);
@@ -393,6 +439,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private II2CPeripheral selectedSlave;
         private bool enabled;
         private bool transmissionInProgress;
+        private bool suspended;
 
         private IValueRegisterField address;
         private IFlagRegisterField txInterruptPending;
@@ -406,6 +453,9 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private IFlagRegisterField stoppedInterruptPending;
         private IFlagRegisterField stoppedInterruptEnabled;
+
+        private IFlagRegisterField suspendedInterruptPending;
+        private IFlagRegisterField suspendedInterruptEnabled;
 
         private IFlagRegisterField byteBoundaryStopShortcut;
 
