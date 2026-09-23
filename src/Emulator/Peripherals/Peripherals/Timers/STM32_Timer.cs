@@ -67,6 +67,17 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     var channel = channels[i];
                     channel.UpdateTimer();
+                    // A compare value of 0 can only ever match right here, at the update event,
+                    // when the counter reloads to 0: UpdateTimer() cannot arm the channel's own
+                    // timer for it (it needs Value < Limit) and the CCR write path explicitly
+                    // disables that timer for 0 - so without this the compare would silently never
+                    // fire, and firmware waiting on it hangs forever (e.g. embassy's time driver,
+                    // whose alarm's low 16 bits land on 0x0000 once every ~65536 alarms). Real
+                    // hardware matches CNT == CCR == 0 on the reload.
+                    if(channel.IsOutputMode && channel.Timer.Limit == 0)
+                    {
+                        HandleCompareMatch(channel, i);
+                    }
                     if(!channel.Timer.Enabled || !channel.IsOutputMode)
                     {
                         continue;
@@ -104,37 +115,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 channel.Timer = new LimitTimer(machine.ClockSource, frequency, this, String.Format("cctimer{0}", j + 1), limit: initialLimit, eventEnabled: true, direction: Direction.Ascending, enabled: false, autoUpdate: false, workMode: WorkMode.OneShot);
                 channel.Timer.LimitReached += delegate
                 {
-                    if(!channel.IsOutputMode)
-                    {
-                        return;
-                    }
-
-                    switch(channel.CompareMode.Value)
-                    {
-                    case OutputCompareMode.SetActiveOnMatch:
-                        channel.Connection.Blink(); // high pulse
-                        break;
-                    case OutputCompareMode.SetInactiveOnMatch:
-                        channel.Connection.Unset();
-                        channel.Connection.Set(); // low pulse
-                        break;
-                    case OutputCompareMode.ToggleOnMatch:
-                        channel.Connection.Toggle();
-                        break;
-                    case OutputCompareMode.PwmMode1:
-                        channel.Connection.Unset();
-                        break;
-                    case OutputCompareMode.PwmMode2:
-                        channel.Connection.Set();
-                        break;
-                    }
-
-                    if(channel.InterruptEnable)
-                    {
-                        channel.InterruptFlag = true;
-                        this.Log(LogLevel.Noisy, "cctimer{0}: Compare IRQ pending", j + 1);
-                        UpdateInterrupts();
-                    }
+                    HandleCompareMatch(channel, j);
                 };
             }
 
@@ -689,6 +670,41 @@ namespace Antmicro.Renode.Peripherals.Timers
             for(var i = 0; i < NumberOfCCChannels; ++i)
             {
                 channels[i].UpdateTimer();
+            }
+        }
+
+        private void HandleCompareMatch(CaptureCompareChannel channel, int j)
+        {
+            if(!channel.IsOutputMode)
+            {
+                return;
+            }
+
+            switch(channel.CompareMode.Value)
+            {
+            case OutputCompareMode.SetActiveOnMatch:
+                channel.Connection.Blink(); // high pulse
+                break;
+            case OutputCompareMode.SetInactiveOnMatch:
+                channel.Connection.Unset();
+                channel.Connection.Set(); // low pulse
+                break;
+            case OutputCompareMode.ToggleOnMatch:
+                channel.Connection.Toggle();
+                break;
+            case OutputCompareMode.PwmMode1:
+                channel.Connection.Unset();
+                break;
+            case OutputCompareMode.PwmMode2:
+                channel.Connection.Set();
+                break;
+            }
+
+            if(channel.InterruptEnable)
+            {
+                channel.InterruptFlag = true;
+                this.Log(LogLevel.Noisy, "cctimer{0}: Compare IRQ pending", j + 1);
+                UpdateInterrupts();
             }
         }
 
