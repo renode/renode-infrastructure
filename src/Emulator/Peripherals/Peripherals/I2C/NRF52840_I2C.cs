@@ -317,6 +317,20 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithReservedBits(8, 24)
             ;
 
+            Registers.PinSelectSCL.Define(this)
+                .WithTag("PSEL_SCL", 0, 32)
+            ;
+
+            Registers.PinSelectSDA.Define(this)
+                .WithTag("PSEL_SDA", 0, 32)
+            ;
+
+            // We do not model the bus speed, so allow anything to be set
+            // it will not be used in simulation, but the driver might need to read this
+            Registers.Frequency.Define(this)
+                .WithValueField(0, 32, name: "FREQUENCY")
+            ;
+
             Registers.Address.Define(this)
                 .WithValueField(0, 7, out address, writeCallback: (_, val) =>
                 {
