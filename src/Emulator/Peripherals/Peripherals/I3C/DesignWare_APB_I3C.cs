@@ -628,7 +628,7 @@ namespace Antmicro.Renode.Peripherals.I3C
                 responseDataLength = received.Length;
                 receiveQueue.EnqueueRange(received
                             .Chunk(4)
-                            .Select(x => BitConverter.ToUInt32(x)));
+                            .Select(x => x.ToUInt32Smart()));
             }
             else
             {

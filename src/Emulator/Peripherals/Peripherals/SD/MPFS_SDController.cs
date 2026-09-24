@@ -531,7 +531,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 // If we have read the exact amount of data we wanted, we can clear the buffer from any leftovers.
                 internalBuffer.Clear();
             }
-            return BitConverter.ToUInt32(internalBytes);
+            return internalBytes.ToUInt32Smart();
         }
 
         private IFlagRegisterField ackField;

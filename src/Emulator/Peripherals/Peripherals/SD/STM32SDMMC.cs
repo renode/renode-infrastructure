@@ -273,7 +273,7 @@ namespace Antmicro.Renode.Peripherals.SD
         protected uint ReadBuffer()
         {
             var internalBytes = ReadDataBuffer.DequeueRange(4);
-            var val = BitConverter.ToUInt32(internalBytes);
+            var val = internalBytes.ToUInt32Smart();
             if(ReadDataBuffer.Count == 0)
             {
                 rxFifoHF.Value = false;

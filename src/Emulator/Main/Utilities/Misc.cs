@@ -196,6 +196,20 @@ namespace Antmicro.Renode.Utilities
             return dateTime;
         }
 
+        public static UInt32 ToUInt32Smart(this byte[] @this)
+        {
+            if(@this.Length > 4)
+            {
+                throw new ArgumentException($"Bytes array is tool long. Expected at most 4 bytes, but got {@this.Length}");
+            }
+            var result = 0u;
+            for(var i = 0; i < @this.Length; i++)
+            {
+                result |= ((uint)@this[i] << (8 * i));
+            }
+            return result;
+        }
+
         public static LazyHexString<T> ToLazyHexString<T>(this IEnumerable<T> collection)
         {
             return new LazyHexString<T>(collection);
