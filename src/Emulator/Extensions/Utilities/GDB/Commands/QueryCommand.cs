@@ -52,9 +52,11 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             else if(objectType == "threads")
             {
                 xmlFile.Append("<?xml version=\"1.0\"?>\n<threads>\n");
-                foreach(var id in manager.ManagedCpus.All)
+                // Only send threads (CPUs) from the current process, otherwise GDB will assume
+                // that all processors share the same architecture
+                foreach(var id in manager.ManagedCpus.All.Where(id => (manager.Process ?? id.ProcessId) == id.ProcessId))
                 {
-                    xmlFile.Append($"<thread id=\"{id.ThreadId:x}\" core=\"{id.ThreadId - 1}\" name=\"{manager.ManagedCpus[id].GetName()}\"></thread>\n");
+                    xmlFile.Append($"<thread id=\"{id}\" core=\"{id.ThreadId - 1}\" name=\"{manager.ManagedCpus[id].GetName()}\"></thread>\n");
                 }
                 xmlFile.Append("</threads>\n");
             }

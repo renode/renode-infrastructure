@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -14,8 +14,9 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         {
         }
 
-        [Execute("qSupported")]
-        public PacketData Execute()
+        [Execute("qSupported:")]
+        public PacketData Execute(
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.String)] string supportedFeatures)
         {
             var command = new StringBuilder();
             // Trace32 extensions aren't supported by all CPUs but it shouldn't break anything.
@@ -23,6 +24,11 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             if(manager.Machine.SystemBus.IsMultiCore)
             {
                 command.Append(";qXfer:threads:read+;vContSupported+");
+                if(manager.ManagedCpus.MultiprocessExtensionRequested && supportedFeatures.Contains("multiprocess+"))
+                {
+                    manager.MultiprocessEnabled = true;
+                    command.Append(";multiprocess+");
+                }
             }
             else
             {

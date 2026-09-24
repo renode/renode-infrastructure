@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -20,8 +20,8 @@ namespace Antmicro.Renode.Utilities.GDB
     [Transient]
     public class GdbStub : IDisposable, IExternal, IDisconnectableState
     {
-        public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation)
-            : this(machine, cpus)
+        public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, int port, bool autostartEmulation, int? pid)
+            : this(machine, cpus, pid)
         {
             terminal = new SocketServerProvider(false, serverName: "GDB");
             SetupTerminal(connected: false, autostartEmulation: autostartEmulation);
@@ -29,17 +29,17 @@ namespace Antmicro.Renode.Utilities.GDB
             LogsEnabled = false;
         }
 
-        public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, SocketServerProvider terminal)
-            : this(machine, cpus)
+        public GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, SocketServerProvider terminal, int? pid)
+            : this(machine, cpus, pid)
         {
             this.terminal = terminal;
             SetupTerminal(connected: true, autostartEmulation: false);
             LogsEnabled = false;
         }
 
-        public void AttachCPU(ICpuSupportingGdb cpu)
+        public void AttachCPU(ICpuSupportingGdb cpu, int? pid)
         {
-            commandsManager.AttachCPU(cpu);
+            commandsManager.AttachCPU(cpu, pid);
         }
 
         public bool IsCPUAttached(ICpuSupportingGdb cpu)
@@ -55,9 +55,13 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public void Dispose()
         {
-            foreach(var cpu in cpus)
+            foreach(var cpu in commandsManager.ManagedCpus)
             {
                 cpu.Halted -= OnHalted;
+                cpu.ExecutionMode = ExecutionMode.Continuous;
+                cpu.HaltedByDebugger = false;
+                cpu.Resume();
+                cpu.DebuggerConnected = false;
             }
 
             if(!disconnectedState)
@@ -72,7 +76,7 @@ namespace Antmicro.Renode.Utilities.GDB
             remove => terminal.ConnectionAccepted -= value;
         }
 
-        public IEnumerable<string> AttachedCPUNames => cpus.Select(cpu => commandsManager.Machine.GetLocalName(cpu));
+        public IEnumerable<string> AttachedCPUNames => commandsManager.ManagedCpus.Select(cpu => commandsManager.Machine.GetLocalName(cpu));
 
         public int Port => Terminal.Port.Value;
 
@@ -84,13 +88,17 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public CommandsManager CommandsManager => commandsManager;
 
-        private GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus)
+        private GdbStub(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus, int? pid)
         {
-            this.cpus = cpus;
             LogsEnabled = true;
 
             pcktBuilder = new PacketBuilder();
-            commandsManager = new CommandsManager(machine, cpus);
+            commandsManager = new CommandsManager(machine);
+            foreach(var cpu in cpus)
+            {
+                AttachCPU(cpu, pid);
+            }
+
             commHandler = new CommunicationHandler(this, commandsManager);
             TypeManager.Instance.AutoLoadedType += commandsManager.Register;
             EmulationManager.PreservableManager.RegisterPreservable(this, livesThroughEmulationChange: false);
@@ -219,11 +227,18 @@ namespace Antmicro.Renode.Utilities.GDB
 
         private void OnHalted(HaltArguments args)
         {
+            // If we got here, and the CPU doesn't support Gdb (ICpuSupportingGdb) something went seriously wrong - this is GdbStub after all
+            var cpuSupportingGdb = (ICpuSupportingGdb)args.Cpu;
+            if(cpuSupportingGdb.HaltedByDebugger)
+            {
+                // GDB considers this CPU to be stopped, so we can safely ignore
+                // any spurious stop messages that could have been send by e.g.
+                // switching the execution mode while the CPU is stopped
+                return;
+            }
+
             using(var ctx = commHandler.OpenContext())
             {
-                // If we got here, and the CPU doesn't support Gdb (ICpuSupportingGdb) something went seriously wrong - this is GdbStub after all
-                var cpuSupportingGdb = (ICpuSupportingGdb)args.Cpu;
-
                 // We only should send one stop response to Gdb in all-stop mode
                 bool sendStopResponse = cpuSupportingGdb == stopReplyingCpu || stopReplyingCpu == null;
 
@@ -307,6 +322,8 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 cpu.Halted -= OnHalted;
                 cpu.ExecutionMode = ExecutionMode.Continuous;
+                cpu.HaltedByDebugger = false;
+                cpu.Resume();
                 cpu.DebuggerConnected = false;
             }
             commandsManager.CanAttachCPU = true;
@@ -316,7 +333,6 @@ namespace Antmicro.Renode.Utilities.GDB
         private bool disconnectedState;
 
         private readonly PacketBuilder pcktBuilder;
-        private readonly IEnumerable<ICpuSupportingGdb> cpus;
         private readonly SocketServerProvider terminal;
         private readonly CommandsManager commandsManager;
         private readonly CommunicationHandler commHandler;

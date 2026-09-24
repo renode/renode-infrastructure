@@ -24,7 +24,7 @@ namespace Antmicro.Renode.Utilities.GDB
 {
     public class CommandsManager
     {
-        public CommandsManager(IMachine machine, IEnumerable<ICpuSupportingGdb> cpus)
+        public CommandsManager(IMachine machine)
         {
             availableCommands = new HashSet<CommandDescriptor>();
             typesWithCommands = new HashSet<string>();
@@ -35,27 +35,28 @@ namespace Antmicro.Renode.Utilities.GDB
 
             commandsCache = new Dictionary<string, Command>();
             ManagedCpus = new ManagedCpusDictionary(this);
-            foreach(var cpu in cpus)
-            {
-                if(!TryAddManagedCPU(cpu))
-                {
-                    throw new RecoverableException($"Could not create GDB server for CPU: {cpu.GetName()}");
-                }
-            }
-            selectedCpu = ManagedCpus[new PacketThreadId(null, PacketThreadId.Any)];
         }
 
-        public void AttachCPU(ICpuSupportingGdb cpu)
+        public void AttachCPU(ICpuSupportingGdb cpu, int? pid)
         {
             if(!CanAttachCPU)
             {
                 throw new RecoverableException("Cannot attach CPU because GDB is already connected.");
             }
+            if(!ManagedCpus.DeclareProcess(cpu, pid))
+            {
+                throw new RecoverableException("CPU is already a part of a different process.");
+            }
             if(!TryAddManagedCPU(cpu))
             {
+                ManagedCpus.DeclareProcess(cpu, null);
                 throw new RecoverableException("CPU already attached to this GDB server.");
             }
             InvalidateCompiledFeatures();
+            if(selectedCpu is null)
+            {
+                selectedCpu = cpu;
+            }
         }
 
         public bool IsCPUAttached(ICpuSupportingGdb cpu)
@@ -207,7 +208,11 @@ namespace Antmicro.Renode.Utilities.GDB
 
         public bool CanAttachCPU { get; set; }
 
+        public bool MultiprocessEnabled { get; set; }
+
         public ICpuSupportingGdb Cpu => selectedCpu;
+
+        public int? Process => ManagedCpus[Cpu].ProcessId;
 
         public ISet<Tuple<ulong, BreakpointType>> Breakpoints => GetOrCreateCommand<BreakpointCommand>().Breakpoints;
 
@@ -367,6 +372,24 @@ namespace Antmicro.Renode.Utilities.GDB
                 return ctr;
             }
 
+            public bool DeclareProcess(ICpuSupportingGdb cpu, int? pid)
+            {
+                if(cpusToPids.ContainsKey(cpu) && pid is not null)
+                {
+                    return false;
+                }
+
+                if(pid is int p)
+                {
+                    cpusToPids[cpu] = p;
+                }
+                else
+                {
+                    cpusToPids.Remove(cpu);
+                }
+                return true;
+            }
+
             public IEnumerator<ICpuSupportingGdb> GetEnumerator()
             {
                 return cpusToIds.Keys.GetEnumerator();
@@ -381,7 +404,8 @@ namespace Antmicro.Renode.Utilities.GDB
             {
                 get
                 {
-                    return new PacketThreadId(null, cpusToIds[cpu]);
+                    int? processId = manager.MultiprocessEnabled ? cpusToPids[cpu] : null;
+                    return new PacketThreadId(processId, cpusToIds[cpu]);
                 }
             }
 
@@ -399,6 +423,8 @@ namespace Antmicro.Renode.Utilities.GDB
             }
 
             public IEnumerable<PacketThreadId> All => cpusToIds.Keys.Select(cpu => this[cpu]);
+
+            public bool MultiprocessExtensionRequested => cpusToPids.Count > 0;
 
             private readonly CommandsManager manager;
             private readonly Dictionary<int, ICpuSupportingGdb> idsToCpus = new Dictionary<int, ICpuSupportingGdb>();

@@ -239,7 +239,14 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             }
             foreach(var id in gdbCpuIdsToHandle)
             {
-                operationsList.Add(new Operation(id, manager.ManagedCpus[id].ExecutionMode == ExecutionMode.Continuous ? OperationType.Continue : OperationType.None));
+                if(manager.MultiprocessEnabled)
+                {
+                    operationsList.Add(new Operation(id, OperationType.None));
+                }
+                else
+                {
+                    operationsList.Add(new Operation(id, manager.ManagedCpus[id].ExecutionMode == ExecutionMode.Continuous ? OperationType.Continue : OperationType.None));
+                }
             }
             operations = operationsList;
             return true;
@@ -252,12 +259,20 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
             {
             case OperationType.Continue:
                 cpu.ExecutionMode = ExecutionMode.Continuous;
+                cpu.HaltedByDebugger = false;
                 cpu.Resume();
                 break;
             case OperationType.Step:
+                cpu.ExecutionMode = ExecutionMode.SingleStep;
+                cpu.HaltedByDebugger = false;
                 cpu.Step(1);
                 break;
             case OperationType.None:
+                if(manager.MultiprocessEnabled)
+                {
+                    cpu.HaltedByDebugger = true;
+                    cpu.Resume();
+                }
                 break;
             default:
                 cpu.Log(LogLevel.Info, "Encountered an unsupported operation.");
@@ -267,6 +282,12 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
 
         private bool ProcessMatches(PacketThreadId id, PacketThreadId expectedId)
         {
+            // No PID means all processes when multiprocess extension is enabled
+            // (This is used with `set schedule-multiple on`)
+            if(manager.MultiprocessEnabled && expectedId.ProcessId is null)
+            {
+                return true;
+            }
             return (id.ProcessId ?? expectedId.ProcessId) == expectedId.ProcessId;
         }
 
