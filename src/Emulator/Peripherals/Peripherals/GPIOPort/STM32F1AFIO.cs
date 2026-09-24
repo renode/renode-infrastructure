@@ -302,17 +302,17 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 get => inputPort;
                 set
                 {
-                    if(!IsPortNumberValid(inputPort))
+                    if(!IsPortNumberValid(value))
                     {
-                        parent.Log(LogLevel.Error, "Set EXTI input to unexpected GPIO port #{0}", inputPort);
+                        parent.Log(LogLevel.Error, "Set EXTI input to unexpected GPIO port #{0}", value);
                         return;
                     }
 
                     if(inputPort != value)
                     {
+                        inputPort = value;
                         receiver.Set(inputCache[inputPort]);
                     }
-                    inputPort = value;
                 }
             }
 
