@@ -96,7 +96,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         public PortStatusAndControlRegisterChanges SetValue(uint value)
         {
-            PortStatusAndControlRegisterChanges retVal = new PortStatusAndControlRegisterChanges(); //idicates if interrupt should be rised after this fcn
+            var retVal = new PortStatusAndControlRegisterChanges(); //idicates if interrupt should be rised after this fcn
             retVal.ConnectChange = false;
             retVal.EnableChange = false;
             //uint oldValue = portValue;

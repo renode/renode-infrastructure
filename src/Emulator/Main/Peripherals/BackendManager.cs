@@ -217,18 +217,18 @@ namespace Antmicro.Renode.Peripherals
                 throw new RecoverableException("Unexpected state received while loading preserved state");
             }
 
-            foreach(KeyValuePair<IAnalyzableBackendAnalyzer, Tuple<string, string>> analyzerToTarget in analyzersTargets)
+            foreach(var analyzerToTarget in analyzersTargets)
             {
                 var analyzer = analyzerToTarget.Key;
                 analyzer.Clear();
                 var machineName = analyzerToTarget.Value.Item1;
                 var peripheralName = analyzerToTarget.Value.Item2;
-                if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(machineName, out IMachine machine))
+                if(!EmulationManager.Instance.CurrentEmulation.TryGetMachineByName(machineName, out var machine))
                 {
                     throw new RecoverableException($"Could not find machine {machineName} in Emulation!");
                 }
 
-                if(!EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementByName(peripheralName, machine, out IEmulationElement emulationElement))
+                if(!EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementByName(peripheralName, machine, out var emulationElement))
                 {
                     throw new RecoverableException($"Could not find peripheral {peripheralName} in {machineName}!");
                 }

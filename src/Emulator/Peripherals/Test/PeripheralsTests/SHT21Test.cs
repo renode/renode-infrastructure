@@ -20,7 +20,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test, Ignore("Ignored")]
         public void ReadHumidityTest()
         {
-            List<byte> packet = new List<byte>();
+            var packet = new List<byte>();
             var sht21 = new SHT21();
             sht21.Reset();
             ////////////////////////////////////////////////////////////
@@ -153,7 +153,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void ReadTemperatureTest()
         {
-            List<byte> packet = new List<byte>();
+            var packet = new List<byte>();
             var sht21 = new SHT21();
             sht21.Reset();
             // Start measurement, Temperature - hold master
@@ -186,7 +186,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void InitTest()
         {
-            List<byte> packet = new List<byte>();
+            var packet = new List<byte>();
             var sht21 = new SHT21();
             sht21.Reset();
             // Check the serial number in on-chip memory 1

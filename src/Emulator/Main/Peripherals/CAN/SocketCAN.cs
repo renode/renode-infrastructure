@@ -56,7 +56,7 @@ namespace Antmicro.Renode.Core.CAN
         private static bool TryDecode<T>(this IList<byte> buffer, out ISocketCANFrame frame)
             where T : ISocketCANFrame
         {
-            if(buffer.TryDecode<T>(out T tFrame))
+            if(buffer.TryDecode(out T tFrame))
             {
                 frame = tFrame;
                 return true;

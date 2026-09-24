@@ -27,7 +27,7 @@ namespace Antmicro.Renode.Utilities
         {
             ulong minAddr = ulong.MaxValue;
 
-            foreach(FileChunk chunk in chunks)
+            foreach(var chunk in chunks)
             {
                 Logger.LogAs(
                     peripheral,

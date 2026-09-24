@@ -1888,7 +1888,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             // We need to pass in Endianess as a default because at this point the peripheral
             // is not yet associated with a machine.
-            Endianess periEndianess = peripheral.GetEndianness(Endianess);
+            var periEndianess = peripheral.GetEndianness(Endianess);
             // Note that the condition for applying ReadByteUsingDoubleWordBigEndian et al is different than the condition
             // for byte-swapping correctly-sized accesses! The former is needed for all big-endian peripherals, the
             // latter - only in the cross-endianness case. This is to ensure that on a big-endian bus, reading a byte

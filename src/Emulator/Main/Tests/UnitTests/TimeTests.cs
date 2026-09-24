@@ -85,8 +85,8 @@ namespace Antmicro.Renode.UnitTests
             var counterB = 0;
             Action handlerA = () => counterA++;
             Action handlerB = () => counterB++;
-            ClockEntry entryA = new ClockEntry(1000, 1, handlerA, null, String.Empty) { Value = 0 };
-            ClockEntry entryB = new ClockEntry(100, 1, handlerB, null, String.Empty) { Value = 0 };
+            var entryA = new ClockEntry(1000, 1, handlerA, null, String.Empty) { Value = 0 };
+            var entryB = new ClockEntry(100, 1, handlerB, null, String.Empty) { Value = 0 };
 
             clockSource.AddClockEntry(entryA);
             clockSource.Advance(TimeInterval.FromSeconds(500));
@@ -126,8 +126,8 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldReturnCorrectResultFromSubstraction()
         {
-            TimeInterval lower = TimeInterval.FromMicroseconds(1242);
-            TimeInterval higher = TimeInterval.FromMicroseconds(1243);
+            var lower = TimeInterval.FromMicroseconds(1242);
+            var higher = TimeInterval.FromMicroseconds(1243);
 
             Assert.AreEqual(TimeInterval.FromMicroseconds(1), higher - lower);
         }
@@ -135,8 +135,8 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldNotAllowOverflowOnSubstraction()
         {
-            TimeInterval lower = TimeInterval.FromMicroseconds(1242);
-            TimeInterval higher = TimeInterval.FromMicroseconds(1243);
+            var lower = TimeInterval.FromMicroseconds(1242);
+            var higher = TimeInterval.FromMicroseconds(1243);
 
             Assert.Throws<OverflowException>(() => { var dummy = lower - higher; });
         }
@@ -144,7 +144,7 @@ namespace Antmicro.Renode.UnitTests
         [Test]
         public void ShouldNotAllowOverflowOnAddition()
         {
-            TimeInterval value = TimeInterval.FromMicroseconds(1);
+            var value = TimeInterval.FromMicroseconds(1);
 
             Assert.Throws<OverflowException>(() => { var dummy = TimeInterval.Maximal + value; });
         }

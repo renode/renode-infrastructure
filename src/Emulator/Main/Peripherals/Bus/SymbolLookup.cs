@@ -457,7 +457,7 @@ namespace Antmicro.Renode.Core
             /// <param name="source">Source.</param>
             private static void CopyCake(ICollection<Symbol> destination, ISymbolProvider source)
             {
-                Symbol cakeBase = source.Current;
+                var cakeBase = source.Current;
                 destination.Add(source.Consume()); // copy base
                 // "move cake" - while current old symbol is contained in base copy it
                 while(!source.Empty && cakeBase.Contains(source.Current))
@@ -846,7 +846,7 @@ namespace Antmicro.Renode.Core
 
                 public Symbol Consume()
                 {
-                    Symbol ret = Current;
+                    var ret = Current;
                     DiscardCurrentSymbol();
                     return ret;
                 }

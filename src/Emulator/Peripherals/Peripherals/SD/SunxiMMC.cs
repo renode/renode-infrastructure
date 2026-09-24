@@ -256,7 +256,7 @@ namespace Antmicro.Renode.Peripherals.SD
                 Address = address;
 
                 byte[] descriptorData = new byte[16];
-                Request getDescriptorData = new Request(Address, new Place(descriptorData, 0), 16,
+                var getDescriptorData = new Request(Address, new Place(descriptorData, 0), 16,
                     TransferType.DoubleWord, TransferType.DoubleWord);
 
                 dmaEngine.IssueCopy(getDescriptorData);

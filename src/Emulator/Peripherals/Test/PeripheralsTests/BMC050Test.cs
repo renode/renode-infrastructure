@@ -20,7 +20,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void InitTest()
         {
-            List<byte> packet = new List<byte>();
+            var packet = new List<byte>();
             var bmc050 = new BMC050();
             bmc050.Reset();
             // Check the Chip ID
@@ -891,7 +891,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void ReadDataTest()
         {
-            List<byte> packet = new List<byte>();
+            var packet = new List<byte>();
             var bmc050 = new BMC050();
             bmc050.Reset();
 

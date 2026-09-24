@@ -93,8 +93,8 @@ namespace Antmicro.Renode.UI
 
                 EmulationManager.Instance.ProgressMonitor.Handler = new CLIProgressMonitor();
 
-                Type uartAnalyzerType = typeof(ConsoleWindowBackendAnalyzer);
-                Type videoAnalyzerType = typeof(VideoAnalyzer);
+                var uartAnalyzerType = typeof(ConsoleWindowBackendAnalyzer);
+                var videoAnalyzerType = typeof(VideoAnalyzer);
 
                 if(options.ServerMode)
                 {

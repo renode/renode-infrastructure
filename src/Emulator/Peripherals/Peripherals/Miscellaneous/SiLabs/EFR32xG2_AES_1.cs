@@ -79,14 +79,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         private List<DmaDescriptor> ParseDescriptors(bool parseFetcher)
         {
-            List<DmaDescriptor> list = new List<DmaDescriptor>();
+            var list = new List<DmaDescriptor>();
             uint currentDescriptorAddress = (uint)((parseFetcher) ? fetcherAddress.Value : pusherAddress.Value);
             bool moreDescriptors = true;
             uint descriptorIndex = 0;
 
             while(moreDescriptors)
             {
-                DmaDescriptor descriptor = new DmaDescriptor();
+                var descriptor = new DmaDescriptor();
                 descriptor.FirstDataAddress = machine.SystemBus.ReadDoubleWord(currentDescriptorAddress);
                 descriptor.NextDescriptorAddress = machine.SystemBus.ReadDoubleWord(currentDescriptorAddress + 0x4);
                 descriptor.LastDescriptor = ((descriptor.NextDescriptorAddress & 0x1) > 0);
@@ -164,9 +164,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             pusherBusy.Value = true;
 
             this.Log(LogLevel.Noisy, "FETCHER Descriptor(s):");
-            List<DmaDescriptor> fetcherDescriptorList = ParseDescriptors(true);
+            var fetcherDescriptorList = ParseDescriptors(true);
             this.Log(LogLevel.Noisy, "PUSHER Descriptor(s):");
-            List<DmaDescriptor> pusherDescriptorList = ParseDescriptors(false);
+            var pusherDescriptorList = ParseDescriptors(false);
 
             switch(fetcherDescriptorList[0].EngineSelect)
             {
@@ -419,7 +419,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             this.Log(LogLevel.Noisy, "RunAesEngine(): Config:[{0}]", BitConverter.ToString(fetcherDescriptorList[configDescriptorIndex].Data));
 
             IBlockCipher cipher = null;
-            KeyParameter keyParameter = new KeyParameter(fetcherDescriptorList[keyDescriptorIndex].Data);
+            var keyParameter = new KeyParameter(fetcherDescriptorList[keyDescriptorIndex].Data);
             this.Log(LogLevel.Noisy, "RunAesEngine(): key:[{0}]", BitConverter.ToString(fetcherDescriptorList[keyDescriptorIndex].Data));
 
             ParametersWithIV parametersWithIV = null;
@@ -444,7 +444,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             // 1: AES operation is not final; the engine will return the context
             bool cxSave = ((fetcherDescriptorList[configDescriptorIndex].Data[0] & (0x1 << 4)) > 0);
             // 16:8 Mode of Operation
-            AesMode mode = (AesMode)(fetcherDescriptorList[configDescriptorIndex].Data[1] | ((fetcherDescriptorList[configDescriptorIndex].Data[2] & 0x1) << 8));
+            var mode = (AesMode)(fetcherDescriptorList[configDescriptorIndex].Data[1] | ((fetcherDescriptorList[configDescriptorIndex].Data[2] & 0x1) << 8));
             this.Log(LogLevel.Noisy, "RunAesEngine(): encrypt={0} cxLoad={1} cxSave={2} AES mode: {3}", encrypt, cxLoad, cxSave, mode);
 
             int outputTextDescriptorIndex = -1;

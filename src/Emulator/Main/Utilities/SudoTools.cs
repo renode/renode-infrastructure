@@ -44,7 +44,7 @@ namespace Antmicro.Renode.Utilities
             {
                 return;
             }
-            Process sudoProcess = process;
+            var sudoProcess = process;
             string sudoName = FindSudoToolName();
             if(string.IsNullOrWhiteSpace(sudoProcess.StartInfo.FileName))
             {

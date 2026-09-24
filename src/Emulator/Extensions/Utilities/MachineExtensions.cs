@@ -79,14 +79,14 @@ namespace Antmicro.Renode.Utilities
             byte[] disabledValue = Encoding.ASCII.GetBytes("disabled");
             foreach(var deviceName in disabledNodeNames)
             {
-                TreeNode node = fdt.Root.Descendants.FirstOrDefault(x => x.Name == deviceName);
+                var node = fdt.Root.Descendants.FirstOrDefault(x => x.Name == deviceName);
                 if(node == null)
                 {
                     throw new RecoverableException(String.Format("Device {0} not found.", deviceName));
                 }
                 else
                 {
-                    Property statusProperty = node.Properties.FirstOrDefault(x => x.Name == "status");
+                    var statusProperty = node.Properties.FirstOrDefault(x => x.Name == "status");
                     if(statusProperty != null)
                     {
                         node.Properties.Remove(statusProperty);

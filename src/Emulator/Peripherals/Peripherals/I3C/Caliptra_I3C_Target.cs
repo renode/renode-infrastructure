@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.I3C
                 this.Log(LogLevel.Error, "No image with index {0} exists. It won't be streamed!", index);
                 return;
             }
-            using FileStream fs = File.OpenRead(recoveryImages[index]);
+            using var fs = File.OpenRead(recoveryImages[index]);
 
             var buff = new byte[4];
             while(fs.Read(buff, 0, sizeof(uint)) != 0)

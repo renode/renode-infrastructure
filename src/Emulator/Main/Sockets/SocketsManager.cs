@@ -57,7 +57,7 @@ namespace Antmicro.Renode.Sockets
 
         public bool TryDropSocket(Socket socket)
         {
-            SocketInstance socketInstance = sockets.Where(x => x.Socket == socket).FirstOrDefault();
+            var socketInstance = sockets.Where(x => x.Socket == socket).FirstOrDefault();
             if(socketInstance != null)
             {
                 sockets.Remove(socketInstance);

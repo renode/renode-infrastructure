@@ -99,7 +99,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             }
             else if(registers.CAN_BTR.LoopbackMode == false)
             {
-                CANMessage rxMsg = new CANMessage(message);
+                var rxMsg = new CANMessage(message);
                 for(int fifo = 0; fifo < NumberOfRxFifos; fifo++)
                 {
                     if(FilterCANMessage(fifo, rxMsg) == true)
@@ -471,7 +471,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         public bool FilterCANMessage(int rxFifo, CANMessage msg)
         {
-            foreach(FilterBank filterBank in FifoFiltersPrioritized[rxFifo].Where(m => m.BelongsToMaster == !IsSlave))
+            foreach(var filterBank in FifoFiltersPrioritized[rxFifo].Where(m => m.BelongsToMaster == !IsSlave))
             {
                 if(filterBank.Active == true &&
                         filterBank.MatchMessage(msg) == true)
@@ -694,10 +694,10 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     // Transmit data
                     // registers.CAN_TDT0R = timestamp_me; FIXME
-                    CANMessage txMsg = new CANMessage(registers.CAN_TI0R.GetValue(),
-                                                              registers.CAN_TDT0R,
-                                                              registers.CAN_TDL0R,
-                                                              registers.CAN_TDH0R);
+                    var txMsg = new CANMessage(registers.CAN_TI0R.GetValue(),
+                                                         registers.CAN_TDT0R,
+                                                         registers.CAN_TDL0R,
+                                                         registers.CAN_TDH0R);
                     TransmitData(txMsg);
 
                     // Transmition done
@@ -722,10 +722,10 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     // Transmit data
                     // registers.CAN_TDT1R = timestamp_me; FIXME
-                    CANMessage txMsg = new CANMessage(registers.CAN_TI1R.GetValue(),
-                                                              registers.CAN_TDT1R,
-                                                              registers.CAN_TDL1R,
-                                                              registers.CAN_TDH1R);
+                    var txMsg = new CANMessage(registers.CAN_TI1R.GetValue(),
+                                                         registers.CAN_TDT1R,
+                                                         registers.CAN_TDL1R,
+                                                         registers.CAN_TDH1R);
                     TransmitData(txMsg);
 
                     // Transmition done
@@ -750,10 +750,10 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     // Transmit data
                     // registers.CAN_TDT2R = timestamp_me; FIXME
-                    CANMessage txMsg = new CANMessage(registers.CAN_TI2R.GetValue(),
-                                                              registers.CAN_TDT2R,
-                                                              registers.CAN_TDL2R,
-                                                              registers.CAN_TDH2R);
+                    var txMsg = new CANMessage(registers.CAN_TI2R.GetValue(),
+                                                         registers.CAN_TDT2R,
+                                                         registers.CAN_TDL2R,
+                                                         registers.CAN_TDH2R);
                     TransmitData(txMsg);
 
                     // Transmition done
@@ -835,7 +835,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             public bool MatchMessage(CANMessage msg)
             {
-                Filter[] filters = ExtractFilters();
+                var filters = ExtractFilters();
                 int numOfFilters = (Scale == FilterBankScale.FilterScale32Bit) ? 2 : 4;
                 uint filterNumber = FirstFilterNumber;
 

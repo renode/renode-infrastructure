@@ -67,7 +67,7 @@ namespace Antmicro.Renode.UI
                 return function();
             }
 
-            T result = default(T);
+            var result = default(T);
             var mre = new ManualResetEventSlim();
 
             Application.Invoke(() =>

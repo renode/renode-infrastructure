@@ -373,7 +373,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         public void AttachDevice(IUSBPeripheral device, byte port)
         {
             registeredDevices.Add(port, device);
-            PortStatusAndControlRegisterChanges change = portStatusControl[port - 1].Attach(device);
+            var change = portStatusControl[port - 1].Attach(device);
 
             if(change.ConnectChange)
             {
@@ -545,7 +545,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     }
                 }
 
-                IUSBPeripheral targetDevice = GetTargetDevice(qh);
+                var targetDevice = GetTargetDevice(qh);
                 if(targetDevice == null)
                 {
                     return;

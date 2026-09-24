@@ -77,7 +77,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
 
         private byte[] GetHashedBytes(int count, byte[] input)
         {
-            using(SHA256 sha256Hash = SHA256.Create())
+            using(var sha256Hash = SHA256.Create())
             {
                 return sha256Hash.ComputeHash(input, 0, count);
             }

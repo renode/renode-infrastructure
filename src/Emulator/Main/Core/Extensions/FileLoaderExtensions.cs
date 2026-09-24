@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Core.Extensions
         public static void LoadBinary(this ICanLoadFiles loader, ReadFilePath fileName, ulong loadPoint, ICPU cpu = null, long offset = 0, ulong? size = null)
         {
             const int bufferSize = 100 * 1024;
-            List<FileChunk> chunks = new List<FileChunk>();
+            var chunks = new List<FileChunk>();
 
             Logger.LogAs(loader, LogLevel.Debug, "Loading binary file {0}.", fileName);
 
@@ -95,7 +95,7 @@ namespace Antmicro.Renode.Core.Extensions
             ulong extendedTargetAddress = 0;
             ulong extendedSegmentAddress = 0;
             bool endOfFileReached = false;
-            List<FileChunk> chunks = new List<FileChunk>();
+            var chunks = new List<FileChunk>();
 
             Logger.LogAs(loader, LogLevel.Debug, "Loading HEX file {0}.", fileName);
             try
@@ -209,7 +209,7 @@ namespace Antmicro.Renode.Core.Extensions
             string line = "";
             int lineNum = 1;
             bool endOfFileReached = false;
-            List<FileChunk> chunks = new List<FileChunk>();
+            var chunks = new List<FileChunk>();
             Range? currentSegmentInfo = null;
 
             Logger.LogAs(loader, LogLevel.Debug, "Loading S-record file {0}.", fileName);
@@ -430,7 +430,7 @@ namespace Antmicro.Renode.Core.Extensions
                     throw new RecoverableException($"ELF '{fileName}' has no loadable segments.");
                 }
 
-                List<FileChunk> chunks = new List<FileChunk>();
+                var chunks = new List<FileChunk>();
                 foreach(var s in segmentsToLoad)
                 {
                     var contents = s.GetContents();
@@ -474,7 +474,7 @@ namespace Antmicro.Renode.Core.Extensions
 
             chunks.Sort((lhs, rhs) => lhs.OffsetToLoad.CompareTo(rhs.OffsetToLoad));
 
-            List<FileChunk> joinedChunks = new List<FileChunk>();
+            var joinedChunks = new List<FileChunk>();
             var nextOffset = chunks[0].OffsetToLoad;
             var firstChunkIdx = 0;
 

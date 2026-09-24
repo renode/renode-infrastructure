@@ -95,9 +95,9 @@ namespace Antmicro.Renode.Utilities.RESD
         public static IManagedThread StartSampleFeedThread<T>(this RESDStream<T> @this, IUnderstandRESD owner, TimeInterval period,
             ulong startTime = 0, string domain = null, bool shouldStop = true) where T : RESDSample, new()
         {
-            Action<T, TimeInterval> beforeCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.BeforeStream, @this.Channel, domain);
-            Action<T, TimeInterval> currentCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
-            Action<T, TimeInterval> afterCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
+            var beforeCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.BeforeStream, @this.Channel, domain);
+            var currentCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
+            var afterCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
             Action<T, TimeInterval, RESDStreamStatus> sampleCallback = (sample, ts, status) =>
             {
                 switch(status)
@@ -119,9 +119,9 @@ namespace Antmicro.Renode.Utilities.RESD
         public static IManagedThread StartSampleFeedThread<T>(this RESDStream<T> @this, IUnderstandRESD owner, uint frequency,
             ulong startTime = 0, string domain = null, bool shouldStop = true) where T : RESDSample, new()
         {
-            Action<T, TimeInterval> beforeCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.BeforeStream, @this.Channel, domain);
-            Action<T, TimeInterval> currentCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
-            Action<T, TimeInterval> afterCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
+            var beforeCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.BeforeStream, @this.Channel, domain);
+            var currentCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
+            var afterCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
             Action<T, TimeInterval, RESDStreamStatus> sampleCallback = (sample, ts, status) =>
             {
                 switch(status)
@@ -143,8 +143,8 @@ namespace Antmicro.Renode.Utilities.RESD
         public static ISimpleManagedThread StartExactSampleFeedThread<T>(this RESDStream<T> @this, IUnderstandRESD owner,
             ulong startTime = 0, string domain = null) where T : RESDSample, new()
         {
-            Action<T, TimeInterval> currentCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
-            Action<T, TimeInterval> afterCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
+            var currentCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
+            var afterCallback = FindCallback<T>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
             Action<T, TimeInterval, RESDStreamStatus> sampleCallback = (sample, ts, status) =>
             {
                 switch(status)
@@ -163,9 +163,9 @@ namespace Antmicro.Renode.Utilities.RESD
         public static IManagedThread StartSampleFeedThread<T, Out>(this RESDStream<T, Out> @this, IUnderstandRESD owner, uint frequency,
             ulong startTime = 0, string domain = null, bool shouldStop = true) where T : RESDSample, new()
         {
-            Action<Out, TimeInterval> beforeCallback = FindCallback<Out>(owner, @this.SampleType, RESDStreamStatus.BeforeStream, @this.Channel, domain);
-            Action<Out, TimeInterval> currentCallback = FindCallback<Out>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
-            Action<Out, TimeInterval> afterCallback = FindCallback<Out>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
+            var beforeCallback = FindCallback<Out>(owner, @this.SampleType, RESDStreamStatus.BeforeStream, @this.Channel, domain);
+            var currentCallback = FindCallback<Out>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
+            var afterCallback = FindCallback<Out>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
             Action<Out, TimeInterval, RESDStreamStatus> sampleCallback = (sample, ts, status) =>
             {
                 switch(status)
@@ -187,8 +187,8 @@ namespace Antmicro.Renode.Utilities.RESD
         public static ISimpleManagedThread StartExactSampleFeedThread<T, Out>(this RESDStream<T, Out> @this, IUnderstandRESD owner,
             ulong startTime = 0, string domain = null) where T : RESDSample, new()
         {
-            Action<Out, TimeInterval> currentCallback = FindCallback<Out>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
-            Action<Out, TimeInterval> afterCallback = FindCallback<Out>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
+            var currentCallback = FindCallback<Out>(owner, @this.SampleType, RESDStreamStatus.OK, @this.Channel, domain);
+            var afterCallback = FindCallback<Out>(owner, @this.SampleType, RESDStreamStatus.AfterStream, @this.Channel, domain);
             Action<Out, TimeInterval, RESDStreamStatus> sampleCallback = (sample, ts, status) =>
             {
                 switch(status)

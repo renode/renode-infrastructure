@@ -374,7 +374,7 @@ namespace Antmicro.Renode.Peripherals.USB
         {
             // Define all possible endpoints as available right away
             // This is to be improved in the future and should reflect what software returns as a result of enumaration, but will require support from `USB` subsystem in Renode
-            USBConfiguration config = new USBConfiguration(this, 0, "").WithInterface(
+            var config = new USBConfiguration(this, 0, "").WithInterface(
                     configure: x =>
                         x.WithEndpoint(
                             Direction.DeviceToHost,

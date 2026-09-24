@@ -136,7 +136,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         public byte[] GetStatus(USBPacket packet, USBSetupPacket setupPacket)
         {
             var arr = new byte[2];
-            MessageRecipient recipient = (MessageRecipient)(setupPacket.RequestType & 0x3);
+            var recipient = (MessageRecipient)(setupPacket.RequestType & 0x3);
             switch(recipient)
             {
             case MessageRecipient.Device:

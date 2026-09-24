@@ -175,7 +175,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public string DumpRegisters()
         {
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
             for(var i = 0; i < 16; ++i)
             {
                 if(i > 0)

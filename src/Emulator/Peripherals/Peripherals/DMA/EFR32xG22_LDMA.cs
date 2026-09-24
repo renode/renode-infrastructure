@@ -202,7 +202,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private DoubleWordRegisterCollection BuildLdmaRegisters()
         {
-            DoubleWordRegisterCollection c =  new DoubleWordRegisterCollection(this, new Dictionary<long, DoubleWordRegister>
+            var c =  new DoubleWordRegisterCollection(this, new Dictionary<long, DoubleWordRegister>
             {
                 {(long)LdmaRegisters.CTRL, new DoubleWordRegister(this)
                     .WithReservedBits(0, 24)
@@ -293,7 +293,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private DoubleWordRegisterCollection BuildLdmaXbarRegisters()
         {
-            DoubleWordRegisterCollection c =  new DoubleWordRegisterCollection(this, new Dictionary<long, DoubleWordRegister>());
+            var c =  new DoubleWordRegisterCollection(this, new Dictionary<long, DoubleWordRegister>());
 
             var channelDelta = (uint)((long)LdmaXbarRegisters.XBAR_CH1_REQSEL - (long)LdmaXbarRegisters.XBAR_CH0_REQSEL);
             BindRegisters(LdmaXbarRegisters.XBAR_CH0_REQSEL, c, NumberOfChannels, i => channels[i].PeripheralRequestSelectRegister, channelDelta);

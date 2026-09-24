@@ -497,7 +497,7 @@ namespace Antmicro.Renode.Core
 
         public IEnumerable<IEmulationElement> GetEmulationElements()
         {
-            IEnumerable<IEmulationElement> elements = Machines.Cast<IEmulationElement>();
+            var elements = Machines.Cast<IEmulationElement>();
 
             foreach(var machine in Machines)
             {

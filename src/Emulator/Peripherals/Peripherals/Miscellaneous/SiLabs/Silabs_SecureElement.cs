@@ -211,7 +211,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 return ResponseCode.Abort;
             }
 
-            ShaMode hashMode = (ShaMode)((commandOptions & 0xF00) >> 8);
+            var hashMode = (ShaMode)((commandOptions & 0xF00) >> 8);
             uint dataSize = commandParams[0];
             uint counter = (commandParamsCount == 2) ? commandParams[1] : 0;
 
@@ -289,8 +289,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 return ResponseCode.Abort;
             }
 
-            CryptoMode cryptoMode = (CryptoMode)((commandOptions & 0xF00) >> 8);
-            ContextMode contextMode = (ContextMode)(commandOptions & 0xF);
+            var cryptoMode = (CryptoMode)((commandOptions & 0xF00) >> 8);
+            var contextMode = (ContextMode)(commandOptions & 0xF);
 
             parent.Log(LogLevel.Noisy, "AES_ENCRYPT/DECRYPT: cryptoMode={0} contextMode={1}", cryptoMode, contextMode);
 
@@ -327,7 +327,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                      keyPtr, keyLength, transferOptions, nextDescriptorPtr);
             byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);
             parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
-            KeyParameter keyParameter = new KeyParameter(key);
+            var keyParameter = new KeyParameter(key);
 
             // Third input DMA descriptor contains the IV (for whole or start of message) or context (for middle/end)
             // The input IV/Context size is 0 for ECB mode and 16 for all other modes
@@ -487,7 +487,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                      keyPtr, keyLength, transferOptions, nextDescriptorPtr);
             byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);
             parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
-            KeyParameter keyParameter = new KeyParameter(key);
+            var keyParameter = new KeyParameter(key);
 
             // Third input DMA descriptor contains the input data
             uint inputDataPtr;
@@ -507,7 +507,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                      outputDataPtr, outputDataLength, transferOptions, nextDescriptorPtr);
             byte[] outputData = new byte[outputDataLength];
 
-            CMac cmac = new CMac(new AesEngine());
+            var cmac = new CMac(new AesEngine());
             cmac.Init(keyParameter);
             cmac.BlockUpdate(inputData, 0, (int)inputDataLength);
             cmac.DoFinal(outputData, 0);
@@ -560,7 +560,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                      keyPtr, keyLength, transferOptions, nextDescriptorPtr);
             byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);
             parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
-            KeyParameter keyParameter = new KeyParameter(key);
+            var keyParameter = new KeyParameter(key);
 
             // Third input DMA descriptor contains the nonce data
             uint noncePtr;
@@ -606,8 +606,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "AES_CCM_ENCRYPT: OUTPUT1: outputTagPtr=0x{0:X} outputTagLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                      outputTagPtr, outputTagLength, transferOptions, nextDescriptorPtr);
 
-            CcmBlockCipher cipher = new CcmBlockCipher(new AesEngine());
-            AeadParameters parameters = new AeadParameters(keyParameter, (int)outputTagLength*8, nonce, aad);
+            var cipher = new CcmBlockCipher(new AesEngine());
+            var parameters = new AeadParameters(keyParameter, (int)outputTagLength*8, nonce, aad);
             cipher.Init(true, parameters);
 
             byte[] outputDataAndTag = new byte[outputDataLength + outputTagLength];
@@ -663,7 +663,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                      keyPtr, keyLength, transferOptions, nextDescriptorPtr);
             byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);
             parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
-            KeyParameter keyParameter = new KeyParameter(key);
+            var keyParameter = new KeyParameter(key);
 
             // Third input DMA descriptor contains the nonce data
             uint noncePtr;
@@ -712,8 +712,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                      outputDataPtr, outputDataLength, transferOptions, nextDescriptorPtr);
             byte[] outputData = new byte[outputDataLength];
 
-            CcmBlockCipher cipher = new CcmBlockCipher(new AesEngine());
-            AeadParameters parameters = new AeadParameters(keyParameter, (int)tagLength*8, nonce, aad);
+            var cipher = new CcmBlockCipher(new AesEngine());
+            var parameters = new AeadParameters(keyParameter, (int)tagLength*8, nonce, aad);
             cipher.Init(false, parameters);
             bool tagMatch = true;
 
@@ -759,7 +759,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             // Extract Command Options
             uint tagLength = GetTagLength((commandOptions >> 8) & 0xFF);
-            ContextMode contextMode = (ContextMode)(commandOptions & 0xFF);
+            var contextMode = (ContextMode)(commandOptions & 0xFF);
 
             parent.Log(LogLevel.Noisy, "AES_GCM_ENCRYPT: Command Params: aadSize={0} inputDataSize={1} Command Options: contextMode={2} tagLength={3}",
                     associatedAuthenticatedDataSize, inputDataSize, contextMode, tagLength);
@@ -787,7 +787,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     keyPtr, keyLength, transferOptions, nextDescriptorPtr);
             byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);
             parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
-            KeyParameter keyParameter = new KeyParameter(key);
+            var keyParameter = new KeyParameter(key);
 
             // Third input DMA descriptor contains the IV (for Whole or Start) or context data (for Middle or End)
             uint ivPtr;
@@ -857,8 +857,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             parent.Log(LogLevel.Noisy, "AES_GCM_ENCRYPT: OUTPUT1: outputContextPtr=0x{0:X} outputContextLength={1} options={2} nextDescriptorPtr=0x{3:X}",
                     outputContextPtr, outputContextLength, transferOptions, nextDescriptorPtr);
 
-            GcmBlockCipher cipher = new GcmBlockCipher(new AesEngine());
-            AeadParameters parameters = new AeadParameters(keyParameter, (int)tagLength*8, iv, aad);
+            var cipher = new GcmBlockCipher(new AesEngine());
+            var parameters = new AeadParameters(keyParameter, (int)tagLength*8, iv, aad);
             cipher.Init(true, parameters);
 
             byte[] outputDataAndTag = new byte[outputDataLength + tagLength];
@@ -894,7 +894,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             // Extract Command Options
             uint tagLength = GetTagLength((commandOptions >> 8) & 0xFF);
-            ContextMode contextMode = (ContextMode)(commandOptions & 0xFF);
+            var contextMode = (ContextMode)(commandOptions & 0xFF);
 
             parent.Log(LogLevel.Noisy, "AES_GCM_DECRYPT: Command Params: aadSize={0} inputDataSize={1} Command Options: contextMode={2} tagLength={3}",
                     associatedAuthenticatedDataSize, inputDataSize, contextMode, tagLength);
@@ -922,7 +922,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     keyPtr, keyLength, transferOptions, nextDescriptorPtr);
             byte[] key = CheckAndRetrieveKey(keyType, keyMode, keyIndex, keyPtr);
             parent.Log(LogLevel.Noisy, "Key=[{0}]", BitConverter.ToString(key));
-            KeyParameter keyParameter = new KeyParameter(key);
+            var keyParameter = new KeyParameter(key);
 
             // Third input DMA descriptor contains the IV (for Whole or Start) or context data (for Middle or End)
             uint ivPtr;
@@ -1008,8 +1008,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                         outputContextPtr, outputContextLength, transferOptions, nextDescriptorPtr);
             }
 
-            GcmBlockCipher cipher = new GcmBlockCipher(new AesEngine());
-            AeadParameters parameters = new AeadParameters(keyParameter, (int)tagLength*8, iv, aad);
+            var cipher = new GcmBlockCipher(new AesEngine());
+            var parameters = new AeadParameters(keyParameter, (int)tagLength*8, iv, aad);
             cipher.Init(false, parameters);
 
             bool tagMatch = true;
@@ -1077,7 +1077,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             }
 
             uint readLocation = commandOptions >> 12;
-            ReadDeviceDataLocationType readLocationType = (ReadDeviceDataLocationType)(readLocation >> 4);
+            var readLocationType = (ReadDeviceDataLocationType)(readLocation >> 4);
 
             switch(readLocationType)
             {
@@ -1094,7 +1094,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 return ResponseCode.InvalidParameter;
             }
 
-            DeviceDataReadSize readSize = (DeviceDataReadSize)(commandOptions & 0xFF);
+            var readSize = (DeviceDataReadSize)(commandOptions & 0xFF);
             uint output = 1;
 
             switch(readSize)
@@ -1328,7 +1328,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 return ResponseCode.Abort;
             }
 
-            ShaMode hashMode = (ShaMode)((commandOptions & 0xF00) >> 8);
+            var hashMode = (ShaMode)((commandOptions & 0xF00) >> 8);
             uint dataSize = commandParams[0];
 
             parent.Log(LogLevel.Noisy, "HASH: mode={0} dataSize={1}", hashMode, dataSize);
@@ -1351,7 +1351,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     outputDigestDescriptorPtr, outputDigestLength, transferOptions, nextDescriptorPtr);
             byte[] digest = new byte[outputDigestLength];
 
-            IDigest hashEngine = CreateHashEngine(hashMode);
+            var hashEngine = CreateHashEngine(hashMode);
 
             if(hashEngine == null)
             {

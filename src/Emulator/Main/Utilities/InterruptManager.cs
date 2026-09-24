@@ -94,7 +94,7 @@ namespace Antmicro.Renode.Utilities
                 }
 
                 var gpio = subvectorIdToGpio[subvectorId];
-                if(!subvectors.TryGetValue(gpio, out HashSet<TInterrupt> interrupts))
+                if(!subvectors.TryGetValue(gpio, out var interrupts))
                 {
                     interrupts = new HashSet<TInterrupt>();
                     subvectors.Add(gpio, interrupts);

@@ -370,7 +370,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 parent.Log(LogLevel.Error, "Insufficient Control Message size: {0}", length);
                 return false;
             }
-            ControlMessage msg = Packet.Decode<ControlMessage>(buf);
+            var msg = Packet.Decode<ControlMessage>(buf);
             var eventId = (ControlMessageEvent)msg.Event;
             parent.Log(LogLevel.Debug, "Port {0}: Transmit Id {1} Event {2} Val {3}", port.PortID, msg.ID, eventId, msg.Value);
             parent.ProcessControlMessage(msg);

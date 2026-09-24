@@ -186,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 {
                     if((PortFeature)value == PortFeature.PortReset)
                     {
-                        IUSBPeripheral device = GetDevice((byte)(index));
+                        var device = GetDevice((byte)(index));
                         Ports[index - 1] |= (uint)PortStatus.CPortReset;
                         Ports[index - 1] |= (uint)PortStatus.PortEnable;
                         if(device != null)
@@ -301,7 +301,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         public byte[] GetStatus(USBPacket packet, USBSetupPacket setupPacket)
         {
             var arr = new byte[2];
-            MessageRecipient recipient = (MessageRecipient)(setupPacket.RequestType & 0x3);
+            var recipient = (MessageRecipient)(setupPacket.RequestType & 0x3);
             switch(recipient)
             {
             case MessageRecipient.Device:

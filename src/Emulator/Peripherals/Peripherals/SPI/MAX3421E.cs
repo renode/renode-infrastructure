@@ -397,7 +397,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 return;
             }
 
-            IUSBConnection device = deviceToConnection.FirstOrDefault(x => x.Key.Address == deviceAddress.Value).Value;
+            var device = deviceToConnection.FirstOrDefault(x => x.Key.Address == deviceAddress.Value).Value;
             if(device == null)
             {
                 this.Log(LogLevel.Warning, "Tried to send setup packet to a device with address 0x{0:X}, but it's not connected", deviceAddress.Value);

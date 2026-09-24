@@ -33,7 +33,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             // First we check if there is already a packet from this sender in the queue. If that is the case,
             // it should be stale and we are going to remove it.
-            PacketInfo entry = PacketLookup(sender);
+            var entry = PacketLookup(sender);
             if(entry != null)
             {
                 if(!entry.PacketIsStale)
@@ -44,8 +44,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 Remove(sender);
             }
 
-            TimeInterval addTime = IPeripheralExtensions.GetMachine(sender).LocalTimeSource.ElapsedVirtualTime;
-            PacketInfo newEntry = new PacketInfo(sender, phyId, channel, txPowerDbm, content);
+            var addTime = IPeripheralExtensions.GetMachine(sender).LocalTimeSource.ElapsedVirtualTime;
+            var newEntry = new PacketInfo(sender, phyId, channel, txPowerDbm, content);
             newEntry.StartTxTimestamp = addTime;
             overTheAirPackets.Add(newEntry);
             Logger.Log(LogLevel.Noisy, "InterferenceQueue.Add at {0}: [{1}]", addTime, BitConverter.ToString(content));
@@ -54,7 +54,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public static void Remove(IRadio sender)
         {
-            PacketInfo entry = PacketLookup(sender);
+            var entry = PacketLookup(sender);
 
             if(entry == null)
             {
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
             // Here we want to look up also stale packets, since it is possible that the sender already "completed"
             // the transmission while the receiver hasn't been notified yet (possibly due to a combination of the packet
             // being short and the QuantumTime being long enough).
-            PacketInfo entry = PacketLookup(sender);
+            var entry = PacketLookup(sender);
 
             if(entry == null)
             {
@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 return RssiBusyChannelHardCodedValueDbm;
             }
 
-            foreach(PacketInfo entry in overTheAirPackets)
+            foreach(var entry in overTheAirPackets)
             {
                 if(entry.PhyId == phyId && entry.Channel == channel)
                 {
@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private static PacketInfo PacketLookup(IRadio sender)
         {
-            foreach(PacketInfo entry in overTheAirPackets)
+            foreach(var entry in overTheAirPackets)
             {
                 if(entry.Sender == sender)
                 {
@@ -141,7 +141,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private static void NotifyListeners()
         {
-            foreach(IInterferenceQueueListener listener in listeners)
+            foreach(var listener in listeners)
             {
                 listener.InteferenceQueueChangedCallback();
             }

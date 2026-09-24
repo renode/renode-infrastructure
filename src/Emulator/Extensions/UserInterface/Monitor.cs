@@ -167,7 +167,7 @@ namespace Antmicro.Renode.UserInterface
             var tokens = tokensToParse.ToList();
             foreach(var token in tokens)
             {
-                Token resultToken = token;
+                var resultToken = token;
                 if(token is CommentToken)
                 {
                     continue;

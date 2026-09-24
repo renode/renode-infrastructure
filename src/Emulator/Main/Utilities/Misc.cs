@@ -462,14 +462,14 @@ namespace Antmicro.Renode.Utilities
             Action<uint> writeFunction;
             if(@this is ByteRegisterCollection)
             {
-                ByteRegisterCollection byteRegisterCollection = @this as ByteRegisterCollection;
+                var byteRegisterCollection = @this as ByteRegisterCollection;
                 innerOffset = 0;
                 previousValue = (uint)byteRegisterCollection.Read(register);
                 writeFunction = (data) => byteRegisterCollection.Write(register, (byte)data);
             }
             else if(@this is WordRegisterCollection)
             {
-                WordRegisterCollection wordRegisterCollection = @this as WordRegisterCollection;
+                var wordRegisterCollection = @this as WordRegisterCollection;
                 innerOffset = offset % 2;
                 if(msbFirst)
                 {
@@ -480,7 +480,7 @@ namespace Antmicro.Renode.Utilities
             }
             else if(@this is DoubleWordRegisterCollection)
             {
-                DoubleWordRegisterCollection doubleWordRegisterCollection = @this as DoubleWordRegisterCollection;
+                var doubleWordRegisterCollection = @this as DoubleWordRegisterCollection;
                 innerOffset = offset % 4;
                 if(msbFirst)
                 {
@@ -504,13 +504,13 @@ namespace Antmicro.Renode.Utilities
             uint outputValue;
             if(@this is ByteRegisterCollection)
             {
-                ByteRegisterCollection byteRegisterCollection = @this as ByteRegisterCollection;
+                var byteRegisterCollection = @this as ByteRegisterCollection;
                 innerOffset = 0;
                 outputValue = (uint)byteRegisterCollection.Read(register);
             }
             else if(@this is WordRegisterCollection)
             {
-                WordRegisterCollection wordRegisterCollection = @this as WordRegisterCollection;
+                var wordRegisterCollection = @this as WordRegisterCollection;
                 innerOffset = offset % 2;
                 if(msbFirst)
                 {
@@ -520,7 +520,7 @@ namespace Antmicro.Renode.Utilities
             }
             else if(@this is DoubleWordRegisterCollection)
             {
-                DoubleWordRegisterCollection doubleWordRegisterCollection = @this as DoubleWordRegisterCollection;
+                var doubleWordRegisterCollection = @this as DoubleWordRegisterCollection;
                 innerOffset = offset % 4;
                 if(msbFirst)
                 {
@@ -647,7 +647,7 @@ namespace Antmicro.Renode.Utilities
 
         public static void Swap<T>(ref T a, ref T b)
         {
-            T temporary = a;
+            var temporary = a;
             a = b;
             b = temporary;
         }
@@ -874,7 +874,7 @@ namespace Antmicro.Renode.Utilities
         public static bool TryFromResourceToTemporaryFile(this Assembly assembly, string resourceName, out string outputFileFullPath, string nonstandardOutputFilename = null)
         {
             // `GetManifestResourceStream` is not supported by dynamic assemblies
-            Stream libraryStream = assembly.IsDynamic
+            var libraryStream = assembly.IsDynamic
                 ? null
                 : assembly.GetManifestResourceStream(resourceName);
 

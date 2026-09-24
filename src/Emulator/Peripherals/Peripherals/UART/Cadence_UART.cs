@@ -297,7 +297,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void UpdateSticky()
         {
-            foreach(CadenceInterruptFlag flag in GetInterruptFlags())
+            foreach(var flag in GetInterruptFlags())
             {
                 flag.UpdateStickyStatus();
             }

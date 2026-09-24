@@ -1169,7 +1169,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public void ReceiveFrame(byte[] frame, IRadio sender)
         {
-            TimeInterval txStartTime = InterferenceQueue.GetTxStartTime(sender);
+            var txStartTime = InterferenceQueue.GetTxStartTime(sender);
             var txRxSimulatorDelayUs = (GetTime() - txStartTime).TotalMicroseconds;
 
             this.Log(LogBasicRadioActivityAsError ? LogLevel.Error : LogLevel.Info, "ReceiveFrame() at {0} on channel {1} ({2}), TX started at {3} (diff: {4})",
@@ -4657,7 +4657,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             machine.ClockSource.ExecuteInLock(delegate
             {
-                RAC_RadioState previousState = RAC_currentRadioState;
+                var previousState = RAC_currentRadioState;
 
                 // Super State Transition Priority
                 // 1. RESET

@@ -224,7 +224,7 @@ namespace Antmicro.Renode.Utilities.GDB
                         }
 
                         // Get to the innermost exception, as it will have the reason for the error.
-                        Exception innermostException = e;
+                        var innermostException = e;
                         while(innermostException.InnerException != null)
                         {
                             innermostException = innermostException.InnerException;

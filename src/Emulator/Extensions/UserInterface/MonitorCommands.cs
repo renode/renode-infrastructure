@@ -650,7 +650,7 @@ namespace Antmicro.Renode.UserInterface
             }
 
             //Grab all arguments that we can treat as positional off the front
-            List<TokenList> positionalValues = new List<TokenList>(valueCount);
+            var positionalValues = new List<TokenList>(valueCount);
             for(int i = 0; i < valueCount; ++i)
             {
                 if(!indexedValues.TryGetValue(i, out var value))

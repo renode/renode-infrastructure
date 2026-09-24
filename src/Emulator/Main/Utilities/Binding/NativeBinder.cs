@@ -277,12 +277,12 @@ namespace Antmicro.Renode.Utilities.Binding
             var throwExceptions = typeof(ExceptionKeeper).GetMethod(nameof(ExceptionKeeper.ThrowExceptions));
             var importType = importField.FieldType;
             var invoke = importType.GetMethod("Invoke");
-            Type[] paramTypes = invoke.GetParameters().Select(p => p.ParameterType).ToArray();
-            Type[] paramTypesWithWrappersType = new Type[] { wrappersType }.Concat(paramTypes).ToArray();
+            var paramTypes = invoke.GetParameters().Select(p => p.ParameterType).ToArray();
+            var paramTypesWithWrappersType = new Type[] { wrappersType }.Concat(paramTypes).ToArray();
             // We need skipVisibility to handle methods that have a protected or private type as a parameter or return value.
             // Interesting tidbit: this access check is only performed by .NET Framework, Mono and .NET Core allow it
             // without skipVisibility.
-            DynamicMethod method = new DynamicMethod(importField.Name, invoke.ReturnType, paramTypesWithWrappersType, wrappersType, skipVisibility: true);
+            var method = new DynamicMethod(importField.Name, invoke.ReturnType, paramTypesWithWrappersType, wrappersType, skipVisibility: true);
             var il = method.GetILGenerator();
 
             il.Emit(OpCodes.Ldarg_0); // wrappersType instance
@@ -351,8 +351,8 @@ namespace Antmicro.Renode.Utilities.Binding
             var addException = typeof(ExceptionKeeper).GetMethod(nameof(ExceptionKeeper.AddException));
             var nativeUnwind = classToBind.GetType().GetMethod(nameof(INativeUnwindable.NativeUnwind));
 
-            Type[] paramTypes = innerMethod.GetParameters().Select(p => p.ParameterType).ToArray();
-            Type[] paramTypesWithWrappersType = new Type[] { wrappersType }.Concat(paramTypes).ToArray();
+            var paramTypes = innerMethod.GetParameters().Select(p => p.ParameterType).ToArray();
+            var paramTypesWithWrappersType = new Type[] { wrappersType }.Concat(paramTypes).ToArray();
             // We need skipVisibility to be able to access superclass private methods.
             var attacheeWrapper = new DynamicMethod(innerMethod.Name + "Wrapper", innerMethod.ReturnType, paramTypesWithWrappersType, wrappersType, skipVisibility: true);
             var il = attacheeWrapper.GetILGenerator();
@@ -363,7 +363,7 @@ namespace Antmicro.Renode.Utilities.Binding
             }
             var exception = il.DeclareLocal(typeof(Exception));
 
-            Label @try = il.BeginExceptionBlock();
+            var @try = il.BeginExceptionBlock();
             il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Ldfld, instanceField);
             for(int i = 0; i < paramTypes.Length; ++i)

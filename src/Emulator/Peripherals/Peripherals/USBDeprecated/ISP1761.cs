@@ -68,7 +68,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         {
             lock(thisLock)
             {
-                PTDheader ptdh = new PTDheader();
+                var ptdh = new PTDheader();
 
                 for(int p = 0; p < 32; p++)
                     if((atlSkipMap & (1 << p)) == 0)
@@ -437,7 +437,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             {
                 uint portNumber = (uint)(address - (uint)Offset.PortStatusControl) / 4;
 
-                PortStatusAndControlRegisterChanges change = PortSc[portNumber].SetValue(value);
+                var change = PortSc[portNumber].SetValue(value);
                 if(change.ConnectChange == true)
                 {
                     UsbSts |= (uint)InterruptMask.PortChange;
@@ -456,7 +456,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 {
                     ptdi[(address - 0x800) / 32].DW0 = value;
 
-                    PTDheader ptdh = new PTDheader();
+                    var ptdh = new PTDheader();
                     ptdh.V = (ptdi[(address - 0x800) / 32].DW0) & 0x1;
                     ptdh.NrBytesToTransfer = (ptdi[(address - 0x800) / 32].DW0 >> 3) & 0x7fff;
                     ptdh.MaxPacketLength = (ptdi[(address - 0x800) / 32].DW0 >> 18) & 0x7ff;
@@ -551,7 +551,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 {
                     ptd[(address - 0xc00) / 32].DW0 = value;
 
-                    PTDheader ptdh = new PTDheader();
+                    var ptdh = new PTDheader();
                     ptdh.V = (ptd[(address - 0xc00) / 32].DW0) & 0x1;
                     ptdh.NrBytesToTransfer = (ptd[(address - 0xc00) / 32].DW0 >> 3) & 0x7fff;
                     ptdh.MaxPacketLength = (ptd[(address - 0xc00) / 32].DW0 >> 18) & 0x7ff;
@@ -645,7 +645,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             }
             else
             {
-                PTDheader ptdh = new PTDheader();
+                var ptdh = new PTDheader();
                 switch((Offset)address)
                 {
                 case Offset.UsbCommand:
@@ -870,7 +870,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
                 if(firstReset)
                 {
-                    PortStatusAndControlRegisterChanges change = PortSc[i].Attach();
+                    var change = PortSc[i].Attach();
                     firstReset = false;
                     //}
 
@@ -895,7 +895,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         {
             registeredDevices.Add(port, device);
 
-            PortStatusAndControlRegisterChanges change = PortSc[port - 1].Attach();
+            var change = PortSc[port - 1].Attach();
 
             if(change.ConnectChange == true)
             {
@@ -917,7 +917,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         public void AttachHUBDevice(uint addr)
         {
-            PTDheader ptdh = new PTDheader();
+            var ptdh = new PTDheader();
             for(int p = 0; p < 32; p++)
                 // int p=0;
                 //int p=0;
@@ -999,7 +999,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         public void DetachHUBDevice(uint addr, uint port)
         {
-            PTDheader ptdh = new PTDheader();
+            var ptdh = new PTDheader();
             for(int p = 0; p < 32; p++)
 
                 if(((1 << p) ^ (intSkipMap & (1 << p))) != 0)
@@ -1102,7 +1102,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         public void ProcessINT()
         {
-            PTDheader ptdh = new PTDheader();
+            var ptdh = new PTDheader();
             for(int p = 0; p < 32; p++)
                 if(((1 << p) ^ (intSkipMap & (1 << p))) != 0)
                 {
@@ -1331,7 +1331,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
 
         public void ProcessINT(uint addr)
         {
-            PTDheader ptdh = new PTDheader();
+            var ptdh = new PTDheader();
             for(int p = 0; p < 32; p++)
                 if(((1 << p) ^ (intSkipMap & (1 << p))) != 0)
                 {
@@ -1525,7 +1525,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
             {
                 if(adressedDevices.ContainsKey(deviceAddress))
                 {
-                    IUSBPeripheral device = adressedDevices[deviceAddress];
+                    var device = adressedDevices[deviceAddress];
                     return device;
                 }
                 else
@@ -1557,7 +1557,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 }
                 else
                 {
-                    IUSBPeripheral device = registeredDevices[(byte)(portNumber + (byte)1)];
+                    var device = registeredDevices[(byte)(portNumber + (byte)1)];
                     return device;
                 }
             }

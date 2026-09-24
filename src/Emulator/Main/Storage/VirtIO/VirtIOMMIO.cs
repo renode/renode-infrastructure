@@ -143,7 +143,7 @@ namespace Antmicro.Renode.Peripherals.Storage
                 .WithValueField(0, 32, FieldMode.Write, name: "queue_num",
                     writeCallback: (_, val) =>
                     {
-                        Virtqueue vqueue = Virtqueues[QueueSel];
+                        var vqueue = Virtqueues[QueueSel];
                         if(val > vqueue.MaxSize)
                         {
                             this.Log(LogLevel.Error, "Virtqueue size exceeded max available value!");

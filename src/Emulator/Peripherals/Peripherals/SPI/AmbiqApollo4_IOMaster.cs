@@ -939,7 +939,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             public override string ToString()
             {
-                StringBuilder builder = new StringBuilder();
+                var builder = new StringBuilder();
                 builder.AppendFormat("{0}: ", name);
                 builder.AppendFormat("Count: {0}; values: ", Count, headIndex, tailIndex);
                 for(int index = headIndex; index < headIndex + Count; index++)

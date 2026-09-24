@@ -331,8 +331,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         partial void Calcnt_Calcnt_ValueProvider(ulong a)
         {
             // A dictionnary to get get the Upsel frequency based on the selected clock source.
-            Dictionary<CALCTRL_UPSEL, ulong> getUpselFrequency =
-                new Dictionary<CALCTRL_UPSEL, ulong>();
+            var getUpselFrequency = new Dictionary<CALCTRL_UPSEL, ulong>();
             getUpselFrequency[CALCTRL_UPSEL.DISABLED] = 0;
             getUpselFrequency[CALCTRL_UPSEL.PRS] = 32768UL;
             getUpselFrequency[CALCTRL_UPSEL.HFXO] = 39000000UL;
@@ -344,8 +343,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             getUpselFrequency[CALCTRL_UPSEL.ULFRCO] = 1000UL;
 
             // A dictionnary to get get the Downsel frequency based on the selected clock source.
-            Dictionary<CALCTRL_DOWNSEL, ulong> getDownselFrequency =
-                new Dictionary<CALCTRL_DOWNSEL, ulong>();
+            var getDownselFrequency = new Dictionary<CALCTRL_DOWNSEL, ulong>();
             getDownselFrequency[CALCTRL_DOWNSEL.DISABLED] = 0;
             getDownselFrequency[CALCTRL_DOWNSEL.HCLK] = 1000000UL;
             getDownselFrequency[CALCTRL_DOWNSEL.PRS] = 39000000UL;
@@ -395,7 +393,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private bool IsEm01GrpaClkEnabled()
         {
             // A dictionnary to get get the EM01GRPACLK Look Up Table of the selected clock source.
-            Dictionary<uint, bool> em01GrpAClkLut = new Dictionary<uint, bool>();
+            var em01GrpAClkLut = new Dictionary<uint, bool>();
             em01GrpAClkLut[0] =
                 Iadc0Enabled
                 && clken0_iadc0_bit.Value
@@ -423,7 +421,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private bool IsEm01GrpcClkEnabled()
         {
             // A dictionnary to get get the EM01GRPCCLK Look Up Table of the selected clock source.
-            Dictionary<uint, bool> em01GrpCClkLut = new Dictionary<uint, bool>();
+            var em01GrpCClkLut = new Dictionary<uint, bool>();
             em01GrpCClkLut[0] =
                 Eusart0Enabled
                 && clken1_eusart0_bit.Value
@@ -439,7 +437,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private bool IsEm23GrpaClkEnabled()
         {
             // A dictionnary to get get the EM23GRPACLK Look Up Table of the selected clock source.
-            Dictionary<uint, bool> em23GrpAClkLut = new Dictionary<uint, bool>();
+            var em23GrpAClkLut = new Dictionary<uint, bool>();
             em23GrpAClkLut[0] = Letimer0Enabled && clken0_letimer0_bit.Value;
             em23GrpAClkLut[1] =
                 Pcnt0Enabled
@@ -463,7 +461,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private bool IsEm4GrpaClkEnabled()
         {
             // A dictionnary to get get the EM4GRPACLK Look Up Table of the selected clock source.
-            Dictionary<uint, bool> em4GrpAClkLut = new Dictionary<uint, bool>();
+            var em4GrpAClkLut = new Dictionary<uint, bool>();
             em4GrpAClkLut[0] = Burtc0Enabled && clken0_burtc_bit.Value;
 
             return em4GrpAClkLut.ContainsValue(true);

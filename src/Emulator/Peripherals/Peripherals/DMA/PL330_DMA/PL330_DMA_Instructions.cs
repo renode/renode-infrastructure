@@ -722,7 +722,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public override string ToString()
             {
-                StringBuilder bits = new StringBuilder("");
+                var bits = new StringBuilder("");
                 foreach(var b in instructionBytes.Reverse())
                 {
                     bits.Append(Convert.ToString(b, 2).PadLeft(8, '0'));

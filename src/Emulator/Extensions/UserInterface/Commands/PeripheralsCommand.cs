@@ -42,7 +42,7 @@ namespace Antmicro.Renode.UserInterface.Commands
         [Runnable]
         public void Run(ICommandInteraction writer)
         {
-            PeripheralNode root = CreateTree(writer);
+            var root = CreateTree(writer);
 
             if(root != null)
             {
@@ -74,7 +74,7 @@ namespace Antmicro.Renode.UserInterface.Commands
 
         private void RunExport(ICommandInteraction writer, WriteFilePath path)
         {
-            PeripheralNode root = CreateTree(writer);
+            var root = CreateTree(writer);
 
             if(root == null)
             {
@@ -191,7 +191,7 @@ namespace Antmicro.Renode.UserInterface.Commands
 
             public void ExportTree(StreamWriter writer)
             {
-                PeripheralJson root = SerializeJson();
+                var root = SerializeJson();
                 Object document = new
                 {
                     Header = "Peripheral Map 1.0",
@@ -280,7 +280,7 @@ namespace Antmicro.Renode.UserInterface.Commands
 
             private PeripheralJson SerializeJson()
             {
-                PeripheralJson node = new PeripheralJson();
+                var node = new PeripheralJson();
                 node.Name = PeripheralEntry.Type.Name;
                 node.Alias = PeripheralEntry.Name;
 

@@ -1311,7 +1311,7 @@ namespace Antmicro.Renode.Peripherals.Storage
 
         private byte[] GetStringDescriptor(byte index)
         {
-            UnicodeEncoding unicode = new UnicodeEncoding();
+            var unicode = new UnicodeEncoding();
             var unicodeString = stringDescriptors[index];
 
             if(unicodeString == null)

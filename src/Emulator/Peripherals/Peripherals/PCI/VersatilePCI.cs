@@ -57,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.PCI
                 return 0;
             if(!_info[pci_num])
                 return 0;
-            PCIInfo linfo = info[pci_num];
+            var linfo = info[pci_num];
             offset -= pci_num * 0x800;
             if(offset == 0x00)
                 return (uint)linfo.VendorId + (uint)(linfo.DeviceId << 16);
@@ -90,7 +90,7 @@ namespace Antmicro.Renode.Peripherals.PCI
                 return;
             if(!_info[pci_num])
                 return;
-            PCIInfo linfo = info[pci_num];
+            var linfo = info[pci_num];
             offset -= pci_num * 0x800;
             if((offset >= 0x10) && (offset < 0x2c))
             {
@@ -132,9 +132,9 @@ namespace Antmicro.Renode.Peripherals.PCI
             if(found == -1)
                 return;
 
-            PCIInfo linfo = info[found];
+            var linfo = info[found];
             offset -= (linfo.Bar[bar_no] & 0xFFFFFFF);
-            IPCIPeripheral pci_device = GetByAddress(found);
+            var pci_device = GetByAddress(found);
             pci_device.WriteDoubleWordPCI((uint)bar_no, offset, value);
         }
 
@@ -166,9 +166,9 @@ namespace Antmicro.Renode.Peripherals.PCI
                 return 0;
 
             // (2) forward read
-            PCIInfo linfo = info[found];
+            var linfo = info[found];
             offset -= (linfo.Bar[bar_no] & 0xFFFFFFF);
-            IPCIPeripheral pci_device = GetByAddress(found);
+            var pci_device = GetByAddress(found);
             return pci_device.ReadDoubleWordPCI((uint)bar_no, offset);
         }
 

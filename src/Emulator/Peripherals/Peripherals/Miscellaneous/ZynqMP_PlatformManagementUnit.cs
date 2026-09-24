@@ -134,8 +134,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private void ProcessSingleInterruptOnChannel(ZynqMP_IPI.ChannelId targetChannelId, ZynqMP_IPI.ChannelId sourceChannelId)
         {
-            IpiMessage message = ReadMessageFromMailbox(sourceChannelId);
-            IpiMessage response = ProcessIpiMessage(message);
+            var message = ReadMessageFromMailbox(sourceChannelId);
+            var response = ProcessIpiMessage(message);
             WriteMessageToMailbox(sourceChannelId, response);
 
             // We clear interrupt to notify source

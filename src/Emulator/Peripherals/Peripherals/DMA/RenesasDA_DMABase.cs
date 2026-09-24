@@ -203,7 +203,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 // in peripheral trigger mode, peripheral should trigger DMA on each sample
                 // unless burst mode is selected which requests a few samples at once.
                 var transactionLength = PeripheralTriggered.Value ? (int)TransferType * GetBurstCount(BurstModeValue.Value) : bytesToTransfer;
-                Request getDescriptorData = new Request(sourceAddress, destinationAddress,
+                var getDescriptorData = new Request(sourceAddress, destinationAddress,
                     transactionLength, TransferType, TransferType, IncrementSourceAddress.Value && !DmaInit.Value,
                     IncrementDestinationAddress.Value);
 

@@ -34,8 +34,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             // Override the GPIO number if this is an internal signal.
             if(internalSignal)
             {
-                SignalSource signalSource = (SignalSource)(number & 0xFF);
-                SignalType signalType = (SignalType)((number & 0xF00) >> 8);
+                var signalSource = (SignalSource)(number & 0xFF);
+                var signalType = (SignalType)((number & 0xF00) >> 8);
 
                 number = GetPinNumberFromInternalSignal(signalSource, signalType);
 
@@ -135,7 +135,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             for(uint i = 0; i < NumberOfExternalInterrupts; i++)
             {
-                Port port = externalInterruptPortSelect[i].Value;
+                var port = externalInterruptPortSelect[i].Value;
                 uint pin = (uint)externalInterruptPinSelect[i].Value;
 
                 uint pinGroup = i / 4;

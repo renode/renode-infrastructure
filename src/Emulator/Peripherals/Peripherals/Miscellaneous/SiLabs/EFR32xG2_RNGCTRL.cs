@@ -363,9 +363,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     conditioningTestOngoing = true;
                     conditioningTestDataCurrentSize = 0;
                     cbcMacBlockIndex = 0;
-                    KeyParameter keyParameter = new KeyParameter(key);
+                    var keyParameter = new KeyParameter(key);
                     byte[] iv = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-                    ParametersWithIV parametersWithIV = new ParametersWithIV(keyParameter, iv);
+                    var parametersWithIV = new ParametersWithIV(keyParameter, iv);
                     cbcMacCipher.Init(parametersWithIV);
                     this.Log(LogLevel.Noisy, "Creating CBCMAC object, key=[{0}]", BitConverter.ToString(key));
                 }

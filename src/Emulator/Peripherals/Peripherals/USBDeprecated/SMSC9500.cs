@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     IPHeaderLength = (ushort)((packetToSend[14] & 0x0F) * 4);
                     if(packetToSend[23] == 0x06) // TCP packet
                     {
-                        IPpacket tcpPacket = new IPpacket(IPHeaderLength, IPpacket.PacketType.TCP);
+                        var tcpPacket = new IPpacket(IPHeaderLength, IPpacket.PacketType.TCP);
                         tcpPacket.ReadFromBuffer(packetToSend);
                         cksum = tcpPacket.GetChecksum();
                         cksum -= 1;
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     }
                     else if(packetToSend[23] == 0x11) // UDP packet
                     {
-                        IPpacket udpPacket = new IPpacket(IPHeaderLength, IPpacket.PacketType.UDP);
+                        var udpPacket = new IPpacket(IPHeaderLength, IPpacket.PacketType.UDP);
                         udpPacket.ReadFromBuffer(packetToSend);
                         cksum = udpPacket.GetChecksum();
                         cksum -= 1;
@@ -226,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 if(packet.BytesToTransfer > 0)
                     if(rxPacketQueue.Count > 0)
                     {
-                        EthernetFrame receivedFrame = rxPacketQueue.Dequeue();
+                        var receivedFrame = rxPacketQueue.Dequeue();
 
                         //byte frameBytes []= rxFifo.Dequeue();
                         var size = receivedFrame.Bytes.Length;
@@ -458,7 +458,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         public byte[] GetStatus(USBPacket packet, USBSetupPacket setupPacket)
         {
             var arr = new byte[2];
-            MessageRecipient recipient = (MessageRecipient)(setupPacket.RequestType & 0x3);
+            var recipient = (MessageRecipient)(setupPacket.RequestType & 0x3);
             switch(recipient)
             {
             case MessageRecipient.Device:

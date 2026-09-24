@@ -301,7 +301,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private InputsState GetCurrentInputsState()
         {
-            InputsState currentState = InputsState.None;
+            var currentState = InputsState.None;
             if(powerButton ^ pwrButtonInvert.Value)
             {
                 currentState |= InputsState.PowerButton;

@@ -146,7 +146,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                                 return;
                             }
                             // we need to cast to ICPUWithRegisters to access SetRegister
-                            ICPUWithRegisters cpuWithRegisters = cpu as ICPUWithRegisters;
+                            var cpuWithRegisters = cpu as ICPUWithRegisters;
                             if(cpuWithRegisters == null)
                             {
                                 cpu.Log(LogLevel.Error, "Current CPU is not of type ICPUWithRegisters");

@@ -46,7 +46,7 @@ namespace Antmicro.Renode.Peripherals.Wireless.IEEE802_15_4
             var polynomial = crcPolynomial ?? DefaultCrcPolynomial;
             var crcLength = polynomial.WidthInBytes;
 
-            CRCEngine crcEngine = new CRCEngine(polynomial, init: crcInitialValue);
+            var crcEngine = new CRCEngine(polynomial, init: crcInitialValue);
             // Byte little endian order
             switch(crcLength)
             {

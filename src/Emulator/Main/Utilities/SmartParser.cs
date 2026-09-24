@@ -68,7 +68,7 @@ namespace Antmicro.Renode.Utilities
                     outputType,
                     () =>
                 {
-                    TryGetParseMethodDelegate(outputType, new[] { typeof(string), typeof(NumberStyles), typeof(CultureInfo) }, new object[] { NumberStyles.HexNumber, CultureInfo.InvariantCulture }, out Delegate del);
+                    TryGetParseMethodDelegate(outputType, new[] { typeof(string), typeof(NumberStyles), typeof(CultureInfo) }, new object[] { NumberStyles.HexNumber, CultureInfo.InvariantCulture }, out var del);
                     return del;
                 }
                 );
@@ -81,7 +81,7 @@ namespace Antmicro.Renode.Utilities
                     outputType,
                     () =>
                 {
-                    TryGetConvertMethodDelegate(outputType, 2, out Delegate del);
+                    TryGetConvertMethodDelegate(outputType, 2, out var del);
                     return del;
                 }
                 );
@@ -98,7 +98,7 @@ namespace Antmicro.Renode.Utilities
                     outputType,
                     () =>
                 {
-                    if(!TryGetParseMethodDelegate(outputType, new[] { typeof(string), typeof(CultureInfo) }, new object[] { CultureInfo.InvariantCulture }, out Delegate del)
+                    if(!TryGetParseMethodDelegate(outputType, new[] { typeof(string), typeof(CultureInfo) }, new object[] { CultureInfo.InvariantCulture }, out var del)
                        && !TryGetParseMethodDelegate(outputType, new[] { typeof(string) }, new object[0], out del))
                     {
                         del = null;
@@ -175,7 +175,7 @@ namespace Antmicro.Renode.Utilities
         {
             lock(sync)
             {
-                if(!cacheDict.TryGetValue(outputType, out Delegate parser))
+                if(!cacheDict.TryGetValue(outputType, out var parser))
                 {
                     parser = function();
                     if(parser == null)

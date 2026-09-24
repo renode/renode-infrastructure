@@ -161,7 +161,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
             this.registers = new Dictionary<long, RegisterSelector<T>>();
             if(registersMap != null)
             {
-                foreach(KeyValuePair<long, R> pair in registersMap)
+                foreach(var pair in registersMap)
                 {
                     AddRegisterInner(pair.Key, pair.Value);
                 }

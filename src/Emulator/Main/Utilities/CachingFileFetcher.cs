@@ -583,7 +583,7 @@ namespace Antmicro.Renode.Utilities
         {
             protected override WebRequest GetWebRequest(Uri uri)
             {
-                WebRequest w = base.GetWebRequest(uri);
+                var w = base.GetWebRequest(uri);
                 // This 15s timeout refers to the connection to the server, not the whole download duration
                 w.Timeout = 15 * 1000;
                 return w;

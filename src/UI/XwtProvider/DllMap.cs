@@ -53,7 +53,7 @@ namespace Antmicro.Renode.UI
                              RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "windows" :
                              RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "linux" : null;
 
-            XElement root = XElement.Load(xmlPath);
+            var root = XElement.Load(xmlPath);
             var map = (
                 from el in root.Elements("dllmap")
                 where (string)el.Attribute("dll") == originalLibName

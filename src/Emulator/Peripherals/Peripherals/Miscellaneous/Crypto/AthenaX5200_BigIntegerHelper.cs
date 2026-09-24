@@ -69,7 +69,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.Crypto
         public static BigInteger CalculateModularInverse(BigInteger value, BigInteger modulo)
         {
             BigInteger leftFactor = 0;
-            BigInteger mod = modulo;
+            var mod = modulo;
             BigInteger gcd = 0;
             BigInteger u = 1;
 

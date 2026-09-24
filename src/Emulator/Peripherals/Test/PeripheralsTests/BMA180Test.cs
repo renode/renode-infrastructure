@@ -20,7 +20,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void InitTest()
         {
-            List<byte> packet = new List<byte>();
+            var packet = new List<byte>();
             var bma180 = new BMA180();
             bma180.Reset();
             ////////////////////////////////////////////////////////////
@@ -111,7 +111,7 @@ namespace Antmicro.Renode.PeripheralsTests
         [Test]
         public void ReadDataTest()
         {
-            List<byte> packet = new List<byte>();
+            var packet = new List<byte>();
             var bma180 = new BMA180();
             bma180.Reset();
 

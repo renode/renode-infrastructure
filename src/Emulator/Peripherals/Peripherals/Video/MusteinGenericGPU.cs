@@ -127,7 +127,7 @@ namespace Antmicro.Renode.Peripherals.Video
 
         protected override void Repaint()
         {
-            if(copyPatterns.TryGetValue(Tuple.Create(colorMode, is64bitAligned, pixelPacking), out Action command))
+            if(copyPatterns.TryGetValue(Tuple.Create(colorMode, is64bitAligned, pixelPacking), out var command))
             {
                 lock(sync)
                 {
