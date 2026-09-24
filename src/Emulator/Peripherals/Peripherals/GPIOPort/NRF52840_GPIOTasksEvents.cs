@@ -146,6 +146,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithWriteCallback((_, __) =>
                     {
                         pinToChannelMapping.Clear();
+                        if(channels[idx].Mode == Mode.Event)
+                        {
+                            // We need to sample the pin in the event mode
+                            // to get the initial value to compare against later on
+                            channels[idx].SampleInput();
+                        }
                         UpdateInterrupt();
                     });
             });
@@ -282,6 +288,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             public void ClearPin()
             {
                 WritePinInner(false);
+            }
+
+            public void SampleInput()
+            {
+                if(TryGetPin(out var pin))
+                {
+                    CurrentState = pin.InputValue;
+                }
             }
 
             public void Reset()
