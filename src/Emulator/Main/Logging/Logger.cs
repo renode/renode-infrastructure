@@ -17,6 +17,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -586,7 +587,7 @@ namespace Antmicro.Renode.Logging
                 int sourceId = (o == null) ? -1 : GetOrCreateSourceId(o);
                 if(args?.Length > 0)
                 {
-                    message = string.Format(message, args);
+                    message = string.Format(CultureInfo.InvariantCulture, message, args);
                 }
 
                 var virtualTimestamp = EmulationManager.Instance.CurrentEmulation.MasterTimeSource.ElapsedVirtualTime;
