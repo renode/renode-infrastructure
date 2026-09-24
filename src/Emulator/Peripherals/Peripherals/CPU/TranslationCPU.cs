@@ -37,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public static class TranslationCPUHooksExtensions
     {
-        public static void SetHookAtBlockBegin(this TranslationCPU cpu, [AutoParameter] IMachine m, string pythonScript)
+        public static void SetHookAtBlockBegin(this TranslationCPU cpu , [AutoParameter] IMachine m, string pythonScript)
         {
             var engine = new BlockPythonEngine(m, cpu, pythonScript);
             cpu.SetHookAtBlockBegin(engine.HookWithSize);
@@ -72,8 +72,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 throw new RecoverableException("Could not map memory segment: it does not fit into address space");
             }
 
-            using(machine?.ObtainPausedState(true))
-            {
+            using(machine?.ObtainPausedState(true)) {
                 currentMappings.Add(new SegmentMapping(segment));
                 mappedMemory.Add(segment.GetRange());
                 SetAccessMethod(segment.GetRange(), true);

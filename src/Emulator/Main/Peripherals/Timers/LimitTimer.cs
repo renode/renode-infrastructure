@@ -29,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
             if(frequency <= 0)
             {
-                throw new ConstructionException("Frequency must be greater than 0");
+                throw new ConstructionException("Frequency must be greater than 0" );
             }
 
             irqSync = new object();
@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             Value = incValue % Limit;
 
-            return incValue / Limit;
+            return incValue /Limit;
         }
 
         public ulong Decrement(ulong decrementBy)

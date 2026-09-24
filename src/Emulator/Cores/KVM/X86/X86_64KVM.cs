@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         public X86_64KVM(string cpuType, IMachine machine, uint cpuId = 0)
             : base(cpuType, machine, CpuBitness.Bits64, cpuId)
         {
+
         }
 
         public override string GetLLVMTriple(uint flags)
@@ -30,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public override string Architecture => "x86_64";
 
-        public override string GDBArchitecture => "i386:x86-64";
+        public override string GDBArchitecture =>"i386:x86-64";
 
         public override List<GDBFeatureDescriptor> GDBFeatures
         {
