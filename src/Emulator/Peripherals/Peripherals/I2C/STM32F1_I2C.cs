@@ -104,6 +104,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                 .WithTaggedFlag("NOSTRETCH", 7)
                 .WithFlag(8, out start, name: "START")
                 .WithFlag(9, out stop, name: "STOP")
+                // On our abstraction level we don't model ACK/NACK bits of the protocol.
+                // Each transmission ends with write to STOP, and this is the moment
+                // when Renode knows to report end of transmission to the slave
                 .WithTaggedFlag("ACK", 10)
                 .WithTaggedFlag("POS", 11)
                 .WithTaggedFlag("PEC", 12)
@@ -507,7 +510,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                     QueueUpdate(UpdateDataReceive);
                     break;
                 default:
-                    this.WarningLog("Reading data in improper state ({0}), returning 0x0", dataState);
+                    // STM32 LL HAL uses `MODIFY_REG` to access this register on Write path
+                    // so it's expected that the software using LL HAL API will perform a read
+                    this.DebugLog("Reading data in improper state ({0}), returning 0x0", dataState);
                     break;
                 }
 
