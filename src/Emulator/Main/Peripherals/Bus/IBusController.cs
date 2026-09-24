@@ -142,7 +142,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         bool IsMemory(ulong address, ICPU context = null, ulong? initiatorState = null);
 
-        void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false, bool overridePeripheralAccesses = false);
+        void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false, bool overridePeripheralAccesses = false, bool oneShot = false);
 
         void ApplySVD(string path);
 

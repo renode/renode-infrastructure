@@ -552,12 +552,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false, bool overridePeripheralAccesses = false)
+        public void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false, bool overridePeripheralAccesses = false, bool oneShot = false)
         {
             var intersectings = tags.Where(x => x.Key.Intersects(range)).ToArray();
             if(intersectings.Length == 0)
             {
-                tags.Add(range, new TagEntry { Name = tag, DefaultValue = defaultValue, Silent = silent, OverridePeripheralAccesses = overridePeripheralAccesses });
+                tags.Add(range, new TagEntry { Name = tag, DefaultValue = defaultValue, Silent = silent, OverridePeripheralAccesses = overridePeripheralAccesses, OneShot = oneShot });
 
                 var onMappedMemory  = GetRegisteredPeripherals()
                     .Where(x => x.Peripheral is MappedMemory)
@@ -589,6 +589,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 throw new RecoverableException(string.Format(
                     "Currently subtag has to be completely contained in other tag, in this case {0}.", parentName));
+            }
+            if(oneShot)
+            {
+                throw new RecoverableException(string.Format("Subtags can't be set as oneShot. This tag would overlap with {0}", parentName));
             }
             RemoveTag(parentRange.StartAddress);
             var parentRangeAfterSplitSizeLeft = range.StartAddress - parentRange.StartAddress;
@@ -2472,6 +2476,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 // Direct hit - the address is the start address of a tag
                 foundTag = tags.Values[tagIdx];
+                if(foundTag.Value.OneShot)
+                {
+                    tags.RemoveAt(tagIdx);
+                }
                 return true;
             }
             if(tagIdx == -1)
@@ -2485,6 +2493,10 @@ namespace Antmicro.Renode.Peripherals.Bus
             {
                 // The tag with the start address earlier than us contians us
                 foundTag = tags.Values[~tagIdx - 1];
+                if(foundTag.Value.OneShot)
+                {
+                    tags.RemoveAt(~tagIdx - 1);
+                }
                 return true;
             }
             // The earlier tag ends before the address
@@ -2753,6 +2765,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             public ulong DefaultValue;
             public bool Silent;
             public bool OverridePeripheralAccesses;
+            public bool OneShot;
         }
 
         private class ThreadLocalContext : IDisposable
