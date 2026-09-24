@@ -11,11 +11,13 @@ using System.Collections.ObjectModel;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
+    [AllowedTranslations(AllowedTranslation.WordToDoubleWord)]
     public class SAM_TC : BasicDoubleWordPeripheral, INumberedGPIOOutput, IKnownSize
     {
         public SAM_TC(IMachine machine, ulong masterClockFrequency = 20000000) : base(machine)
@@ -337,7 +339,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                     if(StopOnC)
                     {
                         timer.Enabled = false;
-                        enabled = false;
                     }
                     compareCInterrupt = true;
                     parent.NoisyLog("Channel #{0} compare C", channel);
@@ -350,7 +351,6 @@ namespace Antmicro.Renode.Peripherals.Timers
                 valueA = 0x0;
                 valueB = 0x0;
                 valueC = 0x0;
-                enabled = false;
                 overflow = false;
                 overflowInterruptEnable = false;
                 compareAInterrupt = false;
@@ -394,7 +394,6 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public void Enable(bool start = false, bool debugLog = true)
             {
-                enabled = true;
                 UpdateTimer(start);
                 if(debugLog)
                 {
@@ -404,7 +403,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             public void Disable()
             {
-                enabled = false;
+                timer.Enabled = false;
                 UpdateTimer();
                 parent.DebugLog("Channel #{0} disabled", channel);
             }
@@ -553,7 +552,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 case ClockSelection.XC0:
                 case ClockSelection.XC1:
                 case ClockSelection.XC2:
-                    parent.ErrorLog("Unimplemented");
+                    parent.WarningLog("{0} clock source is unimplemented", Enum.GetName<ClockSelection>(clockSelected));
                     break;
                 default:
                     throw new Exception("unreachable");
@@ -564,14 +563,9 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             private void UpdateTimer(bool start = false)
             {
-                if(!enabled)
-                {
-                    return;
-                }
-
                 if(!waveformMode)
                 {
-                    parent.ErrorLog("Unimplemented");
+                    parent.NoisyLog("Unimplemented (UpdateTimer): Capture mode, channel #{0}", channel);
                 }
                 else
                 {
@@ -602,7 +596,7 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             private void UpdateCTimer()
             {
-                if(!enabled || !waveformMode)
+                if(!Enabled || !waveformMode)
                 {
                     cTimer.Enabled = false;
                     return;
@@ -651,11 +645,10 @@ namespace Antmicro.Renode.Peripherals.Timers
                 if(cReached && StopOnC)
                 {
                     timer.Enabled = false;
-                    enabled = false;
                 }
                 if(!waveformMode)
                 {
-                    parent.ErrorLog("Unimplemented");
+                    parent.NoisyLog("Unimplemented (LimitReached): Capture mode, channel #{0}", channel);
                 }
                 else
                 {
@@ -695,7 +688,6 @@ namespace Antmicro.Renode.Peripherals.Timers
             private ulong valueA;
             private ulong valueB;
             private ulong valueC;
-            private bool enabled;
             private bool overflow;
             private bool overflowInterruptEnable;
             private bool compareAInterrupt;
