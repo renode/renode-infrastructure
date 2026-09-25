@@ -1023,9 +1023,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return (int)(offset + (externalInterrupt ? 16 : 0));
         }
 
+        private static bool IsAnException(int interrupt)
+        {
+            return Enum.IsDefined(typeof(SystemException), interrupt);
+        }
+
         private static string ExceptionToString(int exception)
         {
-            if(Enum.IsDefined(typeof(SystemException), exception))
+            if(IsAnException(exception))
             {
                 return ((SystemException)exception).ToString();
             }
