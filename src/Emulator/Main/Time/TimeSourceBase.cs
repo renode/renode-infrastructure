@@ -162,8 +162,6 @@ namespace Antmicro.Renode.Time
 #endif
                 // assigning TimeHandle to a sink must be done when everything is configured, otherwise a race condition might happen (dispatcher starts its execution when time source and handle are not yet ready)
                 sink.TimeHandle = handle;
-                // Resynchronise virtual time to update blocked count
-                SynchronizeVirtualTime();
             }
         }
 
@@ -387,6 +385,10 @@ namespace Antmicro.Renode.Time
                     updateNearestSyncPoint = false;
                     this.Trace($"Updated NearestSyncPoint to: {NearestSyncPoint}");
                 }
+
+                // Some handles might be detached, holding back ElapsedVirtualTime. We have to clean them up and synchronize the virtual time before granting new time to the remaining handles.
+                handles.LatchAllAndCollectGarbage();
+                SynchronizeVirtualTime();
                 DebugHelper.Assert(NearestSyncPoint.Ticks >= ElapsedVirtualTime.Ticks, $"Nearest sync point set in the past: EVT={ElapsedVirtualTime} NSP={NearestSyncPoint}");
 
                 isBlocked = false;
@@ -395,8 +397,6 @@ namespace Antmicro.Renode.Time
                 var toRunFor = NearestSyncPoint - ElapsedVirtualTime;
 
                 var elapsedVirtualTimeAtStart = ElapsedVirtualTime;
-
-                handles.LatchAllAndCollectGarbage();
 
                 if(handles.NotReady.Count > 0)
                 {
