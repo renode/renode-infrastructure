@@ -1,11 +1,10 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Linq;
 
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Sensor;
@@ -17,28 +16,28 @@ namespace Antmicro.Renode.Peripherals.I2C
     {
         public SHT45()
         {
-            crc = new CRCEngine(0x31, 8, false, false, 0xFF);
+            crcEngine = new CRCEngine(0x31, 8, false, false, 0xFF);
             Reset();
         }
 
         public void Reset()
         {
-            message = new byte[6];
+            readBuffer = new byte[6];
         }
 
         public void Write(byte[] data)
         {
-            this.Log(LogLevel.Noisy, "Write {0}", data.Select(x => x.ToString("X")).Aggregate((x, y) => x + " " + y));
+            this.NoisyLog("Written {0}", Misc.PrettyPrintCollectionHex(data));
             if(data.Length == 0)
             {
                 return;
             }
             if(data.Length > 1)
             {
-                this.Log(LogLevel.Warning, "Write too long ({0} bytes, expected 1)", data.Length);
+                this.WarningLog("Write too long ({0} bytes, expected 1)", data.Length);
             }
 
-            Registers register = (Registers)data[0];
+            var register = (Registers)data[0];
             switch(register)
             {
             case Registers.MeasureHighPrecision:
@@ -50,35 +49,36 @@ namespace Antmicro.Renode.Peripherals.I2C
             case Registers.MeasureWithHeater110mw01s:
             case Registers.MeasureWithHeater20mw1s:
             case Registers.MeasureWithHeater20mw01s:
-                EncodeMeasurementMessage();
+                UpdateReadBuffer(EncodeMeasurementMessage());
                 break;
             case Registers.ReadSerialNumber:
-                EncodeSerialNumberMessage();
+                UpdateReadBuffer(EncodeSerialNumberMessage());
                 break;
             case Registers.SoftReset:
                 Reset();
                 break;
             default:
-                this.Log(LogLevel.Warning, "Invalid register {0}", register);
+                this.WarningLog("Invalid register {0}", register);
                 break;
             }
         }
 
         public byte[] Read(int count = 0)
         {
-            if(count > message.Length)
+            if(count > readBuffer.Length)
             {
-                this.Log(LogLevel.Warning, "Trying to read too many bytes ({0} bytes, available {1})", count, message.Length);
+                this.WarningLog("Trying to read too many bytes ({0} bytes, available {1})", count, readBuffer.Length);
             }
-            byte[] buf = new byte[count];
-            Array.Copy(message, buf, count);
-            this.Log(LogLevel.Noisy, "Read {0}", buf.Select(x => x.ToString("X")).Aggregate((x, y) => x + " " + y));
-            return buf;
+            var result = new byte[count];
+            Array.Copy(readBuffer, result, count);
+            this.NoisyLog("Read {0} bytes: {1}", count, Misc.PrettyPrintCollectionHex(result));
+            return result;
         }
 
         //we are required to implement this method, but in case of this device there is nothing we want to do here
         public void FinishTransmission()
         {
+            this.NoisyLog("Finishing transmission");
         }
 
         public uint SerialNumber { get; set; }
@@ -87,52 +87,65 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         public double Humidity { get; set; }
 
-        private void EncodeSerialNumberMessage()
+        private byte[] EncodeSerialNumberMessage()
         {
-            message[0] = (byte)((SerialNumber >> 24));
-            message[1] = (byte)((SerialNumber >> 16));
-            message[2] = (byte)crc.Calculate(new ArraySegment<byte>(message, 0, 2));
-            message[3] = (byte)((SerialNumber >> 8));
-            message[4] = (byte)(SerialNumber);
-            message[5] = (byte)crc.Calculate(new ArraySegment<byte>(message, 3, 2));
+            var serialNumberBuffer = new byte[6];
+
+            serialNumberBuffer[0] = (byte)((SerialNumber >> 24));
+            serialNumberBuffer[1] = (byte)((SerialNumber >> 16));
+            serialNumberBuffer[2] = (byte)crcEngine.Calculate(new ArraySegment<byte>(serialNumberBuffer, 0, 2));
+            serialNumberBuffer[3] = (byte)((SerialNumber >> 8));
+            serialNumberBuffer[4] = (byte)(SerialNumber);
+            serialNumberBuffer[5] = (byte)crcEngine.Calculate(new ArraySegment<byte>(serialNumberBuffer, 3, 2));
+
+            return serialNumberBuffer;
         }
 
-        private void EncodeMeasurementMessage()
+        private byte[] EncodeMeasurementMessage()
         {
-            var temp = EncodeTemperature(Temperature);
-            byte tempCrc = (byte)crc.Calculate(temp);
+            var mesurementBuffer = new byte[6];
 
-            var rh = EncodeHumidity(Humidity);
-            byte rhCrc = (byte)crc.Calculate(rh);
+            var temperatureBytes = EncodeTemperature(Temperature);
+            var temperatureCrc = (byte)crcEngine.Calculate(temperatureBytes);
 
-            temp.CopyTo(message, 0);
-            message[2] = tempCrc;
-            rh.CopyTo(message, 3);
-            message[5] = rhCrc;
+            var relativeHumidity = EncodeHumidity(Humidity);
+            var relativeHumidityCrc = (byte)crcEngine.Calculate(relativeHumidity);
+
+            temperatureBytes.CopyTo(mesurementBuffer, 0);
+            mesurementBuffer[2] = temperatureCrc;
+            relativeHumidity.CopyTo(mesurementBuffer, 3);
+            mesurementBuffer[5] = relativeHumidityCrc;
+
+            return mesurementBuffer;
         }
 
         private byte[] EncodeTemperature(decimal temperature)
         {
-            decimal st = (temperature + 45) * 65535.0m / 175.0m;
-            ushort stU16 = (ushort)Math.Round(st);
-            byte stLo = (byte)(stU16);
-            byte stHi = (byte)((stU16 >> 8));
+            var temperatureSignal = (temperature + 45) * 65535.0m / 175.0m;
+            var temperatureSignalU16 = (ushort)Math.Round(temperatureSignal);
+            var temperatureSignalLow = (byte)(temperatureSignalU16);
+            var temperatureSignalHi = (byte)((temperatureSignalU16 >> 8));
 
-            return new byte[2] { stHi, stLo };
+            return new byte[2] { temperatureSignalHi, temperatureSignalLow };
         }
 
         private byte[] EncodeHumidity(double humidity)
         {
-            double srh = (humidity + 6) * 65535.0 / 125.0;
-            UInt16 srhU16 = Convert.ToUInt16(Math.Round(srh));
-            byte srhLo = (byte)(srhU16);
-            byte srhHi = (byte)((srhU16 >> 8));
+            var relativeHumiditySignal = (humidity + 6) * 65535.0 / 125.0;
+            var relativeHumiditySignalU16 = Convert.ToUInt16(Math.Round(relativeHumiditySignal));
+            var relativeHumiditySignalLow = (byte)(relativeHumiditySignalU16);
+            var relativeHumiditySignalHi = (byte)((relativeHumiditySignalU16 >> 8));
 
-            return new byte[2] { srhHi, srhLo };
+            return new byte[2] { relativeHumiditySignalHi, relativeHumiditySignalLow };
         }
 
-        private byte[] message;
-        private readonly CRCEngine crc;
+        private void UpdateReadBuffer(byte[] newReadBuffer)
+        {
+            readBuffer = newReadBuffer;
+        }
+
+        private byte[] readBuffer;
+        private readonly CRCEngine crcEngine;
 
         private enum Registers
         {
