@@ -83,7 +83,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 this.Log(LogLevel.Warning, "Ignoring stepping on an aborted CPU");
                 return PC;
             }
-            if(IsHalted)
+            if(HasAnyHaltingCondition)
             {
                 this.Log(LogLevel.Warning, "Ignoring stepping on a halted CPU");
                 return PC;
@@ -291,6 +291,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 UpdateRequestedHaltedState();
             }
         }
+
+        public override bool HasAnyHaltingCondition => base.HasAnyHaltingCondition || !Clocked;
 
         public bool OnPossessedThread
         {

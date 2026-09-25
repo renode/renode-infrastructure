@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -29,8 +29,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         bool Clocked { get; set; }
 
-        // Extend `IsHalted` with a getter by using the `new` keyword
-        new bool IsHalted { get; set; }
+        bool HasAnyHaltingCondition { get; }
 
         IBusController Bus { get; }
         /// <summary>

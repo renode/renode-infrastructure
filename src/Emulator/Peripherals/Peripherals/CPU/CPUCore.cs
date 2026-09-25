@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                     UpdateHaltedState(ignoreExecutionMode: false, fromPausedState: false);
                 }
 
-                if(IsHalted)
+                if(HasAnyHaltingCondition)
                 {
                     return;
                 }
@@ -67,6 +67,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public virtual bool IsHalted { get; set; }
+
+        public virtual bool HasAnyHaltingCondition => IsHalted;
 
         /// <summary>
         /// An ID that can identify a CPU in a multicore environment. Its specific interpretation will depend on CPU architecture.
