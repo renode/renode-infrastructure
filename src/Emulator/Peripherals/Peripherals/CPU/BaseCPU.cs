@@ -292,7 +292,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
-        public override bool HasAnyHaltingCondition => base.HasAnyHaltingCondition || !Clocked;
+        public override bool HasAnyHaltingCondition => base.HasAnyHaltingCondition || !Clocked || HaltedByDebugger;
 
         public bool OnPossessedThread
         {
@@ -339,6 +339,21 @@ namespace Antmicro.Renode.Peripherals.CPU
                     this.Log(LogLevel.Warning, "The debug mode now has no effect - connect a debugger, and switch to stepping mode.");
                 }
                 shouldEnterDebugMode = value;
+            }
+        }
+
+        public virtual bool HaltedByDebugger
+        {
+            get => haltedByDebugger;
+            set
+            {
+                this.Trace();
+                if(value == haltedByDebugger)
+                {
+                    return;
+                }
+                haltedByDebugger = value;
+                UpdateRequestedHaltedState();
             }
         }
 
@@ -433,7 +448,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             lock(pauseLock)
             {
                 this.Trace();
-                var value = isHalted || !clocked;
+                var value = isHalted || !clocked || haltedByDebugger;
                 if(isHaltedRequested == value)
                 {
                     return;
@@ -950,6 +965,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected bool dispatcherRestartRequested;
         protected bool clocked;
         protected bool isHalted;
+        protected bool haltedByDebugger;
         protected bool isHaltedRequested;
         protected bool currentHaltedState;
 
