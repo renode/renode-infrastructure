@@ -123,7 +123,15 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte[] EncodeTemperature(decimal temperature)
         {
             var temperatureSignal = (temperature + 45) * 65535.0m / 175.0m;
-            var temperatureSignalU16 = (ushort)Math.Round(temperatureSignal);
+            var roundedTemperatureSignal = Math.Round(temperatureSignal);
+            var clampedTemperatureSignal = roundedTemperatureSignal.Clamp(
+                (decimal)ushort.MinValue, (decimal)ushort.MaxValue);
+            if(roundedTemperatureSignal != clampedTemperatureSignal)
+            {
+                this.WarningLog("Temperature {0} produces an out-of-range encoded value. Clamping it to {1}",
+                    temperature, clampedTemperatureSignal);
+            }
+            var temperatureSignalU16 = (ushort)clampedTemperatureSignal;
             var temperatureSignalLow = (byte)(temperatureSignalU16);
             var temperatureSignalHi = (byte)((temperatureSignalU16 >> 8));
 
@@ -133,7 +141,15 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte[] EncodeHumidity(double humidity)
         {
             var relativeHumiditySignal = (humidity + 6) * 65535.0 / 125.0;
-            var relativeHumiditySignalU16 = Convert.ToUInt16(Math.Round(relativeHumiditySignal));
+            var roundedRelativeHumiditySignal = Math.Round(relativeHumiditySignal);
+            var clampedRelativeHumiditySignal = roundedRelativeHumiditySignal.Clamp(
+                (double)ushort.MinValue, (double)ushort.MaxValue);
+            if(roundedRelativeHumiditySignal != clampedRelativeHumiditySignal)
+            {
+                this.WarningLog("Humidity {0} produces an out-of-range encoded value. Clamping it to {1}",
+                    humidity, clampedRelativeHumiditySignal);
+            }
+            var relativeHumiditySignalU16 = (ushort)clampedRelativeHumiditySignal;
             var relativeHumiditySignalLow = (byte)(relativeHumiditySignalU16);
             var relativeHumiditySignalHi = (byte)((relativeHumiditySignalU16 >> 8));
 
