@@ -5,6 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Sensor;
@@ -17,12 +19,13 @@ namespace Antmicro.Renode.Peripherals.I2C
         public SHT45()
         {
             crcEngine = new CRCEngine(0x31, 8, false, false, 0xFF);
+            readQueue = new Queue<byte>();
             Reset();
         }
 
         public void Reset()
         {
-            readBuffer = new byte[6];
+            readQueue.Clear();
         }
 
         public void Write(byte[] data)
@@ -65,17 +68,15 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         public byte[] Read(int count = 0)
         {
-            if(count > readBuffer.Length)
+            if(count > readQueue.Count)
             {
-                this.WarningLog("Trying to read too many bytes ({0} bytes, available {1})", count, readBuffer.Length);
+                this.WarningLog("Trying to read too many bytes ({0} bytes, available {1})", count, readQueue.Count);
             }
-            var result = new byte[count];
-            Array.Copy(readBuffer, result, count);
+            var result = readQueue.DequeueRange(count).ToArray();
             this.NoisyLog("Read {0} bytes: {1}", count, Misc.PrettyPrintCollectionHex(result));
             return result;
         }
 
-        //we are required to implement this method, but in case of this device there is nothing we want to do here
         public void FinishTransmission()
         {
             this.NoisyLog("Finishing transmission");
@@ -141,10 +142,11 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void UpdateReadBuffer(byte[] newReadBuffer)
         {
-            readBuffer = newReadBuffer;
+            readQueue.Clear();
+            readQueue.EnqueueRange(newReadBuffer);
         }
 
-        private byte[] readBuffer;
+        private readonly Queue<byte> readQueue;
         private readonly CRCEngine crcEngine;
 
         private enum Registers
