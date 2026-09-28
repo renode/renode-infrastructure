@@ -477,7 +477,7 @@ namespace Antmicro.Renode.Peripherals.CAN
                 }
                 var data = BitHelper.ToUInt16(message.Data, 0, reverse: isSwapped);
 
-                var hasIdFilteringPassed = (~AcceptanceMask & (message.Id ^ AcceptanceCode)) == 0;
+                var hasIdFilteringPassed = (~AcceptanceMask & (message.ExtendedId ^ AcceptanceCode)) == 0;
                 var hasDataFilteringPassed = (~AcceptanceMaskData & (data ^ AcceptanceCodeData)) == 0;
                 return hasIdFilteringPassed && hasDataFilteringPassed;
             }
@@ -579,8 +579,8 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private enum Offset
         {
-            High = 4,
-            Low = 0
+            High = 0,
+            Low = 4
         }
 
         private enum ControllerRegisters
