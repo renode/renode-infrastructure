@@ -2257,7 +2257,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             // when SEVONPEND is set all interrupts (even those masked)
             // generate an event when entering the pending state
-            if(before != irqs[i] && currentSevOnPending.Get(IsInterruptTargetNonSecure(i)))
+            if(before != irqs[i] && currentSevOnPending.Get(!IsInterruptTargetNonSecure(i)))
             {
                 foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CortexM>())
                 {
