@@ -108,36 +108,40 @@ namespace Antmicro.Renode.Utilities.GDB
             // This method gathers features from all cores and unifies them.
 
             // if unifiedFeatures contains any feature, it means that features were compiled and cached
-            if(unifiedFeatures.Any())
+            var pidKey = Process ?? 0; // 0 is safe to use in non-multiprocess cases as PID 0 is not valid in GDB
+            if(unifiedFeatures.TryGetValue(pidKey, out var features))
             {
-                return unifiedFeatures;
+                return features;
             }
+
+            features = new List<GDBFeatureDescriptor>();
+            unifiedFeatures.Add(pidKey, features);
 
             if(ManagedCpus.Count() == 1)
             {
-                unifiedFeatures.AddRange(Cpu.GDBFeatures);
-                return unifiedFeatures;
+                features.AddRange(Cpu.GDBFeatures);
+                return features;
             }
 
-            var features = new Dictionary<string, List<GDBFeatureDescriptor>>();
-            foreach(var cpu in ManagedCpus)
+            var featuresDict = new Dictionary<string, List<GDBFeatureDescriptor>>();
+            foreach(var cpu in ManagedCpus.Where(cpu => (ManagedCpus[cpu].ProcessId ?? pidKey) == pidKey))
             {
                 foreach(var feature in cpu.GDBFeatures)
                 {
-                    if(!features.ContainsKey(feature.Name))
+                    if(!featuresDict.ContainsKey(feature.Name))
                     {
-                        features.Add(feature.Name, new List<GDBFeatureDescriptor>());
+                        featuresDict.Add(feature.Name, new List<GDBFeatureDescriptor>());
                     }
-                    features[feature.Name].Add(feature);
+                    featuresDict[feature.Name].Add(feature);
                 }
             }
 
-            foreach(var featureVariations in features.Values)
+            foreach(var featureVariations in featuresDict.Values)
             {
-                unifiedFeatures.Add(UnifyFeature(featureVariations));
+                features.Add(UnifyFeature(featureVariations));
             }
 
-            return unifiedFeatures;
+            return features;
         }
 
         public GDBRegisterDescriptor[] GetCompiledRegisters(int registerNumber)
@@ -147,14 +151,15 @@ namespace Antmicro.Renode.Utilities.GDB
             // costly, so this function caches the already filtered lists for
             // faster retrieval.
 
-            if(unifiedRegisters.TryGetValue(registerNumber, out var registers))
+            var pidKey = Process ?? 0; // 0 is safe to use in non-multiprocess cases as PID 0 is not valid in GDB
+            if(unifiedRegisters.TryGetValue((pidKey, registerNumber), out var registers))
             {
                 return registers;
             }
 
             registers = GetCompiledFeatures().SelectMany(f => f.Registers)
                 .Where(r => r.Number == registerNumber).ToArray();
-            unifiedRegisters.Add(registerNumber, registers);
+            unifiedRegisters.Add((pidKey, registerNumber), registers);
 
             return registers;
         }
@@ -348,8 +353,10 @@ namespace Antmicro.Renode.Utilities.GDB
         private readonly HashSet<CommandDescriptor> availableCommands;
         private readonly HashSet<string> typesWithCommands;
         private readonly HashSet<Command> activeCommands;
-        private readonly List<GDBFeatureDescriptor> unifiedFeatures = new List<GDBFeatureDescriptor>();
-        private readonly Dictionary<int, GDBRegisterDescriptor[]> unifiedRegisters = new Dictionary<int, GDBRegisterDescriptor[]>();
+        // Key: Process ID
+        private readonly Dictionary<int, List<GDBFeatureDescriptor>> unifiedFeatures = new();
+        // Key: (Process ID, Register number)
+        private readonly Dictionary<(int, int), GDBRegisterDescriptor[]> unifiedRegisters = new();
 
         private readonly Dictionary<string,Command> commandsCache;
         [Constructor]
