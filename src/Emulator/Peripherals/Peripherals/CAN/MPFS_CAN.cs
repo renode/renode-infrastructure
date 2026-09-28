@@ -579,8 +579,8 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private enum Offset
         {
-            High = 4,
-            Low = 0
+            High = 0,
+            Low = 4
         }
 
         private enum ControllerRegisters
