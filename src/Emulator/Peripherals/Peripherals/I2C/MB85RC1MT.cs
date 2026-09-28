@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -71,7 +71,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
-        internal byte[] Read(int count = 0)
+        internal byte[] Read(int count = 1)
         {
             this.Log(LogLevel.Noisy, "Read {0}", count);
 
@@ -119,7 +119,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             mb85rc1mt.Write(data, addr16);
         }
 
-        public byte[] Read(int count = 0)
+        public byte[] Read(int count = 1)
         {
             return mb85rc1mt.Read(count);
         }

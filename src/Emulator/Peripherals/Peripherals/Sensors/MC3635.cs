@@ -1,9 +1,9 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
-
+//
 using System;
 
 using Antmicro.Renode.Core;
@@ -85,7 +85,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             return RegistersCollection.Read(offset);
         }
 
-        public byte[] Read(int count = 0)
+        public byte[] Read(int count = 1)
         {
             var ret = new byte[count];
 

@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
-        public byte[] Read(int count = 0)
+        public byte[] Read(int count = 1)
         {
             if(count > readQueue.Count)
             {
