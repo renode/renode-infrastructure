@@ -232,12 +232,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.BitSet, new DoubleWordRegister(this)
-                    .WithValueField(0, 16, FieldMode.Write,
-                        writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(outputState) | val)); },
-                        name: "GPIOx_BS")
+                    // `BS` is ordered after `BR` so that if both are set at
+                    // once, `BS` is processed later and thus has priority, as
+                    // specified by the TRM
                     .WithValueField(16, 16, FieldMode.Write,
                         writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(outputState) & ~val)); },
                         name: "GPIOx_BR")
+                    .WithValueField(0, 16, FieldMode.Write,
+                        writeCallback: (_, val) => { if(val != 0) WriteState((ushort)(BitHelper.GetValueFromBitsArray(outputState) | val)); },
+                        name: "GPIOx_BS")
                 },
                 { (long)Registers.ConfigurationLock, new DoubleWordRegister(this)
                     .WithValueField(0, 16, out var pendingLockPins, name: "LCK",
