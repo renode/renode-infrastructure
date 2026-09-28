@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.Input
             }
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             this.NoisyLog("Read {0}", currentRetValue.Select(x => x.ToString("X")).Aggregate((x, y) => x + " " + y));
             //       throw new System.NotImplementedException ();

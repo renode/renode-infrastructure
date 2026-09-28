@@ -1,10 +1,9 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
@@ -41,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             parent.NoisyLog("OV2640: Reading from the device in state {0}", state);
             switch(state)

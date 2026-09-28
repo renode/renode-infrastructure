@@ -1,10 +1,9 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-
 using System;
 using System.Collections.Generic;
 
@@ -303,7 +302,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             var temp = new List<byte>();
             for(var i = 0; i < count; i++)

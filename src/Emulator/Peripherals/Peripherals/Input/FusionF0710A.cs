@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.Input
             PressAgainIfNeeded();
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             byte[] returnValue;
             switch(lastCommand)

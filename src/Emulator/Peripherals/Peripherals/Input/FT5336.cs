@@ -74,7 +74,7 @@ namespace Antmicro.Renode.Peripherals.Input
             }
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             return currentReturnValue.Take(count).ToArray();
         }

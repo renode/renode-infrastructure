@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-
 using System;
 using System.IO;
 
@@ -121,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             sensor.Write(data);
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             return sensor.Read(count);
         }

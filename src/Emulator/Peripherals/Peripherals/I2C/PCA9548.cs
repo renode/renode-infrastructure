@@ -1,10 +1,9 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 
@@ -33,7 +32,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             var result = RegistersCollection.Read((long)Registers.Control);
             this.NoisyLog("Reading control register from device: 0x{0:X}", result);

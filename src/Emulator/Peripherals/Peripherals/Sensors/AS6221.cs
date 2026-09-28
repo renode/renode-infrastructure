@@ -70,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             if(!registerAddress.HasValue)
             {

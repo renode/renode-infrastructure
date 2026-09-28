@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -43,7 +43,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             }
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             var result = RegistersCollection.Read(address);
             this.NoisyLog("Reading register {0} (0x{1:X}) from device: 0x{2:X}", cache.Get(address, x => Enum.GetName(typeof(T), x)), address, result);

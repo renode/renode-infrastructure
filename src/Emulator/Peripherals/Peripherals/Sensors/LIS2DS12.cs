@@ -1,10 +1,9 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -126,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
             }
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             this.Log(LogLevel.Noisy, "Reading {0} bytes from register {1} (0x{1:X})", count, regAddress);
             var result = new byte[count];

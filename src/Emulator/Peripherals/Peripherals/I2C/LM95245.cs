@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -65,7 +65,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             this.Log(LogLevel.Noisy, "Write! {0}", data.Select(x => "0x" + x.ToString("X2")).Aggregate((x, y) => x + " " + y));
         }
 
-        public byte[] Read(int count)
+        public byte[] Read(int count = 1)
         {
             this.Log(LogLevel.Noisy, "Read!");
             return new byte[] { 0 };
