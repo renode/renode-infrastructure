@@ -254,7 +254,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(taskEndpoint[id] != 0)
             {
                 this.Log(LogLevel.Noisy, "Received an event on channel {0} from 0x{1:X}. Triggering task at 0x{2:X}", id, eventEndpoint[id], taskEndpoint[id]);
-                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => sysbus.WriteDoubleWord(taskEndpoint[id], 1));
+                TriggerTask(taskEndpoint[id]);
             }
             else
             {
@@ -263,8 +263,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             if(forkEndpoint[id] != 0)
             {
                 this.Log(LogLevel.Noisy, "Received an event on channel {0} from 0x{1:X}. Triggering fork task at 0x{2:X}", id, eventEndpoint[id], forkEndpoint[id]);
-                machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => sysbus.WriteDoubleWord(forkEndpoint[id], 1));
+                TriggerTask(forkEndpoint[id]);
             }
+        }
+
+        private void TriggerTask(uint address)
+        {
+            // PPI must trigger the task at the event time so CPU and timer progress cannot pass it.
+            if(sysbus.TryGetCurrentCPU(out var _))
+            {
+                sysbus.WriteDoubleWord(address, 1);
+                return;
+            }
+            machine.LocalTimeSource.ExecuteInNearestSyncedState(_ => sysbus.WriteDoubleWord(address, 1), executeImmediately: true);
         }
 
         private IFlagRegisterField[] channelEnabled = new IFlagRegisterField[Channels];
