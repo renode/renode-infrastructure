@@ -106,7 +106,7 @@ public interface IUSBPipeSetup : IUSBPipeRead, IUSBPipeWrite
             Request = (byte)StandardRequest.GetDescriptor,
             Value = (ushort)(((int)DescriptorType.Configuration << 8) | configuration),
             Index = 0,
-            Count = (ushort)Packet.CalculateLength<DeviceDescriptor>()
+            Count = (ushort)Packet.CalculateLength<ConfigurationDescriptor>()
         };
 
         SetupRead(
