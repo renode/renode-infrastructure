@@ -38,7 +38,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             for(var i = 0; i < repeat; i++)
             {
-                commonFifo.FeedAccelerationSample(x, y, z);
+                commonFifo.FifoFeedAccelerationSample(x, y, z);
                 accelerometerDataReady.Value = true;
                 UpdateInterrupts();
             }
@@ -59,7 +59,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
         {
             for(var i = 0; i < repeat; i++)
             {
-                commonFifo.FeedAngularRateSample(x, y, z);
+                commonFifo.FifoFeedAngularRateSample(x, y, z);
                 gyroscopeDataReady.Value = true;
                 UpdateInterrupts();
             }
@@ -353,10 +353,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 .WithFlag(5, FieldMode.Read, name: "FIFO_FULL_IA", valueProviderCallback: _ =>
                 {
                     var samplesAddedToFifoEveryODR = (IsAccelerometerDataBatchedInFifo && IsAccelerometerPoweredOn ? 1u : 0u) + (IsGyroscopeDataBatchedInFifo && IsGyroscopePoweredOn ? 1u : 0u);
-                    return commonFifo.CountReached(MaxFifoWords - samplesAddedToFifoEveryODR);
+                    return commonFifo.FifoCountReached(MaxFifoWords - samplesAddedToFifoEveryODR);
                 })
                 .WithFlag(6, FieldMode.Read, name: "FIFO_OVR_IA", valueProviderCallback: _ => FifoOverrunStatus)
-                .WithFlag(7, FieldMode.Read, name: "FIFO_WTM_IA", valueProviderCallback: _ => FifoWatermarkThreshold != 0 && commonFifo.CountReached(FifoWatermarkThreshold))
+                .WithFlag(7, FieldMode.Read, name: "FIFO_WTM_IA", valueProviderCallback: _ => FifoWatermarkThreshold != 0 && commonFifo.FifoCountReached(FifoWatermarkThreshold))
                 .WithReadCallback((_, __) => previousFifoOverrunStatus = FifoOverrunStatus)
                 ;
 
@@ -918,24 +918,24 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 this.queue = new Queue<LSM6DSO_Vector3DSample>();
             }
 
-            public bool CountReached(uint value)
+            public bool FifoCountReached(uint value)
             {
                 return SamplesCount >= value;
             }
 
-            public void FeedAccelerationSample(decimal x, decimal y, decimal z)
+            public void FifoFeedAccelerationSample(decimal x, decimal y, decimal z)
             {
                 var sample = new LSM6DSO_Vector3DSample(DefaultAccelerometerTag, x, y, z);
-                FeedSample(sample);
+                FifoFeedSample(sample);
             }
 
-            public void FeedAngularRateSample(decimal x, decimal y, decimal z)
+            public void FifoFeedAngularRateSample(decimal x, decimal y, decimal z)
             {
                 var sample = new LSM6DSO_Vector3DSample(DefaultGyroscopeTag, x, y, z);
-                FeedSample(sample);
+                FifoFeedSample(sample);
             }
 
-            public void FeedSample(LSM6DSO_Vector3DSample sample)
+            public void FifoFeedSample(LSM6DSO_Vector3DSample sample)
             {
                 lock(locker)
                 {
