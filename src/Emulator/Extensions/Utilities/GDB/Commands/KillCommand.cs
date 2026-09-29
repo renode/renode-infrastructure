@@ -19,9 +19,11 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             return PacketData.Success;
         }
 
-        [Execute("vKill")]
-        public PacketData ExecuteExtended()
+        [Execute("vKill;")]
+        public PacketData ExecuteExtended(
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] int pid)
         {
+            manager.ManagedCpus.AttachedProcesses.Remove(pid);
             return PacketData.Success;
         }
     }

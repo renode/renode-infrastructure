@@ -352,6 +352,7 @@ namespace Antmicro.Renode.Utilities.GDB
                 cpu.DebuggerConnected = false;
             }
             commandsManager.CanAttachCPU = true;
+            commandsManager.ManagedCpus.AttachedProcesses.Clear();
         }
 
         private ICpuSupportingGdb stopReplyingCpu;

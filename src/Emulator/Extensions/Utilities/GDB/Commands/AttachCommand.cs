@@ -41,6 +41,8 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
                 cpu.Pause();
             }
 
+            manager.ManagedCpus.AttachedProcesses.Add(pid);
+
             if(sendExplicitStopResponse)
             {
                 // In All-Stop mode vAttach has to respond with a stop response

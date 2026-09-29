@@ -56,6 +56,10 @@ namespace Antmicro.Renode.Utilities.GDB
             if(selectedCpu is null)
             {
                 selectedCpu = cpu;
+                if(pid is int p)
+                {
+                    ManagedCpus.AttachedProcesses.Add(p);
+                }
             }
         }
 
@@ -433,10 +437,13 @@ namespace Antmicro.Renode.Utilities.GDB
 
             public bool MultiprocessExtensionRequested => cpusToPids.Count > 0;
 
+            public HashSet<int> AttachedProcesses => attachedProcesses;
+
             private readonly CommandsManager manager;
             private readonly Dictionary<int, ICpuSupportingGdb> idsToCpus = new Dictionary<int, ICpuSupportingGdb>();
             private readonly Dictionary<ICpuSupportingGdb, int> cpusToIds = new Dictionary<ICpuSupportingGdb, int>();
             private readonly Dictionary<ICpuSupportingGdb, int> cpusToPids = new Dictionary<ICpuSupportingGdb, int>();
+            private readonly HashSet<int> attachedProcesses = new HashSet<int>();
         }
 
         private class CommandDescriptor

@@ -1,5 +1,5 @@
 ﻿//
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -20,6 +20,14 @@ namespace Antmicro.Renode.Extensions.Utilities.GDB.Commands
         [Execute("D")]
         public PacketData Execute()
         {
+            return PacketData.Success;
+        }
+
+        [Execute("D;")]
+        public PacketData Execute(
+            [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] int pid)
+        {
+            manager.ManagedCpus.AttachedProcesses.Remove(pid);
             return PacketData.Success;
         }
     }
