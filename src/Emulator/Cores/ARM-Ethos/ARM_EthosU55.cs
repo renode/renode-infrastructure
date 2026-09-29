@@ -8,6 +8,7 @@
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.DMA;
 
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
@@ -23,6 +24,7 @@ public partial class ARM_EthosU55 : BasicDoubleWordPeripheral, IKnownSize
 
         this.macsPerCycle = macsPerCycle;
         IRQ = new GPIO();
+        dmaEngine = new DmaEngine(machine.GetSystemBus(this));
 
         DefineRegisters();
         Reset();
@@ -84,4 +86,5 @@ public partial class ARM_EthosU55 : BasicDoubleWordPeripheral, IKnownSize
     private readonly IValueRegisterField[] basePointers = new IValueRegisterField[BasePointerCount];
 
     private readonly int macsPerCycle;
+    private readonly DmaEngine dmaEngine;
 }
