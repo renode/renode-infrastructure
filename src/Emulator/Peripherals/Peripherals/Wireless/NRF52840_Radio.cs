@@ -542,12 +542,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
             data[startIndex + i] = addressPrefixes[logicalAddress];
         }
 
-        private readonly LimitTimer endTimer;
-        private readonly LimitTimer disableTimer;
-        private readonly LimitTimer bitCounterTimer;
-
-        private const ulong MicrosecondFrequency = 1000000;
-
         private State radioState;
         private byte[] addressPrefixes;
         private Shorts shorts;
@@ -580,6 +574,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private readonly IFlagRegisterField[] events;
         private readonly InterruptManager<Events> interruptManager;
+        private readonly LimitTimer endTimer;
+        private readonly LimitTimer disableTimer;
+        private readonly LimitTimer bitCounterTimer;
 
         private readonly ConcurrentQueue<KeyValuePair<byte[], IRadio>> rxBuffer;
 
@@ -628,6 +625,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         };
 
         private const int DefaultRSSISample = 10;
+        private const ulong MicrosecondFrequency = 1000000;
 
         private struct Shorts
         {
