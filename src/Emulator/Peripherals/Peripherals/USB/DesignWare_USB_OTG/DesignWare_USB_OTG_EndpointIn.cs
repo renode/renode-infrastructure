@@ -14,11 +14,11 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.USB;
 
-public partial class STM_USB
+public partial class DesignWare_USB_OTG
 {
     private class EndpointIn : Endpoint, IUSBPipeRead
     {
-        public EndpointIn(STM_USB parent, uint idx, IFlagRegisterField fifoEmptyInterruptMaskFlag) : base(parent, (ulong)Registers.DeviceEpInRegisters + 0x20 * idx, true, (byte)idx)
+        public EndpointIn(DesignWare_USB_OTG parent, uint idx, IFlagRegisterField fifoEmptyInterruptMaskFlag) : base(parent, (ulong)Registers.DeviceEpInRegisters + 0x20 * idx, true, (byte)idx)
         {
             this.fifoEmptyInterruptMaskFlag = fifoEmptyInterruptMaskFlag;
         }

@@ -9,11 +9,11 @@ using Antmicro.Renode.Core.USB;
 
 namespace Antmicro.Renode.Peripherals.USB;
 
-public partial class STM_USB
+public partial class DesignWare_USB_OTG
 {
     private class Endpoint
     {
-        public Endpoint(STM_USB parent, ulong offset, bool isIn, byte endpointNumber)
+        public Endpoint(DesignWare_USB_OTG parent, ulong offset, bool isIn, byte endpointNumber)
         {
             this.parent = parent;
             this.endpointNumber = endpointNumber;
@@ -140,7 +140,7 @@ public partial class STM_USB
         protected IFlagRegisterField setupPacketReceivedInterruptFlag;
 
         protected readonly byte endpointNumber;
-        protected readonly STM_USB parent;
+        protected readonly DesignWare_USB_OTG parent;
 
         private enum Registers
         {

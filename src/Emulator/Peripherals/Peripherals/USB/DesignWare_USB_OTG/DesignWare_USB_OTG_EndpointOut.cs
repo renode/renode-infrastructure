@@ -11,11 +11,11 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.USB;
 
-public partial class STM_USB
+public partial class DesignWare_USB_OTG
 {
     private class EndpointOut : Endpoint, IUSBPipeWrite
     {
-        public EndpointOut(STM_USB parent, uint idx) : base(parent, (ulong)Registers.DeviceEpOutRegisters + 0x20 * idx, false, (byte)idx)
+        public EndpointOut(DesignWare_USB_OTG parent, uint idx) : base(parent, (ulong)Registers.DeviceEpOutRegisters + 0x20 * idx, false, (byte)idx)
         {
             // Intentionally left empty
         }

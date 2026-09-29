@@ -19,9 +19,9 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.USB;
 
-public partial class STM_USB : BasicDoubleWordPeripheral, IUSBDevice, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
+public partial class DesignWare_USB_OTG : BasicDoubleWordPeripheral, IUSBDevice, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
 {
-    public STM_USB(IMachine machine) : base(machine)
+    public DesignWare_USB_OTG(IMachine machine) : base(machine)
     {
         allMaskIn = new EndpointInterruptMask(this, isIn: true);
         allMaskOut = new EndpointInterruptMask(this, isIn: false);
@@ -573,7 +573,7 @@ public partial class STM_USB : BasicDoubleWordPeripheral, IUSBDevice, IDoubleWor
 
     private class EndpointSetupWrapper : IUSBPipeSetup
     {
-        public EndpointSetupWrapper(STM_USB parent, EndpointIn epIn, EndpointOut epOut, byte endpointNumber)
+        public EndpointSetupWrapper(DesignWare_USB_OTG parent, EndpointIn epIn, EndpointOut epOut, byte endpointNumber)
         {
             this.parent = parent;
             this.epIn = epIn;
@@ -614,12 +614,12 @@ public partial class STM_USB : BasicDoubleWordPeripheral, IUSBDevice, IDoubleWor
         private readonly byte endpointNumber;
         private readonly EndpointIn epIn;
         private readonly EndpointOut epOut;
-        private readonly STM_USB parent;
+        private readonly DesignWare_USB_OTG parent;
     }
 
     private class USBConnection : IUSBConnection, IDisposable
     {
-        public USBConnection(STM_USB parent)
+        public USBConnection(DesignWare_USB_OTG parent)
         {
             this.parent = parent;
             parent.EnqueueHostReset();
@@ -669,13 +669,13 @@ public partial class STM_USB : BasicDoubleWordPeripheral, IUSBDevice, IDoubleWor
             return ep;
         }
 
-        private readonly STM_USB parent;
+        private readonly DesignWare_USB_OTG parent;
     }
 
     // This is a separate struct to aid future implementation of Ep-Each interrupt flow
     private class EndpointInterruptMask
     {
-        public EndpointInterruptMask(STM_USB parent, bool isIn)
+        public EndpointInterruptMask(DesignWare_USB_OTG parent, bool isIn)
         {
             Register = new DoubleWordRegister(parent);
             DefineRegisters(parent, isIn);
@@ -689,7 +689,7 @@ public partial class STM_USB : BasicDoubleWordPeripheral, IUSBDevice, IDoubleWor
 
         public bool SetupPhaseDone { get; private set; }
 
-        private void DefineRegisters(STM_USB parent, bool isIn)
+        private void DefineRegisters(DesignWare_USB_OTG parent, bool isIn)
         {
             Register
                 .WithFlag(0, writeCallback: (_, value) => TransferComplete = value, name: "Transfer complete (XFRCM)")
