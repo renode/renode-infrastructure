@@ -906,82 +906,32 @@ namespace Antmicro.Renode.Peripherals.CAN
             {
                 get
                 {
-                    if(DataLengthCode <= 8)
+                    if(!FDFormat)
                     {
-                        return DataLengthCode;
+                        // DLC values above 8 mean 8 payload bytes in classic mode.
+                        return Math.Min((int)DataLengthCode, 8);
                     }
-                    if(FDFormat)
-                    {
-                        switch(DataLengthCode)
-                        {
-                        // Mappings taken directly from TRM
-                        case 9:
-                            return 12;
-                        case 10:
-                            return 16;
-                        case 11:
-                            return 20;
-                        case 12:
-                            return 24;
-                        case 13:
-                            return 32;
-                        case 14:
-                            return 48;
-                        case 15:
-                            return 64;
-                        default:
-                            throw new UnreachableException("Impossible DataLengthCode");
-                        }
-                    }
-                    else
-                    {
-                        // All other encodings mean 8 in classic mode
-                        return 8;
-                    }
+                    return CANDataLengthCode.TryToPayloadLength(DataLengthCode, out var payloadLength)
+                        ? payloadLength : throw new UnreachableException("Impossible DataLengthCode");
                 }
 
                 set
                 {
                     if(!(0 <= value && value <= 64))
                     {
-                        throw new ArgumentOutOfRangeException("DataLenght must be a value 0-64");
+                        throw new ArgumentOutOfRangeException(nameof(value), value, "DataLength must be a value 0-64");
                     }
-                    if(value <= 8)
+                    if(!FDFormat)
                     {
-                        DataLengthCode = (byte)value;
-                    }
-                    else if(FDFormat)
-                    {
-                        switch(value)
-                        {
-                        case 12:
-                            DataLengthCode = 9;
-                            break;
-                        case 16:
-                            DataLengthCode = 10;
-                            break;
-                        case 20:
-                            DataLengthCode = 11;
-                            break;
-                        case 24:
-                            DataLengthCode = 12;
-                            break;
-                        case 32:
-                            DataLengthCode = 13;
-                            break;
-                        case 48:
-                            DataLengthCode = 14;
-                            break;
-                        case 64:
-                            DataLengthCode = 15;
-                            break;
-                        default:
-                            throw new ArgumentOutOfRangeException($"Invalid DataLegth for FDCan ({value})");
-                        }
+                        DataLengthCode = (byte)Math.Min(value, 8);
                     }
                     else
                     {
-                        DataLengthCode = 8;
+                        if(!CANDataLengthCode.TryFromPayloadLength(value, out var dataLengthCode))
+                        {
+                            throw new ArgumentOutOfRangeException(nameof(value), value, "Invalid DataLength for CAN FD");
+                        }
+                        DataLengthCode = dataLengthCode;
                     }
                 }
             }

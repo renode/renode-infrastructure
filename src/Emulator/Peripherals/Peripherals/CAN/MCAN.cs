@@ -1299,42 +1299,29 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private byte MapDataBytesCountToDataLengthCode(int k)
         {
-            if(k <= 8)
-            {
-                return (byte)k;
-            }
-
             if(k > 64)
             {
                 this.Log(LogLevel.Warning, "Received frame has more than 64 bytes");
                 return 0;
             }
-            var success = FDBytesCountToDataLengthCodeMap.TryGetValue(k, out var datalengthCode);
-
-            if(!success)
+            if(!CANDataLengthCode.TryFromPayloadLength(k, out var dataLengthCode))
             {
                 this.Log(LogLevel.Warning, "Invalid length of received frame");
                 return 0;
             }
 
-            return datalengthCode;
+            return dataLengthCode;
         }
 
         private byte MapDataLengthCodeToDataBytesCount(int k)
         {
-            if(k <= 8)
+            if(!CANDataLengthCode.TryToPayloadLength(k, out var payloadLength))
             {
-                return (byte)k;
-            }
-
-            if(k > 15)
-            {
-                this.Log(LogLevel.Warning, "Frame specfied an invalid Data Length Code");
+                this.Log(LogLevel.Warning, "Frame specified an invalid Data Length Code");
                 return 0;
             }
 
-            DataLengthCodeToFDBytesCountMap.TryGetValue(k, out var fdBytesCount);
-            return fdBytesCount;
+            return (byte)payloadLength;
         }
 
         private void UpdateInterrupts()

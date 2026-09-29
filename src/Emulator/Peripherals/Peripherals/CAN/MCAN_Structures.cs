@@ -201,28 +201,6 @@ namespace Antmicro.Renode.Peripherals.CAN
             {0b111, 64},
         };
 
-        private static readonly IReadOnlyDictionary<int, byte> FDBytesCountToDataLengthCodeMap = new Dictionary<int, byte>
-        {
-            {12, 9},
-            {16, 10},
-            {20, 11},
-            {24, 12},
-            {32, 13},
-            {48, 14},
-            {64, 15},
-        };
-
-        private static readonly IReadOnlyDictionary<int, byte> DataLengthCodeToFDBytesCountMap = new Dictionary<int, byte>
-        {
-            {9, 12},
-            {10, 16},
-            {11, 20},
-            {12, 24},
-            {13, 32},
-            {14, 48},
-            {15, 64},
-        };
-
         private struct RxFIFO1Acknowledge
         {
             public IValueRegisterField RxFIFO1AcknowledgeIndex;

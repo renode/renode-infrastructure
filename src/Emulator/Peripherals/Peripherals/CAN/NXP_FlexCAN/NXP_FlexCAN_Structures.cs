@@ -20,54 +20,20 @@ namespace Antmicro.Renode.Peripherals.CAN
     {
         private static uint PacketLengthToDataLengthCode(uint length)
         {
-            if(length <= 8)
+            if(CANDataLengthCode.TryFromPayloadLength((int)length, out var dataLengthCode))
             {
-                return (byte)length;
+                return dataLengthCode;
             }
 
-            switch(length)
-            {
-            case 12:
-                return 9;
-            case 15:
-                return 10;
-            case 20:
-                return 11;
-            case 24:
-                return 12;
-            case 32:
-                return 13;
-            case 48:
-                return 14;
-            case 64:
-                return 15;
-            default:
-                Logger.Log(LogLevel.Error, "{0} is invalid data length for CAN message", length);
-                return 0;
-            }
+            Logger.Log(LogLevel.Error, "{0} is invalid data length for CAN message", length);
+            return 0;
         }
 
         private static uint DataLengthCodeToPacketLength(uint dataLengthCode)
         {
-            switch(dataLengthCode)
-            {
-            case 9:
-                return 12;
-            case 10:
-                return 15;
-            case 11:
-                return 20;
-            case 12:
-                return 24;
-            case 13:
-                return 32;
-            case 14:
-                return 48;
-            case 15:
-                return 64;
-            default:
-                return dataLengthCode;
-            }
+            return CANDataLengthCode.TryToPayloadLength((int)dataLengthCode, out var packetLength)
+                ? (uint)packetLength
+                : dataLengthCode;
         }
 
         private struct MessageBufferIteratorEntry
