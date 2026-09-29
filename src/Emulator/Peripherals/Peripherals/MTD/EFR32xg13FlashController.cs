@@ -61,10 +61,10 @@ namespace Antmicro.Renode.Peripherals.MTD
                     .WithReservedBits(2, 30)
                 },
                 {(long)Registers.WriteCommand, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Toggle, changeCallback: (_, __) => UpdateWriteAddress(), name: "LADDRIM")
-                    .WithFlag(1, FieldMode.Toggle, changeCallback: (_, __) => ErasePage(), name: "ERASEPAGE")
+                    .WithFlag(0, FieldMode.WriteOneToToggle, changeCallback: (_, __) => UpdateWriteAddress(), name: "LADDRIM")
+                    .WithFlag(1, FieldMode.WriteOneToToggle, changeCallback: (_, __) => ErasePage(), name: "ERASEPAGE")
                     .WithTaggedFlag("WRITEEND", 2)
-                    .WithFlag(3, FieldMode.Toggle, changeCallback: (_, __) => WriteWordToFlash(), name: "WRITEONCE")
+                    .WithFlag(3, FieldMode.WriteOneToToggle, changeCallback: (_, __) => WriteWordToFlash(), name: "WRITEONCE")
                     .WithTaggedFlag("WRITETRIG", 4)
                     .WithTaggedFlag("ERASEABORT", 5)
                     .WithReservedBits(6, 2)

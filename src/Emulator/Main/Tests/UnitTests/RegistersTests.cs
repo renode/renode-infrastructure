@@ -370,7 +370,7 @@ namespace Antmicro.Renode.UnitTests
             register.DefineEnumField<TwoBitEnum>(7, 2, readCallback: EnumCallback, writeCallback: EnumCallback, changeCallback: EnumCallback);
             register.DefineFlagField(9, readCallback: BoolCallback, writeCallback: BoolCallback, changeCallback: BoolCallback);
             register.DefineValueField(10, 4, readCallback: NumberCallback, writeCallback: NumberCallback, changeCallback: NumberCallback);
-            flagTRField = register.DefineFlagField(15, FieldMode.Read | FieldMode.Toggle);
+            flagTRField = register.DefineFlagField(15, FieldMode.Read | FieldMode.WriteOneToToggle);
             flagSRField = register.DefineFlagField(16, FieldMode.Read | FieldMode.Set);
             flagW1CField = register.DefineFlagField(17, FieldMode.Read | FieldMode.WriteOneToClear);
             flagW0CField = register.DefineFlagField(18, FieldMode.Read | FieldMode.WriteZeroToClear);

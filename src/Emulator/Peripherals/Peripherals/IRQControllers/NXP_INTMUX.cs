@@ -151,7 +151,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             private void BuildRegisters()
             {
                 intmux.RegistersCollection.AddRegister(GetRegisterAddress(ChannelRegisters.ControlStatusRegister), new DoubleWordRegister(this)
-                    .WithFlag(0, out softwareReset, FieldMode.Toggle, name: "SoftwareReset",
+                    .WithFlag(0, out softwareReset, FieldMode.WriteOneToToggle, name: "SoftwareReset",
                         changeCallback: (_, __) => Reset())
                     .WithFlag(1, out logicAND, name: "LogicAND")
                     .WithReservedBits(2, 2)

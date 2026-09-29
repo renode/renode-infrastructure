@@ -112,7 +112,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithFlag(0, out xtal32mReady, name: "XTAL32M_READY")
                 .WithEnumField<DoubleWordRegister, XTAL32MState>(1, 3, out xtal32mState, name: "XTAL32M_STATE", valueProviderCallback: (_) => xtal32mEnable.Value ? xtal32mState.Value : XTAL32MState.Idle)
                 .WithFlag(4, name: "XTAL32M_CMP_OUT")
-                .WithFlag(5, FieldMode.Toggle, name: "XTAL32M_LDO_OK")
+                .WithFlag(5, FieldMode.WriteOneToToggle, name: "XTAL32M_LDO_OK")
                 .WithValueField(6, 5, name: "XTAL32M_CUR_SET_STAT")
                 .WithValueField(11, 8, name: "XTAL32M_TRIM_VAL")
                 .WithReservedBits(19, 13);

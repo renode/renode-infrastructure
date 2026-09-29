@@ -612,7 +612,7 @@ namespace Antmicro.Renode.Core.Structure.Registers
                         changedRegisters.Add(registerField);
                     }
                     break;
-                case FieldMode.Toggle:
+                case FieldMode.WriteOneToToggle:
                     if(BitHelper.AreAnyBitsSet(value, registerField.Position, registerField.Width))
                     {
                         BitHelper.XorWith(ref UnderlyingValue, value, registerField.Position, registerField.Width);
