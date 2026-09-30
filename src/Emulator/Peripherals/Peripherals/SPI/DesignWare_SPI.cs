@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.SPI
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class DesignWare_SPI : SimpleContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize
     {
-        public DesignWare_SPI(IMachine machine, uint transmitDepth, uint receiveDepth, uint idCode = 0xFFFFFFFF, uint componentVersion = 0x3332332A, int maxTransferSize = 16, bool levelTrigger = true) : base(machine)
+        public DesignWare_SPI(IMachine machine, uint transmitDepth, uint receiveDepth, uint idCode = 0xFFFFFFFF, uint componentVersion = 0x3332332A, int maxTransferSize = 16, bool levelTrigger = true, int numberOfTargets = 3) : base(machine)
         {
             if(maxTransferSize != 16 && maxTransferSize != 32)
             {
@@ -35,6 +35,14 @@ namespace Antmicro.Renode.Peripherals.SPI
             {
                 throw new ConstructionException($"Unsupported '{nameof(receiveDepth)}' value ({receiveDepth}), must be less than {MaxFifoDepth}");
             }
+            if(numberOfTargets <= 0)
+            {
+                throw new ConstructionException($"'{nameof(numberOfTargets)}' has to be greater than zero");
+            }
+            if(numberOfTargets > 32)
+            {
+                throw new ConstructionException($"'{nameof(numberOfTargets)}' has to be less or equal to 32");
+            }
             transmitFifo = new Queue<uint>();
             receiveFifo = new Queue<uint>();
 
@@ -44,15 +52,18 @@ namespace Antmicro.Renode.Peripherals.SPI
             this.componentVersion = componentVersion;
             this.maxTransferSize = maxTransferSize;
             this.levelTrigger = levelTrigger;
+            this.numberOfTargets = numberOfTargets;
             RegistersCollection = new DoubleWordRegisterCollection(this);
             DefineRegisters();
         }
 
         public override void Register(ISPIPeripheral peripheral, NumberRegistrationPoint<int> registrationPoint)
         {
-            if(registrationPoint.Address < 1 || registrationPoint.Address > 3)
+            if(registrationPoint.Address < 1 || registrationPoint.Address > numberOfTargets)
             {
-                throw new RegistrationException("EOS S3 SPI Master supports 3 slaves at addresses 1, 2, 3");
+                var adresses = numberOfTargets == 1 ? "address 1" : $"addresses from 1 to {numberOfTargets}";
+                var targets = numberOfTargets == 1 ? "1 slave" : $"{numberOfTargets} slaves";
+                throw new RegistrationException($"{nameof(DesignWare_SPI)} Master supports {targets} at {adresses}");
             }
 
             base.Register(peripheral, registrationPoint);
@@ -182,34 +193,16 @@ namespace Antmicro.Renode.Peripherals.SPI
             ;
 
             Registers.SlaveSelect.Define(this)
-                .WithEnumField<DoubleWordRegister, SlaveSelect>(0, 3, name: "SER",
-                    writeCallback: (previousValue, value) =>
+                .WithValueField(0, numberOfTargets, name: "SER",
+                    changeCallback: (_, value) =>
                     {
-                        if(!TryDecodeSlaveId(value, out var newSlaveId))
+                        if(TryChangeTarget(value))
                         {
-                            return;
+                            AttemptDataTransfer();
                         }
-                        slaveId = newSlaveId;
-
-                        if(slaveId == 0)
-                        {
-                            this.DebugLog("Finishing transmission");
-                            target?.FinishTransmission();
-                            target = null;
-                            return;
-                        }
-
-                        if(!this.TryGetByAddress(slaveId, out target))
-                        {
-                            target = null;
-                            this.Log(LogLevel.Warning, "Trying to send data to a not attached slave #{0}", slaveId);
-                            return;
-                        }
-
-                        AttemptDataTransfer();
                     }
                 )
-                .WithReservedBits(3, 29)
+                .WithReservedBits(numberOfTargets, 32 - numberOfTargets)
             ;
 
             Registers.ClockDivider.Define(this)
@@ -577,27 +570,33 @@ namespace Antmicro.Renode.Peripherals.SPI
             UpdateInterrupts();
         }
 
-        private bool TryDecodeSlaveId(SlaveSelect val, out int id)
+        private bool TryChangeTarget(ulong slaveSelect)
         {
-            switch(val)
+            this.DebugLog("Finishing transmission");
+            target?.FinishTransmission();
+            target = null;
+
+            if(slaveSelect == 0)
             {
-            case SlaveSelect.Slave1:
-                id = 1;
-                return true;
-            case SlaveSelect.Slave2:
-                id = 2;
-                return true;
-            case SlaveSelect.Slave3:
-                id = 3;
-                return true;
-            case SlaveSelect.None:
-                id = 0;
-                return true;
-            default:
-                this.Log(LogLevel.Warning, "Unexpected Slave Select (SER) value: 0x{0:X}", val);
-                id = -1;
                 return false;
             }
+
+            if(!Misc.IsPowerOfTwo(slaveSelect))
+            {
+                this.WarningLog("Unexpected Slave Select (SER) value: 0x{0:X}", slaveSelect);
+                slaveId = 0;
+                return false;
+            }
+
+            slaveId = BitHelper.GetMostSignificantSetBitIndex(slaveSelect) + 1;
+
+            if(!this.TryGetByAddress(slaveId, out target))
+            {
+                target = null;
+                this.WarningLog("Trying to send data to a not attached slave #{0}", slaveId);
+            }
+
+            return true;
         }
 
         private void ClearBuffers()
@@ -644,6 +643,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         private readonly uint componentVersion;
         private readonly int maxTransferSize;
         private readonly bool levelTrigger;
+        private readonly int numberOfTargets;
 
         // a single frame can have up to 32-bits
         private readonly Queue<uint> receiveFifo;
@@ -665,14 +665,6 @@ namespace Antmicro.Renode.Peripherals.SPI
             Transmit = 0x1,
             Receive = 0x2,
             EEPROM = 0x3,
-        }
-
-        private enum SlaveSelect
-        {
-            None = 0,
-            Slave1 = 1,
-            Slave2 = 2,
-            Slave3 = 4
         }
 
         private enum Registers
