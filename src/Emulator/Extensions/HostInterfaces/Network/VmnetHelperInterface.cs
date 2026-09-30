@@ -6,12 +6,12 @@
 //
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-using Antmicro.Renode.Config;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
@@ -42,28 +42,20 @@ namespace Antmicro.Renode.HostInterfaces.Network
                     throw new RecoverableException("Failed to decode UTF-8 data.", ex);
                 }
 
-                object interfaceDescriptionJson;
+                AutoConfInterfaceDescription interfaceDescriptionJson;
                 try
                 {
-                    interfaceDescriptionJson = SimpleJson.DeserializeObject(interfaceDescriptionString);
+                    interfaceDescriptionJson = JsonSerializer.Deserialize<AutoConfInterfaceDescription>(interfaceDescriptionString, new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+                    });
                 }
                 catch(SerializationException se)
                 {
                     throw new RecoverableException("Invalid interface configuration: failed to parse JSON.", se);
                 }
 
-                if(!(interfaceDescriptionJson is IDictionary<string, object> dict))
-                {
-                    throw new RecoverableException("Invalid interface configuration: unexpected response format.");
-                }
-
-                var macString = dict[MACKey];
-
-                if(!(macString is string))
-                {
-                    throw new RecoverableException("Invalid interface configuration: MAC value is not a string.");
-                }
-                if(!MACAddress.TryParse((string)macString, out var mac))
+                if(!MACAddress.TryParse(interfaceDescriptionJson.VmnetMacAddress, out var mac))
                 {
                     throw new RecoverableException("Invalid interface configuration: failed to parse MAC address.");
                 }
@@ -72,8 +64,12 @@ namespace Antmicro.Renode.HostInterfaces.Network
             }
         }
 
-        private const string MACKey = "vmnet_mac_address";
-
         private const int JsonLength = 1000;
+
+        private class AutoConfInterfaceDescription
+        {
+            [JsonRequired]
+            public string VmnetMacAddress { get; set; }
+        }
     }
 }

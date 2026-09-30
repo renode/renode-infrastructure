@@ -9,8 +9,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 
-using Antmicro.Renode.Config;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
@@ -198,7 +198,10 @@ namespace Antmicro.Renode.UserInterface.Commands
                     Root = root
                 };
 
-                writer.WriteLine(SimpleJson.PrettySerializeObject(document));
+                writer.WriteLine(JsonSerializer.Serialize(document, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                }));
             }
 
             public void ProcessTree(string searchString = null, RangeToken rangeToken = null)
