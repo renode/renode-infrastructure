@@ -14,6 +14,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.SPI
@@ -659,77 +660,78 @@ namespace Antmicro.Renode.Peripherals.SPI
             QuadByte = 4,
         }
 
+        [RegistersDescription]
+        public enum Registers
+        {
+            Control0                            = 0x00, // CTRLR0
+            Control1                            = 0x04, // CTRLR1
+            Enable                              = 0x08, // ENR
+            MicrowireControl                    = 0x0C, // MWCR
+            SlaveSelect                         = 0x10, // SER
+            ClockDivider                        = 0x14, // BAUDR
+            TransmitThreshold                   = 0x18, // TXFTLR
+            ReceiveThreshold                    = 0x1C, // RXFTLR
+            TransmitLevel                       = 0x20, // TXFLR
+            ReceiveLevel                        = 0x24, // RXFLR
+            Status                              = 0x28, // SR
+            InterruptMask                       = 0x2C, // IMR
+            InterruptStatus                     = 0x30, // ISR
+            InterruptRawStatus                  = 0x34, // RISR
+            TransmitOverflowInterruptClear      = 0x38, // TXEICR
+            ReceiveOverrunInterruptClear        = 0x3C, // RXOICR
+            ReceiveUnderflowInterruptClear      = 0x40, // RXUICR
+            MultiMasterContentionInterruptClear = 0x44, // MSTICR
+            InterruptClear                      = 0x48, // ICR
+            DmaControl                          = 0x4C, // DMACR
+            DmaTransmitData                     = 0x50, // DMATDLR
+            DmaReceiveData                      = 0x54, // DMARDLR
+            DeviceIdentificationCode            = 0x58, // IDR
+            SynopsysComponentVersion            = 0x5C, // VERSION_ID
+            Data                                = 0x60, // DRn
+            Data1                               = 0x64,
+            Data2                               = 0x68,
+            Data3                               = 0x6C,
+            Data4                               = 0x70,
+            Data5                               = 0x74,
+            Data6                               = 0x78,
+            Data7                               = 0x7C,
+            Data8                               = 0x80,
+            Data9                               = 0x84,
+            Data10                              = 0x88,
+            Data11                              = 0x8C,
+            Data12                              = 0x90,
+            Data13                              = 0x94,
+            Data14                              = 0x98,
+            Data15                              = 0x9C,
+            Data16                              = 0xA0,
+            Data17                              = 0xA4,
+            Data18                              = 0xA8,
+            Data19                              = 0xAC,
+            Data20                              = 0xB0,
+            Data21                              = 0xB4,
+            Data22                              = 0xB8,
+            Data23                              = 0xBC,
+            Data24                              = 0xC0,
+            Data25                              = 0xC4,
+            Data26                              = 0xC8,
+            Data27                              = 0xCC,
+            Data28                              = 0xD0,
+            Data29                              = 0xD4,
+            Data30                              = 0xD8,
+            Data31                              = 0xDC,
+            Data32                              = 0xE0,
+            Data33                              = 0xE4,
+            Data34                              = 0xE8,
+            Data35                              = 0xEC,
+            ReceiveSampleDelay                  = 0xF0, // RX_SAMPLE_DELAY
+        }
+
         private enum TransferMode
         {
             TransmitReceive = 0x0,
             Transmit = 0x1,
             Receive = 0x2,
             EEPROM = 0x3,
-        }
-
-        private enum Registers
-        {
-            Control0 = 0x0,
-            Control1 = 0x4,
-            Enable = 0x8,
-            MicrowireControl = 0xC,
-            SlaveSelect = 0x10,
-            ClockDivider = 0x14,
-            TransmitThreshold = 0x18,
-            ReceiveThreshold = 0x1C,
-            TransmitLevel = 0x20,
-            ReceiveLevel = 0x24,
-            Status = 0x28,
-            InterruptMask = 0x2C,
-            InterruptStatus = 0x30,
-            InterruptRawStatus = 0x34,
-            TransmitOverflowInterruptClear = 0x38,
-            ReceiveOverrunInterruptClear = 0x3C,
-            ReceiveUnderflowInterruptClear = 0x40,
-            MultiMasterContentionInterruptClear = 0x44,
-            InterruptClear = 0x48,
-            DmaControl = 0x4C,
-            DmaTransmitData = 0x50,
-            DmaReceiveData = 0x54,
-            DeviceIdentificationCode = 0x58,
-            SynopsysComponentVersion = 0x5C,
-            Data = 0x60,
-            Data1 = 0x64,
-            Data2 = 0x68,
-            Data3 = 0x6C,
-            Data4 = 0x70,
-            Data5 = 0x74,
-            Data6 = 0x78,
-            Data7 = 0x7C,
-            Data8 = 0x80,
-            Data9 = 0x84,
-            Data10 = 0x88,
-            Data11 = 0x8C,
-            Data12 = 0x90,
-            Data13 = 0x94,
-            Data14 = 0x98,
-            Data15 = 0x9C,
-            Data16 = 0xA0,
-            Data17 = 0xA4,
-            Data18 = 0xA8,
-            Data19 = 0xAC,
-            Data20 = 0xB0,
-            Data21 = 0xB4,
-            Data22 = 0xB8,
-            Data23 = 0xBC,
-            Data24 = 0xC0,
-            Data25 = 0xC4,
-            Data26 = 0xC8,
-            Data27 = 0xCC,
-            Data28 = 0xD0,
-            Data29 = 0xD4,
-            Data30 = 0xD8,
-            Data31 = 0xDC,
-            Data32 = 0xE0,
-            Data33 = 0xE4,
-            Data34 = 0xE8,
-            Data35 = 0xEC,
-            ReceiveSampleDelay = 0xF0,
         }
     }
 }
