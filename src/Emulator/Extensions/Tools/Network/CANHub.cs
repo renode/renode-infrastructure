@@ -64,7 +64,14 @@ namespace Antmicro.Renode.Tools.Network
             }
         }
 
+        public void LoadDBC(string path)
+        {
+            DbcDecoder = new DBCDecoder(path);
+        }
+
         public bool UseNetworkByteOrderForLogging { get; set; }
+
+        public DBCDecoder DbcDecoder { get; private set; }
 
         public event Action<IExternal, ICAN, ICAN, byte[]> FrameTransmitted;
 
