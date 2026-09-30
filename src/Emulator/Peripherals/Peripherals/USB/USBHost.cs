@@ -10,6 +10,7 @@ using System;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Core.USB;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities.Collections;
 
@@ -57,6 +58,10 @@ namespace Antmicro.Renode.Peripherals.USB
             return device != null;
         }
 
+        // A device that can't or won't service a request answers it with a STALL handshake
+        // (USB 2.0 8.5.3.4 / 9.2.7). Both steps below are issued with the stall-aware overload
+        // of `SetupWrite`, so such an answer stops the enumeration with a warning naming the
+        // step instead of leaving it silently stuck waiting for a status stage.
         protected void EnumerateDevice(IUSBDevice device)
         {
             var conn = device.ConnectUSB();
@@ -66,13 +71,61 @@ namespace Antmicro.Renode.Peripherals.USB
             ExecuteWithDelay(() =>
             {
                 var ep0 = conn.ConnectEndpointSetup(0);
-                ep0.SetAddress(addressCounter, () =>
+                SetAddress(ep0, addressCounter, addressAccepted =>
                 {
+                    if(!addressAccepted)
+                    {
+                        EnumerationFailed(device, "SET_ADDRESS");
+                        return;
+                    }
                     // USB configurations are 1-based (0 means unconfigured),
                     // so choose the first configuration, which all devices should have
-                    ep0.SetConfiguration(1, () => DeviceEnumerated(conn));
+                    SetConfiguration(ep0, 1, configurationAccepted =>
+                    {
+                        if(!configurationAccepted)
+                        {
+                            EnumerationFailed(device, "SET_CONFIGURATION");
+                            return;
+                        }
+                        DeviceEnumerated(conn);
+                    });
                 });
             });
+        }
+
+        private void EnumerationFailed(IUSBDevice device, string step)
+        {
+            this.Log(LogLevel.Warning, "USB enumeration of {0} failed: the device stalled {1}", device, step);
+        }
+
+        private static void SetAddress(IUSBPipeSetup ep0, byte address, Action<bool> callback)
+        {
+            var setupPacket = new SetupPacket
+            {
+                Recipient = PacketRecipient.Device,
+                Type = PacketType.Standard,
+                Direction = Core.USB.Direction.HostToDevice,
+                Request = (byte)StandardRequest.SetAddress,
+                Value = address,
+                Index = 0,
+                Count = 0
+            };
+            ep0.SetupWrite(setupPacket, null, callback);
+        }
+
+        private static void SetConfiguration(IUSBPipeSetup ep0, byte configuration, Action<bool> callback)
+        {
+            var setupPacket = new SetupPacket
+            {
+                Recipient = PacketRecipient.Device,
+                Type = PacketType.Standard,
+                Direction = Core.USB.Direction.HostToDevice,
+                Request = (byte)StandardRequest.SetConfiguration,
+                Value = configuration,
+                Index = 0,
+                Count = 0
+            };
+            ep0.SetupWrite(setupPacket, null, callback);
         }
 
         private bool TryInitializeConnectedDevice(IUSBDevice peripheral)
