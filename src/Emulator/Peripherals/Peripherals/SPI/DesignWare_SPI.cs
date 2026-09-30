@@ -120,7 +120,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private static int GetByteSize(int bits)
         {
-            return Misc.NextPowerOfTwo(bits.AlignUpToMultipleOf(8) / 8);
+            return Misc.RoundUpToPowerOfTwo(bits.AlignUpToMultipleOf(8) / 8);
         }
 
         private void DefineRegisters()
@@ -212,7 +212,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(16, 16)
             ;
 
-            var transmitThresholdBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)transmitDepth));
+            var transmitThresholdBits = Misc.Logarithm2(Misc.RoundUpToPowerOfTwo((int)transmitDepth));
             Registers.TransmitThreshold.Define(this)
                 .WithValueField(0, transmitThresholdBits, out transmitThreshold, name: "TFT",
                     changeCallback: (previousValue, value) =>
@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithChangeCallback((_, __) => UpdateInterrupts())
             ;
 
-            var receiveThresholdBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)receiveDepth));
+            var receiveThresholdBits = Misc.Logarithm2(Misc.RoundUpToPowerOfTwo((int)receiveDepth));
             Registers.ReceiveThreshold.Define(this)
                 .WithValueField(0, receiveThresholdBits, out receiveThreshold, name: "RFT",
                     changeCallback: (previousValue, value) =>
@@ -265,13 +265,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(receiveThresholdBits, 32 - receiveThresholdBits)
             ;
 
-            var transmitLeveldBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)transmitDepth + 1));
+            var transmitLeveldBits = Misc.Logarithm2(Misc.RoundUpToPowerOfTwo((int)transmitDepth + 1));
             Registers.TransmitLevel.Define(this)
                 .WithValueField(0, transmitLeveldBits, FieldMode.Read, valueProviderCallback: _ => (uint)transmitFifo.Count, name: "TXFLR")
                 .WithReservedBits(transmitLeveldBits, 32 - transmitLeveldBits)
             ;
 
-            var receiveLevelBits = Misc.Logarithm2(Misc.NextPowerOfTwo((int)receiveDepth + 1));
+            var receiveLevelBits = Misc.Logarithm2(Misc.RoundUpToPowerOfTwo((int)receiveDepth + 1));
             Registers.ReceiveLevel.Define(this)
                 .WithValueField(0, receiveLevelBits, FieldMode.Read, valueProviderCallback: _ => (uint)receiveFifo.Count, name: "RXFLR")
                 .WithReservedBits(receiveLevelBits, 32 - receiveLevelBits)

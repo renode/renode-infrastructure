@@ -1486,7 +1486,7 @@ namespace Antmicro.Renode.Utilities
             return (value != 0) && (value & (value - 1)) == 0;
         }
 
-        public static int NextPowerOfTwo(int value)
+        public static int RoundUpToPowerOfTwo(int value)
         {
             value--;
             value |= value >> 1;
