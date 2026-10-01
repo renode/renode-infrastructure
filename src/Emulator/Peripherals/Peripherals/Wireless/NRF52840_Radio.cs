@@ -13,6 +13,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
@@ -23,6 +24,21 @@ namespace Antmicro.Renode.Peripherals.Wireless
         public NRF52840_Radio(IMachine machine) : base(machine)
         {
             IRQ = new GPIO();
+            // Radio events are scheduled on the same clock as NRF52840_Timer, so that a timer captured through PPI reads the event
+            endTimer = CreateEventTimer("radio-end", () =>
+            {
+                SetEvent(Events.Payload);
+                SetEvent(Events.End);
+                SetEvent(Events.CRCOk);
+            });
+            disableTimer = CreateEventTimer("radio-disable", () =>
+            {
+                if(shorts.EndDisable.Value)
+                {
+                    Disable();
+                }
+            });
+            bitCounterTimer = CreateEventTimer("radio-bcmatch", () => SetEvent(Events.BitCountMatch));
             interruptManager = new InterruptManager<Events>(this, IRQ, "RadioIrq");
             shorts = new Shorts();
             events = new IFlagRegisterField[(int)Events.PHYEnd + 1];
@@ -36,6 +52,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
             radioState = State.Disabled;
             interruptManager.Reset();
             base.Reset();
+            endTimer.Enabled = false;
+            disableTimer.Enabled = false;
+            bitCounterTimer.Enabled = false;
             addressPrefixes = new byte[8];
             while(rxBuffer.TryDequeue(out var _)) { }
         }
@@ -451,25 +470,29 @@ namespace Antmicro.Renode.Peripherals.Wireless
             LogUnhandledShort(shorts.EndStart, nameof(shorts.EndStart)); // not sure how to support it. It's instant from our perspective.
         }
 
+        private LimitTimer CreateEventTimer(string name, Action onFire)
+        {
+            var timer = new LimitTimer(machine.ClockSource, MicrosecondFrequency, this, name, limit: 1,
+                direction: Direction.Ascending, enabled: false, workMode: WorkMode.OneShot, eventEnabled: true);
+            timer.LimitReached += onFire;
+            return timer;
+        }
+
+        private void ArmEventTimer(LimitTimer timer, ulong microseconds)
+        {
+            timer.Enabled = false;
+            timer.Limit = Math.Max(1, microseconds);
+            timer.ResetValue();
+            timer.Enabled = true;
+        }
+
         private void ScheduleRadioEvents(uint packetLen)
         {
-            var timeSource = machine.LocalTimeSource;
-            var now = timeSource.ElapsedVirtualTime;
-
             // @note  Transmit times assume 1M PHY. Low level BLE firmware
             //        usually takes into account the active phy when calculating
             //        timing delays, so we might need to do that.
 
-            // Bit-counter
-            var bcMatchTime = now + TimeInterval.FromMicroseconds(bitCountCompare.Value);
-            var bcMatchTimeStamp = new TimeStamp(bcMatchTime, timeSource.Domain);
-
-            // End event
-            var endTime = now + TimeInterval.FromMicroseconds((uint)(packetLen) * 8);
-            var endTimeStamp = new TimeStamp(endTime, timeSource.Domain);
-
-            var disableTime = endTime + TimeInterval.FromMicroseconds(10);
-            var disableTimeStamp = new TimeStamp(disableTime, timeSource.Domain);
+            var endDelay = (ulong)packetLen * 8;
 
             // Address modelled as happening immediatley and serves as anchor
             // point for other events. RIOT triggers IRQ from it.
@@ -489,30 +512,16 @@ namespace Antmicro.Renode.Peripherals.Wireless
             // support.
             if(shorts.AddressBitCountStart.Value)
             {
-                timeSource.ExecuteInSyncedState(_ =>
-                {
-                    SetEvent(Events.BitCountMatch);
-                }, bcMatchTimeStamp);
+                ArmEventTimer(bitCounterTimer, bitCountCompare.Value);
             }
 
             // Schedule "end" events all at once, simulating the transmision time
             // as 8 microseconds-per-byte. Timing distinction between events here doesn't
             // seem important
-            timeSource.ExecuteInSyncedState(_ =>
-            {
-                SetEvent(Events.Payload);
-                SetEvent(Events.End);
-                SetEvent(Events.CRCOk);
-            }, endTimeStamp);
+            ArmEventTimer(endTimer, endDelay);
 
             // BLE stacks use disabled event as common processing trigger.
-            timeSource.ExecuteInSyncedState(_ =>
-            {
-                if(shorts.EndDisable.Value)
-                {
-                    Disable();
-                }
-            }, disableTimeStamp);
+            ArmEventTimer(disableTimer, endDelay + 10);
         }
 
         private void FillCurrentAddress(byte[] data, int startIndex, uint logicalAddress)
@@ -565,6 +574,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private readonly IFlagRegisterField[] events;
         private readonly InterruptManager<Events> interruptManager;
+        private readonly LimitTimer endTimer;
+        private readonly LimitTimer disableTimer;
+        private readonly LimitTimer bitCounterTimer;
 
         private readonly ConcurrentQueue<KeyValuePair<byte[], IRadio>> rxBuffer;
 
@@ -613,6 +625,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         };
 
         private const int DefaultRSSISample = 10;
+        private const ulong MicrosecondFrequency = 1000000;
 
         private struct Shorts
         {
