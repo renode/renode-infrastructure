@@ -155,9 +155,15 @@ public partial class ARM_EthosU55
                 case CommandOpcode.OpPmuMask:
                     // PMU is not implemented
                     continue;
+                case CommandOpcode.OpPool:
+                    if(!ExecutePool(parameter))
+                    {
+                        ParseError("POOL operation failed");
+                        return;
+                    }
+                    continue;
                 case CommandOpcode.OpConv:
                 case CommandOpcode.OpDepthwise:
-                case CommandOpcode.OpPool:
                 case CommandOpcode.OpElementwise:
                     this.Log(LogLevel.Warning, $"NPU operation {command} is not implemented");
                     isRunning.Value = false;
