@@ -61,7 +61,7 @@ public class USB_UART : USBHost, IUART, IExternal
         ep0.ReadConfigurationDescriptor(0, res =>
         {
             (_, var descs) = res;
-            var (_, cdcDescriptors) = IDescriptor.EnumerateInterfaceDescriptors(descs)
+            var (controlIface, cdcDescriptors) = IDescriptor.EnumerateInterfaceDescriptors(descs)
                 .Where(item => item.Item1.Class == (byte)USBClassCode.CommunicationsCDCControl)
                 .FirstOrDefault();
 
@@ -74,7 +74,7 @@ public class USB_UART : USBHost, IUART, IExternal
                 this.WarningLog("Device doesn't have CDC or CDC-Data interface");
                 return;
             }
-            ep0.CDCControlLineState(dataIface.Number, rts: false, dtr: true, () =>
+            ep0.CDCControlLineState(controlIface.Number, rts: false, dtr: true, () =>
             {
                 ListenOnInterface(conn, cdcDescriptors, dataDescriptors);
             });
