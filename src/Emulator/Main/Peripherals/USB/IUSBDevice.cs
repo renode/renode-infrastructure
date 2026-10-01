@@ -10,6 +10,7 @@ using System.Threading;
 
 using Antmicro.Renode.Extensions.Utilities.USB;
 using Antmicro.Renode.Peripherals;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
@@ -21,9 +22,10 @@ public interface IUSBPipeSetup : IUSBPipeRead, IUSBPipeWrite
 {
     void SetupPacketWrite(SetupPacket packet);
 
-    void SetupRead(SetupPacket packet, Action<byte[]> onRead)
+    void SetupRead(SetupPacket packet, Action<byte[]?> onRead)
     {
         SetupPacketWrite(packet);
+        onRead = WrapReadCallbackInDelay(onRead);
         ReadAtLeast(packet.Count, data =>
         {
             Write(new byte[] { });
@@ -31,7 +33,7 @@ public interface IUSBPipeSetup : IUSBPipeRead, IUSBPipeWrite
         });
     }
 
-    byte[] SetupReadBlocking(SetupPacket packet, CancellationToken token = default) => Misc.WaitForCallback<byte[]>(onDone => SetupRead(packet, onDone), token);
+    byte[]? SetupReadBlocking(SetupPacket packet, CancellationToken token = default) => Misc.WaitForCallback<byte[]?>(onDone => SetupRead(packet, onDone), token);
 
     void SetupWrite(SetupPacket packet, byte[]? data, Action onDone)
     {
@@ -167,10 +169,12 @@ public interface IUSBPipeRead
 
     // NOTE: If multiple reads are requested at once, earlier calls to `Read*` will take precedence over later onces
 
-    void ReadPacket(Action<byte[]> cb)
+    void ReadPacket(Action<byte[]?> cb)
     {
         var calledBack = false;
         var packetLock = new object();
+
+        cb = WrapReadCallbackInDelay(cb);
 
         Action? collectChunk = null;
         collectChunk = () =>
@@ -200,13 +204,15 @@ public interface IUSBPipeRead
         }
     }
 
-    byte[] ReadPacketBlocking(CancellationToken token = default) => Misc.WaitForCallback<byte[]>(ReadPacket, token);
+    byte[]? ReadPacketBlocking(CancellationToken token = default) => Misc.WaitForCallback<byte[]?>(ReadPacket, token);
 
-    void ReadAtLeast(int minLength, Action<byte[]> cb)
+    void ReadAtLeast(int minLength, Action<byte[]?> cb)
     {
         var calledBack = false;
         var data = new List<byte>();
         var packetLock = new object();
+
+        cb = WrapReadCallbackInDelay(cb);
 
         Action? collectChunk = null;
         collectChunk = () =>
@@ -237,6 +243,25 @@ public interface IUSBPipeRead
             collectChunk();
         }
     }
+
+    static Action<byte[]?> WrapReadCallbackInDelay(Action<byte[]?> cb)
+    {
+        return (byte[]? data) =>
+        {
+            var timeSource = EmulationManager.Instance.CurrentEmulation.MasterTimeSource;
+            var now = timeSource.ElapsedVirtualTime;
+            var calculatedDelay = now + TimeInterval.FromSeconds((DataPacketOverheadBytes + (data != null ? data.Length : 0)) * SecondsPerByte);
+            var calculatedTimestamp = new TimeStamp(calculatedDelay, timeSource.Domain);
+            timeSource.ExecuteInSyncedState(_ =>
+            {
+                cb(data);
+            }, calculatedTimestamp);
+        };
+    }
+
+    public static double SecondsPerByte => 1.0 / 1_500_000; // 1.5MB/s for USB FS
+
+    public static uint DataPacketOverheadBytes = 4; // One for Token, one for Data, two for CRC16
 
     bool TryRead(out byte[] data);
 }
