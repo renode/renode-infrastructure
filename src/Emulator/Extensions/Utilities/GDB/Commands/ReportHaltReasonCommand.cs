@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         [Execute("?")]
         public PacketData Execute()
         {
-            return PacketData.StopReply(0);
+            return PacketData.StopReply(GdbStub.TrapSignal, manager.ManagedCpus[manager.Cpu]);
         }
     }
 }
