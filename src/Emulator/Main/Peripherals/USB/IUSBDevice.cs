@@ -175,25 +175,27 @@ public interface IUSBPipeRead
         Action? collectChunk = null;
         collectChunk = () =>
         {
+            byte[] data;
             lock(packetLock)
             {
                 if(calledBack)
                 {
                     return;
                 }
-                if(!TryRead(out var data))
+                if(!TryRead(out data))
                 {
                     return;
                 }
                 calledBack = true;
                 NewPacket -= collectChunk;
-                cb(data);
             }
+            cb(data);
         };
 
         lock(this)
         {
             NewPacket += collectChunk;
+            // Call collectChunk to collect any data that is already ready
             collectChunk();
         }
     }
@@ -225,8 +227,8 @@ public interface IUSBPipeRead
                 }
                 calledBack = true;
                 NewPacket -= collectChunk;
-                cb(data.ToArray());
             }
+            cb(data.ToArray());
         };
 
         lock(this)
