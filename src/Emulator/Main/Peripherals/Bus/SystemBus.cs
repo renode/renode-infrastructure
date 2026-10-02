@@ -552,12 +552,12 @@ namespace Antmicro.Renode.Peripherals.Bus
             }
         }
 
-        public void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false, bool overridePeripheralAccesses = false, bool oneShot = false)
+        public void Tag(Range range, string tag, ulong defaultValue = 0, bool pausing = false, bool silent = false, bool overridePeripheralAccesses = false, bool oneShot = false, bool throwException = false)
         {
             var intersectings = tags.Where(x => x.Key.Intersects(range)).ToArray();
             if(intersectings.Length == 0)
             {
-                tags.Add(range, new TagEntry { Name = tag, DefaultValue = defaultValue, Silent = silent, OverridePeripheralAccesses = overridePeripheralAccesses, OneShot = oneShot });
+                tags.Add(range, new TagEntry { Name = tag, DefaultValue = defaultValue, Silent = silent, OverridePeripheralAccesses = overridePeripheralAccesses, OneShot = oneShot, ThrowException = throwException });
 
                 var onMappedMemory  = GetRegisteredPeripherals()
                     .Where(x => x.Peripheral is MappedMemory)
@@ -584,6 +584,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             var parentName = intersectings[0].Value.Name;
             var parentDefaultValue = intersectings[0].Value.DefaultValue;
             var parentSilent = intersectings[0].Value.Silent;
+            var parentThrowException = intersectings[0].Value.ThrowException;
             var parentPausing = pausingTags.Contains(parentName);
             if(!parentRange.Contains(range))
             {
@@ -598,14 +599,14 @@ namespace Antmicro.Renode.Peripherals.Bus
             var parentRangeAfterSplitSizeLeft = range.StartAddress - parentRange.StartAddress;
             if(parentRangeAfterSplitSizeLeft > 0)
             {
-                Tag(new Range(parentRange.StartAddress, parentRangeAfterSplitSizeLeft), parentName, parentDefaultValue, parentPausing, parentSilent);
+                Tag(new Range(parentRange.StartAddress, parentRangeAfterSplitSizeLeft), parentName, parentDefaultValue, parentPausing, parentSilent, throwException: parentThrowException);
             }
             var parentRangeAfterSplitSizeRight = parentRange.EndAddress - range.EndAddress;
             if(parentRangeAfterSplitSizeRight > 0)
             {
-                Tag(new Range(range.EndAddress + 1, parentRangeAfterSplitSizeRight), parentName, parentDefaultValue, parentPausing, parentSilent);
+                Tag(new Range(range.EndAddress + 1, parentRangeAfterSplitSizeRight), parentName, parentDefaultValue, parentPausing, parentSilent, throwException: parentThrowException);
             }
-            Tag(range, $"{parentName}{TagNestSymbol}{tag}", defaultValue, pausing, silent, overridePeripheralAccesses);
+            Tag(range, $"{parentName}{TagNestSymbol}{tag}", defaultValue, pausing, silent, overridePeripheralAccesses, throwException: throwException);
         }
 
         public void ApplySVD(string path)
@@ -2517,7 +2518,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         private ulong ReportNonExistingRead(ulong address, TagEntry? tag, SysbusAccessWidth type)
         {
             Interlocked.Increment(ref unexpectedReads);
-            if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.ThrowException)
+            if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.ThrowException
+                || (tag?.ThrowException ?? false))
             {
                 throw new BusAccessException(BusAccessError.AddressError);
             }
@@ -2563,7 +2565,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         private void ReportNonExistingWrite(ulong address, ulong value, TagEntry? tag, SysbusAccessWidth type)
         {
             Interlocked.Increment(ref unexpectedWrites);
-            if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.ThrowException)
+            if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.ThrowException
+                || (tag?.ThrowException ?? false))
             {
                 throw new BusAccessException(BusAccessError.AddressError);
             }
@@ -2766,6 +2769,7 @@ namespace Antmicro.Renode.Peripherals.Bus
             public bool Silent;
             public bool OverridePeripheralAccesses;
             public bool OneShot;
+            public bool ThrowException;
         }
 
         private class ThreadLocalContext : IDisposable

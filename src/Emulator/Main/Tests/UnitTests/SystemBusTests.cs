@@ -58,6 +58,52 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldThrowBusAccessExceptionOnAccessToTagWithThrowException()
+        {
+            sysbus.Tag(0x1000.By(0x100), "tag", throwException: true);
+
+            var readException = Assert.Throws<BusAccessException>(() => sysbus.ReadByte(0x1000));
+            var writeException = Assert.Throws<BusAccessException>(() => sysbus.WriteByte(0x1000, 0));
+
+            Assert.AreEqual(BusAccessError.AddressError, readException.Error);
+            Assert.AreEqual(BusAccessError.AddressError, writeException.Error);
+        }
+
+        [Test]
+        public void ShouldNotThrowBusAccessExceptionOnAccessToTagWithoutThrowException()
+        {
+            const ulong defaultValue = 0x42;
+            sysbus.Tag(0x1000.By(0x100), "tag", defaultValue);
+
+            Assert.DoesNotThrow(() => sysbus.WriteByte(0x1000, 0));
+            Assert.AreEqual(defaultValue, sysbus.ReadByte(0x1000));
+        }
+
+        [Test]
+        public void ShouldThrowBusAccessExceptionOnAccessToTagWithThrowExceptionEvenWhenReportingIsDisabled()
+        {
+            sysbus.UnhandledAccessBehaviour = UnhandledAccessBehaviour.DoNotReport;
+            sysbus.Tag(0x1000.By(0x100), "tag", throwException: true);
+
+            var readException = Assert.Throws<BusAccessException>(() => sysbus.ReadByte(0x1000));
+            var writeException = Assert.Throws<BusAccessException>(() => sysbus.WriteByte(0x1000, 0));
+
+            Assert.AreEqual(BusAccessError.AddressError, readException.Error);
+            Assert.AreEqual(BusAccessError.AddressError, writeException.Error);
+        }
+
+        [Test]
+        public void ShouldPreserveThrowExceptionWhenSplittingTag()
+        {
+            sysbus.Tag(0x1000.By(0x100), "parent", throwException: true);
+            sysbus.Tag(0x1010.By(0x10), "child");
+
+            Assert.Throws<BusAccessException>(() => sysbus.ReadByte(0x1000));
+            Assert.DoesNotThrow(() => sysbus.ReadByte(0x1010));
+            Assert.Throws<BusAccessException>(() => sysbus.ReadByte(0x10F0));
+        }
+
+        [Test]
         public void ShouldPropagateBusAccessExceptionFromPeripheral()
         {
             var expectedException = new BusAccessException(BusAccessError.CommandError);
