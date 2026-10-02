@@ -274,12 +274,16 @@ namespace Antmicro.Renode.Peripherals.CPU
                     mveProfileFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.VPR, 32, "vpr", "vpr_reg", "vector"));
                     features.Add(mveProfileFeature);
                 }
-                var mSecextFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.secext");
-                mSecextFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.MSPS, 32, "msp_s", "uint32", "general"));
-                mSecextFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.PSPS, 32, "psp_s", "uint32", "general"));
-                mSecextFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.MSPNS, 32, "msp_ns", "uint32", "general"));
-                mSecextFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.PSPNS, 32, "psp_ns", "uint32", "general"));
-                features.Add(mSecextFeature);
+
+                if(TrustZoneEnabled)
+                {
+                    var mSecextFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.secext");
+                    mSecextFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.MSPS, 32, "msp_s", "uint32", "general"));
+                    mSecextFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.PSPS, 32, "psp_s", "uint32", "general"));
+                    mSecextFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.MSPNS, 32, "msp_ns", "uint32", "general"));
+                    mSecextFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.PSPNS, 32, "psp_ns", "uint32", "general"));
+                    features.Add(mSecextFeature);
+                }
 
                 // +++++ Important
                 // tlibs implement VFP using DOUBLE PRECISION FP (64 bit) registers.
