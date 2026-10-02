@@ -21,49 +21,69 @@ namespace Antmicro.Renode.Peripherals.Wireless
     {
         public void AttachTo(IRadio radio)
         {
-            if(radios.ContainsKey(radio))
+            lock(sync)
             {
-                throw new RecoverableException("Cannot attach to the provided radio as it is already registered in this wireless medium.");
+                if(radios.ContainsKey(radio))
+                {
+                    throw new RecoverableException("Cannot attach to the provided radio as it is already registered in this wireless medium.");
+                }
+                radios.Add(radio, new Position());
+                radio.FrameSent += FrameSentHandler;
             }
-            radios.Add(radio, new Position());
-            radio.FrameSent += FrameSentHandler;
         }
 
         public void DetachFrom(IRadio radio)
         {
-            radios.Remove(radio);
-            radioHooks.Remove(radio);
-            radio.FrameSent -= FrameSentHandler;
+            lock(sync)
+            {
+                radios.Remove(radio);
+                radioHooks.Remove(radio);
+                radio.FrameSent -= FrameSentHandler;
+            }
         }
 
         public void SetMediumFunction(IMediumFunction function)
         {
-            mediumFunction = function;
+            lock(sync)
+            {
+                mediumFunction = function;
+            }
         }
 
         public void SetPosition(IRadio radio, decimal x, decimal y, decimal z)
         {
-            if(radios.ContainsKey(radio))
+            lock(sync)
             {
-                radios[radio] = new Position(x, y, z);
-            }
-            else
-            {
-                EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementName(radio, out string name);
-                this.Log(LogLevel.Error, $"Cannot set position for {name} as it is not registered in this wireless medium.");
+                if(radios.ContainsKey(radio))
+                {
+                    radios[radio] = new Position(x, y, z);
+                }
+                else
+                {
+                    EmulationManager.Instance.CurrentEmulation.TryGetEmulationElementName(radio, out string name);
+                    this.Log(LogLevel.Error, $"Cannot set position for {name} as it is not registered in this wireless medium.");
+                }
             }
         }
 
         public IEnumerable<string> GetNames()
         {
-            return new[] { mediumFunction.FunctionName };
+            lock(sync)
+            {
+                return new[] { mediumFunction.FunctionName };
+            }
         }
 
         public IEnumerable<string> GetAttachedRadiosNames()
         {
             var result = new List<string>();
             var currentEmulation = EmulationManager.Instance.CurrentEmulation;
-            foreach(var radio in radios)
+            KeyValuePair<IRadio, Position>[] radiosSnapshot;
+            lock(sync)
+            {
+                radiosSnapshot = radios.ToArray();
+            }
+            foreach(var radio in radiosSnapshot)
             {
                 currentEmulation.TryGetEmulationElementName(radio.Key, out var name);
                 result.Add(name);
@@ -73,18 +93,24 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         public void AttachHookToRadio(IRadio radio, Action<byte[]> hook)
         {
-            radioHooks[radio] = hook;
+            lock(sync)
+            {
+                radioHooks[radio] = hook;
+            }
         }
 
         public IMediumFunction TryGetByName(string name, out bool success)
         {
-            if(mediumFunction.FunctionName == name)
+            lock(sync)
             {
-                success = true;
-                return mediumFunction;
+                if(mediumFunction.FunctionName == name)
+                {
+                    success = true;
+                    return mediumFunction;
+                }
+                success = false;
+                return null;
             }
-            success = false;
-            return null;
         }
 
         public event Action<IExternal, IRadio, IRadio, byte[]> FrameTransmitted;
@@ -96,28 +122,45 @@ namespace Antmicro.Renode.Peripherals.Wireless
             radioHooks = new Dictionary<IRadio, Action<byte[]>>();
             mediumFunction = SimpleMediumFunction.Instance;
             radios = new Dictionary<IRadio, Position>();
+            sync = new object();
         }
 
         private void FrameSentHandler(IRadio sender, byte[] packet)
         {
-            var senderPosition = radios[sender];
+            Position senderPosition;
+            IMediumFunction mediumFunctionSnapshot;
+            ReceiverInfo[] receivers;
+            lock(sync)
+            {
+                if(!radios.TryGetValue(sender, out senderPosition))
+                {
+                    return;
+                }
+                mediumFunctionSnapshot = mediumFunction;
+                receivers = radios
+                    .Where(x => x.Key != sender)
+                    .Select(x => new ReceiverInfo(x.Key, x.Value,
+                        radioHooks.TryGetValue(x.Key, out var hook) ? hook : null))
+                    .ToArray();
+            }
+
             var currentEmulation = EmulationManager.Instance.CurrentEmulation;
             currentEmulation.TryGetEmulationElementName(sender, out var senderName);
 
             FrameProcessed?.Invoke(this, sender, packet);
 
-            if(!mediumFunction.CanTransmit(senderPosition))
+            if(!mediumFunctionSnapshot.CanTransmit(senderPosition))
             {
                 this.NoisyLog("Packet from {0} can't be transmitted, size {1}.", senderName, packet.Length);
                 return;
             }
 
-            foreach(var radioAndPosition in radios.Where(x => x.Key != sender))
+            foreach(var receiverInfo in receivers)
             {
-                var receiver = radioAndPosition.Key;
+                var receiver = receiverInfo.Radio;
 
                 currentEmulation.TryGetEmulationElementName(receiver, out var receiverName);
-                if(!mediumFunction.CanReach(senderPosition, radioAndPosition.Value) || receiver.Channel != sender.Channel)
+                if(!mediumFunctionSnapshot.CanReach(senderPosition, receiverInfo.Position) || receiver.Channel != sender.Channel)
                 {
                     this.NoisyLog("Packet {0}:chan{1} -> {2}:chan{3} NOT delivered, size {4}.",
                           senderName, sender.Channel, receiverName, receiver.Channel, packet.Length);
@@ -127,10 +170,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
 
                 var packetCopy = packet.ToArray();
-                if(radioHooks.TryGetValue(receiver, out var hook))
-                {
-                    hook(packetCopy);
-                }
+                receiverInfo.Hook?.Invoke(packetCopy);
 
                 if(receiver is ISlipRadio)
                 {
@@ -148,7 +188,22 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
         }
 
+        private readonly struct ReceiverInfo
+        {
+            public ReceiverInfo(IRadio radio, Position position, Action<byte[]> hook)
+            {
+                Radio = radio;
+                Position = position;
+                Hook = hook;
+            }
+
+            public IRadio Radio { get; }
+            public Position Position { get; }
+            public Action<byte[]> Hook { get; }
+        }
+
         private IMediumFunction mediumFunction;
+        private readonly object sync;
         private readonly Dictionary<IRadio, Action<byte[]>> radioHooks;
         private readonly Dictionary<IRadio, Position> radios;
     }
