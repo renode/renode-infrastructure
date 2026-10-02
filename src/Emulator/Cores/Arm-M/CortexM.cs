@@ -1425,11 +1425,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public static implicit operator ulong(ContextState stateObj)
             {
-                var state = 0u;
-                state |= (stateObj.Privileged ? 1u : 0) & 1u;
-                state |= (stateObj.CpuSecure ? 2u : 0) & 2u;
-                state |= (stateObj.AttributionSecure ? 4u : 0) & 4u;
-                state |= (stateObj.Semihosting ? 8u : 0) & 8u;
+                var state = 0UL;
+                state |= stateObj.Privileged ? 1UL : 0;
+                state |= stateObj.CpuSecure ? 2UL : 0;
+                state |= stateObj.AttributionSecure ? 4UL : 0;
+                state |= stateObj.Semihosting ? 8UL : 0;
                 return state;
             }
 
@@ -1437,10 +1437,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return new ContextState
                 {
-                    Privileged = (state & 1u) == 1u,
-                    CpuSecure = (state & 2u) == 2u,
-                    AttributionSecure = (state & 4u) == 4u,
-                    Semihosting = (state & 8u) == 8u,
+                    Privileged = (state & 1UL) == 1UL,
+                    CpuSecure = (state & 2UL) == 2UL,
+                    AttributionSecure = (state & 4UL) == 4UL,
+                    Semihosting = (state & 8UL) == 8UL,
                 };
             }
         }

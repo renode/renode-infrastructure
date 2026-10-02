@@ -24,8 +24,8 @@ namespace Antmicro.Renode.Core
 
         public StateMask WithBitValue(int position, bool value)
         {
-            var bit = (ulong)BitHelper.Bit((byte)position);
-            return new StateMask(State | (value ? bit : 0), Mask | bit);
+            var bit = 1UL << position;
+            return new StateMask(value ? (State | bit) : (State & ~bit), Mask | bit);
         }
 
         public override string ToString()

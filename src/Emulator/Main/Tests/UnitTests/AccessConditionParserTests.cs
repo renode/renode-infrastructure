@@ -5,8 +5,10 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Exceptions;
 
 using NUnit.Framework;
 
@@ -20,6 +22,42 @@ namespace Antmicro.Renode.UnitTests
         {
             var dnfExpression = AccessConditionParser.ParseCondition(conditionString);
             Assert.AreEqual(expectedDnfString, dnfExpression.ToString(), $"Input condition: '{conditionString}'");
+        }
+
+        [TestCase(31)]
+        [TestCase(32)]
+        [TestCase(33)]
+        [TestCase(63)]
+        public void ShouldEvaluateStateBitsAbove32Bits(int position)
+        {
+            var stateBits = new Dictionary<string, int>
+            {
+                ["privileged"] = 0,
+                ["above32"] = position,
+            };
+
+            var dnfExpression = AccessConditionParser.ParseCondition("above32 && !privileged");
+            var result = AccessConditionParser.EvaluateWithStateBits(dnfExpression, _ => stateBits);
+
+            Assert.AreEqual(1, result.Count);
+            var mask = result[string.Empty].Single();
+            Assert.AreEqual(1UL << position, mask.State, "State");
+            Assert.AreEqual((1UL << position) | 1UL, mask.Mask, "Mask");
+        }
+
+        [TestCase(32)]
+        [TestCase(63)]
+        public void ShouldDetectConflictingStateBitsAbove32Bits(int position)
+        {
+            var stateBits = new Dictionary<string, int>
+            {
+                ["above32"] = position,
+            };
+
+            var dnfExpression = AccessConditionParser.ParseCondition("above32 && !above32");
+            var exception = Assert.Throws<RecoverableException>(() => AccessConditionParser.EvaluateWithStateBits(dnfExpression, _ => stateBits));
+
+            StringAssert.Contains("Conditions conflict detected", exception.Message);
         }
 
         private static IEnumerable<TestCaseData> AccessConditionParserTestCases()
