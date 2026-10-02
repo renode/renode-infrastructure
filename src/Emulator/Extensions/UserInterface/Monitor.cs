@@ -891,7 +891,6 @@ namespace Antmicro.Renode.UserInterface
                     Token resetMacro;
                     if(MonitorContext.Macros.TryGetValue(macroName, out resetMacro))
                     {
-                        Logger.LogAs(this, LogLevel.Warning, "Found it!");
                         var macroLines = resetMacro.GetObjectValue().ToString().Split('\n');
                         foreach(var line in macroLines)
                         {
