@@ -58,6 +58,29 @@ namespace Antmicro.Renode.UnitTests
         }
 
         [Test]
+        public void ShouldThrowBusAccessExceptionAtNonExistingDeviceWhenConfiguredToThrowIfNotTagged()
+        {
+            sysbus.UnhandledAccessBehaviour = UnhandledAccessBehaviour.ThrowExceptionIfNotTagged;
+
+            var readException = Assert.Throws<BusAccessException>(() => sysbus.ReadByte(0xABCD1234));
+            var writeException = Assert.Throws<BusAccessException>(() => sysbus.WriteByte(0xABCD1234, 0));
+
+            Assert.AreEqual(BusAccessError.AddressError, readException.Error);
+            Assert.AreEqual(BusAccessError.AddressError, writeException.Error);
+        }
+
+        [Test]
+        public void ShouldNotThrowBusAccessExceptionAtTaggedDeviceWhenConfiguredToThrowIfNotTagged()
+        {
+            const ulong defaultValue = 0x42;
+            sysbus.UnhandledAccessBehaviour = UnhandledAccessBehaviour.ThrowExceptionIfNotTagged;
+            sysbus.Tag(0xABCD1200.By(0x100), "tag", defaultValue);
+
+            Assert.DoesNotThrow(() => sysbus.WriteByte(0xABCD1234, 0));
+            Assert.AreEqual(defaultValue, sysbus.ReadByte(0xABCD1234));
+        }
+
+        [Test]
         public void ShouldThrowBusAccessExceptionOnAccessToTagWithThrowException()
         {
             sysbus.Tag(0x1000.By(0x100), "tag", throwException: true);

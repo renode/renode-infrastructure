@@ -15,5 +15,6 @@ namespace Antmicro.Renode.Peripherals.Bus
         ReportIfNotTagged,
         DoNotReport,
         ThrowException,
+        ThrowExceptionIfNotTagged,
     }
 }

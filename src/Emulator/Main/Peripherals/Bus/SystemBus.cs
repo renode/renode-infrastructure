@@ -2519,6 +2519,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             Interlocked.Increment(ref unexpectedReads);
             if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.ThrowException
+                || (UnhandledAccessBehaviour == UnhandledAccessBehaviour.ThrowExceptionIfNotTagged && tag == null)
                 || (tag?.ThrowException ?? false))
             {
                 throw new BusAccessException(BusAccessError.AddressError);
@@ -2566,6 +2567,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             Interlocked.Increment(ref unexpectedWrites);
             if(UnhandledAccessBehaviour == UnhandledAccessBehaviour.ThrowException
+                || (UnhandledAccessBehaviour == UnhandledAccessBehaviour.ThrowExceptionIfNotTagged && tag == null)
                 || (tag?.ThrowException ?? false))
             {
                 throw new BusAccessException(BusAccessError.AddressError);
