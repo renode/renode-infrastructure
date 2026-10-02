@@ -100,7 +100,7 @@ namespace Antmicro.Renode.UI
                 if(options.ServerMode)
                 {
                     uartAnalyzerType = typeof(WebSocketUartAnalyzer);
-                    videoAnalyzerType = typeof(DummyVideoAnalyzer);
+                    videoAnalyzerType = typeof(WebSocketVideoAnalyzer);
                 }
                 else if(ui == null || options.RobotDebug)
                 {
