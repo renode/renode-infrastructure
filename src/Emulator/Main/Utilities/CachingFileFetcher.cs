@@ -288,6 +288,15 @@ namespace Antmicro.Renode.Utilities
                     Logger.LogAs(this, LogLevel.Info, "Download done.");
                     return true;
                 }
+
+                if(attempts + 1 < attemptsLimit)
+                {
+                    // Back off exponentially so that a server that is briefly overloaded
+                    // or rate limiting gets time to recover before the next attempt
+                    var delay = TimeSpan.FromTicks(InitialRetryDelay.Ticks << attempts);
+                    Logger.LogAs(this, LogLevel.Info, "Retrying download in {0} s", delay.TotalSeconds);
+                    Thread.Sleep(delay);
+                }
             }
             while(++attempts < attemptsLimit);
 
@@ -550,6 +559,8 @@ namespace Antmicro.Renode.Utilities
         private static readonly Regex ChecksumRegex = new Regex(@"-s_(\d+)-([a-f,0-9]{40})$");
 
         private const int DownloadAttempts = 5;
+
+        private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromSeconds(1);
 
         private class BinaryEntry
         {
