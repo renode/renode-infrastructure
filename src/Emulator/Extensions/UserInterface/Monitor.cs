@@ -137,6 +137,10 @@ namespace Antmicro.Renode.UserInterface
 
             if(string.IsNullOrWhiteSpace(cmd))
             {
+                if(RepeatLastCommand && TokensOfLastExecutedCommand != null)
+                {
+                    return ExecuteCommand(TokensOfLastExecutedCommand, writer);
+                }
                 return true;
             }
             var tokens = Tokenize(cmd, writer);
@@ -525,6 +529,9 @@ namespace Antmicro.Renode.UserInterface
 
         public string PreservableName => "Monitor";
 
+        public bool RepeatLastCommand { get; set; }
+            = ConfigurationManager.Instance.Get<bool>(Monitor.ConfigurationSection, "repeat-last-by-default", false);
+
         public event Action<string> MachineChanged;
 
         public const string StartupCommandEnv = "STARTUP_COMMAND";
@@ -617,6 +624,7 @@ namespace Antmicro.Renode.UserInterface
                     return true;
                 }
                 (Commands.OfType<SetCommand>().First()).Run(writer, variableToExpand, com[2]);
+                SaveTokens(com);
                 return true;
             }
             var command = com[0] as LiteralToken;
@@ -630,7 +638,9 @@ namespace Antmicro.Renode.UserInterface
             var commandHandler = Commands.FirstOrDefault(x => x.Name == command.Value);
             if(commandHandler != null)
             {
-                return RunCommand(writer, commandHandler, com.Skip(1).ToList());
+                var result = RunCommand(writer, commandHandler, com.Skip(1).ToList());
+                SaveTokensIfOk(com, result);
+                return result;
             }
             else if(MonitorContext.IsNameAvailable(command.Value))
             {
@@ -646,14 +656,18 @@ namespace Antmicro.Renode.UserInterface
                 {
                     if(item.AlternativeNames != null && item.AlternativeNames.Contains(command.Value))
                     {
-                        return RunCommand(writer, item, com.Skip(1).ToList());
+                        var result = RunCommand(writer, item, com.Skip(1).ToList());
+                        SaveTokensIfOk(com, result);
+                        return result;
                     }
                 }
 
                 if(MonitorContext.TryExpandVariable(new VariableToken(string.Format("${0}", com[0].OriginalValue)), MonitorContext.Aliases, out var cmd))
                 {
                     var aliasedCommand = Tokenize(cmd.GetObjectValue().ToString(), writer).Tokens;
-                    return ParseTokens(aliasedCommand.Concat(com.Skip(1)), writer);
+                    var result = ParseTokens(aliasedCommand.Concat(com.Skip(1)), writer);
+                    SaveTokensIfOk(com, result);
+                    return result;
                 }
 
                 if(!pythonRunner.ExecuteBuiltinCommand(MonitorContext.ExpandVariables(com).ToArray(), writer))
@@ -662,6 +676,7 @@ namespace Antmicro.Renode.UserInterface
                     return false;
                 }
             }
+            SaveTokens(com);
             return true;
         }
 
@@ -1061,6 +1076,24 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
+        private void SaveTokens(Token[] com)
+        {
+            if(!RepeatLastCommand)
+            {
+                return;
+            }
+            TokensOfLastExecutedCommand = com;
+        }
+
+        private void SaveTokensIfOk(Token[] tokens, bool result)
+        {
+            if(!result)
+            {
+                return;
+            }
+            SaveTokens(tokens);
+        }
+
         private HashSet<Command> Commands { get; set; }
 
         private Emulation Emulation
@@ -1075,6 +1108,8 @@ namespace Antmicro.Renode.UserInterface
         private Monitor.VariableType? recordingType;
         private string stringEaterValue = "";
         private int stringEaterMode = 0;
+
+        private Token[] TokensOfLastExecutedCommand = null;
 
         private MonitorContext monitorContext;
         private readonly ThreadLocal<MonitorContext> monitorContextOverride = new ThreadLocal<MonitorContext>();
