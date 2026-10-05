@@ -266,6 +266,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                         return;
                     }
 
+                    flashBusy = true;
                     ExecuteFlashCommand((Commands)command.Value, (int)argument.Value);
                     IRQ.Set(generateInterrupt.Value);
                 })
@@ -273,7 +274,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             Registers.Status.Define(this)
                 .WithFlag(0, FieldMode.Read, name: "FRDY",
-                    valueProviderCallback: _ => true)
+                    valueProviderCallback: _ =>
+                    {
+                        // After a command write, report busy once so firmware
+                        // sees the FRDY=0 transition, then ready on next read.
+                        if(flashBusy)
+                        {
+                            flashBusy = false;
+                            return false;
+                        }
+                        return true;
+                    })
                 .WithTaggedFlag("FCMDE", 1)
                 .WithFlag(2, out triedWriteLocked, FieldMode.ReadToClear, name: "FLOCKE")
                 .WithFlag(3, out commandError, FieldMode.ReadToClear, name: "FLERR")
@@ -289,6 +300,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         private IFlagRegisterField generateInterrupt;
         private IFlagRegisterField triedWriteLocked;
         private IFlagRegisterField commandError;
+        private bool flashBusy;
 
         private readonly IMemory underlyingMemory;
         private readonly uint flashIdentifier;
