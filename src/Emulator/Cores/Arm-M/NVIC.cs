@@ -847,6 +847,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             canResetOnlyFromSecure = false;
             deepSleepOnlyFromSecure = false;
             binaryPointPosition.Reset();
+            basepri.Reset();
             hardFaultForced = false;
         }
 
