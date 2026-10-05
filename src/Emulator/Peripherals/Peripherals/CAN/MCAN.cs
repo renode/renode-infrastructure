@@ -806,7 +806,7 @@ namespace Antmicro.Renode.Peripherals.CAN
             messageRAM.WriteBytes((long)addr, txFIFOElementBytes, 0, txFIFOElementBytes.Length);
 
             txEventFIFO.PutIndex += 1;
-            txEventFIFO.Full.Value = txEventFIFO.PutIndexRaw == txEventFIFO.GetIndexRaw;
+            txEventFIFO.Full.Value = txEventFIFO.PutIndex == txEventFIFO.GetIndex;
 
             var watermarkReached = (txEventFIFO.Watermark.Value > 0) && (txEventFIFO.FillLevel >= txEventFIFO.Watermark.Value);
             if(watermarkReached)
