@@ -488,17 +488,21 @@ namespace Antmicro.Renode.Peripherals.DMA
                 Registers.ChannelSourceAddressHigh.DefineMany(this,
                     count: (uint)numberOfChannels,
                     stepInBytes: ChannelFrameStride,
-                    setup: (register, _) =>
+                    setup: (register, index) =>
                     {
-                        register.WithTag("SRCADDRHI", 0, 32);
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.SourceAddressHigh] = register;
+                        register.WithValueField(0, 32,
+                            out channels[index].SourceAddressHighField, name: "SRCADDRHI");
                     })
                 ;
                 Registers.ChannelDestinationAddressHigh.DefineMany(this,
                     count: (uint)numberOfChannels,
                     stepInBytes: ChannelFrameStride,
-                    setup: (register, _) =>
+                    setup: (register, index) =>
                     {
-                        register.WithTag("DESADDRHI", 0, 32);
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.DestinationAddressHigh] = register;
+                        register.WithValueField(0, 32,
+                            out channels[index].DestinationAddressHighField, name: "DESADDRHI");
                     })
                 ;
             }
@@ -518,11 +522,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                 Registers.ChannelXSizeHigh.DefineMany(this,
                     count: (uint)numberOfChannels,
                     stepInBytes: ChannelFrameStride,
-                    setup: (register, _) =>
+                    setup: (register, index) =>
                     {
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.XSizeHigh] = register;
                         register
-                            .WithTag("SRCXSIZEHI", 0, 16)
-                            .WithTag("DESXSIZEHI", 16, 16);
+                            .WithValueField(0, 16, out channels[index].SourceXSizeHighField, name: "SRCXSIZEHI")
+                            .WithValueField(16, 16, out channels[index].DestinationXSizeHighField, name: "DESXSIZEHI");
                     })
                 ;
             }
@@ -773,9 +778,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                 Registers.ChannelLinkAddressHigh.DefineMany(this,
                     count: (uint)numberOfChannels,
                     stepInBytes: ChannelFrameStride,
-                    setup: (register, _) =>
+                    setup: (register, index) =>
                     {
-                        register.WithTag("LINKADDRHI", 0, 32);
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.LinkAddressHigh] = register;
+                        register.WithValueField(0, 32,
+                            out channels[index].LinkAddressHighField, name: "LINKADDRHI");
                     })
                 ;
             }
@@ -1128,7 +1135,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     return false;
                 }
                 var linkAddressRegisterRaw = DescriptorChangeableRegisters[(int)TransferDescriptorFields.LinkAddress].Value;
-                var descriptorPointer = linkAddressRegisterRaw & LinkAddressMask;
+                var descriptorPointer = (linkAddressRegisterRaw & LinkAddressMask)
+                    | ((LinkAddressHighField?.Value ?? 0) << AddressLowWidth);
                 if(!TryLoadTransferDescriptor(descriptorPointer))
                 {
                     Parent.ErrorLog("Channel #{0}: Could not decode transfer descriptor at 0x{1:X}",
@@ -1300,9 +1308,13 @@ namespace Antmicro.Renode.Peripherals.DMA
             public GPIO IRQ { get; } = new GPIO();
 
             public IValueRegisterField SourceAddressField;
+            public IValueRegisterField SourceAddressHighField;
             public IValueRegisterField DestinationAddressField;
+            public IValueRegisterField DestinationAddressHighField;
             public IValueRegisterField SourceXSizeField;
+            public IValueRegisterField SourceXSizeHighField;
             public IValueRegisterField DestinationXSizeField;
+            public IValueRegisterField DestinationXSizeHighField;
             public IValueRegisterField SourceXAddressIncrementField;
             public IValueRegisterField DestinationXAddressIncrementField;
             public IValueRegisterField SourceYAddressStrideField;
@@ -1313,6 +1325,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             public IValueRegisterField YTypeField;
             public IValueRegisterField TransferSizeField;
             public IValueRegisterField LinkAddressField;
+            public IValueRegisterField LinkAddressHighField;
             public IValueRegisterField FillValueField;
 
             public IFlagRegisterField StatusDoneField;
@@ -1324,6 +1337,16 @@ namespace Antmicro.Renode.Peripherals.DMA
             public readonly int Index;
             public readonly DoubleWordRegister[] DescriptorChangeableRegisters;
             public readonly Arm_Dma350 Parent;
+
+            private static ulong ReadXSize(IValueRegisterField low, IValueRegisterField high)
+            {
+                return low.Value | ((high?.Value ?? 0) << XSizeLowWidth);
+            }
+
+            private static ulong ReadAddress(IValueRegisterField low, IValueRegisterField high)
+            {
+                return low.Value | ((high?.Value ?? 0) << AddressLowWidth);
+            }
 
             private IEnumerable<ulong> EnumerateTransferAddresses(
                 ulong startAddress, ulong xSize, ulong ySize, long xIncrement, long yIncrement)
@@ -1448,13 +1471,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return true;
             }
 
-            private ulong SourceAddress => (ulong)(SourceAddressField?.Value ?? 0);
+            private ulong SourceAddress => ReadAddress(SourceAddressField, SourceAddressHighField);
 
-            private ulong DestinationAddress => (ulong)(DestinationAddressField?.Value ?? 0);
+            private ulong DestinationAddress => ReadAddress(DestinationAddressField, DestinationAddressHighField);
 
-            private ulong SourceXSize => SourceXSizeField?.Value ?? 0U;
+            private ulong SourceXSize => ReadXSize(SourceXSizeField, SourceXSizeHighField);
 
-            private ulong DestinationXSize => DestinationXSizeField?.Value ?? 0U;
+            private ulong DestinationXSize => ReadXSize(DestinationXSizeField, DestinationXSizeHighField);
 
             private long SourceXAddressIncrement => unchecked((short)(SourceXAddressIncrementField?.Value ?? 0));
 
@@ -1491,7 +1514,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             private ICPU context;
             private readonly IManagedThread dmaThread;
             private readonly object stateLock = new();
-
+            private const int AddressLowWidth = 32;
+            private const int XSizeLowWidth = 16;
             private static readonly Time.TimeInterval DmaTransferInterval = Time.TimeInterval.FromMilliseconds(1);
 
             public static readonly ulong LinkAddressMask = (ulong)BitHelper.CalculateMask(30, 2);
