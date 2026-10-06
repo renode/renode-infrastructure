@@ -1128,14 +1128,26 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 var isTransfer2D = transferMode == TransferMode.Copy2D;
                 var isFillTransfer = transferMode == TransferMode.Fill1D;
+                var isWrapTransfer = transferMode == TransferMode.Wrap1D;
                 var transferType = TransferType;
 
-                var source = EnumerateTransferAddresses(
-                    SourceAddress,
-                    SourceXSize,
-                    isTransfer2D ? SourceYSize : 1,
-                    SourceXAddressIncrement * TransferSize,
-                    SourceYAddressStride * TransferSize);
+                IEnumerable<ulong> CreateSourceEnumerator()
+                {
+                    var nestedSource = Misc.Iterate(() => EnumerateTransferAddresses(
+                        SourceAddress,
+                        SourceXSize,
+                        isTransfer2D ? SourceYSize : 1,
+                        SourceXAddressIncrement * TransferSize,
+                        SourceYAddressStride * TransferSize));
+                    if(!isWrapTransfer)
+                    {
+                        nestedSource = nestedSource.Take(1);
+                    }
+                    var source = nestedSource.SelectMany(x => x);
+                    return source;
+                }
+
+                var source = CreateSourceEnumerator();
 
                 var destination = EnumerateTransferAddresses(
                     DestinationAddress,
@@ -1389,6 +1401,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 (TypeEnum.Continue, TypeEnum.Disable) => TransferMode.Copy1D,
                 (TypeEnum.Continue, TypeEnum.Continue) => TransferMode.Copy2D,
                 (TypeEnum.Fill, TypeEnum.Disable) => TransferMode.Fill1D,
+                (TypeEnum.Wrap, TypeEnum.Disable) => TransferMode.Wrap1D,
                 _ => null,
             };
 
@@ -1425,6 +1438,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 Copy1D,
                 Copy2D,
                 Fill1D,
+                Wrap1D,
             }
         }
 
