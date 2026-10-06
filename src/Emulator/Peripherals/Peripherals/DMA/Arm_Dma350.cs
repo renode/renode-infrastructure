@@ -19,7 +19,7 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
-    public class Arm_Dma350 : BasicDoubleWordPeripheral, IKnownSize
+    public class Arm_Dma350 : BasicDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput
     {
         public Arm_Dma350(IMachine machine, int numberOfChannels = 8) : this(machine, numberOfChannels, Variant.Dma350)
         {
@@ -34,6 +34,8 @@ namespace Antmicro.Renode.Peripherals.DMA
         public long Size => Misc.AlignUpToMultipleOf(ChannelFrameOffset + numberOfChannels * ChannelFrameStride, RegisterFrameSize);
 
         public GPIO IRQ { get; } = new GPIO();
+
+        public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         protected Arm_Dma350(IMachine machine, int numberOfChannels, Variant variant) : base(machine)
         {
@@ -54,6 +56,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             // Channels must be initialized exactly once because their fields hold references
             // to register framework values created during register definition.
             channels = Enumerable.Range(0, numberOfChannels).Select(i => new Channel(this, i)).ToArray();
+            Connections = Enumerable.Range(0, numberOfChannels).ToDictionary(i => i, i => (IGPIO)channels[i].IRQ);
             DefineRegisters();
             Reset();
         }
@@ -91,6 +94,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private void UpdateInterrupts()
         {
+            foreach(var channel in channels)
+            {
+                channel.IRQ.Set(channel.InterruptPending);
+            }
             IRQ.Set(channels.Any(channel => channel.InterruptPending));
         }
 
@@ -1289,6 +1296,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             public bool IsEnabled => state != State.Disabled;
 
             public bool IsPaused => state == State.Paused;
+
+            public GPIO IRQ { get; } = new GPIO();
 
             public IValueRegisterField SourceAddressField;
             public IValueRegisterField DestinationAddressField;
