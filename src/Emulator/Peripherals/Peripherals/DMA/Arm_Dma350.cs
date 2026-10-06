@@ -15,6 +15,7 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Utilities;
+using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -52,31 +53,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             this.numberOfChannels = numberOfChannels;
             // Channels must be initialized exactly once because their fields hold references
             // to register framework values created during register definition.
-            channels = Misc.Iterate(() => new Channel(this)).Take(numberOfChannels).ToArray();
+            channels = Enumerable.Range(0, numberOfChannels).Select(i => new Channel(this, i)).ToArray();
             DefineRegisters();
             Reset();
-        }
-
-        private static IEnumerable<ulong> EnumerateTransferAddresses(
-            ulong startAddress, ulong xSize, ulong ySize, long xIncrement, long yIncrement)
-        {
-            for(long yShift = 0, yi = 0; yi < (long)ySize; yi += 1, yShift += yIncrement)
-            {
-                for(long xShift = 0, xi = 0; xi < (long)xSize; xi += 1, xShift += xIncrement)
-                {
-                    ulong address;
-                    try
-                    {
-                        address = AddSignedOffsetOrThrow(startAddress, checked(xShift + yShift));
-                    }
-                    catch(OverflowException)
-                    {
-                        address = unchecked(startAddress + (ulong)yShift + (ulong)xShift);
-                        Logger.Warning("DMA address calculation overflowed the 64-bit address space");
-                    }
-                    yield return address;
-                }
-            }
         }
 
         private static ulong AddSignedOffsetOrThrow(ulong address, long offset)
@@ -329,7 +308,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     {
                         if(value)
                         {
-                            channels[index].PerformSingleTransfer();
+                            channels[index].PerformTransfer();
                         }
                     })
                 .WithTaggedFlag("CLEARCMD", 1)
@@ -379,6 +358,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.InterruptEnable] = register;
                     register
                         .WithFlag(0, out channels[index].EnableDoneField, name: "INTREN_DONE",
                             changeCallback: (_, __) => UpdateInterrupts())
@@ -397,6 +377,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.Control] = register;
                     register
                         .WithValueField(0, 3, out channels[index].TransferSizeField, name: "TRANSIZE")
                         .WithReservedBits(3, 1)
@@ -432,6 +413,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.SourceAddress] = register;
                     register.WithValueField(0, 32,
                         out channels[index].SourceAddressField, name: "SRCADDR");
                 })
@@ -441,6 +423,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.DestinationAddress] = register;
                     register.WithValueField(0, 32,
                         out channels[index].DestinationAddressField, name: "DESADDR");
                 })
@@ -469,6 +452,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.XSize] = register;
                     register
                         .WithValueField(0, 16, out channels[index].SourceXSizeField, name: "SRCXSIZE")
                         .WithValueField(16, 16, out channels[index].DestinationXSizeField, name: "DESXSIZE");
@@ -492,6 +476,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.SourceTransactionConfiguration] = register;
                     register
                         .WithTag("SRCMEMATTRLO", 0, 4)
                         .WithTag("SRCMEMATTRHI", 4, 4)
@@ -509,6 +494,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.DestinationTransactionConfiguration] = register;
                     register
                         .WithTag("DESMEMATTRLO", 0, 4)
                         .WithTag("DESMEMATTRHI", 4, 4)
@@ -526,6 +512,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.XAddressIncrement] = register;
                     register
                         .WithValueField(0, 16, out channels[index].SourceXAddressIncrementField,
                             name: "SRCXADDRINC")
@@ -540,6 +527,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     stepInBytes: ChannelFrameStride,
                     setup: (register, index) =>
                     {
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.YAddressStride] = register;
                         register
                             .WithValueField(0, 16, out channels[index].SourceYAddressStrideField,
                                 name: "SRCYADDRSTRIDE")
@@ -552,6 +540,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     stepInBytes: ChannelFrameStride,
                     setup: (register, index) =>
                     {
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.FillValue] = register;
                         register.WithTag("FILLVAL", 0, 32);
                     })
                 ;
@@ -560,6 +549,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     stepInBytes: ChannelFrameStride,
                     setup: (register, index) =>
                     {
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.YSize] = register;
                         register
                             .WithValueField(0, 16, out channels[index].SourceYSizeField, name: "SRCYSIZE")
                             .WithValueField(16, 16, out channels[index].DestinationYSizeField, name: "DESYSIZE");
@@ -570,6 +560,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     stepInBytes: ChannelFrameStride,
                     setup: (register, index) =>
                     {
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.TemplateConfiguration] = register;
                         register
                             .WithReservedBits(0, 8)
                             .WithTag("SRCTMPLTSIZE", 8, 5)
@@ -583,6 +574,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     stepInBytes: ChannelFrameStride,
                     setup: (register, index) =>
                     {
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.SourceTemplate] = register;
                         register
                             .WithTaggedFlag("SRCTMPLTLSB", 0)
                             .WithTag("SRCTMPLT", 1, 31);
@@ -594,6 +586,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     stepInBytes: ChannelFrameStride,
                     setup: (register, index) =>
                     {
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.DestinationTemplate] = register;
                         register
                             .WithTaggedFlag("DESTMPLTLSB", 0)
                             .WithTag("DESTMPLT", 1, 31);
@@ -606,6 +599,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.SourceTriggerInputConfiguration] = register;
                     register
                         .If(variant == Variant.Dma350)
                             .Then(r => r.WithTag("SRCTRIGINSEL", 0, 8))
@@ -622,6 +616,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.DestinationTriggerInputConfiguration] = register;
                     register
                         .If(variant == Variant.Dma350)
                             .Then(r => r.WithTag("DESTRIGINSEL", 0, 8))
@@ -638,6 +633,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.TriggerOutputConfiguration] = register;
                     register
                         .If(variant == Variant.Dma350)
                             .Then(r => r.WithTag("TRIGOUTSEL", 0, 6))
@@ -652,6 +648,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.GeneralPurposeOutputEnable0] = register;
                     register.WithTag("GPOEN0", 0, 32);
                 })
             ;
@@ -660,6 +657,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.GeneralPurposeOutputValue0] = register;
                     register.WithTag("GPOVAL0", 0, 32);
                 })
             ;
@@ -670,6 +668,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     stepInBytes: ChannelFrameStride,
                     setup: (register, index) =>
                     {
+                        channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.StreamInterfaceConfiguration] = register;
                         register
                             .WithReservedBits(0, 9)
                             .WithTag("STREAMTYPE", 9, 2)
@@ -682,6 +681,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.LinkAttributes] = register;
                     register
                         .WithTag("LINKMEMATTRLO", 0, 4)
                         .WithTag("LINKMEMATTRHI", 4, 4)
@@ -694,6 +694,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) =>
                 {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.AutomaticConfiguration] = register;
                     register
                         .WithTag("CMDRESTARTCNT", 0, 16)
                         .WithTaggedFlag("CMDRESTARTINFEN", 16)
@@ -703,10 +704,14 @@ namespace Antmicro.Renode.Peripherals.DMA
             Registers.ChannelLinkAddress.DefineMany(this,
                 count: (uint)numberOfChannels,
                 stepInBytes: ChannelFrameStride,
-                setup: (register, _) => register
-                    .WithTaggedFlag("LINKADDREN", 0)
-                    .WithReservedBits(1, 1)
-                    .WithTag("LINKADDR", 2, 30))
+                setup: (register, index) =>
+                {
+                    channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.LinkAddress] = register;
+                    register
+                        .WithFlag(0, out channels[index].LinkAddressEnableField, name: "LINKADDREN")
+                        .WithReservedBits(1, 1)
+                        .WithValueField(2, 30, out channels[index].LinkAddressField, name: "LINKADDR");
+                })
             ;
             if(variant == Variant.Dma350)
             {
@@ -871,6 +876,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private const long NonSecureControlFrameOffset = 0x0200;
         private const long InformationFrameOffset = 0x0F00;
         private const long ChannelFrameOffset = 0x1000;
+        private const int TransferDescriptorRegistersCount = 32;
 
         public enum Variant
         {
@@ -878,11 +884,181 @@ namespace Antmicro.Renode.Peripherals.DMA
             Dma350,
         }
 
+        public enum TransferDescriptorFields
+        {
+            RegisterClear = 0,
+            InterruptEnable = 2,
+            Control = 3,
+            SourceAddress = 4,
+            SourceAddressHigh = 5,
+            DestinationAddress = 6,
+            DestinationAddressHigh = 7,
+            XSize = 8,
+            XSizeHigh = 9,
+            SourceTransactionConfiguration = 10,
+            DestinationTransactionConfiguration = 11,
+            XAddressIncrement = 12,
+            YAddressStride = 13,
+            FillValue = 14,
+            YSize = 15,
+            TemplateConfiguration = 16,
+            SourceTemplate = 17,
+            DestinationTemplate = 18,
+            SourceTriggerInputConfiguration = 19,
+            DestinationTriggerInputConfiguration = 20,
+            TriggerOutputConfiguration = 21,
+            GeneralPurposeOutputEnable0 = 22,
+            GeneralPurposeOutputValue0 = 24,
+            StreamInterfaceConfiguration = 26,
+            LinkAttributes = 28,
+            AutomaticConfiguration = 29,
+            LinkAddress = 30,
+            LinkAddressHigh = 31,
+        }
+
+        [LeastSignificantByteFirst]
+        private class TransferDescriptor
+        {
+            public TransferDescriptor(Channel channel)
+            {
+                Channel = channel;
+            }
+
+            public bool HasField(TransferDescriptorFields field)
+            {
+                return BitHelper.IsBitSet(Header, (byte)field);
+            }
+
+            public uint GetField(TransferDescriptorFields field)
+            {
+                uint? value = field switch
+                {
+                    TransferDescriptorFields.InterruptEnable => InterruptEnable,
+                    TransferDescriptorFields.Control => Control,
+                    TransferDescriptorFields.SourceAddress => SourceAddress,
+                    TransferDescriptorFields.SourceAddressHigh => SourceAddressHigh,
+                    TransferDescriptorFields.DestinationAddress => DestinationAddress,
+                    TransferDescriptorFields.DestinationAddressHigh => DestinationAddressHigh,
+                    TransferDescriptorFields.XSize => XSize,
+                    TransferDescriptorFields.XSizeHigh => XSizeHigh,
+                    TransferDescriptorFields.SourceTransactionConfiguration => SourceTransactionConfiguration,
+                    TransferDescriptorFields.DestinationTransactionConfiguration => DestinationTransactionConfiguration,
+                    TransferDescriptorFields.XAddressIncrement => XAddressIncrement,
+                    TransferDescriptorFields.YAddressStride => YAddressStride,
+                    TransferDescriptorFields.FillValue => FillValue,
+                    TransferDescriptorFields.YSize => YSize,
+                    TransferDescriptorFields.TemplateConfiguration => TemplateConfiguration,
+                    TransferDescriptorFields.SourceTemplate => SourceTemplate,
+                    TransferDescriptorFields.DestinationTemplate => DestinationTemplate,
+                    TransferDescriptorFields.SourceTriggerInputConfiguration => SourceTriggerInputConfiguration,
+                    TransferDescriptorFields.DestinationTriggerInputConfiguration => DestinationTriggerInputConfiguration,
+                    TransferDescriptorFields.TriggerOutputConfiguration => TriggerOutputConfiguration,
+                    TransferDescriptorFields.GeneralPurposeOutputEnable0 => GeneralPurposeOutputEnable0,
+                    TransferDescriptorFields.GeneralPurposeOutputValue0 => GeneralPurposeOutputValue0,
+                    TransferDescriptorFields.StreamInterfaceConfiguration => StreamInterfaceConfiguration,
+                    TransferDescriptorFields.LinkAttributes => LinkAttributes,
+                    TransferDescriptorFields.AutomaticConfiguration => AutomaticConfiguration,
+                    TransferDescriptorFields.LinkAddress => LinkAddress,
+                    TransferDescriptorFields.LinkAddressHigh => LinkAddressHigh,
+                    _ => null,
+                };
+                if(!value.HasValue)
+                {
+                    Channel.Parent.ErrorLog(
+                        "Channel #{0}: Attempted to read unsupported transfer descriptor field: {1}",
+                        Channel.Index, field);
+                }
+                return value.GetValueOrDefault();
+            }
+
+            public Channel Channel { get; }
+
+#pragma warning disable CS0649
+            [PacketField]
+            public uint Header; // CMDLINKHEADER
+
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.InterruptEnable)]
+            public uint InterruptEnable; // INTREN
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.Control)]
+            public uint Control; // CTRL
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.SourceAddress)]
+            public uint SourceAddress; // SRCADDR
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.SourceAddressHigh)]
+            public uint SourceAddressHigh; // SRCADDRHI
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.DestinationAddress)]
+            public uint DestinationAddress; // DESADDR
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.DestinationAddressHigh)]
+            public uint DestinationAddressHigh; // DESADDRHI
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.XSize)]
+            public uint XSize; // XSIZE
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.XSizeHigh)]
+            public uint XSizeHigh; // XSIZEHI
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.SourceTransactionConfiguration)]
+            public uint SourceTransactionConfiguration; // SRCTRANSCFG
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.DestinationTransactionConfiguration)]
+            public uint DestinationTransactionConfiguration; // DESTRANSCFG
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.XAddressIncrement)]
+            public uint XAddressIncrement; // XADDRINC
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.YAddressStride)]
+            public uint YAddressStride; // YADDRSTRIDE
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.FillValue)]
+            public uint FillValue; // FILLVAL
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.YSize)]
+            public uint YSize; // YSIZE
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.TemplateConfiguration)]
+            public uint TemplateConfiguration; // TMPLTCFG
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.SourceTemplate)]
+            public uint SourceTemplate; // SRCTMPLT
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.DestinationTemplate)]
+            public uint DestinationTemplate; // DESTMPLT
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.SourceTriggerInputConfiguration)]
+            public uint SourceTriggerInputConfiguration; // SRCTRIGINCFG
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.DestinationTriggerInputConfiguration)]
+            public uint DestinationTriggerInputConfiguration; // DESTRIGINCFG
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.TriggerOutputConfiguration)]
+            public uint TriggerOutputConfiguration; // TRIGOUTCFG
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.GeneralPurposeOutputEnable0)]
+            public uint GeneralPurposeOutputEnable0; // GPOEN0
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.GeneralPurposeOutputValue0)]
+            public uint GeneralPurposeOutputValue0; // GPOVAL0
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.StreamInterfaceConfiguration)]
+            public uint StreamInterfaceConfiguration; // STREAMINTCFG
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.LinkAttributes)]
+            public uint LinkAttributes; // LINKATTR
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.AutomaticConfiguration)]
+            public uint AutomaticConfiguration; // AUTOCFG
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.LinkAddress)]
+            public uint LinkAddress; // LINKADDR
+            [PacketField, PresentIf(nameof(HasField), TransferDescriptorFields.LinkAddressHigh)]
+            public uint LinkAddressHigh; // LINKADDRHI
+#pragma warning restore CS0649
+        }
+
         private sealed class Channel
         {
-            public Channel(Arm_Dma350 parent)
+            public Channel(Arm_Dma350 parent, int index)
             {
                 Parent = parent;
+                Index = index;
+                DescriptorChangeableRegisters = new DoubleWordRegister[TransferDescriptorRegistersCount];
+            }
+
+            public void PerformTransfer()
+            {
+                PerformSingleTransfer();
+                if(!LinkAddressEnableField.Value)
+                {
+                    return;
+                }
+                var linkAddressRegisterRaw = DescriptorChangeableRegisters[(int)TransferDescriptorFields.LinkAddress].Value;
+                var descriptorPointer = linkAddressRegisterRaw & LinkAddressMask;
+                if(!TryLoadTransferDescriptor(descriptorPointer))
+                {
+                    Parent.ErrorLog("Channel #{0}: Could not decode transfer descriptor at 0x{1:X}",
+                        Index, descriptorPointer);
+                    return;
+                }
+                PerformTransfer();
             }
 
             public void PerformSingleTransfer()
@@ -890,13 +1066,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                 if(XType != TypeEnum.Continue || YType is not (TypeEnum.Disable or TypeEnum.Continue))
                 {
                     Parent.WarningLog(
-                        "Unsupported transfer configuration: XTYPE={0}, YTYPE={1}. " +
+                        "Channel #{0}: Unsupported transfer configuration: XTYPE={1}, YTYPE={2}. " +
                         "Only XTYPE=CONTINUE and YTYPE=DISABLE or CONTINUE transfers are supported",
-                        XType, YType);
+                        Index, XType, YType);
                     return;
                 }
 
                 var isTransfer2D = YType is not TypeEnum.Disable;
+                var transferType = TransferType;
 
                 var source = EnumerateTransferAddresses(
                     SourceAddress,
@@ -915,34 +1092,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                 using(var sourceEnumerator = source.GetEnumerator())
                 using(var destinationEnumerator = destination.GetEnumerator())
                 {
-                    var sysbus = Parent.sysbus;
                     var context = GetCurrentCPUOrNull();
                     while(sourceEnumerator.MoveNext() && destinationEnumerator.MoveNext())
                     {
-                        var currentSource = sourceEnumerator.Current;
                         var currentDestination = destinationEnumerator.Current;
-                        switch(TransferType)
-                        {
-                        case TransferType.Byte:
-                            var readByte  = sysbus.ReadByte(currentSource, context);
-                            sysbus.WriteByte(currentDestination, readByte, context);
-                            break;
-                        case TransferType.Word:
-                            var readWord = sysbus.ReadWord(currentSource, context);
-                            sysbus.WriteWord(currentDestination, readWord, context);
-                            break;
-                        case TransferType.DoubleWord:
-                            var readDoubleWord = sysbus.ReadDoubleWord(currentSource, context);
-                            sysbus.WriteDoubleWord(currentDestination, readDoubleWord, context);
-                            break;
-                        case TransferType.QuadWord:
-                            var readQuadWord = sysbus.ReadQuadWord(currentSource, context);
-                            sysbus.WriteQuadWord(currentDestination, readQuadWord, context);
-                            break;
-                        default:
-                            Parent.WarningLog("Requested transfer type {0} is not supported", TransferType);
-                            break;
-                        }
+                        var value = ReadTransferValue(context, transferType, sourceEnumerator.Current);
+                        WriteTransferValue(context, transferType, currentDestination, value);
                     }
                 }
 
@@ -966,11 +1121,118 @@ namespace Antmicro.Renode.Peripherals.DMA
             public IValueRegisterField XTypeField;
             public IValueRegisterField YTypeField;
             public IValueRegisterField TransferSizeField;
+            public IValueRegisterField LinkAddressField;
 
             public IFlagRegisterField StatusDoneField;
             public IFlagRegisterField EnableDoneField;
+            public IFlagRegisterField LinkAddressEnableField;
 
+            public readonly int Index;
+            public readonly DoubleWordRegister[] DescriptorChangeableRegisters;
             public readonly Arm_Dma350 Parent;
+
+            private IEnumerable<ulong> EnumerateTransferAddresses(
+                ulong startAddress, ulong xSize, ulong ySize, long xIncrement, long yIncrement)
+            {
+                for(long yShift = 0, yi = 0; yi < (long)ySize; yi += 1, yShift += yIncrement)
+                {
+                    for(long xShift = 0, xi = 0; xi < (long)xSize; xi += 1, xShift += xIncrement)
+                    {
+                        ulong address;
+                        try
+                        {
+                            address = AddSignedOffsetOrThrow(startAddress, checked(xShift + yShift));
+                        }
+                        catch(OverflowException)
+                        {
+                            address = unchecked(startAddress + (ulong)yShift + (ulong)xShift);
+                            Parent.WarningLog("Channel #{0}: Address calculation overflowed the 64-bit address space",
+                                Index);
+                        }
+                        yield return address;
+                    }
+                }
+            }
+
+            private ulong ReadTransferValue(ICPU context, TransferType transferType, ulong address)
+            {
+                switch(transferType)
+                {
+                case TransferType.Byte:
+                    return Parent.sysbus.ReadByte(address, context);
+                case TransferType.Word:
+                    return Parent.sysbus.ReadWord(address, context);
+                case TransferType.DoubleWord:
+                    return Parent.sysbus.ReadDoubleWord(address, context);
+                case TransferType.QuadWord:
+                    return Parent.sysbus.ReadQuadWord(address, context);
+                default:
+                    Parent.WarningLog("Channel #{0}: Requested read transfer type: {1} is not supported",
+                        Index, transferType);
+                    return 0;
+                }
+            }
+
+            private void WriteTransferValue(ICPU context, TransferType transferType, ulong address, ulong value)
+            {
+                switch(transferType)
+                {
+                case TransferType.Byte:
+                    Parent.sysbus.WriteByte(address, (byte)value, context);
+                    break;
+                case TransferType.Word:
+                    Parent.sysbus.WriteWord(address, (ushort)value, context);
+                    break;
+                case TransferType.DoubleWord:
+                    Parent.sysbus.WriteDoubleWord(address, (uint)value, context);
+                    break;
+                case TransferType.QuadWord:
+                    Parent.sysbus.WriteQuadWord(address, value, context);
+                    break;
+                default:
+                    Parent.WarningLog("Channel #{0}: Requested write transfer type: {1} is not supported",
+                        Index, transferType);
+                    break;
+                }
+            }
+
+            private bool TryLoadTransferDescriptor(ulong descriptorPointer)
+            {
+                var context = GetCurrentCPUOrNull();
+                var descriptorHeader = Parent.sysbus.ReadDoubleWord(descriptorPointer, context);
+                var descriptor = new TransferDescriptor(this) { Header = descriptorHeader };
+                var buffer = Parent.sysbus.ReadBytes(
+                    descriptorPointer, Packet.CalculateLength(descriptor), context: context);
+                if(!Packet.TryDecodeInto(buffer, ref descriptor))
+                {
+                    return false;
+                }
+
+                if(descriptor.HasField(TransferDescriptorFields.RegisterClear))
+                {
+                    foreach(var register in DescriptorChangeableRegisters.Where(register => register != null))
+                    {
+                        register.Reset();
+                    }
+                }
+
+                foreach(TransferDescriptorFields field in Enum.GetValues(typeof(TransferDescriptorFields)))
+                {
+                    if(field == TransferDescriptorFields.RegisterClear || !descriptor.HasField(field))
+                    {
+                        continue;
+                    }
+
+                    var register = DescriptorChangeableRegisters[(int)field];
+                    if(register != null)
+                    {
+                        register.Value = descriptor.GetField(field);
+                    }
+                }
+
+                Parent.UpdateInterrupts();
+                return true;
+            }
 
             private ICPU GetCurrentCPUOrNull()
             {
@@ -1008,6 +1270,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             private int TransferSize => 1 << (int)(TransferSizeField?.Value ?? 0);
 
             private TransferType TransferType => (TransferType)TransferSize;
+
+            public static readonly ulong LinkAddressMask = (ulong)BitHelper.CalculateMask(30, 2);
 
             private enum TypeEnum
             {
