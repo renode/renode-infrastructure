@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Debugging;
+using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.I2C;
 using Antmicro.Renode.Peripherals.Sensor;
@@ -41,7 +42,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 commonFifo.FifoFeedAccelerationSample(x, y, z);
             }
         }
-          
+
         public void NotifyAccelerationSampleReady()
         {
             accelerometerDataReady.Value = true;
@@ -189,37 +190,103 @@ namespace Antmicro.Renode.Peripherals.Sensors
         public decimal DefaultAccelerationX
         {
             get => defaultAccelerationX;
-            set => defaultAccelerationX = value;
+            set
+            {
+                if(accelerometerResdStream != null)
+                {
+                    throw new RecoverableException("Default acceleration X should not be set manually when RESD stream is active.");
+                }
+                else
+                {
+                    this.NoisyLog("Default acceleration X set to {0}.", value);
+                    defaultAccelerationX = value;
+                }
+            }
         }
 
         public decimal DefaultAccelerationY
         {
             get => defaultAccelerationY;
-            set => defaultAccelerationY = value;
+            set
+            {
+                if(accelerometerResdStream != null)
+                {
+                    throw new RecoverableException("Default acceleration Y should not be set manually when RESD stream is active.");
+                }
+                else
+                {
+                    this.NoisyLog("Default acceleration Y set to {0}.", value);
+                    defaultAccelerationY = value;
+                }
+            }
         }
 
         public decimal DefaultAccelerationZ
         {
             get => defaultAccelerationZ;
-            set => defaultAccelerationZ = value;
+            set
+            {
+                if(accelerometerResdStream != null)
+                {
+                    throw new RecoverableException("Default acceleration Z should not be set manually when RESD stream is active.");
+                }
+                else
+                {
+                    this.NoisyLog("Default acceleration Z set to {0}.", value);
+                    defaultAccelerationZ = value;
+                }
+            }
         }
 
         public decimal DefaultAngularRateX
         {
             get => defaultAngularRateX;
-            set => defaultAngularRateX = value;
+            set
+            {
+                if(gyroResdStream != null)
+                {
+                    throw new RecoverableException("Default angular rate X should not be set manually when RESD stream is active.");
+                }
+                else
+                {
+                    this.NoisyLog("Default angular rate X set to {0}.", value);
+                    defaultAngularRateX = value;
+                }
+            }
         }
 
         public decimal DefaultAngularRateY
         {
             get => defaultAngularRateY;
-            set => defaultAngularRateY = value;
+            set
+            {
+                if(gyroResdStream != null)
+                {
+                    throw new RecoverableException("Default angular rate Y should not be set manually when RESD stream is active.");
+                }
+                else
+                {
+                    this.NoisyLog("Default angular rate Y set to {0}.", value);
+                    defaultAngularRateY = value;
+                }
+            }
         }
 
         public decimal DefaultAngularRateZ
         {
             get => defaultAngularRateZ;
-            set => defaultAngularRateZ = value;
+            set
+            {
+                if(gyroResdStream != null)
+                {
+                    throw new RecoverableException("Default angular rate Z should not be set manually when RESD stream is active.");
+                }
+                else
+                {
+                    this.NoisyLog("Default angular rate Z set to {0}.", value);
+                    defaultAngularRateZ = value;
+                }
+            }
         }
 
         public decimal Temperature { get; set; }
@@ -435,8 +502,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return null;
             }
 
-            return CreateDefaultSampleFeeder(
-                () => {
+            return CreateDefaultSampleFeeder(() =>
+                {
                     FeedAccelerationSample(DefaultAccelerationX, DefaultAccelerationY, DefaultAccelerationZ);
                     NotifyAccelerationSampleReady();
                 },
@@ -451,8 +518,8 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return null;
             }
 
-            return CreateDefaultSampleFeeder(
-                () => {
+            return CreateDefaultSampleFeeder(() =>
+                {
                     FeedAngularRateSample(DefaultAngularRateX, DefaultAngularRateY, DefaultAngularRateZ);
                     NotifyAngularSampleReady();
                 },
