@@ -312,7 +312,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) => register
                 .WithFlag(0, name: "ENABLECMD",
-                    valueProviderCallback: _ => false,
+                    valueProviderCallback: _ => channels[index].IsEnabled,
                     writeCallback: (_, value) =>
                     {
                         if(value)
@@ -324,8 +324,24 @@ namespace Antmicro.Renode.Peripherals.DMA
                 .WithTaggedFlag("CLEARCMD", 1)
                 .WithTaggedFlag("DISABLECMD", 2)
                 .WithTaggedFlag("STOPCMD", 3)
-                .WithTaggedFlag("PAUSECMD", 4)
-                .WithTaggedFlag("RESUMECMD", 5)
+                .WithFlag(4, name: "PAUSECMD",
+                    valueProviderCallback: _ => channels[index].IsPaused,
+                    writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            channels[index].PauseSafe();
+                        }
+                    })
+                .WithFlag(5, name: "RESUMECMD",
+                    valueProviderCallback: _ => false,
+                    writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            channels[index].ResumeSafe();
+                        }
+                    })
                 .WithReservedBits(6, 10)
                 .WithTaggedFlag("SRCSWTRIGINREQ", 16)
                 .WithTag("SRCSWTRIGINTYPE", 17, 2)
@@ -355,8 +371,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                 .WithTaggedFlag("STAT_ERR", 17)
                 .WithTaggedFlag("STAT_DISABLED", 18)
                 .WithTaggedFlag("STAT_STOPPED", 19)
-                .WithTaggedFlag("STAT_PAUSED", 20)
-                .WithTaggedFlag("STAT_RESUMEWAIT", 21)
+                .WithFlag(20, mode: FieldMode.Read, name: "STAT_PAUSED",
+                    valueProviderCallback: _ => channels[index].IsPaused)
+                .WithFlag(21, mode: FieldMode.Read, name: "STAT_RESUMEWAIT",
+                    valueProviderCallback: _ => channels[index].IsPaused)
                 .WithReservedBits(22, 2)
                 .WithTaggedFlag("STAT_SRCTRIGINWAIT", 24)
                 .WithTaggedFlag("STAT_DESTRIGINWAIT", 25)
@@ -1153,6 +1171,42 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            public void PauseSafe()
+            {
+                lock(stateLock)
+                {
+                    if(state != State.Running)
+                    {
+                        Parent.InfoLog("Channel #{0}: Cannot pause DMA channel while in the {1} state",
+                            Index, state);
+                        return;
+                    }
+
+                    state = State.Paused;
+                    dmaThread.Stop();
+                }
+            }
+
+            public void ResumeSafe()
+            {
+                lock(stateLock)
+                {
+                    if(state != State.Paused)
+                    {
+                        Parent.InfoLog("Channel #{0}: Cannot resume DMA channel while in the {1} state",
+                            Index, state);
+                        return;
+                    }
+
+                    state = State.Running;
+                    dmaThread.Start();
+                }
+            }
+
+            public bool IsEnabled => state != State.Disabled;
+
+            public bool IsPaused => state == State.Paused;
+
             public bool InterruptPending =>
                 (EnableDoneField?.Value == true && StatusDoneField?.Value == true);
 
@@ -1321,6 +1375,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             public enum State
             {
                 Running,
+                Paused,
                 Disabled,
             }
 
