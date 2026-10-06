@@ -321,9 +321,25 @@ namespace Antmicro.Renode.Peripherals.DMA
                             channels[index].StartSafe(transferContext);
                         }
                     })
-                .WithTaggedFlag("CLEARCMD", 1)
+                .WithFlag(1, name: "CLEARCMD",
+                    valueProviderCallback: _ => false,
+                    writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            channels[index].ClearSafe();
+                        }
+                    })
                 .WithTaggedFlag("DISABLECMD", 2)
-                .WithTaggedFlag("STOPCMD", 3)
+                .WithFlag(3, name: "STOPCMD",
+                    valueProviderCallback: _ => false,
+                    writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            channels[index].StopSafe();
+                        }
+                    })
                 .WithFlag(4, name: "PAUSECMD",
                     valueProviderCallback: _ => channels[index].IsPaused,
                     writeCallback: (_, value) =>
@@ -357,10 +373,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                 stepInBytes: ChannelFrameStride,
                 setup: (register, index) => register
                 .WithFlag(0, mode: FieldMode.Read, name: "INTR_DONE",
-                    valueProviderCallback: _ => channels[index].EnableDoneField?.Value == true && channels[index].StatusDoneField?.Value == true)
+                    valueProviderCallback: _ => channels[index].DoneInterruptPending)
                 .WithTaggedFlag("INTR_ERR", 1)
                 .WithTaggedFlag("INTR_DISABLED", 2)
-                .WithTaggedFlag("INTR_STOPPED", 3)
+                .WithFlag(3, mode: FieldMode.Read, name: "INTR_STOPPED",
+                    valueProviderCallback: _ => channels[index].StopInterruptPending)
                 .WithReservedBits(4, 4)
                 .WithTaggedFlag("INTR_SRCTRIGINWAIT", 8)
                 .WithTaggedFlag("INTR_DESTRIGINWAIT", 9)
@@ -370,7 +387,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                     changeCallback: (_, _) => UpdateInterrupts())
                 .WithTaggedFlag("STAT_ERR", 17)
                 .WithTaggedFlag("STAT_DISABLED", 18)
-                .WithTaggedFlag("STAT_STOPPED", 19)
+                .WithFlag(19, out channels[index].StatusStoppedField,
+                    FieldMode.Read | FieldMode.WriteOneToClear, name: "STAT_STOPPED",
+                    changeCallback: (_, _) => UpdateInterrupts())
                 .WithFlag(20, mode: FieldMode.Read, name: "STAT_PAUSED",
                     valueProviderCallback: _ => channels[index].IsPaused)
                 .WithFlag(21, mode: FieldMode.Read, name: "STAT_RESUMEWAIT",
@@ -392,7 +411,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                             changeCallback: (_, __) => UpdateInterrupts())
                         .WithTaggedFlag("INTREN_ERR", 1)
                         .WithTaggedFlag("INTREN_DISABLED", 2)
-                        .WithTaggedFlag("INTREN_STOPPED", 3)
+                        .WithFlag(3, out channels[index].EnableStoppedField, name: "INTREN_STOPPED",
+                            changeCallback: (_, __) => UpdateInterrupts())
                         .WithReservedBits(4, 4)
                         .WithTaggedFlag("INTREN_SRCTRIGINWAIT", 8)
                         .WithTaggedFlag("INTREN_DESTRIGINWAIT", 9)
@@ -1212,6 +1232,37 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            public void StopSafe()
+            {
+                lock(stateLock)
+                {
+                    if(state == State.Disabled)
+                    {
+                        return;
+                    }
+
+                    state = State.Disabled;
+                    context = null;
+                    dmaThread.Stop();
+                    StatusStoppedField.Value = true;
+                    Parent.UpdateInterrupts();
+                }
+            }
+
+            public void ClearSafe()
+            {
+                lock(stateLock)
+                {
+                    if(state != State.Disabled)
+                    {
+                        Parent.WarningLog("Channel #{0}: Clearing an active DMA channel is not implemented", Index);
+                        return;
+                    }
+
+                    Clear();
+                }
+            }
+
             public void ResumeSafe()
             {
                 lock(stateLock)
@@ -1228,12 +1279,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            public bool DoneInterruptPending => EnableDoneField?.Value == true && StatusDoneField?.Value == true;
+
+            public bool StopInterruptPending => EnableStoppedField?.Value == true && StatusStoppedField?.Value == true;
+
+            public bool InterruptPending => DoneInterruptPending ||
+                                            StopInterruptPending;
+
             public bool IsEnabled => state != State.Disabled;
 
             public bool IsPaused => state == State.Paused;
-
-            public bool InterruptPending =>
-                (EnableDoneField?.Value == true && StatusDoneField?.Value == true);
 
             public IValueRegisterField SourceAddressField;
             public IValueRegisterField DestinationAddressField;
@@ -1252,7 +1307,9 @@ namespace Antmicro.Renode.Peripherals.DMA
             public IValueRegisterField FillValueField;
 
             public IFlagRegisterField StatusDoneField;
+            public IFlagRegisterField StatusStoppedField;
             public IFlagRegisterField EnableDoneField;
+            public IFlagRegisterField EnableStoppedField;
             public IFlagRegisterField LinkAddressEnableField;
 
             public readonly int Index;
@@ -1322,6 +1379,18 @@ namespace Antmicro.Renode.Peripherals.DMA
                         Index, transferType);
                     break;
                 }
+            }
+
+            private void Clear()
+            {
+                context = null;
+                foreach(var register in DescriptorChangeableRegisters.Where(register => register != null))
+                {
+                    register.Reset();
+                }
+                StatusDoneField.Value = false;
+                StatusStoppedField.Value = false;
+                Parent.UpdateInterrupts();
             }
 
             private ulong GetTransferSizeCastedFillValue() => TransferType switch
