@@ -24,13 +24,13 @@ namespace Antmicro.Renode.Peripherals.CAN
     public static class SocketCANBridgeExtensions
     {
         [SupportedRID("linux")]
-        public static void CreateSocketCANBridge(this IMachine machine, string name, string canInterfaceName = "vcan0", bool ensureFdFrames = false, bool ensureXlFrames = false)
+        public static void CreateSocketCANBridge(this IMachine machine, string name, string canInterfaceName = "vcan0", bool ensureFdFrames = false, bool ensureXlFrames = false, bool bufferFramesWhenPaused = false)
         {
             if(!RuntimeInfo.IsLinux())
             {
                 throw new PlatformNotSupportedException("Socket CAN bridge is accessible on Linux only");
             }
-            var bridge = new SocketCANBridge(canInterfaceName, ensureFdFrames, ensureXlFrames);
+            var bridge = new SocketCANBridge(canInterfaceName, ensureFdFrames, ensureXlFrames, bufferFramesWhenPaused);
             machine.RegisterAsAChildOf(machine.SystemBus, bridge, NullRegistrationPoint.Instance);
             machine.SetLocalName(bridge, name);
         }
@@ -39,8 +39,9 @@ namespace Antmicro.Renode.Peripherals.CAN
     [SupportedRID("linux")]
     public class SocketCANBridge : ICAN, IHasOwnLife
     {
-        public SocketCANBridge(string canInterfaceName = "vcan0", bool ensureFdFrames = false, bool ensureXlFrames = false)
+        public SocketCANBridge(string canInterfaceName = "vcan0", bool ensureFdFrames = false, bool ensureXlFrames = false, bool bufferFramesWhenPaused = false)
         {
+            this.bufferFramesWhenPaused = bufferFramesWhenPaused;
             if(canInterfaceName.Length >= InterfaceRequest.InterfaceNameSize)
             {
                 throw new ConstructionException($"Parameter '{nameof(canInterfaceName)}' is too long, name of CAN device \"{canInterfaceName}\" exceeds {InterfaceRequest.InterfaceNameSize - 1} bytes");
@@ -216,8 +217,13 @@ namespace Antmicro.Renode.Peripherals.CAN
                 {
                     if(IsPaused)
                     {
-                        this.DebugLog("Emulation is paused. Dropping frame: {0}", message);
-                        continue;
+                        if(!bufferFramesWhenPaused)
+                        {
+                            this.DebugLog("Emulation is paused. Dropping frame: {0}", message);
+                            continue;
+                        }
+                        // CANHub runs in virtual time, so the frame is queued until the next synced state after resuming
+                        this.DebugLog("Emulation is paused. Frame will be delivered after resuming: {0}", message);
                     }
                 }
 
@@ -235,6 +241,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         private readonly int canSocket;
 
         private readonly int maximumTransmissionUnit;
+        private readonly bool bufferFramesWhenPaused;
 
         // PF_CAN
         private const int ProtocolFamilyCan = 29;
