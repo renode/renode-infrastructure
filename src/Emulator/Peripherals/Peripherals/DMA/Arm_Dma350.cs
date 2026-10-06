@@ -569,7 +569,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     setup: (register, index) =>
                     {
                         channels[index].DescriptorChangeableRegisters[(int)TransferDescriptorFields.FillValue] = register;
-                        register.WithTag("FILLVAL", 0, 32);
+                        register.WithValueField(0, 32, out channels[index].FillValueField, name: "FILLVAL");
                     })
                 ;
                 Registers.ChannelYSize.DefineMany(this,
@@ -1113,16 +1113,21 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public void PerformSingleTransfer()
             {
-                if(XType != TypeEnum.Continue || YType is not (TypeEnum.Disable or TypeEnum.Continue))
+                var transferMode = ConfiguredTransferMode;
+                if(!transferMode.HasValue)
                 {
                     Parent.WarningLog(
                         "Channel #{0}: Unsupported transfer configuration: XTYPE={1}, YTYPE={2}. " +
-                        "Only XTYPE=CONTINUE and YTYPE=DISABLE or CONTINUE transfers are supported",
+                        "Supported configurations are 1D and 2D CONTINUE, and 1D FILL; " +
+                        "FILL is not supported for higher-dimensional transfers",
                         Index, XType, YType);
+                    StatusDoneField.Value = true;
+                    Parent.UpdateInterrupts();
                     return;
                 }
 
-                var isTransfer2D = YType is not TypeEnum.Disable;
+                var isTransfer2D = transferMode == TransferMode.Copy2D;
+                var isFillTransfer = transferMode == TransferMode.Fill1D;
                 var transferType = TransferType;
 
                 var source = EnumerateTransferAddresses(
@@ -1142,10 +1147,18 @@ namespace Antmicro.Renode.Peripherals.DMA
                 using(var sourceEnumerator = source.GetEnumerator())
                 using(var destinationEnumerator = destination.GetEnumerator())
                 {
-                    while(sourceEnumerator.MoveNext() && destinationEnumerator.MoveNext())
+                    while(destinationEnumerator.MoveNext())
                     {
+                        var hasSource = sourceEnumerator.MoveNext();
+                        if(!hasSource && !isFillTransfer)
+                        {
+                            break;
+                        }
+
                         var currentDestination = destinationEnumerator.Current;
-                        var value = ReadTransferValue(context, transferType, sourceEnumerator.Current);
+                        var value = hasSource
+                            ? ReadTransferValue(context, transferType, sourceEnumerator.Current)
+                            : GetTransferSizeCastedFillValue();
                         WriteTransferValue(context, transferType, currentDestination, value);
                     }
                 }
@@ -1224,6 +1237,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             public IValueRegisterField YTypeField;
             public IValueRegisterField TransferSizeField;
             public IValueRegisterField LinkAddressField;
+            public IValueRegisterField FillValueField;
 
             public IFlagRegisterField StatusDoneField;
             public IFlagRegisterField EnableDoneField;
@@ -1298,6 +1312,15 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            private ulong GetTransferSizeCastedFillValue() => TransferType switch
+            {
+                TransferType.Byte => (byte)FillValue,
+                TransferType.Word => (ushort)FillValue,
+                TransferType.DoubleWord => FillValue,
+                TransferType.QuadWord => ((ulong)FillValue << 32) | FillValue,
+                _ => 0,
+            };
+
             private bool TryLoadTransferDescriptor(ulong descriptorPointer)
             {
                 var descriptorHeader = Parent.sysbus.ReadDoubleWord(descriptorPointer, context);
@@ -1355,9 +1378,19 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private ulong DestinationYSize => DestinationYSizeField?.Value ?? 1U;
 
+            private uint FillValue => (uint)(FillValueField?.Value ?? 0);
+
             private TypeEnum XType => (TypeEnum)(XTypeField?.Value ?? 0);
 
             private TypeEnum YType => (TypeEnum)(YTypeField?.Value ?? 0);
+
+            private TransferMode? ConfiguredTransferMode => (XType, YType) switch
+            {
+                (TypeEnum.Continue, TypeEnum.Disable) => TransferMode.Copy1D,
+                (TypeEnum.Continue, TypeEnum.Continue) => TransferMode.Copy2D,
+                (TypeEnum.Fill, TypeEnum.Disable) => TransferMode.Fill1D,
+                _ => null,
+            };
 
             private int TransferSize => 1 << (int)(TransferSizeField?.Value ?? 0);
 
@@ -1385,6 +1418,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 Continue,
                 Wrap,
                 Fill,
+            }
+
+            private enum TransferMode
+            {
+                Copy1D,
+                Copy2D,
+                Fill1D,
             }
         }
 
