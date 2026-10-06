@@ -80,6 +80,15 @@ namespace Antmicro.Renode.Peripherals.DMA
                 numberOfChannels <= MaximumDMA250Channels;
         }
 
+        private ICPU GetCurrentCPUOrNull()
+        {
+            if(!sysbus.TryGetCurrentCPU(out var cpu))
+            {
+                return null;
+            }
+            return cpu;
+        }
+
         private void UpdateInterrupts()
         {
             IRQ.Set(channels.Any(channel => channel.InterruptPending));
@@ -308,7 +317,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     {
                         if(value)
                         {
-                            channels[index].PerformTransfer();
+                            var transferContext = GetCurrentCPUOrNull();
+                            channels[index].StartSafe(transferContext);
                         }
                     })
                 .WithTaggedFlag("CLEARCMD", 1)
@@ -1039,16 +1049,38 @@ namespace Antmicro.Renode.Peripherals.DMA
             public Channel(Arm_Dma350 parent, int index)
             {
                 Parent = parent;
-                Index = index;
+                this.Index = index;
                 DescriptorChangeableRegisters = new DoubleWordRegister[TransferDescriptorRegistersCount];
+                var dmaThreadName = $"{parent.machine}.{nameof(parent)}.channel[{index}]";
+                dmaThread = parent.machine.ObtainManagedThread(delegate { }, DmaTransferInterval,
+                    // The Dma action is intentionally handled inside `stopCondition`, since each `DmaTick` determines whether processing should continue.
+                    stopCondition: () =>
+                    {
+                        lock(stateLock)
+                        {
+                            if(state != State.Running)
+                            {
+                                Parent.InfoLog("Channel #{0}: Ticked while in the {1} state", Index, state);
+                                return true;
+                            }
+                            if(PerformSingleDmaTick())
+                            {
+                                return false;
+                            }
+                            state = State.Disabled;
+                            context = null;
+                            return true;
+                        }
+                    },
+                    name: dmaThreadName);
             }
 
-            public void PerformTransfer()
+            public bool PerformSingleDmaTick()
             {
                 PerformSingleTransfer();
                 if(!LinkAddressEnableField.Value)
                 {
-                    return;
+                    return false;
                 }
                 var linkAddressRegisterRaw = DescriptorChangeableRegisters[(int)TransferDescriptorFields.LinkAddress].Value;
                 var descriptorPointer = linkAddressRegisterRaw & LinkAddressMask;
@@ -1056,9 +1088,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                 {
                     Parent.ErrorLog("Channel #{0}: Could not decode transfer descriptor at 0x{1:X}",
                         Index, descriptorPointer);
-                    return;
+                    return false;
                 }
-                PerformTransfer();
+                return true;
             }
 
             public void PerformSingleTransfer()
@@ -1092,7 +1124,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 using(var sourceEnumerator = source.GetEnumerator())
                 using(var destinationEnumerator = destination.GetEnumerator())
                 {
-                    var context = GetCurrentCPUOrNull();
                     while(sourceEnumerator.MoveNext() && destinationEnumerator.MoveNext())
                     {
                         var currentDestination = destinationEnumerator.Current;
@@ -1103,6 +1134,23 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 StatusDoneField.Value = true;
                 Parent.UpdateInterrupts();
+            }
+
+            public void StartSafe(ICPU context)
+            {
+                lock(stateLock)
+                {
+                    if(state == State.Disabled)
+                    {
+                        state = State.Running;
+                        this.context = context;
+                        dmaThread.Start();
+                    }
+                    else
+                    {
+                        Parent.InfoLog("Channel #{0}: Tried to start already running channel", Index);
+                    }
+                }
             }
 
             public bool InterruptPending =>
@@ -1198,7 +1246,6 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private bool TryLoadTransferDescriptor(ulong descriptorPointer)
             {
-                var context = GetCurrentCPUOrNull();
                 var descriptorHeader = Parent.sysbus.ReadDoubleWord(descriptorPointer, context);
                 var descriptor = new TransferDescriptor(this) { Header = descriptorHeader };
                 var buffer = Parent.sysbus.ReadBytes(
@@ -1234,15 +1281,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return true;
             }
 
-            private ICPU GetCurrentCPUOrNull()
-            {
-                if(!Parent.sysbus.TryGetCurrentCPU(out var cpu))
-                {
-                    return null;
-                }
-                return cpu;
-            }
-
             private ulong SourceAddress => (ulong)(SourceAddressField?.Value ?? 0);
 
             private ulong DestinationAddress => (ulong)(DestinationAddressField?.Value ?? 0);
@@ -1271,7 +1309,20 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private TransferType TransferType => (TransferType)TransferSize;
 
+            private volatile State state = State.Disabled;
+            private ICPU context;
+            private readonly IManagedThread dmaThread;
+            private readonly object stateLock = new();
+
+            private static readonly Time.TimeInterval DmaTransferInterval = Time.TimeInterval.FromMilliseconds(1);
+
             public static readonly ulong LinkAddressMask = (ulong)BitHelper.CalculateMask(30, 2);
+
+            public enum State
+            {
+                Running,
+                Disabled,
+            }
 
             private enum TypeEnum
             {
