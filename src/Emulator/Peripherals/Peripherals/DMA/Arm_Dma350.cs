@@ -27,6 +27,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         public override void Reset()
         {
+            foreach(var channel in channels)
+            {
+                channel.Reset();
+            }
             base.Reset();
             UpdateInterrupts();
         }
@@ -1229,6 +1233,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                         Parent.InfoLog("Channel #{0}: Tried to start already running channel", Index);
                     }
                 }
+            }
+
+            public void Reset()
+            {
+                dmaThread.Stop();
+                state = State.Disabled;
+                Clear();
             }
 
             public void PauseSafe()
