@@ -228,8 +228,7 @@ namespace Antmicro.Renode.Peripherals.Video
             case DeviceState.WaitForArguments:
                 if(currentCmd is null)
                 {
-                    this.ErrorLog("No supported command in progress, trying to fallback to new command");
-                    ChangeState(DeviceState.WaitForCommand);
+                    this.WarningLog("Not supported command in progress, ignoring data");
                 }
                 else if(currentArgs.Count == commands[(ST7789Commands)currentCmd].argsCount)
                 {
