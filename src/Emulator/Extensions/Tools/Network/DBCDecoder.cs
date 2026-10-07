@@ -11,6 +11,7 @@ using System.Text;
 
 using Antmicro.Renode.Core.CAN;
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Logging;
 
 using DbcParserLib;
 using DbcParserLib.Observers;
@@ -35,6 +36,7 @@ public class DBCDecoder
             }
             throw new RecoverableException($"Failed to parse DBC file {path}: {errorTextBuilder}");
         }
+        Logger.Log(LogLevel.Info, "Loaded DBC database: {0} message definitions added", dbc.Messages.Count());
     }
 
     public bool TryDecodeCANMessage(CANMessageFrame frame, out DecodedMessage? decodedMessage)

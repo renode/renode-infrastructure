@@ -18,6 +18,8 @@ using Antmicro.Renode.Time;
 using Antmicro.Renode.Tools.Network;
 using Antmicro.Renode.Utilities;
 
+#nullable enable
+
 namespace Antmicro.Renode.Analyzers;
 
 [Transient]
@@ -36,7 +38,7 @@ public class WebSocketCANAnalyzer : BasicPeripheralBackendAnalyzer<CANBackend>, 
 
     public void Dispose()
     {
-        server.Dispose();
+        server?.Dispose();
     }
 
     public override void Hide()
@@ -56,9 +58,17 @@ public class WebSocketCANAnalyzer : BasicPeripheralBackendAnalyzer<CANBackend>, 
     /// <summary>
     /// Encodes a can message frame as json and sends it over the websocket connection
     /// </summary>
-    private void SendFrameToWebsocket(IExternal canHub, ICAN sender, CANMessageFrame message)
+    private void SendFrameToWebsocket(IExternal canHubExternal, ICAN sender, CANMessageFrame message)
     {
-        var serializedFrame = JsonSerializer.SerializeToUtf8Bytes(new WrappedCANMessage(canHub as CANHub, sender, message));
+        if(server is null)
+        {
+            this.WarningLog("Attempted to send a frame with no active websocket server");
+            return;
+        }
+        var canHub = (CANHub)canHubExternal;
+        DBCDecoder.DecodedMessage? decodedMessage = null;
+        canHub.DbcDecoder?.TryDecodeCANMessage(message, out decodedMessage);
+        var serializedFrame = JsonSerializer.SerializeToUtf8Bytes(new WrappedCANMessage(canHub, sender, message, decodedMessage));
         server.Send(serializedFrame);
     }
 
@@ -71,16 +81,17 @@ public class WebSocketCANAnalyzer : BasicPeripheralBackendAnalyzer<CANBackend>, 
         ((CANBackend)Backend).CANHub.FrameReceived += SendFrameToWebsocket;
     }
 
-    private WebSocketSingleConnectionServer server;
+    private WebSocketSingleConnectionServer? server;
 
     private class WrappedCANMessage
     {
-        public WrappedCANMessage(CANHub canHub, ICAN sender, CANMessageFrame message)
+        public WrappedCANMessage(CANHub canHub, ICAN sender, CANMessageFrame message, DBCDecoder.DecodedMessage? decodedMessage)
         {
             CanHub = EmulationManager.Instance.CurrentEmulation.ExternalsManager.TryGetName(canHub, out var name) ? name : "";
             TimeStamp = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp().TimeElapsed.ToString();
             Sender = sender.GetName();
             Message = message;
+            DecodedMessage = decodedMessage;
         }
 
         public string CanHub { get; }
@@ -90,5 +101,7 @@ public class WebSocketCANAnalyzer : BasicPeripheralBackendAnalyzer<CANBackend>, 
         public string TimeStamp { get; }
 
         public CANMessageFrame Message { get; }
+
+        public DBCDecoder.DecodedMessage? DecodedMessage { get; }
     }
 }
