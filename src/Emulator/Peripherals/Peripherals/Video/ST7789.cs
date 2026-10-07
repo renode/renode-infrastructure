@@ -32,7 +32,12 @@ namespace Antmicro.Renode.Peripherals.Video
              * cursor position and vertical scrolling depends on device memory (FrameMemoryHeight).
              */
             displayHeight = height;
-            frameMemory = new byte[PixelFormat.RGB565.GetByteCount(FrameMemoryWidth * FrameMemoryHeight)];
+
+            /* While the real devices default pixel format is 18bit/pixel, only RGB565 is currently
+             * supported in this model.
+             */
+            Reconfigure(format: PixelFormat.RGB565, autoRepaint: false);
+            frameMemory = new byte[Format.GetByteCount(FrameMemoryWidth * FrameMemoryHeight)];
 
             FramesPerVirtualSecond = 60; // Datasheet indicates 60Hz at power on
 
