@@ -193,7 +193,7 @@ namespace Antmicro.Renode.WebSockets
                 }
 
                 var path = context.Request.Url.AbsolutePath;
-                var endpoint = endpoints.Where(e => path.StartsWith(e.Key)).FirstOrDefault();
+                var endpoint = endpoints.FirstOrDefault(e => (path + "/").StartsWith(e.Key + "/"));
                 var endpointName = endpoint.Key;
                 var provider = endpoint.Value;
 
