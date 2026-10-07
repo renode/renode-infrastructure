@@ -21,13 +21,6 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             streamWriter.AutoFlush = true;
         }
 
-        public override string GetCurrentStack()
-        {
-            var result = FormatStack(CurrentStack);
-
-            return result;
-        }
-
         protected override void WriteAfterFramePush(ulong instructionCount)
         {
             AddStackToBufferWithDelta(CurrentStack.Skip(1), GetInstructionsDelta(instructionCount));

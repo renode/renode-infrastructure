@@ -10,7 +10,6 @@ using System.IO;
 using System.Linq;
 
 using Antmicro.Migrant;
-using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 
 namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
@@ -206,9 +205,17 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
             }
         }
 
-        public virtual string GetCurrentStack()
+        public string GetCurrentStack()
         {
-            throw new RecoverableException($"Functionality is not supported by the currently selected profiler");
+            lock(MainLock)
+            {
+                if(Disposed)
+                {
+                    return "";
+                }
+
+                return string.Join(";", CurrentStack.Reverse());
+            }
         }
 
         public virtual bool TryFlushToOutputStream()
