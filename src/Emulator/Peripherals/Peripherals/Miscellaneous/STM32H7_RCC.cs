@@ -1386,6 +1386,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 this.Log(LogLevel.Debug, "Resetting {0}", peripheral);
                 peri.Reset();
+                // Some peripherals fallback to their default clock during reset.
+                // We have to supply a new clock to them once again.
+                PropagateClock();
             }
         }
 
