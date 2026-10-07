@@ -53,6 +53,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             profiler = type switch
             {
+                ProfilerType.TraceEvent => new TraceEventProfiler(this, filename, flushInstantly, fileSizeLimit, maximumNestedContexts: maximumNestedContexts, enableMultipleTracks: enableMultipleTracks.Value),
                 ProfilerType.Perfetto => new PerfettoProfiler(this, filename, flushInstantly, fileSizeLimit, maximumNestedContexts: maximumNestedContexts, enableMultipleTracks: enableMultipleTracks.Value),
                 ProfilerType.CollapsedStack => new CollapsedStackProfiler(this, filename, flushInstantly, fileSizeLimit, maximumNestedContexts: maximumNestedContexts),
                 _ => throw new UnreachableException("Profiler type outside of enum")
@@ -92,6 +93,19 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             EnableProfiler(
                 ProfilerType.Perfetto,
+                filename,
+                flushInstantly,
+                enableMultipleTracks,
+                fileSizeLimit,
+                maximumNestedContexts,
+                enableFrameTracking
+            );
+        }
+
+        public void EnableProfilerTraceEvent(string filename, bool flushInstantly = false, bool enableMultipleTracks = true, ulong? fileSizeLimit = null, uint? maximumNestedContexts = null, bool enableFrameTracking = false)
+        {
+            EnableProfiler(
+                ProfilerType.TraceEvent,
                 filename,
                 flushInstantly,
                 enableMultipleTracks,
@@ -228,7 +242,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         public enum ProfilerType
         {
             CollapsedStack,
-            Perfetto
+            Perfetto,
+            TraceEvent
         }
     }
 }
