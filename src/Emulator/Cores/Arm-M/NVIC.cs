@@ -2887,6 +2887,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 systickEnabled = false;
                 reloadValue = 0;
                 TickInterruptEnabled = false;
+                CountFlag = false;
 
                 systick.Reset();
                 systick.AutoUpdate = true;
