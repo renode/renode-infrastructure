@@ -452,6 +452,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
                 AddHookOnMmuFault((faultAddress, accessType, faultyWindowId, firstTry) =>
                 {
+                    // Only signal the fault if the memory access that caused it originated
+                    // from Coral itself. This logic prevents raising faults on accesses that
+                    // were initiated by e.g. GDB during debugging.
+                    if(!machine.GetSystemBus(parent).TryGetCurrentCPU(out var cpu) || cpu != this)
+                    {
+                        return ExternalMmuResult.NoFault;
+                    }
+
                     this.DebugLog("Fault encountered: External MMU fault @ 0x{0:x}, access type {1}", faultAddress, accessType);
                     // FAULT is sticky until core reset (RESET_CONTROL.RESET), matching Coral NPU RTL.
                     Faulted = true;
