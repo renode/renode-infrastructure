@@ -1245,6 +1245,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                     if(state == State.Disabled)
                     {
                         state = State.Running;
+                        StatusDoneField.Value = false;
+                        StatusStoppedField.Value = false;
+                        Parent.UpdateInterrupts();
+
                         this.context = context;
                         dmaThread.Start();
                     }
