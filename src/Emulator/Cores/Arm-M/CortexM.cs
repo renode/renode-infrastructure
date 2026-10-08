@@ -455,6 +455,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             set => SetTrustZoneRelatedRegister(nameof(PmsaV8Mair1_NS), val => tlibSetPmsav8Mair(1, val, 0), value);
         }
 
+        public bool MPUPrivdefena
+        {
+            get
+            {
+                return tlibIsPrivdefenaEnabled() != 0;
+            }
+
+            set
+            {
+                tlibSetPrivdefena(value ? 1u : 0u);
+            }
+        }
+
         public bool MPUEnabled
         {
             get
@@ -1348,6 +1361,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<int> tlibEnableMpu;
+
+        [Import]
+        private readonly Action<uint> tlibSetPrivdefena;
+
+        [Import]
+        private readonly Func<uint> tlibIsPrivdefenaEnabled;
 
         [Import]
         private readonly Func<int> tlibIsMpuEnabled;

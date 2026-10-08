@@ -1946,7 +1946,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             case RegistersV7.Control:
                 if((mpuControlRegister & 0x1) != (value & 0x1))
                 {
-                    this.cpu.MPUEnabled = (value & 0x1) != 0x0;
+                    cpu.MPUEnabled = (value & 0x1) != 0x0;
+                }
+                if((mpuControlRegister & 0x4) != (value & 0x4))
+                {
+                    cpu.MPUPrivdefena = (value & 0x4) != 0x0;
                 }
                 mpuControlRegister = value;
                 break;
