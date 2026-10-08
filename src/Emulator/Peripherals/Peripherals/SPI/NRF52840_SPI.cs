@@ -20,11 +20,10 @@ namespace Antmicro.Renode.Peripherals.SPI
 {
     public class NRF52840_SPI : NullRegistrationPointPeripheralContainer<ISPIPeripheral>, IDoubleWordPeripheral, IProvidesRegisterCollection<DoubleWordRegisterCollection>, IKnownSize, INRFEventProvider
     {
-        public NRF52840_SPI(IMachine machine, bool easyDMA = false) : base(machine)
+        public NRF52840_SPI(IMachine machine) : base(machine)
         {
             this.machine = machine;
             sysbus = machine.GetSystemBus(this);
-            this.easyDMA = easyDMA;
 
             IRQ = new GPIO();
 
@@ -37,7 +36,7 @@ namespace Antmicro.Renode.Peripherals.SPI
         public override void Reset()
         {
             receiveFifo.Clear();
-            enabled = false;
+            enabled = EnableState.Disabled;
             RegistersCollection.Reset();
             UpdateInterrupts();
         }
@@ -64,18 +63,18 @@ namespace Antmicro.Renode.Peripherals.SPI
         {
             var status = false;
 
-            if(easyDMA)
+            switch(enabled)
             {
+            case EnableState.EnabledSPIM:
                 status |= startedPending.Value && startedEnabled.Value;
                 status |= endPending.Value && endEnabled.Value;
                 status |= endRxPending.Value && endRxEnabled.Value;
                 status |= endTxPending.Value && endTxEnabled.Value;
-            }
-            else
-            {
+                break;
+            case EnableState.EnabledSPI:
                 status |= readyEnabled.Value && readyPending.Value;
+                break;
             }
-            status &= enabled;
 
             this.Log(LogLevel.Noisy, "Setting IRQ to {0}", status);
             IRQ.Set(status);
@@ -89,113 +88,69 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithWriteCallback((_, __) => UpdateInterrupts())
             ;
 
-            if(easyDMA)
-            {
-                Registers.EnableInterrupt.Define(this)
-                    .WithReservedBits(0, 1)
-                    .WithTaggedFlag("STOPPED", 1)
-                    .WithReservedBits(2, 2)
-                    .WithFlag(4, out endRxEnabled, FieldMode.Read | FieldMode.Set, name: "ENDRX")
-                    .WithReservedBits(5, 1)
-                    .WithFlag(6, out endEnabled, FieldMode.Read | FieldMode.Set, name: "END")
-                    .WithReservedBits(7, 1)
-                    .WithFlag(8, out endTxEnabled, FieldMode.Read | FieldMode.Set, name: "ENDTX")
-                    .WithReservedBits(9, 10)
-                    .WithFlag(19, out startedEnabled, FieldMode.Read | FieldMode.Set, name: "STARTED")
-                    .WithReservedBits(20, 12)
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                ;
+            Registers.EnableInterrupt.Define(this)
+                .WithReservedBits(0, 1)
+                .WithTaggedFlag("STOPPED", 1)
+                .WithFlag(2, out readyEnabled, FieldMode.Read | FieldMode.Set, name: "READY")
+                .WithReservedBits(3, 1)
+                .WithFlag(4, out endRxEnabled, FieldMode.Read | FieldMode.Set, name: "ENDRX")
+                .WithReservedBits(5, 1)
+                .WithFlag(6, out endEnabled, FieldMode.Read | FieldMode.Set, name: "END")
+                .WithReservedBits(7, 1)
+                .WithFlag(8, out endTxEnabled, FieldMode.Read | FieldMode.Set, name: "ENDTX")
+                .WithReservedBits(9, 10)
+                .WithFlag(19, out startedEnabled, FieldMode.Read | FieldMode.Set, name: "STARTED")
+                .WithReservedBits(20, 12)
+                .WithWriteCallback((_, __) => UpdateInterrupts())
+            ;
 
-                Registers.DisableInterrupt.Define(this)
-                    .WithReservedBits(0, 1)
-                    .WithTaggedFlag("STOPPED", 1)
-                    .WithReservedBits(2, 2)
-                    .WithFlag(4, name: "ENDRX",
-                        valueProviderCallback: _ => endRxEnabled.Value,
-                        writeCallback: (_, val) => { if(val) endRxEnabled.Value = false; })
-                    .WithReservedBits(5, 1)
-                    .WithFlag(6, name: "END",
-                        valueProviderCallback: _ => endEnabled.Value,
-                        writeCallback: (_, val) => { if(val) endEnabled.Value = false; })
-                    .WithReservedBits(7, 1)
-                    .WithFlag(8, name: "ENDTX",
-                        valueProviderCallback: _ => endTxEnabled.Value,
-                        writeCallback: (_, val) => { if(val) endTxEnabled.Value = false; })
-                    .WithReservedBits(9, 10)
-                    .WithFlag(19, name: "STARTED",
-                        valueProviderCallback: _ => startedEnabled.Value,
-                        writeCallback: (_, val) => { if(val) startedEnabled.Value = false; })
-                    .WithReservedBits(20, 12)
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                ;
+            Registers.DisableInterrupt.Define(this)
+                .WithReservedBits(0, 1)
+                .WithTaggedFlag("STOPPED", 1)
+                .WithFlag(2, name: "READY",
+                    valueProviderCallback: _ => readyEnabled.Value,
+                    writeCallback: (_, val) => { if(val) readyEnabled.Value = false; })
+                .WithReservedBits(3, 1)
+                .WithFlag(4, name: "ENDRX",
+                    valueProviderCallback: _ => endRxEnabled.Value,
+                    writeCallback: (_, val) => { if(val) endRxEnabled.Value = false; })
+                .WithReservedBits(5, 1)
+                .WithFlag(6, name: "END",
+                    valueProviderCallback: _ => endEnabled.Value,
+                    writeCallback: (_, val) => { if(val) endEnabled.Value = false; })
+                .WithReservedBits(7, 1)
+                .WithFlag(8, name: "ENDTX",
+                    valueProviderCallback: _ => endTxEnabled.Value,
+                    writeCallback: (_, val) => { if(val) endTxEnabled.Value = false; })
+                .WithReservedBits(9, 10)
+                .WithFlag(19, name: "STARTED",
+                    valueProviderCallback: _ => startedEnabled.Value,
+                    writeCallback: (_, val) => { if(val) startedEnabled.Value = false; })
+                .WithReservedBits(20, 12)
+                .WithWriteCallback((_, __) => UpdateInterrupts())
+            ;
 
-                Registers.TxListType.Define(this)
-                    .WithTaggedFlag("LIST - List type", 0)
-                    .WithReservedBits(1, 31)
-                ;
+            Registers.TxListType.Define(this)
+                .WithTaggedFlag("LIST - List type", 0)
+                .WithReservedBits(1, 31)
+            ;
 
-                Registers.RxListType.Define(this)
-                    .WithTaggedFlag("LIST - List type", 0)
-                    .WithReservedBits(1, 31)
-                ;
-            }
-            else
-            {
-                Registers.EnableInterrupt.Define(this)
-                    .WithReservedBits(0, 2)
-                    .WithFlag(2, out readyEnabled, FieldMode.Read | FieldMode.Set, name: "READY")
-                    .WithReservedBits(3, 3)
-                    .WithFlag(6, out endEnabled, FieldMode.Read | FieldMode.Set, name: "END")
-                    .WithReservedBits(7, 25)
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                ;
-
-                Registers.DisableInterrupt.Define(this)
-                    .WithReservedBits(0, 2)
-                    .WithFlag(2, name: "READY",
-                        valueProviderCallback: _ => readyEnabled.Value,
-                        writeCallback: (_, val) => { if(val) readyEnabled.Value = false; })
-                    .WithReservedBits(3, 3)
-                    .WithFlag(6, name: "END",
-                        writeCallback: (_, val) => { if(val) endEnabled.Value = false; })
-                    .WithReservedBits(7, 25)
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                ;
-            }
+            Registers.RxListType.Define(this)
+                .WithTaggedFlag("LIST - List type", 0)
+                .WithReservedBits(1, 31)
+            ;
 
             Registers.Enable.Define(this)
                 .WithValueField(0, 4,
-                    valueProviderCallback: _ => enabled ? 1 : 0u,
+                    valueProviderCallback: _ => (ulong)enabled,
                     writeCallback: (_, val) =>
                     {
-                        switch(val)
+                        if(!Enum.IsDefined(typeof(EnableState), (int)val))
                         {
-                        case 0:
-                            // disabled
-                            enabled = false;
-                            break;
-
-                        case 1:
-                            // enabled, standard mode
-                            if(!easyDMA)
-                            {
-                                enabled = true;
-                            }
-                            break;
-
-                        case 7:
-                            // enabled, easyDMA mode
-                            if(easyDMA)
-                            {
-                                enabled = true;
-                            }
-                            break;
-
-                        default:
                             this.Log(LogLevel.Warning, "Unhandled enable value: 0x{0:X}", val);
                             return;
                         }
-
+                        enabled = (EnableState)val;
                         UpdateInterrupts();
                     })
                 .WithReservedBits(4, 28)
@@ -237,76 +192,79 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithReservedBits(8, 24)
             ;
 
-            if(easyDMA)
-            {
-                Registers.TasksStart.Define(this)
-                    .WithFlag(0, FieldMode.Write, name: "TASKS_START", writeCallback: (_, val) =>
+            Registers.TasksStart.Define(this)
+                .WithFlag(0, FieldMode.Write, name: "TASKS_START", writeCallback: (_, val) =>
+                {
+                    if(!val)
                     {
-                        if(val)
-                        {
-                            machine.LocalTimeSource.ExecuteInNearestSyncedState(__ => ExecuteTransaction());
-                        }
-                    })
-                    .WithReservedBits(1, 31)
-                ;
+                        return;
+                    }
+                    if(enabled != EnableState.EnabledSPIM)
+                    {
+                        this.Log(LogLevel.Warning, "TASKS_START ignored, the peripheral is not enabled as SPIM");
+                        return;
+                    }
+                    machine.LocalTimeSource.ExecuteInNearestSyncedState(__ => ExecuteTransaction());
+                })
+                .WithReservedBits(1, 31)
+            ;
 
-                Registers.EventsStarted.Define(this)
-                    .WithFlag(0, out startedPending, name: "EVENTS_STARTED")
-                    .WithReservedBits(1, 31)
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                ;
+            Registers.EventsStarted.Define(this)
+                .WithFlag(0, out startedPending, name: "EVENTS_STARTED")
+                .WithReservedBits(1, 31)
+                .WithWriteCallback((_, __) => UpdateInterrupts())
+            ;
 
-                Registers.EventsEnd.Define(this)
-                    .WithFlag(0, out endPending, name: "EVENTS_END")
-                    .WithReservedBits(1, 31)
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                ;
+            Registers.EventsEnd.Define(this)
+                .WithFlag(0, out endPending, name: "EVENTS_END")
+                .WithReservedBits(1, 31)
+                .WithWriteCallback((_, __) => UpdateInterrupts())
+            ;
 
-                Registers.EventsEndTx.Define(this)
-                    .WithFlag(0, out endTxPending, name: "EVENTS_ENDTX")
-                    .WithReservedBits(1, 31)
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                ;
+            Registers.EventsEndTx.Define(this)
+                .WithFlag(0, out endTxPending, name: "EVENTS_ENDTX")
+                .WithReservedBits(1, 31)
+                .WithWriteCallback((_, __) => UpdateInterrupts())
+            ;
 
-                Registers.EventsEndRx.Define(this)
-                    .WithFlag(0, out endRxPending, name: "EVENTS_ENDRX")
-                    .WithReservedBits(1, 31)
-                    .WithWriteCallback((_, __) => UpdateInterrupts())
-                ;
+            Registers.EventsEndRx.Define(this)
+                .WithFlag(0, out endRxPending, name: "EVENTS_ENDRX")
+                .WithReservedBits(1, 31)
+                .WithWriteCallback((_, __) => UpdateInterrupts())
+            ;
 
-                Registers.RxDataPointer.Define(this)
-                    .WithValueField(0, 32, out rxDataPointer, name: "PTR")
-                ;
+            Registers.RxDataPointer.Define(this)
+                .WithValueField(0, 32, out rxDataPointer, name: "PTR")
+            ;
 
-                Registers.RxMaxDataCount.Define(this)
-                    .WithValueField(0, 16, out rxMaxDataCount, name: "MAXCNT")
-                    .WithReservedBits(16, 16)
-                ;
+            Registers.RxMaxDataCount.Define(this)
+                .WithValueField(0, 16, out rxMaxDataCount, name: "MAXCNT")
+                .WithReservedBits(16, 16)
+            ;
 
-                Registers.RxTransferredDataAmount.Define(this)
-                    .WithValueField(0, 16, out rxTransferredDataAmount, FieldMode.Read, name: "AMOUNT")
-                    .WithReservedBits(16, 16)
-                ;
+            Registers.RxTransferredDataAmount.Define(this)
+                .WithValueField(0, 16, out rxTransferredDataAmount, FieldMode.Read, name: "AMOUNT")
+                .WithReservedBits(16, 16)
+            ;
 
-                Registers.TxDataPointer.Define(this)
-                    .WithValueField(0, 32, out txDataPointer, name: "PTR")
-                ;
+            Registers.TxDataPointer.Define(this)
+                .WithValueField(0, 32, out txDataPointer, name: "PTR")
+            ;
 
-                Registers.TxMaxDataCount.Define(this)
-                    .WithValueField(0, 16, out txMaxDataCount, name: "MAXCNT")
-                    .WithReservedBits(16, 16)
-                ;
+            Registers.TxMaxDataCount.Define(this)
+                .WithValueField(0, 16, out txMaxDataCount, name: "MAXCNT")
+                .WithReservedBits(16, 16)
+            ;
 
-                Registers.TxTransferredDataAmount.Define(this)
-                    .WithValueField(0, 16, out txTransferredDataAmount, FieldMode.Read, name: "AMOUNT")
-                    .WithReservedBits(16, 16)
-                ;
+            Registers.TxTransferredDataAmount.Define(this)
+                .WithValueField(0, 16, out txTransferredDataAmount, FieldMode.Read, name: "AMOUNT")
+                .WithReservedBits(16, 16)
+            ;
 
-                Registers.ORC.Define(this)
-                    .WithValueField(0, 8, out orcByte, name: "ORC")
-                    .WithReservedBits(8, 24)
-                ;
-            }
+            Registers.ORC.Define(this)
+                .WithValueField(0, 8, out orcByte, name: "ORC")
+                .WithReservedBits(8, 24)
+            ;
         }
 
         private void ExecuteTransaction()
@@ -347,6 +305,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
 
             sysbus.WriteBytes(receivedBytes, rxDataPointer.Value);
+            txTransferredDataAmount.Value = txMaxDataCount.Value;
+            rxTransferredDataAmount.Value = rxMaxDataCount.Value;
 
             endTxPending.Value = true;
             EventTriggered?.Invoke((uint)Registers.EventsEndTx);
@@ -359,9 +319,9 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private void SendData(byte b)
         {
-            if(!enabled)
+            if(enabled != EnableState.EnabledSPI)
             {
-                this.Log(LogLevel.Warning, "Trying to send data, but the controller is disabled");
+                this.Log(LogLevel.Warning, "Trying to send data, but the controller is not enabled as SPI");
                 return;
             }
 
@@ -396,7 +356,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private bool enabled;
+        private EnableState enabled;
 
         private IValueRegisterField orcByte;
         private IValueRegisterField rxTransferredDataAmount;
@@ -425,10 +385,16 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private readonly Queue<byte> receiveFifo;
         private readonly IMachine machine;
-        private readonly bool easyDMA;
 
         // RXD is double buffered
         private const int ReceiveBufferSize = 2;
+
+        private enum EnableState
+        {
+            Disabled = 0,
+            EnabledSPI = 1,
+            EnabledSPIM = 7,
+        }
 
         private enum Registers
         {
