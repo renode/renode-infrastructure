@@ -59,7 +59,11 @@ namespace Antmicro.Renode.Utilities
 
             isDisposed = true;
             WebSocketsManager.Instance.UnregisterEndpoint(connectionsSharedData.Endpoint);
-            var connectionsCopy = new List<WebSocketConnection>(connections);
+            List<WebSocketConnection> connectionsCopy;
+            lock(connections)
+            {
+                connectionsCopy = new List<WebSocketConnection>(connections);
+            }
 
             foreach(var connection in connectionsCopy)
             {
@@ -69,39 +73,55 @@ namespace Antmicro.Renode.Utilities
 
         public void BroadcastByte(byte b)
         {
-            foreach(var connection in connections)
+            lock(connections)
             {
-                connection.SendByte(b);
+                foreach(var connection in connections)
+                {
+                    connection.SendByte(b);
+                }
             }
         }
 
         public void Broadcast(byte[] bytes)
         {
-            foreach(var connection in connections)
+            lock(connections)
             {
-                connection.Send(bytes);
+                foreach(var connection in connections)
+                {
+                    connection.Send(bytes);
+                }
             }
         }
 
         public void Broadcast(IEnumerable<byte> bytes)
         {
             var bytesAsArray = bytes.ToArray();
-            foreach(var connection in connections)
+            lock(connections)
             {
-                connection.Send(bytesAsArray);
+                foreach(var connection in connections)
+                {
+                    connection.Send(bytesAsArray);
+                }
             }
         }
 
         public void NewConnectionEventHandler(HttpListenerContext listenerContext, WebSocket webSocket, List<string> extraSegments)
         {
-            if(!allowMultipleConnections && connections.Count != 0)
+            WebSocketConnection currentConnection = null;
+            lock(connections)
             {
-                var currentConnection = connections.First();
-                currentConnection.Dispose();
+                if(!allowMultipleConnections && connections.Count != 0)
+                {
+                    currentConnection = connections.First();
+                }
             }
+            currentConnection?.Dispose();
 
             var newConnection = new WebSocketConnection(listenerContext, webSocket, connectionsSharedData);
-            connections.Add(newConnection);
+            lock(connections)
+            {
+                connections.Add(newConnection);
+            }
             NewConnection?.Invoke(newConnection, extraSegments);
         }
 
@@ -131,7 +151,10 @@ namespace Antmicro.Renode.Utilities
 
         private void DisconnectedEventHandler(WebSocketConnection sender)
         {
-            connections.Remove(sender);
+            lock(connections)
+            {
+                connections.Remove(sender);
+            }
         }
 
         private bool isDisposed;
