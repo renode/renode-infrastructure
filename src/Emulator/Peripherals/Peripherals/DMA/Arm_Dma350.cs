@@ -452,9 +452,9 @@ namespace Antmicro.Renode.Peripherals.DMA
                         .WithTag("REGRELOADTYPE", 18, 3)
                         .If(variant == Variant.Dma250)
                             .Then(r => r
-                                .WithTag("DONETYPE", 21, 2)
+                                .WithValueField(21, 2, out channels[index].DoneTypeField, name: "DONETYPE")
                                 .WithReservedBits(23, 1))
-                            .Else(r => r.WithTag("DONETYPE", 21, 3))
+                            .Else(r => r.WithValueField(21, 3, out channels[index].DoneTypeField, name: "DONETYPE"))
                         .WithTaggedFlag("DONEPAUSEEN", 24)
                         .WithTaggedFlag("USESRCTRIGIN", 25)
                         .WithTaggedFlag("USEDESTRIGIN", 26)
@@ -1152,6 +1152,21 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             public void PerformSingleTransfer()
             {
+                void TransferEpilogue()
+                {
+                    if(DoneType == DoneMode.OnCommandEnd)
+                    {
+                        StatusDoneField.Value = true;
+                    }
+                    Parent.UpdateInterrupts();
+                }
+
+                if(DoneType != DoneMode.NotAsserted && DoneType != DoneMode.OnCommandEnd)
+                {
+                    Parent.WarningLog("Channel #{0}: Unsupported DoneType={1}. STAT_DONE will not be asserted",
+                        Index, DoneType);
+                }
+
                 var transferMode = ConfiguredTransferMode;
                 if(!transferMode.HasValue)
                 {
@@ -1160,8 +1175,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                         "Supported configurations are 1D and 2D CONTINUE, and 1D FILL; " +
                         "FILL is not supported for higher-dimensional transfers",
                         Index, XType, YType);
-                    StatusDoneField.Value = true;
-                    Parent.UpdateInterrupts();
+                    TransferEpilogue();
                     return;
                 }
 
@@ -1214,8 +1228,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     }
                 }
 
-                StatusDoneField.Value = true;
-                Parent.UpdateInterrupts();
+                TransferEpilogue();
             }
 
             public void StartSafe(ICPU context)
@@ -1334,6 +1347,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             public IValueRegisterField DestinationYSizeField;
             public IValueRegisterField XTypeField;
             public IValueRegisterField YTypeField;
+            public IValueRegisterField DoneTypeField;
             public IValueRegisterField TransferSizeField;
             public IValueRegisterField LinkAddressField;
             public IValueRegisterField LinkAddressHighField;
@@ -1508,6 +1522,8 @@ namespace Antmicro.Renode.Peripherals.DMA
 
             private TypeEnum YType => (TypeEnum)(YTypeField?.Value ?? 0);
 
+            private DoneMode DoneType => (DoneMode)(DoneTypeField?.Value ?? 0);
+
             private TransferMode? ConfiguredTransferMode => (XType, YType) switch
             {
                 (TypeEnum.Continue, TypeEnum.Disable) => TransferMode.Copy1D,
@@ -1552,6 +1568,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                 Copy2D,
                 Fill1D,
                 Wrap1D,
+            }
+
+            private enum DoneMode
+            {
+                NotAsserted = 0,
+                OnCommandEnd = 1,
+                OnAutorestartCycleEnd = 3, // Not Supported
             }
         }
 
