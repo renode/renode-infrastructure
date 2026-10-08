@@ -1186,13 +1186,20 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 IEnumerable<ulong> CreateSourceEnumerator()
                 {
+                    var sourceYSize = isTransfer2D ? SourceYSize : 1;
+
                     var nestedSource = Misc.Iterate(() => EnumerateTransferAddresses(
                         SourceAddress,
                         SourceXSize,
-                        isTransfer2D ? SourceYSize : 1,
+                        sourceYSize,
                         SourceXAddressIncrement * TransferSize,
                         SourceYAddressStride * TransferSize));
-                    if(!isWrapTransfer)
+
+                    var sourceSize = SourceXSize * sourceYSize;
+                    var triedWrappingEmptySource = isWrapTransfer && sourceSize == 0;
+
+                    if(!isWrapTransfer
+                       || triedWrappingEmptySource /* Avoid flattening an infinite sequence of empty enumerables, as SelectMany would never complete */)
                     {
                         nestedSource = nestedSource.Take(1);
                     }
