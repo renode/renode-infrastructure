@@ -15,6 +15,8 @@ using Antmicro.Renode.Utilities.Packets;
 
 namespace Antmicro.Renode.Core.USB;
 
+#nullable enable
+
 public interface IUSBPipeSetup : IUSBPipeRead, IUSBPipeWrite
 {
     void SetupPacketWrite(SetupPacket packet);
@@ -31,7 +33,7 @@ public interface IUSBPipeSetup : IUSBPipeRead, IUSBPipeWrite
 
     byte[] SetupReadBlocking(SetupPacket packet, CancellationToken token = default) => Misc.WaitForCallback<byte[]>(onDone => SetupRead(packet, onDone), token);
 
-    void SetupWrite(SetupPacket packet, byte[] data, Action onDone)
+    void SetupWrite(SetupPacket packet, byte[]? data, Action onDone)
     {
         SetupPacketWrite(packet);
         if(data != null)
@@ -170,7 +172,7 @@ public interface IUSBPipeRead
         var calledBack = false;
         var packetLock = new object();
 
-        Action collectChunk = null;
+        Action? collectChunk = null;
         collectChunk = () =>
         {
             lock(packetLock)
@@ -204,7 +206,7 @@ public interface IUSBPipeRead
         var data = new List<byte>();
         var packetLock = new object();
 
-        Action collectChunk = null;
+        Action? collectChunk = null;
         collectChunk = () =>
         {
             lock(packetLock)
@@ -239,11 +241,11 @@ public interface IUSBPipeRead
 
 public interface IUSBConnection : IDisposable
 {
-    IUSBPipeSetup ConnectEndpointSetup(byte endpoint);
+    IUSBPipeSetup? ConnectEndpointSetup(byte endpoint);
 
-    IUSBPipeRead ConnectEndpointRead(byte endpoint);
+    IUSBPipeRead? ConnectEndpointRead(byte endpoint);
 
-    IUSBPipeWrite ConnectEndpointWrite(byte endpoint);
+    IUSBPipeWrite? ConnectEndpointWrite(byte endpoint);
 }
 
 public interface IUSBDevice : IPeripheral
