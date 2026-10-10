@@ -1,5 +1,6 @@
-﻿//
+//
 // Copyright (c) 2010-2026 Antmicro
+// Copyright (c) 2026 Gerzain Mata <leftger@gmail.com>
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -25,6 +26,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 STM32Series.H7,
                 STM32Series.L0,
                 STM32Series.L5,
+                STM32Series.WBA,
             };
             if(!supportedSeries.Contains(series))
             {
@@ -38,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     .WithReservedBits(0, 2)
                     .WithFlag(2, out enable, changeCallback: (_, value) => Update(), name: "RNGEN")
                     .WithFlag(3, out interruptEnable, changeCallback: (_, value) => Update(), name: "IE")
-                    .If(series == STM32Series.L5)
+                    .If(series == STM32Series.L5 || series == STM32Series.WBA)
                         .Then(reg => reg
                             .WithReservedBits(4, 1)
                             .WithTaggedFlag("CED", 5)
