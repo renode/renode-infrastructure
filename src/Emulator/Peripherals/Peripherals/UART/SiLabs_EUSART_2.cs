@@ -16,14 +16,15 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.SPI;
+using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.UART
 {
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.DoubleWordToByte)]
-    public class EFR32xG2_EUSART_2 : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>, IKnownSize
+    public class SiLabs_EUSART_2 : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>, IKnownSize
     {
-        public EFR32xG2_EUSART_2(Machine machine, uint clockFrequency = 19000000) : base(machine)
+        public SiLabs_EUSART_2(Machine machine, uint clockFrequency = 19000000) : base(machine)
         {
             this.machine = machine;
             uartClockFrequency = clockFrequency;
@@ -34,28 +35,11 @@ namespace Antmicro.Renode.Peripherals.UART
             TxFifoLevel = new GPIO();
             RxFifoLevelGpioSignal = new GPIO();
 
+            deferTimer = new LimitTimer(machine.ClockSource, 1000000, this, "eusart-defer-timer", 1, direction: Direction.Ascending,
+                                   enabled: false, workMode: WorkMode.OneShot, eventEnabled: true, autoUpdate: true);
+            deferTimer.LimitReached += DeferTimerLimitReached;
+
             registersCollection = BuildRegistersCollection();
-            TxFifoLevel.Set(true);
-        }
-
-        public override void WriteChar(byte value)
-        {
-            if(BufferState == BufferState.Full)
-            {
-                rxOverflowInterrupt.Value = true;
-                UpdateInterrupts();
-                this.Log(LogLevel.Warning, "RX buffer is full. Dropping incoming byte (0x{0:X})", value);
-                return;
-            }
-            base.WriteChar(value);
-            this.Log(LogLevel.Noisy, " Character (0x{0:X}) has been written!", value);
-        }
-
-        public override void Reset()
-        {
-            base.Reset();
-            isEnabled = false;
-            spiSlaveDevice = null;
             TxFifoLevel.Set(true);
         }
 
@@ -64,7 +48,11 @@ namespace Antmicro.Renode.Peripherals.UART
             WriteRegister(offset, value);
         }
 
-        #region methods
+        public uint ReadDoubleWord(long offset)
+        {
+            return ReadRegister(offset);
+        }
+
         public void Register(ISPIPeripheral peripheral, NullRegistrationPoint registrationPoint)
         {
             if(spiSlaveDevice != null)
@@ -96,15 +84,73 @@ namespace Antmicro.Renode.Peripherals.UART
             return new[] { NullRegistrationPoint.Instance };
         }
 
-        public uint ReadDoubleWord(long offset)
+        public override void WriteChar(byte value)
         {
-            var value = ReadRegister(offset);
-            return value;
+            if(BufferState == BufferState.Full)
+            {
+                rxOverflowInterrupt.Value = true;
+                UpdateInterrupts();
+                this.Log(LogLevel.Warning, "RX buffer is full. Dropping incoming byte (0x{0:X})", value);
+                return;
+            }
+            base.WriteChar(value);
+            this.Log(LogLevel.Noisy, " Character (0x{0:X}) has been written!", value);
         }
 
-        public override Parity ParityBit { get { return parityBitModeField.Value; } }
+        public override void Reset()
+        {
+            base.Reset();
+            isEnabled = false;
+            syncBusy = false;
+            spiSlaveDevice = null;
+            deferredActionsMask = 0;
+            deferTimer.Enabled = false;
+            RxFifoLevel.Set(false);
+            TxFifoLevel.Set(false);
+            RxFifoLevelGpioSignal.Set(false);
+            rxInProgress = false;
 
-        public override Bits StopBits { get { return stopBitsModeField.Value; } }
+            registersCollection.Reset();
+            UpdateInterrupts();
+            ScheduleDeferredAction(DeferredAction.ResetTxSignals);
+        }
+
+        public BufferState BufferState
+        {
+            get
+            {
+                return bufferState;
+            }
+
+            private set
+            {
+                bufferState = value;
+                BufferStateChanged?.Invoke(value);
+                this.Log(LogLevel.Noisy, "Buffer state: {0}", bufferState);
+
+                switch(bufferState)
+                {
+                case BufferState.Empty:
+                    RxFifoLevel.Set(false);
+                    break;
+                case BufferState.Ready:
+                case BufferState.Full:
+                    if(Count >= (int)rxWatermark.Value + 1
+                        && !rxInProgress)
+                    {
+                        rxInProgress = true;
+                        RxFifoLevelGpioSignal.Set(true);
+                        RxFifoLevel.Set(true);
+                        RxFifoLevelGpioSignal.Set(false);
+                        rxInProgress = false;
+                    }
+                    break;
+                default:
+                    this.Log(LogLevel.Error, "Unreachable code. Invalid BufferState value.");
+                    return;
+                }
+            }
+        }
 
         public override uint BaudRate
         {
@@ -133,74 +179,39 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public long Size => 0x4000;
+        public override Bits StopBits { get { return stopBitsModeField.Value; } }
 
-        public GPIO TransmitIRQ { get; }
-
-        public GPIO ReceiveIRQ { get; }
-
-        public GPIO RxFifoLevel { get; }
-
-        public GPIO TxFifoLevel { get; }
+        public override Parity ParityBit { get { return parityBitModeField.Value; } }
 
         public GPIO RxFifoLevelGpioSignal { get; }
 
-        public BufferState BufferState
-        {
-            get
-            {
-                return bufferState;
-            }
+        public GPIO RxFifoLevel { get; }
 
-            private set
-            {
-                bufferState = value;
-                BufferStateChanged?.Invoke(value);
-                this.Log(LogLevel.Noisy, "Buffer state: {0}", bufferState);
-                switch(bufferState)
-                {
-                case BufferState.Empty:
-                    RxFifoLevel.Set(false);
-                    RxFifoLevelGpioSignal.Set(false);
-                    break;
-                case BufferState.Ready:
-                    if(Count >= (int)rxWatermark.Value + 1)
-                    {
-                        RxFifoLevel.Set(true);
-                        RxFifoLevelGpioSignal.Set(true);
-                        rxDataValidInterrupt.Value = true;
-                    }
-                    else
-                    {
-                        RxFifoLevel.Set(false);
-                        RxFifoLevelGpioSignal.Set(false);
-                    }
-                    UpdateInterrupts();
-                    break;
-                case BufferState.Full:
-                    RxFifoLevel.Set(true);
-                    RxFifoLevelGpioSignal.Set(true);
-                    rxBufferFullInterrupt.Value = true;
-                    UpdateInterrupts();
-                    break;
-                default:
-                    this.Log(LogLevel.Error, "Unreachable code. Invalid BufferState value.");
-                    return;
-                }
-            }
-        }
+        public GPIO ReceiveIRQ { get; }
+
+        public GPIO TransmitIRQ { get; }
+
+        public GPIO TxFifoLevel { get; }
+
+        public long Size => 0x4000;
 
         public event Action<BufferState> BufferStateChanged;
 
         protected override void CharWritten()
         {
+            BufferState nextBufferState = Count == BufferSize ? BufferState.Full : BufferState.Ready;
             if(Count >= (int)rxWatermark.Value + 1)
             {
                 rxDataValidInterrupt.Value = true;
                 receiveDataValidFlag.Value = true;
                 UpdateInterrupts();
             }
-            BufferState = Count == BufferSize ? BufferState.Full : BufferState.Ready;
+            if(nextBufferState == BufferState.Full)
+            {
+                rxBufferFullInterrupt.Value = true;
+                UpdateInterrupts();
+            }
+            BufferState = nextBufferState;
         }
 
         protected override void QueueEmptied()
@@ -213,8 +224,6 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override bool IsReceiveEnabled => receiverEnableFlag.Value;
 
-        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
-
         private bool TrySyncTime()
         {
             if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
@@ -223,6 +232,26 @@ namespace Antmicro.Renode.Peripherals.UART
                 return true;
             }
             return false;
+        }
+
+        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+
+        private void DeferTimerLimitReached()
+        {
+            deferTimer.Enabled = false;
+
+            if((deferredActionsMask & (uint)DeferredAction.ResetTxSignals) > 0)
+            {
+                TxFifoLevel.Set(true);
+            }
+
+            deferredActionsMask = 0;
+        }
+
+        private byte PeekBuffer()
+        {
+            byte character;
+            return TryGetCharacter(out character, true) ? character : (byte)0;
         }
 
         private void UpdateInterrupts()
@@ -241,16 +270,13 @@ namespace Antmicro.Renode.Peripherals.UART
             });
         }
 
-        private byte PeekBuffer()
+        private void ScheduleDeferredAction(DeferredAction action)
         {
-            byte character;
-            return TryGetCharacter(out character, true) ? character : (byte)0;
-        }
-
-        private byte ReadBuffer()
-        {
-            byte character;
-            return TryGetCharacter(out character) ? character : (byte)0;
+            deferredActionsMask |= (uint)action;
+            if(!deferTimer.Enabled)
+            {
+                deferTimer.Enabled = true;
+            }
         }
 
         private void HandleTxBufferData(byte data)
@@ -285,6 +311,12 @@ namespace Antmicro.Renode.Peripherals.UART
                 UpdateInterrupts();
             }
             transferCompleteFlag.Value = true;
+        }
+
+        private byte ReadBuffer()
+        {
+            byte character;
+            return TryGetCharacter(out character) ? character : (byte)0;
         }
 
         private uint ReadRegister(long offset, bool internal_read = false)
@@ -339,7 +371,7 @@ namespace Antmicro.Renode.Peripherals.UART
             return result;
         }
 
-        private void WriteRegister(long offset, uint value)
+        private void WriteRegister(long offset, uint value, bool internal_write = false)
         {
             machine.ClockSource.ExecuteInLock(delegate
             {
@@ -392,22 +424,22 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(3, out rxBufferFullInterrupt, name: "RXFULLIF")
                     .WithFlag(4, out rxOverflowInterrupt, name: "RXOFIF")
                     .WithFlag(5, out rxUnderflowInterrupt, name: "RXUFIF")
-                    .WithTaggedFlag("TXOFIF", 6)
-                    .WithTaggedFlag("TXUFIF", 7)
-                    .WithTaggedFlag("PERRIF", 8)
-                    .WithTaggedFlag("FERRIF", 9)
-                    .WithTaggedFlag("MPAFIF", 10)
-                    .WithTaggedFlag("LOADERRIF", 11)
-                    .WithTaggedFlag("CCFIF", 12)
-                    .WithTaggedFlag("TXIDLEIF", 13)
+                    .WithFlag(6, name: "TXOFIF")
+                    .WithFlag(7, name: "TXUFIF")
+                    .WithFlag(8, name: "PERRIF")
+                    .WithFlag(9, name: "FERRIF")
+                    .WithFlag(10, name: "MPAFIF")
+                    .WithFlag(11, name: "LOADERRIF")
+                    .WithFlag(12, name: "CCFIF")
+                    .WithFlag(13, name: "TXIDLEIF")
                     .WithReservedBits(14, 2)
-                    .WithTaggedFlag("CSWUIF", 16)
+                    .WithFlag(16, name: "CSWUIF")
                     .WithReservedBits(17, 1)
-                    .WithTaggedFlag("STARTFIF", 18)
-                    .WithTaggedFlag("SIGFIF", 19)
+                    .WithFlag(18, name: "STARTFIF")
+                    .WithFlag(19, name: "SIGFIF")
                     .WithReservedBits(20, 4)
-                    .WithTaggedFlag("AUTOBAUDDONEIF", 24)
-                    .WithTaggedFlag("RXTOIF", 25)
+                    .WithFlag(24, name: "AUTOBAUDDONEIF")
+                    .WithFlag(25, name: "RXTOIF")
                     .WithReservedBits(26, 6)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
@@ -418,87 +450,87 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(3, out rxBufferFullInterruptEnable, name: "RXFULLIEN")
                     .WithFlag(4, out rxOverflowInterruptEnable, name: "RXOFIEN")
                     .WithFlag(5, out rxUnderflowInterruptEnable, name: "RXUFIEN")
-                    .WithTaggedFlag("TXOFIEN", 6)
-                    .WithTaggedFlag("TXUFIEN", 7)
-                    .WithTaggedFlag("PERRIEN", 8)
-                    .WithTaggedFlag("FERRIEN", 9)
-                    .WithTaggedFlag("MPAFIEN", 10)
-                    .WithTaggedFlag("LOADERRIEN", 11)
-                    .WithTaggedFlag("CCFIEN", 12)
-                    .WithTaggedFlag("TXIDLEIEN", 13)
+                    .WithFlag(6, name: "TXOFIEN")
+                    .WithFlag(7, name: "TXUFIEN")
+                    .WithFlag(8, name: "PERRIEN")
+                    .WithFlag(9, name: "FERRIEN")
+                    .WithFlag(10, name: "MPAFIEN")
+                    .WithFlag(11, name: "LOADERRIEN")
+                    .WithFlag(12, name: "CCFIEN")
+                    .WithFlag(13, name: "TXIDLEIEN")
                     .WithReservedBits(14, 2)
-                    .WithTaggedFlag("CSWUIEN", 16)
+                    .WithFlag(16, name: "CSWUIEN")
                     .WithReservedBits(17, 1)
-                    .WithTaggedFlag("STARTFIEN", 18)
-                    .WithTaggedFlag("SIGFIEN", 19)
+                    .WithFlag(18, name: "STARTFIEN")
+                    .WithFlag(19, name: "SIGFIEN")
                     .WithReservedBits(20, 4)
-                    .WithTaggedFlag("AUTOBAUDDONEIEN", 24)
-                    .WithTaggedFlag("RXTOIEN", 25)
+                    .WithFlag(24, name: "AUTOBAUDDONEIEN")
+                    .WithFlag(25, name: "RXTOIEN")
                     .WithReservedBits(26, 6)
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.Enable, new DoubleWordRegister(this)
                     .WithFlag(0, changeCallback: (_, value) => { isEnabled = value; }, name: "EN")
-                    .WithTaggedFlag("DISABLING",1)
+                    .WithFlag(1, name: "DISABLING")
                     .WithReservedBits(2, 30)
                 },
                 {(long)Registers.Cfg_0, new DoubleWordRegister(this)
                     .WithEnumField(0, 1, out operationModeField, name: "SYNC")
-                    .WithTaggedFlag("LOOPBK", 1)
-                    .WithTaggedFlag("CCEN", 2)
-                    .WithTaggedFlag("MPM", 3)
-                    .WithTaggedFlag("MPAB", 4)
+                    .WithFlag(1, name: "LOOPBK")
+                    .WithFlag(2, name: "CCEN")
+                    .WithFlag(3, name: "MPM")
+                    .WithFlag(4, name: "MPAB")
                     .WithEnumField(5, 3, out oversamplingField, name: "OVS")
                     .WithReservedBits(8, 2)
-                    .WithTaggedFlag("MSBF", 10)
+                    .WithFlag(10, name: "MSBF")
                     .WithReservedBits(11, 2)
-                    .WithTaggedFlag("RXINV", 13)
-                    .WithTaggedFlag("TXINV", 14)
+                    .WithFlag(13, name: "RXINV")
+                    .WithFlag(14, name: "TXINV")
                     .WithReservedBits(15, 2)
-                    .WithTaggedFlag("AUTOTRI", 17)
+                    .WithFlag(17, name: "AUTOTRI")
                     .WithReservedBits(18, 2)
-                    .WithTaggedFlag("SKIPPERRF", 20)
+                    .WithFlag(20, name: "SKIPPERRF")
                     .WithReservedBits(21, 1)
-                    .WithTaggedFlag("ERRSDMA", 22)
-                    .WithTaggedFlag("ERRSRX", 23)
-                    .WithTaggedFlag("ERRSTX", 24)
+                    .WithFlag(22, name: "ERRSDMA")
+                    .WithFlag(23, name: "ERRSRX")
+                    .WithFlag(24, name: "ERRSTX")
                     .WithReservedBits(25, 5)
-                    .WithTaggedFlag("MVDIS", 30)
-                    .WithTaggedFlag("AUTOBAUDEN", 31)
+                    .WithFlag(30, name: "MVDIS")
+                    .WithFlag(31, name: "AUTOBAUDEN")
                 },
                 {(long)Registers.Cfg_1, new DoubleWordRegister(this)
-                    .WithTaggedFlag("DBGHALT", 0)
-                    .WithTaggedFlag("CTSINV", 1)
-                    .WithTaggedFlag("CTSEN", 2)
-                    .WithTaggedFlag("RTSINV", 3)
-                    .WithTag("RXTIMEOUT",4,3)
+                    .WithFlag(0, name: "DBGHALT")
+                    .WithFlag(1, name: "CTSINV")
+                    .WithFlag(2, name: "CTSEN")
+                    .WithFlag(3, name: "RTSINV")
+                    .WithValueField(4, 3, name: "RXTIMEOUT")
                     .WithReservedBits(7,2)
-                    .WithTaggedFlag("TXDMAWU", 9)
-                    .WithTaggedFlag("RXDMAWU", 10)
-                    .WithTaggedFlag("SFUBRX", 11)
+                    .WithFlag(9, name: "TXDMAWU")
+                    .WithFlag(10, name: "RXDMAWU")
+                    .WithFlag(11, name: "SFUBRX")
                     .WithReservedBits(12,3)
-                    .WithTaggedFlag("RXPRSEN", 15)
-                    .WithTag("TXFIW",16,4)
+                    .WithFlag(15, name: "RXPRSEN")
+                    .WithValueField(16, 4, name: "TXFIW")
                     .WithReservedBits(20,2)
-                    .WithTag("RTSRXFW",22,4)
+                    .WithValueField(22, 4, name: "RTSRXFW")
                     .WithReservedBits(26,1)
                     .WithValueField(27, 4, out rxWatermark, name: "RXFIW")
                     .WithReservedBits(31,1)
                 },
                 {(long)Registers.Cfg_2, new DoubleWordRegister(this)
-                    .WithTaggedFlag("MASTER", 0)
-                    .WithTaggedFlag("CLKPOL", 1)
-                    .WithTaggedFlag("CLKPHA", 2)
-                    .WithTaggedFlag("CSINV", 3)
-                    .WithTaggedFlag("AUTOTX", 4)
-                    .WithTaggedFlag("AUTOCS", 5)
-                    .WithTaggedFlag("CLKPRSEN", 6)
-                    .WithTaggedFlag("FORCELOAD", 7)
+                    .WithFlag(0, name: "MASTER")
+                    .WithFlag(1, name: "CLKPOL")
+                    .WithFlag(2, name: "CLKPHA")
+                    .WithFlag(3, name: "CSINV")
+                    .WithFlag(4, name: "AUTOTX")
+                    .WithFlag(5, name: "AUTOCS")
+                    .WithFlag(6, name: "CLKPRSEN")
+                    .WithFlag(7, name: "FORCELOAD")
                     .WithReservedBits(8,16)
-                    .WithTag("SDIV",24,8)
+                    .WithValueField(24, 8, name: "SDIV")
                 },
                 {(long)Registers.FrameCfg, new DoubleWordRegister(this)
-                    .WithTag("DATABITS", 0, 4)
+                    .WithValueField(0, 4, name: "DATABITS")
                     .WithReservedBits(4, 4)
                     .WithEnumField(8, 2, out parityBitModeField, name: "PARITY")
                     .WithReservedBits(10, 2)
@@ -506,37 +538,37 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(14, 18)
                 },
                 {(long)Registers.DtxDataCfg, new DoubleWordRegister(this)
-                    .WithTag("DTXDAT", 0, 16)
+                    .WithValueField(0, 16, name: "DTXDAT")
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.IrHfCfg, new DoubleWordRegister(this)
-                    .WithTaggedFlag("IRHFEN", 0)
-                    .WithTag("IRHFPW", 1, 2)
-                    .WithTaggedFlag("IRHFFILT", 3)
+                    .WithFlag(0, name: "IRHFEN")
+                    .WithValueField(1, 2, name: "IRHFPW")
+                    .WithFlag(3, name: "IRHFFILT")
                     .WithReservedBits(4, 28)
                 },
                  {(long)Registers.IrLfCfg, new DoubleWordRegister(this)
-                    .WithTaggedFlag("IRLFEN", 0)
+                    .WithFlag(0, name: "IRLFEN")
                     .WithReservedBits(1, 31)
                 },
                  {(long)Registers.Timing, new DoubleWordRegister(this)
-                    .WithTag("TXDELAY", 0, 2)
+                    .WithValueField(0, 2, name: "TXDELAY")
                     .WithReservedBits(2, 2)
-                    .WithTag("CSSETUP", 4, 3)
+                    .WithValueField(4, 3, name: "CSSETUP")
                     .WithReservedBits(7, 1)
-                    .WithTag("CSHOLD", 8, 3)
+                    .WithValueField(8, 3, name: "CSHOLD")
                     .WithReservedBits(11, 1)
-                    .WithTag("ICS", 12, 3)
+                    .WithValueField(12, 3, name: "ICS")
                     .WithReservedBits(15, 1)
-                    .WithTag("SETUPWINDOW", 16, 4)
+                    .WithValueField(16, 4, name: "SETUPWINDOW")
                     .WithReservedBits(20, 12)
                 },
                 {(long)Registers.StartFrameCfg, new DoubleWordRegister(this)
-                    .WithTag("STARTFRAME", 0, 8)
+                    .WithValueField(0, 8, name: "STARTFRAME")
                     .WithReservedBits(8, 24)
                 },
                 {(long)Registers.SigFrameCfg, new DoubleWordRegister(this)
-                    .WithTag("SIGFRAME", 0, 32)
+                    .WithValueField(0, 32, name: "SIGFRAME")
                 },
                 {(long)Registers.ClkDiv, new DoubleWordRegister(this)
                     .WithReservedBits(0, 3)
@@ -544,9 +576,9 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(23, 9)
                 },
                 {(long)Registers.TriggerControl, new DoubleWordRegister(this)
-                    .WithTaggedFlag("RXTEN", 0)
-                    .WithTaggedFlag("TXTEN", 1)
-                    .WithTaggedFlag("AUTOTXTEN", 2)
+                    .WithFlag(0, name: "RXTEN")
+                    .WithFlag(1, name: "TXTEN")
+                    .WithFlag(2, name: "AUTOTXTEN")
                     .WithReservedBits(3, 29)
                 },
                 {(long)Registers.Command, new DoubleWordRegister(this)
@@ -562,11 +594,11 @@ namespace Antmicro.Renode.Peripherals.UART
                         }
                     }, name: "TXEN")
                     .WithFlag(3, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue) transmitterEnableFlag.Value = false; }, name: "TXDIS")
-                    .WithTaggedFlag("RXBLOCKEN", 4)
-                    .WithTaggedFlag("RXBLOCKDIS", 5)
-                    .WithTaggedFlag("TXTRIEN", 6)
-                    .WithTaggedFlag("TXTRIDIS", 7)
-                    .WithTaggedFlag("CLEARTX", 8)
+                    .WithFlag(4, name: "RXBLOCKEN")
+                    .WithFlag(5, name: "RXBLOCKDIS")
+                    .WithFlag(6, name: "TXTRIEN")
+                    .WithFlag(7, name: "TXTRIDIS")
+                    .WithFlag(8, name: "CLEARTX")
                     .WithReservedBits(9, 23)
                 },
                 {(long)Registers.RxData, new DoubleWordRegister(this)
@@ -585,10 +617,10 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(0, out receiverEnableFlag, FieldMode.Read, name: "RXENS")
                     .WithFlag(1, out transmitterEnableFlag, FieldMode.Read, name: "TXENS")
                     .WithReservedBits(2,1)
-                    .WithTaggedFlag("RXBLOCK", 3)
-                    .WithTaggedFlag("TXTRI", 4)
+                    .WithFlag(3, name: "RXBLOCK")
+                    .WithFlag(4, name: "TXTRI")
                     .WithFlag(5, out transferCompleteFlag, FieldMode.Read, name: "TXC")
-                    .WithTaggedFlag("TXFL", 6)
+                    .WithFlag(6, name: "TXFL")
                     .WithFlag(7, out receiveDataValidFlag, FieldMode.Read, name: "RXFL")
                     .WithFlag(8, FieldMode.Read, valueProviderCallback: _ => Count == BufferSize, name: "RXFULL")
                     .WithReservedBits(9,3)
@@ -597,77 +629,80 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(14,2)
                     .WithValueField(16, 5, FieldMode.Read, valueProviderCallback: _ => 0, name: "TXFCNT")
                     .WithReservedBits(21,3)
-                    .WithTaggedFlag("AUTOBAUDDONE", 24)
-                    .WithTaggedFlag("CLEARTXBUSY", 25)
+                    .WithFlag(24, name: "AUTOBAUDDONE")
+                    .WithFlag(25, name: "CLEARTXBUSY")
                     .WithReservedBits(26, 6)
                 },
                 {(long)Registers.SyncBusy, new DoubleWordRegister(this)
-                    .WithTaggedFlag("DIV", 0)
-                    .WithTaggedFlag("RXTEN", 1)
-                    .WithTaggedFlag("TXTEN", 2)
-                    .WithTaggedFlag("RXEN", 3)
-                    .WithTaggedFlag("RXDIS", 4)
-                    .WithTaggedFlag("TXEN", 5)
-                    .WithTaggedFlag("TXDIS", 6)
-                    .WithTaggedFlag("RXBLOCKEN", 7)
-                    .WithTaggedFlag("RXBLOCKDIS", 8)
-                    .WithTaggedFlag("TXTRIEN", 9)
-                    .WithTaggedFlag("TXTRIDIS", 10)
-                    .WithTaggedFlag("AUTOTXTEN", 11)
+                    .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "DIV")
+                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "RXTEN")
+                    .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "TXTEN")
+                    .WithFlag(3, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "RXEN")
+                    .WithFlag(4, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "RXDIS")
+                    .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "TXEN")
+                    .WithFlag(6, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "TXDIS")
+                    .WithFlag(7, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "RXBLOCKEN")
+                    .WithFlag(8, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "RXBLOCKDIS")
+                    .WithFlag(9, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "TXTRIEN")
+                    .WithFlag(10, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "TXTRIDIS")
+                    .WithFlag(11, FieldMode.Read, valueProviderCallback: _ => syncBusy, name: "AUTOTXTEN")
                     .WithReservedBits(12, 20)
+                    .WithReadCallback((_, __) => {syncBusy = !syncBusy;})
                 },
                 {(long)Registers.DaliCfg, new DoubleWordRegister(this)
-                    .WithTaggedFlag("DALIEN", 0)
-                    .WithTag("DALITXDATABITS", 1, 5)
+                    .WithFlag(0, name: "DALIEN")
+                    .WithValueField(1, 5, name: "DALITXDATABITS")
                     .WithReservedBits(6, 2)
-                    .WithTag("DALIRXDATABITS", 8, 5)
+                    .WithValueField(8, 5, name: "DALIRXDATABITS")
                     .WithReservedBits(13, 2)
-                    .WithTaggedFlag("DALIRXENDT", 15)
+                    .WithFlag(15, name: "DALIRXENDT")
                     .WithReservedBits(16, 16)
                 },
                 {(long)Registers.Test, new DoubleWordRegister(this)
-                    .WithTag("DBGPRSSEL", 0, 2)
+                    .WithValueField(0, 2, name: "DBGPRSSEL")
                     .WithReservedBits(2, 30)
                 },
             };
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
 
+
+        private BufferState bufferState;
+        private bool syncBusy = false;
+        private bool isEnabled = false;
+        private bool rxInProgress = false;
+        private uint deferredActionsMask = 0;
+        private ISPIPeripheral spiSlaveDevice;
         private IFlagRegisterField rxBufferFullInterruptEnable;
         private IFlagRegisterField rxDataValidInterruptEnable;
         private IFlagRegisterField txBufferLevelInterruptEnable;
         private IFlagRegisterField txCompleteInterruptEnable;
         private IFlagRegisterField rxUnderflowInterrupt;
+        private IFlagRegisterField transmitterEnableFlag;
         private IFlagRegisterField rxOverflowInterrupt;
         private IFlagRegisterField rxBufferFullInterrupt;
         private IFlagRegisterField rxDataValidInterrupt;
         private IFlagRegisterField txBufferLevelInterrupt;
-        // Interrupts
         private IFlagRegisterField txCompleteInterrupt;
-        private BufferState bufferState;
-        private IEnumRegisterField<OversamplingMode> oversamplingField;
         private IValueRegisterField rxWatermark;
-        private IFlagRegisterField receiverEnableFlag;
         private IFlagRegisterField receiveDataValidFlag;
         private IFlagRegisterField transferCompleteFlag;
         private IValueRegisterField fractionalClockDividerField;
         private IEnumRegisterField<Bits> stopBitsModeField;
         private IEnumRegisterField<Parity> parityBitModeField;
-        private IFlagRegisterField rxOverflowInterruptEnable;
+        private IEnumRegisterField<OversamplingMode> oversamplingField;
         private IEnumRegisterField<OperationMode> operationModeField;
-        private ISPIPeripheral spiSlaveDevice;
-        #endregion
-
-        #region fields
-        private bool isEnabled = false;
-        private IFlagRegisterField transmitterEnableFlag;
+        private IFlagRegisterField rxOverflowInterruptEnable;
+        private IFlagRegisterField receiverEnableFlag;
         private IFlagRegisterField rxUnderflowInterruptEnable;
-        private readonly uint uartClockFrequency;
         private readonly Machine machine;
+        private readonly uint uartClockFrequency;
         private readonly DoubleWordRegisterCollection registersCollection;
+        private readonly LimitTimer deferTimer;
         private const uint SetRegisterOffset = 0x1000;
         private const uint ClearRegisterOffset = 0x2000;
         private const uint ToggleRegisterOffset = 0x3000;
+        private const int BufferSize = 17; // with shift register
 
         IEnumerable<IRegistered<ISPIPeripheral, NullRegistrationPoint>> IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>.Children
         {
@@ -677,10 +712,11 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        private const int BufferSize = 17; // with shift register
-        #endregion
+        private enum DeferredAction
+        {
+            ResetTxSignals = 0x00000001,
+        }
 
-        #region enums
         private enum OperationMode
         {
             Asynchronous,
@@ -696,7 +732,7 @@ namespace Antmicro.Renode.Peripherals.UART
             Disabled
         }
 
-        private enum Registers : long // : IRegisterDescription
+        private enum Registers : long
         {
             IpVersion                                       = 0x0000,
             Enable                                          = 0x0004,
@@ -798,6 +834,5 @@ namespace Antmicro.Renode.Peripherals.UART
             DaliCfg_Tgl                                     = 0x3058,
             Test_Tgl                                        = 0x3100,
         }
-        #endregion
     }
 }
