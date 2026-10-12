@@ -48,8 +48,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
                     warning = EnterTag(warning, foundTag);
-                    warning = DecorateWithCPUNameAndPC(warning);
-                    this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, accessWidth, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2));
+                    if(!foundTag.Silent)
+                    {
+                        warning = DecorateWithCPUNameAndPC(warning);
+                        this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, accessWidth, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2));
+                    }
                     return (byte)foundTag.DefaultValue;
                 }
 
@@ -112,8 +115,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
                     warning = EnterTag(warning, foundTag);
-                    warning = DecorateWithCPUNameAndPC(warning);
-                    this.Log(LogLevel.Warning, warning, address, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2), accessWidth);
+                    if(!foundTag.Silent)
+                    {
+                        warning = DecorateWithCPUNameAndPC(warning);
+                        this.Log(LogLevel.Warning, warning, address, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2), accessWidth);
+                    }
                     return;
                 }
 
@@ -182,8 +188,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
                     warning = EnterTag(warning, foundTag);
-                    warning = DecorateWithCPUNameAndPC(warning);
-                    this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, accessWidth, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2));
+                    if(!foundTag.Silent)
+                    {
+                        warning = DecorateWithCPUNameAndPC(warning);
+                        this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, accessWidth, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2));
+                    }
                     return (ushort)foundTag.DefaultValue;
                 }
 
@@ -246,8 +255,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
                     warning = EnterTag(warning, foundTag);
-                    warning = DecorateWithCPUNameAndPC(warning);
-                    this.Log(LogLevel.Warning, warning, address, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2), accessWidth);
+                    if(!foundTag.Silent)
+                    {
+                        warning = DecorateWithCPUNameAndPC(warning);
+                        this.Log(LogLevel.Warning, warning, address, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2), accessWidth);
+                    }
                     return;
                 }
 
@@ -316,8 +328,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
                     warning = EnterTag(warning, foundTag);
-                    warning = DecorateWithCPUNameAndPC(warning);
-                    this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, accessWidth, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2));
+                    if(!foundTag.Silent)
+                    {
+                        warning = DecorateWithCPUNameAndPC(warning);
+                        this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, accessWidth, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2));
+                    }
                     return (uint)foundTag.DefaultValue;
                 }
 
@@ -380,8 +395,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
                     warning = EnterTag(warning, foundTag);
-                    warning = DecorateWithCPUNameAndPC(warning);
-                    this.Log(LogLevel.Warning, warning, address, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2), accessWidth);
+                    if(!foundTag.Silent)
+                    {
+                        warning = DecorateWithCPUNameAndPC(warning);
+                        this.Log(LogLevel.Warning, warning, address, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2), accessWidth);
+                    }
                     return;
                 }
 
@@ -450,8 +468,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
                     warning = EnterTag(warning, foundTag);
-                    warning = DecorateWithCPUNameAndPC(warning);
-                    this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, accessWidth, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2));
+                    if(!foundTag.Silent)
+                    {
+                        warning = DecorateWithCPUNameAndPC(warning);
+                        this.Log(LogLevel.Warning, warning.TrimEnd('.') + ", returning 0x{2}.", address, accessWidth, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2));
+                    }
                     return (ulong)foundTag.DefaultValue;
                 }
 
@@ -514,8 +535,11 @@ namespace Antmicro.Renode.Peripherals.Bus
                 if(tag is TagEntry foundTag && foundTag.OverridePeripheralAccesses)
                 {
                     warning = EnterTag(warning, foundTag);
-                    warning = DecorateWithCPUNameAndPC(warning);
-                    this.Log(LogLevel.Warning, warning, address, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2), accessWidth);
+                    if(!foundTag.Silent)
+                    {
+                        warning = DecorateWithCPUNameAndPC(warning);
+                        this.Log(LogLevel.Warning, warning, address, foundTag.DefaultValue.ToString("X16").Substring(16 - (int)accessWidth * 2), accessWidth);
+                    }
                     return;
                 }
 
