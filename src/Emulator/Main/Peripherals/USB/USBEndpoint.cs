@@ -102,6 +102,12 @@ namespace Antmicro.Renode.Core.USB
 
         public bool TryRead(out byte[] data) => readBuffer.TryDequeue(out data);
 
+        // Answers the transfer in progress with a STALL handshake - see `IUSBPipeRead.Stalled`.
+        public void DeviceStall()
+        {
+            Stalled?.Invoke();
+        }
+
         public override string ToString()
         {
             return $"[EP: id={Identifier}, dir={Direction}, type={TransferType}, mps={MaximumPacketSize}, int={Interval}]";
@@ -120,6 +126,8 @@ namespace Antmicro.Renode.Core.USB
         public bool DeviceNonBlocking { get; set; }
 
         public event Action NewPacket;
+
+        public event Action Stalled;
 
         void IUSBPipeWrite.Write(byte[] packet)
         {

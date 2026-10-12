@@ -497,6 +497,13 @@ namespace Antmicro.Renode.Peripherals.SPI
                 pipe.ReadPacket(
                     data =>
                 {
+                    if(data == null)
+                    {
+                        // HRSLT (hrSTALL) isn't modeled, so there is nothing to report to the
+                        // guest driver beyond dropping the transfer
+                        this.Log(LogLevel.Warning, "The device stalled the bulk IN transfer");
+                        return;
+                    }
                     this.Log(LogLevel.Noisy, "Received data from the device");
 #if DEBUG_PACKETS
                     this.Log(LogLevel.Noisy, Misc.PrettyPrintCollectionHex(data));
