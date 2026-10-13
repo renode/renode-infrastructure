@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Logging
         public WebSocketNetworkBackend(string endpoint, bool plainMode = true)
         {
             PlainMode = plainMode;
-            webSocketServer = new WebSocketSingleConnectionServer(endpoint, true);
+            webSocketServer = new WebSocketBufferedServer(endpoint, true);
             webSocketServer.Start();
         }
 
@@ -64,6 +64,6 @@ namespace Antmicro.Renode.Logging
             webSocketServer?.SendByte(value);
         }
 
-        private WebSocketSingleConnectionServer webSocketServer;
+        private WebSocketBufferedServer webSocketServer;
     }
 }

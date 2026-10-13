@@ -161,9 +161,9 @@ namespace Antmicro.Renode.Utilities
         private bool isRunning;
     }
 
-    public class WebSocketSingleConnectionServer : WebSocketServerProvider
+    public class WebSocketBufferedServer : WebSocketServerProvider
     {
-        public WebSocketSingleConnectionServer(string endpoint = "/", bool bufferMessages = false) : base(endpoint, false)
+        public WebSocketBufferedServer(string endpoint = "/", bool bufferMessages = false) : base(endpoint, true)
         {
             this.bufferMessages = bufferMessages;
             this.NewConnection += NewConnectionEventHandler;
@@ -178,7 +178,7 @@ namespace Antmicro.Renode.Utilities
         {
             if(IsConnected)
             {
-                CurrentConnection.SendByte(b);
+                BroadcastByte(b);
             }
             else if(bufferMessages)
             {
@@ -190,7 +190,7 @@ namespace Antmicro.Renode.Utilities
         {
             if(IsConnected)
             {
-                CurrentConnection.Send(bytes);
+                Broadcast(bytes);
             }
             else if(bufferMessages)
             {
@@ -199,8 +199,6 @@ namespace Antmicro.Renode.Utilities
         }
 
         public bool IsConnected => connections.Count != 0;
-
-        public WebSocketConnection CurrentConnection => connections.FirstOrDefault();
 
         public event Action<int, int> Resized;
 
@@ -211,7 +209,7 @@ namespace Antmicro.Renode.Utilities
             {
                 while(bufferQueue.TryDequeue(out var bytes))
                 {
-                    CurrentConnection.Send(bytes);
+                    sender.Send(bytes);
                 }
             }
         }

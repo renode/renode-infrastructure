@@ -15,7 +15,7 @@ namespace Antmicro.Renode.Utilities
     {
         public WebSocketIOSource(string endpoint)
         {
-            server = new WebSocketSingleConnectionServer(endpoint, true);
+            server = new WebSocketBufferedServer(endpoint, true);
             server.DataBlockReceived += (sender, bytes) =>
             {
                 foreach(var b in bytes)
@@ -66,6 +66,6 @@ namespace Antmicro.Renode.Utilities
             Resized?.Invoke();
         }
 
-        private readonly WebSocketSingleConnectionServer server;
+        private readonly WebSocketBufferedServer server;
     }
 }
