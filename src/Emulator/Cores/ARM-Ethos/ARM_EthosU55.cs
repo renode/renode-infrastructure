@@ -5,6 +5,8 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
+
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
@@ -23,6 +25,7 @@ public partial class ARM_EthosU55 : BasicDoubleWordPeripheral, IKnownSize
         }
 
         this.macsPerCycle = macsPerCycle;
+        sharedBuffer = new byte[(macsPerCycle == 128 ? 24 : 48) * 1024];
         IRQ = new GPIO();
         dmaEngine = new DmaEngine(machine.GetSystemBus(this));
 
@@ -34,6 +37,8 @@ public partial class ARM_EthosU55 : BasicDoubleWordPeripheral, IKnownSize
     {
         base.Reset();
         commandRegisters = new CommandRegisterState();
+        // The shared buffer RAMs are cleared on reset (U55 TRM 3.3.4.1).
+        Array.Clear(sharedBuffer);
         UpdateInterrupts();
     }
 
@@ -84,6 +89,8 @@ public partial class ARM_EthosU55 : BasicDoubleWordPeripheral, IKnownSize
     private IEnumRegisterField<PrivilegeLevel> activePrivilegeLevel;
 
     private readonly IValueRegisterField[] basePointers = new IValueRegisterField[BasePointerCount];
+
+    private readonly byte[] sharedBuffer;
 
     private readonly int macsPerCycle;
     private readonly DmaEngine dmaEngine;

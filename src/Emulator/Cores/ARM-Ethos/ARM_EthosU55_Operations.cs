@@ -213,6 +213,26 @@ public partial class ARM_EthosU55
         return (precision & (1 << 6)) != 0;
     }
 
+    private bool TryGetBufferAddress(int region, ulong offset, out ulong address, string description, ulong length = 1)
+    {
+        address = 0;
+        if(region >= BasePointerCount / 2)
+        {
+            ParseError($"Invalid {description} region: {region}");
+            return false;
+        }
+
+        var regionBase = (basePointers[2 * region + 1].Value << 32) | basePointers[2 * region].Value;
+        if(regionBase > ulong.MaxValue - offset
+            || (length != 0 && length - 1 > ulong.MaxValue - (regionBase + offset)))
+        {
+            ParseError($"{description} address overflow");
+            return false;
+        }
+        address = regionBase + offset;
+        return true;
+    }
+
     private bool TryGetBufferAddress(bool input, out ulong address)
     {
         address = 0;

@@ -15,13 +15,22 @@ namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 public partial class ARM_EthosU55
 {
-    private void IssueDmaTransfer()
+    private bool IssueDmaTransfer()
     {
-        // Bit[8] - internal
-        if((((commandRegisters.Dma0SrcRegion | commandRegisters.Dma0DstRegion) >> 8) & 0b1) != 0)
+        // Bit[8] selects the internal shared buffer over the AXI ports
+        var sourceInternal = ((commandRegisters.Dma0SrcRegion >> 8) & 0b1) != 0;
+        var destinationInternal = ((commandRegisters.Dma0DstRegion >> 8) & 0b1) != 0;
+        if(sourceInternal)
         {
-            ParseError($"Internal DMA memory is not supported");
+            // U55 only permits external DMA sources (TRM 4.4, 0x130).
+            ParseError("Internal DMA source is not supported on U55");
+            return false;
         }
+        if(destinationInternal)
+        {
+            return IssueInternalDmaTransfer();
+        }
+
         var sourceRegion = commandRegisters.Dma0SrcRegion & 0xFF;
         var sourceOffset = commandRegisters.Dma0Src;
         var destinationRegion = commandRegisters.Dma0DstRegion & 0xFF;
@@ -31,7 +40,7 @@ public partial class ARM_EthosU55
         if(sourceRegion >= BasePointerCount / 2 || destinationRegion >= BasePointerCount / 2)
         {
             ParseError($"Invalid DMA0 region: src region {sourceRegion}, dst region {destinationRegion}");
-            return;
+            return false;
         }
 
         // Ignore stride mode, U55 only implements 1D
@@ -41,7 +50,7 @@ public partial class ARM_EthosU55
         if(sourceBase > ulong.MaxValue - sourceOffset || destinationBase > ulong.MaxValue - destinationOffset)
         {
             ParseError($"DMA address overflow: source base 0x{sourceBase:X} + offset 0x{sourceOffset:X}, destination base 0x{destinationBase:X} + offset 0x{destinationOffset:X}");
-            return;
+            return false;
         }
 
         var sourceAddress = sourceBase + sourceOffset;
@@ -56,6 +65,35 @@ public partial class ARM_EthosU55
 
         this.Log(LogLevel.Debug, "Issuing DMA transfer: {0}", request);
         dmaEngine.IssueCopy(request);
+        return true;
+    }
+
+    private bool IssueInternalDmaTransfer()
+    {
+        // Validate the full length before narrowing it, as truncating a transfer
+        // can leave a partially loaded LUT while reporting successful completion.
+        var length = commandRegisters.Dma0Len;
+        if(length > (ulong)sharedBuffer.Length || commandRegisters.Dma0Dst > (ulong)sharedBuffer.Length - length)
+        {
+            ParseError($"Internal DMA destination out of shared buffer bounds: 0x{commandRegisters.Dma0Dst:X}, length 0x{length:X}");
+            return false;
+        }
+        // U55 requires both addresses and the length to be 16-byte aligned
+        // (Vela register_command_stream_util.check_dma_op).
+        if(((commandRegisters.Dma0Src | commandRegisters.Dma0Dst | length) & 0xF) != 0)
+        {
+            ParseError($"Internal DMA transfer is not 16-byte aligned: src 0x{commandRegisters.Dma0Src:X}, dst 0x{commandRegisters.Dma0Dst:X}, length 0x{length:X}");
+            return false;
+        }
+
+        if(!TryGetBufferAddress(commandRegisters.Dma0SrcRegion & 0xFF, commandRegisters.Dma0Src, out var sourceAddress, "Internal DMA source", length))
+        {
+            return false;
+        }
+        sysbus.ReadBytes(sourceAddress, (int)length, sharedBuffer, (int)commandRegisters.Dma0Dst);
+
+        this.DebugLog("Issued internal DMA transfer to 0x{0:X}, length 0x{1:X}", commandRegisters.Dma0Dst, length);
+        return true;
     }
 
     private void ExecuteCommandStream()
@@ -144,7 +182,10 @@ public partial class ARM_EthosU55
                     UpdateInterrupts();
                     continue;
                 case CommandOpcode.OpDmaStart:
-                    IssueDmaTransfer();
+                    if(!IssueDmaTransfer())
+                    {
+                        return;
+                    }
                     continue;
                 case CommandOpcode.OpDmaWait:
                     // DMA transfers are instant, don't wait

@@ -114,8 +114,10 @@ public partial class ARM_EthosU55
             }, stepInBytes: 4);
     }
 
+    private uint SharedBufferSizeInKilobytes => (uint)(sharedBuffer.Length / 1024);
+
     private const uint Identifier = 0x10104201;
-    private const uint SharedBufferSizeInKilobytes = 48;
+
     private const uint BasePointerCount = 16;
 
     private enum Registers : long
