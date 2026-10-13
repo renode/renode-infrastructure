@@ -129,6 +129,10 @@ public partial class ARM_EthosU55
         while(queueReadOffset.Value < (ulong)bytes.Length)
         {
             queueReadOffset.Value += lastCommandLength;
+            if(queueReadOffset.Value == (ulong)bytes.Length)
+            {
+                break;
+            }
 
             var commandBits = BitConverter.ToUInt32(bytes.AsSpan((int)queueReadOffset.Value, 4));
             var commandEncoding = BitHelper.GetValue(commandBits, 10, 6);
