@@ -207,9 +207,15 @@ public partial class ARM_EthosU55
                         return;
                     }
                     continue;
+                case CommandOpcode.OpElementwise:
+                    if(!ExecuteElementwise(parameter))
+                    {
+                        ParseError("Elementwise operation failed");
+                        return;
+                    }
+                    continue;
                 case CommandOpcode.OpConv:
                 case CommandOpcode.OpDepthwise:
-                case CommandOpcode.OpElementwise:
                     this.Log(LogLevel.Warning, $"NPU operation {command} is not implemented");
                     isRunning.Value = false;
                     commandParseError.Value = true;
