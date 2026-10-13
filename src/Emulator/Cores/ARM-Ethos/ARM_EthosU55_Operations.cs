@@ -148,6 +148,13 @@ public partial class ARM_EthosU55
         };
     }
 
+    private static long Accumulate(long accumulator, long value, int accumulatorBits)
+    {
+        // Accumulator values wrap at the width selected by NPU_SET_ACC_FORMAT
+        // (TRM 4.4, 0x124, and U85 TRM accumulate()).
+        return unchecked((long)BitHelper.SignExtend(BitHelper.SignTruncate(accumulator + value, accumulatorBits), accumulatorBits));
+    }
+
     private static (long Minimum, long Maximum) GetActivationRange(int byteLength, bool signed)
     {
         return (signed ? -(1L << (8 * byteLength - 1)) : 0, (1L << (8 * byteLength - (signed ? 1 : 0))) - 1);
@@ -219,168 +226,16 @@ public partial class ARM_EthosU55
         }
     }
 
-    // U85 TRM write_accumulator
-    private bool WriteAccumulator(byte[] outputBuffer, int row, int column, int channel, long accumulator, RescaleMode rescaleMode, int validCount)
+    // U85 TRM write_accumulator: rescale, then activation stage.
+    private bool WriteAccumulator(FeatureMapTiles output, int row, int column, int channel, long accumulator, RescaleMode rescaleMode, int validCount, FusedActivation activation)
     {
         if(!TryRescale(accumulator, rescaleMode, validCount, out var outputValue))
         {
             return false;
         }
-
-        var outputByteAddress = GetTensorAddress(row, column, channel, false);
-        var outputBytes = GetElementByteLength(false);
-        if(outputByteAddress < 0 || outputByteAddress > outputBuffer.LongLength - outputBytes)
-        {
-            this.Log(LogLevel.Error, "Out of bounds output write: x={0}, y={1}, c={2}, outputLength={3}, offset={4}, bytes={5}",
-                column, row, channel, outputBuffer.Length, outputByteAddress, outputBytes);
-            return false;
-        }
-
-        // TODO: Implement zero point and activation path
-        for(var i = 0; i < outputBytes; i++)
-        {
-            outputBuffer[outputByteAddress + i] = unchecked((byte)(outputValue >> (8 * i)));
-        }
-
+        outputValue = ActivationStage(outputValue, activation);
+        WriteFeatureMapValue(output, row, column, channel, outputValue);
         return true;
-    }
-
-    private int GetElementByteLength(bool input)
-    {
-        var precision = (input ? (commandRegisters.IfmPrecision >> 2) : (commandRegisters.OfmPrecision >> 1)) & 0b11;
-        return precision switch
-        {
-            0 => 1,
-            1 => 2,
-            2 => 4,
-            _ => throw new InvalidOperationException()
-        };
-    }
-
-    private long GetTensorAddress(long row, long column, long channel, bool input)
-    {
-        // TODO: Implement tiling
-        var (columnStride, rowStride, channelStride) = GetTensorStrides(input);
-        var channelOffset = channel * channelStride;
-        if(IsNHCWB16Layout(input))
-        {
-            channelOffset = (channel / 16) * channelStride + (channel % 16) * GetElementByteLength(input);
-        }
-        return channelOffset + row * rowStride + column * columnStride;
-    }
-
-    private uint GetTensorValue(long row, long column, long channel, bool input, byte[] bytes)
-    {
-        // TODO: Implement upscaling
-        // TODO: Implement zero-point configuration
-        var byteAddress = (int)GetTensorAddress(row, column, channel, input);
-        var byteLength = GetElementByteLength(input);
-        if(byteAddress + byteLength > bytes.Length)
-        {
-            throw new InvalidOperationException($"Out of bounds address: {row} {column} {channel} {input}, {bytes.Length} {byteAddress}");
-        }
-        return byteLength switch
-        {
-            1 => bytes[byteAddress],
-            2 => BitConverter.ToUInt16(bytes, byteAddress),
-            4 => BitConverter.ToUInt32(bytes, byteAddress),
-            _ => throw new UnreachableException()
-        };
-    }
-
-    private long DecodeTensorValue(uint raw, int byteLength, bool signed)
-    {
-        // Preserve numeric values
-        return byteLength switch
-        {
-            1 => signed ? unchecked((sbyte)raw) : (byte)raw,
-            2 => signed ? unchecked((short)raw) : (ushort)raw,
-            4 => signed ? unchecked((int)raw) : (long)raw,
-            _ => throw new UnreachableException()
-        };
-    }
-
-    private bool IsNHCWB16Layout(bool input)
-    {
-        var precision = input ? commandRegisters.IfmPrecision : commandRegisters.OfmPrecision;
-        return (precision & (1 << 6)) != 0;
-    }
-
-    private bool TryGetBufferAddress(bool input, out ulong address)
-    {
-        address = 0;
-        var region = input ? commandRegisters.IfmRegion : commandRegisters.OfmRegion;
-        var offset = input ? commandRegisters.IfmBase0 : commandRegisters.OfmBase0;
-        if(region >= basePointers.Length / 2)
-        {
-            this.Log(LogLevel.Error, "Invalid {0} region: {1}", input ? "IFM" : "OFM", region);
-            return false;
-        }
-
-        var regionBase = (basePointers[2 * region + 1].Value << 32) | basePointers[2 * region].Value;
-        if(regionBase > ulong.MaxValue - offset)
-        {
-            this.Log(LogLevel.Error, "Region: {0} address overflow", input ? "IFM" : "OFM");
-            return false;
-        }
-
-        address = regionBase + offset;
-        return true;
-    }
-
-    // TODO: Include stride in calculation
-    private int GetBufferLength(bool input)
-    {
-        var (width, height, depth) = GetTensorDimensions(input);
-        if(IsNHCWB16Layout(input))
-        {
-            depth = ((depth + 15) / 16) * 16;
-        }
-        return height * width * depth * GetElementByteLength(input);
-    }
-
-    // TODO: Implement strided input
-    private bool ReadInputBytes(out byte[] bytes)
-    {
-        bytes = null;
-        if(!TryGetBufferAddress(true, out var sourceAddress))
-        {
-            return false;
-        }
-
-        var inputLength = GetBufferLength(true);
-        bytes = sysbus.ReadBytes(sourceAddress, inputLength);
-
-        this.Log(LogLevel.Debug, "Read input: address=0x{0:X}, length={1}", sourceAddress, inputLength);
-        return true;
-    }
-
-    // TODO: Implement strided output
-    private bool WriteOutputBytes(byte[] bytes)
-    {
-        if(!TryGetBufferAddress(false, out var destinationAddress))
-        {
-            return false;
-        }
-
-        sysbus.WriteBytes(bytes, destinationAddress);
-
-        this.Log(LogLevel.Debug, "Written output: address=0x{0:X}, length={1}", destinationAddress, bytes.Length);
-        return true;
-    }
-
-    private (int Width, int Height, int Depth) GetTensorDimensions(bool input)
-    {
-        return input
-            ? (commandRegisters.IfmWidth0M1 + 1, commandRegisters.IfmHeight0M1 + 1, commandRegisters.IfmDepthM1 + 1)
-            : (commandRegisters.OfmWidth0M1 + 1, commandRegisters.OfmHeight0M1 + 1, commandRegisters.OfmDepthM1 + 1);
-    }
-
-    private (long X, long Y, long Channel) GetTensorStrides(bool input)
-    {
-        return input
-            ? (commandRegisters.IfmStrideX, commandRegisters.IfmStrideY, commandRegisters.IfmStrideC)
-            : (commandRegisters.OfmStrideX, commandRegisters.OfmStrideY, commandRegisters.OfmStrideC);
     }
 
     private ushort GetPrecision(FeatureMap map)
@@ -619,6 +474,22 @@ public partial class ARM_EthosU55
         var offset = GetFeatureMapByteOffset(tiles, row, column, channel, out var tile);
         var value = ReadValue(tiles.Buffers[tile], (int)offset, GetElementByteLength(tiles.Map), IsSigned(tiles.Map));
         return value - GetZeroPoint(tiles.Map);
+    }
+
+    // Read an element of a 2x2-upscaled IFM. U85 TRM read_ifm: upscaled coordinates are
+    // divided by two and inserted zero pixels read as zero.
+    private long GetUpscaledFeatureMapValue(FeatureMapTiles tiles, long row, long column, long channel, IfmUpscaleMode upscale)
+    {
+        if(upscale == IfmUpscaleMode.InsertZeros && ((row | column) & 1) != 0)
+        {
+            return 0;
+        }
+        if(upscale != IfmUpscaleMode.None)
+        {
+            row >>= 1;
+            column >>= 1;
+        }
+        return GetFeatureMapValue(tiles, row, column, channel);
     }
 
     private void WriteFeatureMapValue(FeatureMapTiles tiles, long row, long column, long channel, long value)
@@ -1318,12 +1189,20 @@ public partial class ARM_EthosU55
             return false;
         }
 
-        if(!ReadInputBytes(out var input))
+        if(!TryPrepareActivation(out var activation))
         {
+            this.ErrorLog("Pooling activation {0} is invalid", commandRegisters.Activation);
             return false;
         }
 
-        var outputBuffer = new byte[GetBufferLength(false)];
+        if(!TryGetIfmUpscale(out var upscale))
+        {
+            return false;
+        }
+        if(!ValidateOperationRegisters(elementwise: false) || !TryGetAccumulatorBits(out var accumulatorBits))
+        {
+            return false;
+        }
 
         var kernelXDilation = BitHelper.GetBits(commandRegisters.KernelStride)[3] ? 2 : 1;
         var kernelYDilation = BitHelper.GetBits(commandRegisters.KernelStride)[4] ? 2 : 1;
@@ -1331,10 +1210,45 @@ public partial class ARM_EthosU55
         var kernelHeight = (commandRegisters.KernelHeightM1 / kernelYDilation) + 1;
         var (kernelStrideX, kernelStrideY) = GetKernelStrides();
 
-        var (inputWidth, inputHeight, inputDepth) = GetTensorDimensions(true);
-        var (outputWidth, outputHeight, outputDepth) = GetTensorDimensions(false);
+        if(mode == PoolMode.ReduceSum)
+        {
+            // Table 4-127: channel reduction supports 1x1 upscaling only.
+            if(upscale != IfmUpscaleMode.None)
+            {
+                this.ErrorLog("Channel reduction does not support IFM upscale");
+                return false;
+            }
+        }
+        else
+        {
+            // Table 4-124: max pooling only supports nearest-neighbor upscale.
+            if(upscale == IfmUpscaleMode.InsertZeros && mode == PoolMode.Max)
+            {
+                this.ErrorLog("Max pooling only supports nearest-neighbor IFM upscale");
+                return false;
+            }
+            // Padding is applied after upscale, so a 2x2 upscale must use a stride of 1x1.
+            if(upscale != IfmUpscaleMode.None && (kernelStrideX != 1 || kernelStrideY != 1))
+            {
+                this.ErrorLog("A 2x2 IFM upscale requires a stride of 1x1");
+                return false;
+            }
+        }
 
-        var inputSigned = BitHelper.GetBits(commandRegisters.IfmPrecision)[0];
+        var (inputWidth, inputHeight, inputDepth) = GetTensorDimensions(FeatureMap.Ifm);
+        var (outputWidth, outputHeight, outputDepth) = GetOfmStripeDimensions();
+
+        // An upscaled IFM is read in its 2x coordinates and mapped back to the
+        // stored elements, so bounds checks use the upscaled dimensions.
+        var upscaleFactor = upscale == IfmUpscaleMode.None ? 1 : 2;
+        var upscaledWidth = inputWidth * upscaleFactor;
+        var upscaledHeight = inputHeight * upscaleFactor;
+
+        if(!TryReadFeatureMap(FeatureMap.Ifm, inputWidth, inputHeight, inputDepth, out var input)
+            || !TryReadFeatureMap(FeatureMap.Ofm, outputWidth, outputHeight, outputDepth, out var outputBuffer))
+        {
+            return false;
+        }
 
         var topPad = BitHelper.GetValue(commandRegisters.IfmPadTop, 0, 15);
         var leftPad = BitHelper.GetValue(commandRegisters.IfmPadLeft, 0, 15);
@@ -1343,9 +1257,13 @@ public partial class ARM_EthosU55
         var hasPadding = topPad != 0 || leftPad != 0 || bottomPad != 0 || rightPad != 0;
 
         // TODO: Validate all configuration options
-
-        var inputBytes = GetElementByteLength(true);
-        var outputBytes = GetElementByteLength(false);
+        // Table 4-124: a 40-bit accumulator is only available for average
+        // pooling without padding; Table 4-127 allows it for reduction.
+        if(accumulatorBits == 40 && (mode == PoolMode.Max || (mode == PoolMode.Average && hasPadding)))
+        {
+            this.ErrorLog("A 40-bit accumulator is not supported for {0} pooling", mode);
+            return false;
+        }
 
         this.Log(LogLevel.Debug,
             "POOL configuration: kernel={0}x{1}, stride={2}x{3}, dilation={4}x{5}, output={6}x{7}x{8}, pad={9},{10},{11},{12}, mode={13}",
@@ -1359,7 +1277,6 @@ public partial class ARM_EthosU55
                 for(var oD = 0; oD < outputDepth; oD++)
                 {
                     var identity = mode == PoolMode.Max ? int.MinValue : 0;
-                    // TODO: Wrap accumulation in 32 or 40 bits
                     long accumulator = identity;
                     var validCount = 0;
 
@@ -1367,9 +1284,8 @@ public partial class ARM_EthosU55
                     {
                         for(var iC = 0; iC < inputDepth; iC++)
                         {
-                            var raw = GetTensorValue(oY, oX, iC, true, input);
-                            var value = DecodeTensorValue(raw, inputBytes, inputSigned);
-                            accumulator += value;
+                            var value = GetFeatureMapValue(input, oY, oX, iC);
+                            accumulator = Accumulate(accumulator, value, accumulatorBits);
                         }
                     }
                     else
@@ -1381,7 +1297,7 @@ public partial class ARM_EthosU55
                                 var iX = -leftPad + oX * kernelStrideX + kX * kernelXDilation;
                                 var iY = -topPad + oY * kernelStrideY + kY * kernelYDilation;
                                 var iC = oD;
-                                var pad = iX < 0 || iY < 0 || iX >= inputWidth || iY >= inputHeight;
+                                var pad = iX < 0 || iY < 0 || iX >= upscaledWidth || iY >= upscaledHeight;
 
                                 // Don't include padding in calculations
                                 if(pad)
@@ -1390,21 +1306,18 @@ public partial class ARM_EthosU55
                                 }
                                 validCount++;
 
-                                var raw = GetTensorValue(iY, iX, iC, true, input);
-                                var value = DecodeTensorValue(raw, inputBytes, inputSigned);
+                                var value = GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
                                 if(mode == PoolMode.Max)
                                 {
                                     accumulator = Math.Max(accumulator, value);
                                 }
                                 else
                                 {
-                                    accumulator += value;
+                                    accumulator = Accumulate(accumulator, value, accumulatorBits);
                                 }
                             }
                         }
                     }
-
-                    var outputByteAddress = GetTensorAddress(oY, oX, oD, false);
 
                     var rescaleMode = mode switch
                     {
@@ -1414,7 +1327,7 @@ public partial class ARM_EthosU55
                         _ => throw new UnreachableException()
                     };
 
-                    if(!WriteAccumulator(outputBuffer, oY, oX, oD, accumulator, rescaleMode, validCount))
+                    if(!WriteAccumulator(outputBuffer, oY, oX, oD, accumulator, rescaleMode, validCount, activation))
                     {
                         return false;
                     }
@@ -1422,7 +1335,7 @@ public partial class ARM_EthosU55
             }
         }
 
-        return WriteOutputBytes(outputBuffer);
+        return WriteFeatureMap(outputBuffer);
     }
 
     enum PoolMode

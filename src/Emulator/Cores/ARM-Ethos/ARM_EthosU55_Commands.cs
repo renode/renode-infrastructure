@@ -31,36 +31,18 @@ public partial class ARM_EthosU55
             return IssueInternalDmaTransfer();
         }
 
-        var sourceRegion = commandRegisters.Dma0SrcRegion & 0xFF;
-        var sourceOffset = commandRegisters.Dma0Src;
-        var destinationRegion = commandRegisters.Dma0DstRegion & 0xFF;
-        var destinationOffset = commandRegisters.Dma0Dst;
-        var length = commandRegisters.Dma0Len;
-
-        if(sourceRegion >= BasePointerCount / 2 || destinationRegion >= BasePointerCount / 2)
-        {
-            ParseError($"Invalid DMA0 region: src region {sourceRegion}, dst region {destinationRegion}");
-            return false;
-        }
-
         // Ignore stride mode, U55 only implements 1D
-        var sourceBase = (basePointers[(2 * sourceRegion) + 1].Value << 32) | basePointers[2 * sourceRegion].Value;
-        var destinationBase = (basePointers[(2 * destinationRegion) + 1].Value << 32) | basePointers[2 * destinationRegion].Value;
-
-        if(sourceBase > ulong.MaxValue - sourceOffset || destinationBase > ulong.MaxValue - destinationOffset)
+        if(!TryGetBufferAddress(commandRegisters.Dma0SrcRegion & 0xFF, commandRegisters.Dma0Src, out var sourceAddress, "DMA0 source")
+            || !TryGetBufferAddress(commandRegisters.Dma0DstRegion & 0xFF, commandRegisters.Dma0Dst, out var destinationAddress, "DMA0 destination"))
         {
-            ParseError($"DMA address overflow: source base 0x{sourceBase:X} + offset 0x{sourceOffset:X}, destination base 0x{destinationBase:X} + offset 0x{destinationOffset:X}");
             return false;
         }
-
-        var sourceAddress = sourceBase + sourceOffset;
-        var destinationAddress = destinationBase + destinationOffset;
 
         var source = new Place(sourceAddress);
         var destination = new Place(destinationAddress);
 
         var request = new Request(
-            source, destination, (int)length, TransferType.DoubleWord, TransferType.DoubleWord
+            source, destination, (int)commandRegisters.Dma0Len, TransferType.DoubleWord, TransferType.DoubleWord
         );
 
         this.Log(LogLevel.Debug, "Issuing DMA transfer: {0}", request);
