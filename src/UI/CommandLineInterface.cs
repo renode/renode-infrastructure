@@ -48,6 +48,7 @@ namespace Antmicro.Renode.UI
             if(options.ServerMode)
             {
                 Logger.AddBackend(new WebSocketNetworkBackend("/logs", false), "network");
+                new WebSocketUartServer();
             }
 
             Logger.AddBackend(new MemoryBackend(), "memory");
