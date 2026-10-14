@@ -66,7 +66,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 for(var i = 0; i < NumberOfCCChannels; ++i)
                 {
                     var channel = channels[i];
-                    channel.UpdateTimer();
+                    channel.UpdateTimerOnUpdateEvent();
                     if(!channel.Timer.Enabled || !channel.IsOutputMode)
                     {
                         continue;
@@ -840,6 +840,19 @@ namespace Antmicro.Renode.Peripherals.Timers
 
                 parent.UpdateInterrupts();
                 Signal = value;
+            }
+
+            // Called on every update event, from the clock source's update, after the auto-reload write has
+            // already asked it for another pass and the CPU to return. A channel with neither its interrupt nor
+            // its output enabled, whose timer is disabled and counts in the parent's direction, would get the
+            // same clock entry back from UpdateTimer, so it is left as it is.
+            public void UpdateTimerOnUpdateEvent()
+            {
+                if(!IsInterruptOrOutputEnabled && !Timer.Enabled && Timer.Direction == parent.Direction)
+                {
+                    return;
+                }
+                UpdateTimer();
             }
 
             public void UpdateTimer()
