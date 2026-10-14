@@ -1005,6 +1005,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         /// </summary>
         public bool FilterCcrDiv0Write { get; set; } = false;
 
+        public bool SysResetReq { get; set; } = false;
+
         [DefaultInterruptAttribute]
         public GPIO IRQ { get; private set; }
 
@@ -1253,6 +1255,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                             return;
                         }
                         /* Handle the reset immediately if we don't expect some action from e.g. SystemC side */
+                        SysResetReq = true;
                         if(PauseInsteadOfReset)
                         {
                             machine.Pause();

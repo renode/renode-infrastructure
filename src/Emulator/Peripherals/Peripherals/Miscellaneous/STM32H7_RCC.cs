@@ -14,6 +14,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.IRQControllers;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
@@ -23,10 +24,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public sealed class STM32H7_RCC : BasicDoubleWordPeripheral, IKnownSize, IRegisterablePeripheral<IPeripheral, EnumRegistrationPoint<STM32H7_RCC.RegistrationPeripheralAlias>>
     {
-        public STM32H7_RCC(IMachine machine, IHasDivisibleFrequency systick = null, IHasFrequency dwt = null, ulong hseFrequency = DefaultHseFrequency,
+        public STM32H7_RCC(IMachine machine, NVIC nvic = null, IHasFrequency dwt = null, ulong hseFrequency = DefaultHseFrequency,
             ulong csiFrequency = FallbackCsiFrequency) : base(machine)
         {
-            if(systick == null)
+            if(nvic == null)
             {
                 this.Log(LogLevel.Warning, "Systick not passed in the RCC constructor. Changes to the system clock will be ignored");
             }
@@ -36,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 this.Log(LogLevel.Warning, "DWT not passed in the RCC constructor. Changes to the system clock will be ignored");
             }
 
-            this.systick = systick;
+            this.nvic = nvic;
             this.dwt = dwt;
             this.csiFrequency = csiFrequency;
             this.hseFrequency = hseFrequency;
@@ -684,7 +685,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithTaggedFlag("IWDG2RSTF", 27)
                 .WithTaggedFlag("IWDG1RSTF", 26)
                 .WithTaggedFlag("SFT2RSTF", 25)
-                .WithTaggedFlag("SFT1RSTF", 24)
+                .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => nvic?.SysResetReq ?? false, name: "SFT1RSTF")
                 .WithFlag(23, out var porPdrReset, FieldMode.Read, name: "PORRSTF")
                 .WithFlag(22, out var pinReset, FieldMode.Read, name: "PINRSTF")
                 .WithFlag(21, out var borReset, FieldMode.Read, name: "BORRSTF")
@@ -706,6 +707,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     borReset.Value = false;
                     pinReset.Value = false;
                     porPdrReset.Value = false;
+                    nvic.SysResetReq = false;
                 }, name: "RMVF")
                 .WithReservedBits(0, 16);
             Registers.AHB3Clock.Define(this)
@@ -1401,13 +1403,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
                 // Figure 49 Core and bus clock generation
                 // We use the rcc_c_ck as the systick clock
-                if(systick != null)
+                if(nvic != null)
                 {
-                    var oldSystick = systick.Frequency;
-                    systick.Frequency = freq / d1CpreDivider;
-                    if(oldSystick != systick.Frequency)
+                    var oldSystick = nvic.Frequency;
+                    nvic.Frequency = freq / d1CpreDivider;
+                    if(oldSystick != nvic.Frequency)
                     {
-                        this.Log(LogLevel.Debug, "Systick clock frequency changed to {0}. Current effective frequency: {1}", systick.Frequency, systick.Frequency / systick.Divider);
+                        this.Log(LogLevel.Debug, "Systick clock frequency changed to {0}. Current effective frequency: {1}", nvic.Frequency, nvic.Frequency / nvic.Divider);
                     }
                 }
 
@@ -1640,7 +1642,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
         private readonly Dictionary<RegistrationPeripheralAlias, IPeripheral> RegisteredPeripherals;
 
-        private readonly IHasDivisibleFrequency systick;
+        private readonly NVIC nvic;
         private readonly IHasFrequency dwt;
         // Low-power internal oscillator
         private readonly ulong csiFrequency;
