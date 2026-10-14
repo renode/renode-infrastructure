@@ -1589,6 +1589,31 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new MappedSegmentWrapper(segment, registrationPoint.Range.StartAddress - registrationPoint.Offset, desiredSize, context);
         }
 
+        // Misc.BinarySearch(r => address.CompareTo(r.StartAddress)) without allocating its closure: every bus access looks up the tags
+        private static int FindTagIndex(IList<Range> tagRanges, ulong address)
+        {
+            var first = 0;
+            var last = tagRanges.Count;
+            while(first != last)
+            {
+                var idx = (first + last) / 2;
+                var comparison = address.CompareTo(tagRanges[idx].StartAddress);
+                if(comparison < 0)
+                {
+                    last = idx;
+                }
+                else if(comparison > 0)
+                {
+                    first = idx + 1;
+                }
+                else
+                {
+                    return idx;
+                }
+            }
+            return ~first;
+        }
+
         private Dictionary<string, List<StateMask>> ParseNewConditions(string newCondition)
         {
             if(string.IsNullOrEmpty(newCondition))
@@ -2481,7 +2506,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private bool TryGetTag(ulong address, out TagEntry? foundTag)
         {
-            var tagIdx = tags.Keys.BinarySearch(r => address.CompareTo(r.StartAddress));
+            var tagIdx = FindTagIndex(tags.Keys, address);
             if(tagIdx >= 0)
             {
                 // Direct hit - the address is the start address of a tag
