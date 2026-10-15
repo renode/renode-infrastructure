@@ -96,6 +96,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             // Custom2
             cpu.InstallCustomInstruction("i0iiiiicccccsssss111iiii01011011", opc => BranchOnBitTest(opc, expectSet: false), "BBC");
             cpu.InstallCustomInstruction("i1iiiiicccccsssss111iiii01011011", opc => BranchOnBitTest(opc, expectSet: true), "BBS");
+            cpu.InstallCustomInstruction("iciiiiicccccsssss101iiiic1011011", opc => BranchOnConstantComparison(opc, expectEqual: true), "BEQC");
+            cpu.InstallCustomInstruction("iciiiiicccccsssss110iiiic1011011", opc => BranchOnConstantComparison(opc, expectEqual: false), "BNEC");
         }
 
         private static ulong LoadExtractorByte(ulong opcode)
@@ -227,6 +229,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             var rs1Value = cpu.GetRegister(BaseRiscV.GetRs1(opcode)).RawValue;
             var bitIndex = (byte)BitHelper.GetValue(opcode, 20, 5);
             if(BitHelper.IsBitSet(rs1Value, bitIndex) == expectSet)
+            {
+                BranchRelative(opcode);
+            }
+        }
+
+        private void BranchOnConstantComparison(ulong opcode, bool expectEqual)
+        {
+            var constant = BitHelper.GetValue(opcode, 30, 1) << 6 |
+                BitHelper.GetValue(opcode, 7, 1) << 5 |
+                BitHelper.GetValue(opcode, 20, 5);
+            var rs1Value = cpu.GetRegister(BaseRiscV.GetRs1(opcode)).RawValue;
+            if((rs1Value == constant) == expectEqual)
             {
                 BranchRelative(opcode);
             }
