@@ -170,6 +170,35 @@ namespace Antmicro.Renode.Utilities.GDB
             return true;
         }
 
+        // Appends one register of an ICpuWithGdbRegisterMap layout: its value padded or truncated
+        // to the width GDB expects, or 'x' digits (GDB's "unavailable") when it is not modelled.
+        protected void AppendMappedRegister(StringBuilder data, GdbRegisterSlot slot)
+        {
+            var digits = (int)slot.Width / 4;
+            if(!slot.Index.HasValue)
+            {
+                data.Append('x', digits);
+                return;
+            }
+
+            var isLittleEndian = manager.Cpu.Endianness == Endianess.LittleEndian;
+            var bytes = manager.Cpu.GetRegister(slot.Index.Value).GetBytes(manager.Cpu.Endianness);
+            var value = new StringBuilder();
+            foreach(var b in bytes)
+            {
+                value.AppendFormat("{0:x2}", b);
+            }
+            if(value.Length < digits)
+            {
+                value.Insert(isLittleEndian ? value.Length : 0, "0", digits - value.Length);
+            }
+            else if(value.Length > digits)
+            {
+                value.Remove(isLittleEndian ? digits : 0, value.Length - digits);
+            }
+            data.Append(value);
+        }
+
         protected void ExpandRegisterValue(ref StringBuilder data, int start, int end, int register)
         {
             // register may have been reported with bigger Width, fill with zeros up to reported size

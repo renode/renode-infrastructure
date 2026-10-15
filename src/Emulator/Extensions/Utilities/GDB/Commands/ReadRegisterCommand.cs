@@ -7,6 +7,8 @@
 using System.Linq;
 using System.Text;
 
+using Antmicro.Renode.Peripherals.CPU;
+
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
     internal class ReadRegisterCommand : Command
@@ -20,6 +22,16 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber)] int registerNumber)
         {
             var content = new StringBuilder();
+
+            if(manager.Cpu is ICpuWithGdbRegisterMap mapped && mapped.GdbRegisterMap != null)
+            {
+                if(registerNumber < 0 || registerNumber >= mapped.GdbRegisterMap.Count)
+                {
+                    return PacketData.ErrorReply(Error.OperationNotPermitted);
+                }
+                AppendMappedRegister(content, mapped.GdbRegisterMap[registerNumber]);
+                return new PacketData(content.ToString());
+            }
 
             // if register exists in emulated core return current value of this
             if(manager.Cpu.GetAllRegisters().Any(x => x.Index == registerNumber))
