@@ -98,6 +98,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.InstallCustomInstruction("i1iiiiicccccsssss111iiii01011011", opc => BranchOnBitTest(opc, expectSet: true), "BBS");
             cpu.InstallCustomInstruction("iciiiiicccccsssss101iiiic1011011", opc => BranchOnConstantComparison(opc, expectEqual: true), "BEQC");
             cpu.InstallCustomInstruction("iciiiiicccccsssss110iiiic1011011", opc => BranchOnConstantComparison(opc, expectEqual: false), "BNEC");
+            cpu.InstallCustomInstruction("0mmmmm0lllllsssss011ddddd1011011", opc => HandleBitFieldOperation(opc, signExtend: true), "BFOS");
+            cpu.InstallCustomInstruction("0mmmmm0lllllsssss010ddddd1011011", opc => HandleBitFieldOperation(opc, signExtend: false), "BFOZ");
         }
 
         private static ulong LoadExtractorByte(ulong opcode)
@@ -256,6 +258,37 @@ namespace Antmicro.Renode.Peripherals.CPU
             var pc = cpu.PC.RawValue;
             var target = pc + BitHelper.SignExtend(offset, 11);
             cpu.PC = MaskAddress(target);
+        }
+
+        private void HandleBitFieldOperation(ulong opcode, bool signExtend)
+        {
+            var rd = BaseRiscV.GetRd(opcode);
+            var source = cpu.GetRegister(BaseRiscV.GetRs1(opcode)).RawValue;
+            var msb = (int)BitHelper.GetValue(opcode, 26, 5);
+            var lsb = (int)BitHelper.GetValue(opcode, 20, 5);
+
+            ulong result;
+            if(msb == 0)
+            {
+                // Zero-tailed bit-field insert.
+                result = (source & 1) == 0 ? 0 : signExtend ? ulong.MaxValue << lsb : 1ul << lsb;
+            }
+            else if(msb < lsb)
+            {
+                // Bit-field insert.
+                var length = lsb - msb + 1;
+                var field = BitHelper.GetValue(source, 0, length);
+                result = (signExtend ? BitHelper.SignExtend(field, length) : field) << msb;
+            }
+            else
+            {
+                // Bit-field extract. A full-width field needs no sign extension.
+                var length = msb - lsb + 1;
+                var field = BitHelper.GetValue(source, lsb, length);
+                result = signExtend && length < 64 ? BitHelper.SignExtend(field, length) : field;
+            }
+
+            WriteRegister(rd, result);
         }
 
         private ulong MaskAddress(ulong address) => IsRV64 ? address : (uint)address;
