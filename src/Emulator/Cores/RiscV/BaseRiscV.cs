@@ -30,6 +30,21 @@ namespace Antmicro.Renode.Peripherals.CPU
 {
     public abstract class BaseRiscV : TranslationCPU, IPeripheralContainer<ICFU, NumberRegistrationPoint<int>>, IPeripheralContainer<IIndirectCSRPeripheral, BusRangeRegistration>, IRegisterablePeripheral<ExternalPMPBase, NullRegistrationPoint>, ICPUWithPostGprAccessHooks, ICPUWithNMI, ICPUWithDirtyAdressesSharing
     {
+        public static int GetRd(ulong opcode)
+        {
+            return (int)BitHelper.GetValue(opcode, 7, 5);
+        }
+
+        public static int GetRs1(ulong opcode)
+        {
+            return (int)BitHelper.GetValue(opcode, 15, 5);
+        }
+
+        public static int GetRs2(ulong opcode)
+        {
+            return (int)BitHelper.GetValue(opcode, 20, 5);
+        }
+
         public void Register(ICFU cfu, NumberRegistrationPoint<int> registrationPoint)
         {
             var isRegistered = ChildCollection.Where(x => x.Value.Equals(cfu)).Select(x => x.Key).ToList();

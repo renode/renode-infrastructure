@@ -199,7 +199,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void HandleGetqInstruction(UInt64 opcode)
         {
-            var rd = (int)BitHelper.GetValue(opcode, 7, 5);
+            var rd = GetRd(opcode);
             var qs = (int)BitHelper.GetValue(opcode, 15, 2);
 
             if(rd != 0)
@@ -213,7 +213,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void HandleSetqInstruction(UInt64 opcode)
         {
             var qd = (int)BitHelper.GetValue(opcode, 7, 2);
-            var rs = (int)BitHelper.GetValue(opcode, 15, 5);
+            var rs = GetRs1(opcode);
 
             qRegisters[qd] = X[rs];
 
@@ -241,8 +241,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void HandleMaskirqInstruction(UInt64 opcode)
         {
-            var rd = (int)BitHelper.GetValue(opcode, 7, 5);
-            var rs = (int)BitHelper.GetValue(opcode, 15, 5);
+            var rd = GetRd(opcode);
+            var rs = GetRs1(opcode);
 
             var newValue = (uint)X[rs].RawValue;
             var previousValue = disabledInterrupts;
@@ -271,8 +271,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void HandleTimerInstruction(UInt64 opcode)
         {
-            var rd = (int)BitHelper.GetValue(opcode, 7, 5);
-            var rs = (int)BitHelper.GetValue(opcode, 15, 5);
+            var rd = GetRd(opcode);
+            var rs = GetRs1(opcode);
 
             var previousValue = (uint)internalTimer.Value;
             var newValue = X[rs];

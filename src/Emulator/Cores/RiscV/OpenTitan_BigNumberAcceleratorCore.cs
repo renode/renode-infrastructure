@@ -429,7 +429,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void LoopHandler(ulong opcode)
         {
             // decode parameters
-            var grs = (int)BitHelper.GetValue(opcode, 15, 5);
+            var grs = GetRs1(opcode);
 
             var bodySize = (uint)BitHelper.GetValue(opcode, 20, 12) + 1;
             var numberOfIterations = (uint)this.GetRegister(grs).RawValue;
@@ -488,8 +488,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var isWrite = BitHelper.IsBitSet((uint)opcode, 31);
             var wsr = (int)BitHelper.GetValue(opcode, 20, 8);
-            var wrd = (int)BitHelper.GetValue(opcode, 7, 5);
-            var wrs = (int)BitHelper.GetValue(opcode, 15, 5);
+            var wrd = GetRd(opcode);
+            var wrs = GetRs1(opcode);
 
             if(wsr > wideSpecialPurposeRegisters.Length)
             {
@@ -867,9 +867,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void ParseRTypeFields(ulong opcode, out ulong f3, out int wrd, out int wrs1, out int wrs2, out int shiftBits, out bool shiftRight, out int flagGroup)
         {
             f3 = BitHelper.GetValue(opcode, 12, 3);
-            wrd = (int)BitHelper.GetValue(opcode, 7, 5);
-            wrs1 = (int)BitHelper.GetValue(opcode, 15, 5);
-            wrs2 = (int)BitHelper.GetValue(opcode, 20, 5);
+            wrd = GetRd(opcode);
+            wrs1 = GetRs1(opcode);
+            wrs2 = GetRs2(opcode);
             // The resolution of the shift is 8 bits
             shiftBits = (int)BitHelper.GetValue(opcode, 25, 5) * 8;
             shiftRight = BitHelper.IsBitSet(opcode, 30);
@@ -878,8 +878,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void ParseSTypeFields(ulong opcode, out ulong f3, out int grs1, out int grd, out int offset, out bool incrementR1, out bool incrementRd)
         {
-            grd = (int)BitHelper.GetValue(opcode, 20, 5);
-            grs1 = (int)BitHelper.GetValue(opcode, 15, 5);
+            grd = GetRs2(opcode); // The standard S-type rs2 field is used as rd here.
+            grs1 = GetRs1(opcode);
             f3 = BitHelper.GetValue(opcode, 12, 3);
             incrementR1 = BitHelper.IsBitSet(opcode, 8);
             incrementRd = BitHelper.IsBitSet(opcode, 7);

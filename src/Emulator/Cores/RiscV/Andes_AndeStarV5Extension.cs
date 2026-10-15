@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void ReadFromMemoryToRegister(ulong opcode, AccessWidth width, Func<ulong, ulong> extractor, int immediateBits = 18, bool extendSign = true)
         {
-            var rd = (int)BitHelper.GetValue(opcode, 7, 5);
+            var rd = BaseRiscV.GetRd(opcode);
             var imm = GetImmediate(opcode, extractor, immediateBits);
             var memoryOffset = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
 
@@ -125,7 +125,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void WriteRegisterToMemory(ulong opcode, AccessWidth width, Func<ulong, ulong> extractor, int immediateBits = 18)
         {
-            var rs2 = (int)BitHelper.GetValue(opcode, 20, 5);
+            var rs2 = BaseRiscV.GetRs2(opcode);
             var imm = GetImmediate(opcode, extractor, immediateBits);
             var memoryOffset = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
 
@@ -150,7 +150,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void HandleADDIGP(ulong opcode)
         {
-            var rd = (int)BitHelper.GetValue(opcode, 7, 5);
+            var rd = BaseRiscV.GetRd(opcode);
             var imm = GetImmediate(opcode, LoadExtractorByte, 18);
             var value = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
 

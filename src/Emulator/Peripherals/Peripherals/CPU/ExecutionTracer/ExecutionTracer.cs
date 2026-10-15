@@ -265,14 +265,14 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void EnqueueRiscvAtomicOperands(ulong pc, ulong opcode, bool isAfterExecution)
         {
-            var rd = BitHelper.GetValue(opcode, 7, 5);
+            var rd = BaseRiscV.GetRd(opcode);
             var funct3 = BitHelper.GetValue(opcode, 12, 3);
-            var rs1 = BitHelper.GetValue(opcode, 15, 5);
-            var rs2 = BitHelper.GetValue(opcode, 20, 5);
+            var rs1 = BaseRiscV.GetRs1(opcode);
+            var rs2 = BaseRiscV.GetRs2(opcode);
             var funct5 = (int)BitHelper.GetValue(opcode, 27, 5);
-            var rdValue = AttachedCPU.GetRegister((int)rd);
-            ulong rs1Value = AttachedCPU.GetRegister((int)rs1);
-            var rs2Value = AttachedCPU.GetRegister((int)rs2);
+            var rdValue = AttachedCPU.GetRegister(rd);
+            ulong rs1Value = AttachedCPU.GetRegister(rs1);
+            var rs2Value = AttachedCPU.GetRegister(rs2);
 
             var width = (RiscVAtomicInstructionWidth)funct3;
             if(!Enum.IsDefined(typeof(RiscVAtomicInstructionWidth), width))
