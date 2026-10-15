@@ -29,6 +29,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             // stub CSRs to make software happy
             cpu.RegisterCSR((ushort)CustomCSR.MachineExtendedStatus, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Extended Status CSR (0x7c4) is currently not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.MachineCacheControl, () => 0xffffffff, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Cache Control CSR (0x7ca) is currently not supported"); });
+            cpu.RegisterCSRStub((ushort)CustomCSR.MachineCacheControlBeginAddress, "MCCTLBEGINADDR");
+            cpu.RegisterCSRStub((ushort)CustomCSR.MachineCacheControlCommand, "MCCTLCOMMAND");
+            cpu.RegisterCSRStub((ushort)CustomCSR.MachineCacheControlData, "MCCTLDATA");
             cpu.RegisterCSR((ushort)CustomCSR.InstructionCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc0) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.DataCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc1) is not supported"); });
             // Bit 16 is checked by Zephyr driver to see if CCTL is supported
@@ -240,6 +243,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             MachineExtendedStatus = 0x7c4,
             MachineCacheControl = 0x7ca,
+            MachineCacheControlBeginAddress = 0x7cb,
+            MachineCacheControlCommand = 0x7cc,
+            MachineCacheControlData = 0x7cd,
             MachineMiscellaneousControl = 0x7d0,
             InstructionCacheAndMemoryConfiguration = 0xfc0,
             DataCacheAndMemoryConfiguration = 0xfc1,
