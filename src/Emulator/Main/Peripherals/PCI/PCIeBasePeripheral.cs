@@ -77,13 +77,12 @@ namespace Antmicro.Renode.Peripherals.PCI
 
         public HeaderType HeaderType { get; }
 
-        protected PCIeBasePeripheral(IPCIeRouter parent, HeaderType headerType)
+        protected PCIeBasePeripheral(HeaderType headerType)
         {
             if(!IsHeaderAcceptable(headerType))
             {
                 throw new ConstructionException($"Currently only devices of type {HeaderType.Bridge} or {HeaderType.Endpoint} are supported.");
             }
-            this.parent = parent;
             this.HeaderType = headerType;
             this.baseAddressRegisters = new BaseAddressRegister[headerType.MaxNumberOfBARs()];
             var registerMap = new Dictionary<long, DoubleWordRegister>
@@ -149,7 +148,7 @@ namespace Antmicro.Renode.Peripherals.PCI
             return 0;
         }
 
-        protected void AddBaseAddressRegister(uint i, BaseAddressRegister register)
+        protected void AddBaseAddressRegister(IPCIeRouter parent, uint i, BaseAddressRegister register)
         {
             if(i > HeaderType.MaxNumberOfBARs())
             {
@@ -199,7 +198,6 @@ namespace Antmicro.Renode.Peripherals.PCI
             return headerWithoutMultiFunctionFlag == HeaderType.Bridge || headerWithoutMultiFunctionFlag == HeaderType.Endpoint;
         }
 
-        private readonly IPCIeRouter parent;
         private readonly BaseAddressRegister[] baseAddressRegisters;
         private readonly Dictionary<byte, Capability> capabilities = new Dictionary<byte, Capability>();
 

@@ -13,7 +13,7 @@ namespace Antmicro.Renode.Peripherals.PCI
     [AllowedTranslations(AllowedTranslation.WordToDoubleWord)]
     public class PIIX : PCIeEndpoint
     {
-        public PIIX(PCIHost_Bridge parent) : base(parent)
+        public PIIX(PCIHost_Bridge parent) : base()
         {
             VendorId = 0x8086;
             DeviceId = 0x7010;
@@ -21,7 +21,7 @@ namespace Antmicro.Renode.Peripherals.PCI
 
             for(var i = 0; i < HeaderType.MaxNumberOfBARs(); ++i)
             {
-                AddBaseAddressRegister((uint)i, new IOBaseAddressRegister(BARSizes[i]));
+                AddBaseAddressRegister(parent, (uint)i, new IOBaseAddressRegister(BARSizes[i]));
             }
         }
 

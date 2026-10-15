@@ -8,7 +8,7 @@ namespace Antmicro.Renode.Peripherals.PCI
 {
     public class PCIeRootComplex : PCIeBridge
     {
-        public PCIeRootComplex(IPCIeRouter parent) : base(parent)
+        public PCIeRootComplex() : base()
         {
         }
     }

@@ -9,7 +9,7 @@ namespace Antmicro.Renode.Peripherals.PCI
     public abstract class PCIeBridge : PCIeBasePeripheral
     {
         //todo: add registers enum
-        public PCIeBridge(IPCIeRouter parent) : base(parent, HeaderType.Bridge)
+        public PCIeBridge() : base(HeaderType.Bridge)
         {
         }
     }

@@ -13,12 +13,12 @@ namespace Antmicro.Renode.Peripherals.PCI
 {
     public class PCIeMemory : PCIeEndpoint
     {
-        public PCIeMemory(IPCIeRouter parent, uint size) : base(parent)
+        public PCIeMemory(IPCIeRouter parent, uint size) : base()
         {
             this.memory = new uint[size / 4];
             for(var i = 0u; i < HeaderType.MaxNumberOfBARs(); ++i)
             {
-                AddBaseAddressRegister(i, new MemoryBaseAddressRegister(size, MemoryBaseAddressRegister.BarType.LocateIn32Bit, true));
+                AddBaseAddressRegister(parent, i, new MemoryBaseAddressRegister(size, MemoryBaseAddressRegister.BarType.LocateIn32Bit, true));
             }
         }
 
