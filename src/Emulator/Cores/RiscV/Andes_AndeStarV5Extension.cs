@@ -92,6 +92,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.InstallCustomInstruction("iiiiiiisssssiiiii000iiiii0101011", opc => WriteRegisterToMemory(opc, AccessWidth.Word, StoreExtractorWord), "SHGP");
             cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiii010ddddd0101011", opc => ReadFromMemoryToRegister(opc, AccessWidth.DoubleWord, LoadExtractorDoubleWord, 19), "LWGP");
             cpu.InstallCustomInstruction("iiiiiiisssssiiiii100iiiii0101011", opc => WriteRegisterToMemory(opc, AccessWidth.DoubleWord, StoreExtractorDoubleWord, 19), "SWGP");
+
+            // Custom2
+            cpu.InstallCustomInstruction("i0iiiiicccccsssss111iiii01011011", opc => BranchOnBitTest(opc, expectSet: false), "BBC");
+            cpu.InstallCustomInstruction("i1iiiiicccccsssss111iiii01011011", opc => BranchOnBitTest(opc, expectSet: true), "BBS");
         }
 
         private static ulong LoadExtractorByte(ulong opcode)
@@ -216,6 +220,28 @@ namespace Antmicro.Renode.Peripherals.CPU
             var value = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
 
             WriteRegister(rd, value);
+        }
+
+        private void BranchOnBitTest(ulong opcode, bool expectSet)
+        {
+            var rs1Value = cpu.GetRegister(BaseRiscV.GetRs1(opcode)).RawValue;
+            var bitIndex = (byte)BitHelper.GetValue(opcode, 20, 5);
+            if(BitHelper.IsBitSet(rs1Value, bitIndex) == expectSet)
+            {
+                BranchRelative(opcode);
+            }
+        }
+
+        private void BranchRelative(ulong opcode)
+        {
+            // 10-bit half-word offset: imm[10] at bit 31, imm[9:5] at bits 29-25, imm[4:1] at bits 11-8
+            var offset = BitHelper.GetValue(opcode, 31, 1) << 10 |
+                BitHelper.GetValue(opcode, 25, 5) << 5 |
+                BitHelper.GetValue(opcode, 8, 4) << 1;
+
+            var pc = cpu.PC.RawValue;
+            var target = pc + BitHelper.SignExtend(offset, 11);
+            cpu.PC = MaskAddress(target);
         }
 
         private ulong MaskAddress(ulong address) => IsRV64 ? address : (uint)address;
