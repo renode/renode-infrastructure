@@ -87,7 +87,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiii001ddddd0101011", opc => ReadFromMemoryToRegister(opc, AccessWidth.Word, LoadExtractorWord), "LHGP");
             cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiii101ddddd0101011", opc => ReadFromMemoryToRegister(opc, AccessWidth.Word, LoadExtractorWord, extendSign: false), "LHUGP");
             cpu.InstallCustomInstruction("iiiiiiisssssiiiii000iiiii0101011", opc => WriteRegisterToMemory(opc, AccessWidth.Word, StoreExtractorWord), "SHGP");
-            cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiii010ddddd0101011", opc => ReadFromMemoryToRegister(opc, AccessWidth.DoubleWord, LoadExtractorDoubleWord), "LWGP");
+            cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiii010ddddd0101011", opc => ReadFromMemoryToRegister(opc, AccessWidth.DoubleWord, LoadExtractorDoubleWord, 19), "LWGP");
             cpu.InstallCustomInstruction("iiiiiiisssssiiiii100iiiii0101011", opc => WriteRegisterToMemory(opc, AccessWidth.DoubleWord, StoreExtractorDoubleWord, 19), "SWGP");
         }
 
@@ -135,6 +135,15 @@ namespace Antmicro.Renode.Peripherals.CPU
                 BitHelper.GetValue(opcode, 31, 1) << 18;
         }
 
+        private void WriteRegister(int register, ulong value)
+        {
+            // Writes to x0 are discarded.
+            if(register != 0)
+            {
+                cpu.SetRegister(register, MaskAddress(value));
+            }
+        }
+
         private void ReadFromMemoryToRegister(ulong opcode, AccessWidth width, Func<ulong, ulong> extractor, int immediateBits = 18, bool extendSign = true)
         {
             var rd = BaseRiscV.GetRd(opcode);
@@ -164,11 +173,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             if(extendSign)
             {
-                cpu.SetRegister(rd, BitHelper.SignExtend(data, valueBits));
+                WriteRegister(rd, BitHelper.SignExtend(data, valueBits));
             }
             else
             {
-                cpu.SetRegister(rd, data);
+                WriteRegister(rd, data);
             }
         }
 
@@ -178,7 +187,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             var imm = BitHelper.SignExtend(extractor(opcode), immediateBits);
             var memoryOffset = MaskAddress(imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue);
 
-            var regValue = cpu.GetRegister(rs2).RawValue;
+            var regValue = (uint)cpu.GetRegister(rs2).RawValue;
 
             switch(width)
             {
@@ -189,7 +198,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 bus.WriteWord(memoryOffset, (ushort)regValue, cpu);
                 break;
             case AccessWidth.DoubleWord:
-                bus.WriteDoubleWord(memoryOffset, (uint)regValue, cpu);
+                bus.WriteDoubleWord(memoryOffset, regValue, cpu);
                 break;
             default:
                 cpu.Log(LogLevel.Error, "Invalid memory access type: {0}", width);
@@ -203,7 +212,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             var imm = BitHelper.SignExtend(LoadExtractorByte(opcode), 18);
             var value = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
 
-            cpu.SetRegister(rd, value);
+            WriteRegister(rd, value);
         }
 
         private ulong MaskAddress(ulong address) => IsRV64 ? address : (uint)address;
