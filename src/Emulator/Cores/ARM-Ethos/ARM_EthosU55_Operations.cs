@@ -1338,13 +1338,6 @@ public partial class ARM_EthosU55
         return WriteFeatureMap(outputBuffer);
     }
 
-    enum PoolMode
-    {
-        Max,
-        Average,
-        ReduceSum,
-    };
-
     private const long MaximumFeatureMapBytes = 0x1000000;
 
     // The activation lookup tables occupy the last 2KB page of the shared buffer,
@@ -1462,6 +1455,14 @@ public partial class ARM_EthosU55
         Nearest = 1,
         InsertZeros = 2,
     }
+
+    // NPU_OP_POOL modes (U55 Table 4-112).
+    private enum PoolMode
+    {
+        Max,
+        Average,
+        ReduceSum,
+    };
 
     // NPU_OP_ELEMENTWISE modes (U55 Table 4-112).
     private enum ElementwiseMode
