@@ -322,9 +322,10 @@ namespace Antmicro.Renode.Peripherals.Video
         {
             var xs = BitHelper.ToUInt16([currentArgs[0], currentArgs[1]], 0, false);
             var xe = BitHelper.ToUInt16([currentArgs[2], currentArgs[3]], 0, false);
-            if(xe < xs)
+            if((xe < xs) || (xe >= FrameMemoryWidth) || (xs >= FrameMemoryWidth))
             {
-                this.WarningLog("Invalid XE {0}, defaulting to {1}", xe, FrameMemoryWidth - 1);
+                this.WarningLog("Invalid (XS, XE) {0}, defaulting to {1}", (xs, xe), (0, FrameMemoryWidth - 1));
+                xs = 0;
                 xe = FrameMemoryWidth - 1;
             }
 
@@ -335,9 +336,10 @@ namespace Antmicro.Renode.Peripherals.Video
         {
             var ys = BitHelper.ToUInt16([currentArgs[0], currentArgs[1]], 0, false);
             var ye = BitHelper.ToUInt16([currentArgs[2], currentArgs[3]], 0, false);
-            if(ye < ys)
+            if((ye < ys) || (ye >= FrameMemoryHeight) || (ys >= FrameMemoryHeight))
             {
-                this.WarningLog("Invalid YE {0}, defaulting to {1}", ye, FrameMemoryHeight - 1);
+                this.WarningLog("Invalid (YS, YE) {0}, defaulting to {1}", (ys, ye), (0, FrameMemoryHeight - 1));
+                ys = 0;
                 ye = FrameMemoryHeight - 1;
             }
 
