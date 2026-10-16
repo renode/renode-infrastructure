@@ -123,17 +123,26 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private static ulong StoreExtractorWord(ulong opcode)
         {
-            return StoreExtractorDoubleWord(opcode) | (BitHelper.GetValue(opcode, 8, 1) << 1);
-        }
-
-        private static ulong StoreExtractorDoubleWord(ulong opcode)
-        {
-            return BitHelper.GetValue(opcode, 9, 3) << 2 |
+            // 18-bit imm[17:0], used by NDS.SBGP and NDS.SHGP
+            return BitHelper.GetValue(opcode, 8, 4) << 1 |
                 BitHelper.GetValue(opcode, 25, 6) << 5 |
                 BitHelper.GetValue(opcode, 7, 1) << 11 |
                 BitHelper.GetValue(opcode, 17, 3) << 12 |
                 BitHelper.GetValue(opcode, 15, 2) << 15 |
                 BitHelper.GetValue(opcode, 31, 1) << 17;
+        }
+
+        private static ulong StoreExtractorDoubleWord(ulong opcode)
+        {
+            // 19-bit imm[18:2], used by NDS.SWGP; note that imm[17] and imm[18] are encoded
+            // at bit 8 and bit 31 respectively
+            return BitHelper.GetValue(opcode, 9, 3) << 2 |
+                BitHelper.GetValue(opcode, 25, 6) << 5 |
+                BitHelper.GetValue(opcode, 7, 1) << 11 |
+                BitHelper.GetValue(opcode, 17, 3) << 12 |
+                BitHelper.GetValue(opcode, 15, 2) << 15 |
+                BitHelper.GetValue(opcode, 8, 1) << 17 |
+                BitHelper.GetValue(opcode, 31, 1) << 18;
         }
 
         private static ulong LoadExtractorDoubleWord(ulong opcode)
