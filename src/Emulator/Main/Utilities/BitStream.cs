@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2010-2026 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -80,8 +86,8 @@ namespace Antmicro.Renode.Utilities
             {
                 var s1 = segments[firstSegment];
                 var s2 = ((firstSegment + 1) < segments.Count) ? segments[firstSegment + 1] : (byte)0;
-                result = (byte)((s1 << segmentOffset)
-                            | (s2 >> (BitsPerSegment - segmentOffset)));
+                result = (byte)((s1 >> segmentOffset)
+                            | (s2 << (BitsPerSegment - segmentOffset)));
             }
 
             return (length == 8)
