@@ -106,6 +106,9 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.InstallCustomInstruction("0000110ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 2), "LEA.W");
             cpu.InstallCustomInstruction("0000111ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 3), "LEA.D");
             cpu.InstallCustomInstruction("0010000ssssssssss000ddddd1011011", HandleFFB, "FFB");
+            cpu.InstallCustomInstruction("0010001ssssssssss000ddddd1011011", HandleFFZMISM, "FFZMISM");
+            cpu.InstallCustomInstruction("0010010ssssssssss000ddddd1011011", opc => HandleMismatch(opc, findLast: false), "FFMISM");
+            cpu.InstallCustomInstruction("0010011ssssssssss000ddddd1011011", opc => HandleMismatch(opc, findLast: true), "FLMISM");
 
             // TODO: CoDense extension (NDS.EXEC.IT/NDS.NEXEC.IT), and set mmsc_cfg (0xfc2) ECD (bit[3]).
         }
@@ -322,6 +325,16 @@ namespace Antmicro.Renode.Peripherals.CPU
             // Every byte of Rs1 is compared against the least significant byte of Rs2
             var compareByte = (byte)cpu.GetRegister(BaseRiscV.GetRs2(opcode)).RawValue;
             FindByte(opcode, (rs1Byte, _) => rs1Byte == compareByte);
+        }
+
+        private void HandleFFZMISM(ulong opcode)
+        {
+            FindByte(opcode, (rs1Byte, rs2Byte) => rs1Byte == 0 || rs1Byte != rs2Byte);
+        }
+
+        private void HandleMismatch(ulong opcode, bool findLast)
+        {
+            FindByte(opcode, (rs1Byte, rs2Byte) => rs1Byte != rs2Byte, findLast);
         }
 
         private void FindByte(ulong opcode, Func<byte, byte, bool> predicate, bool findLast = false)
