@@ -1,10 +1,11 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
@@ -53,7 +54,7 @@ namespace Antmicro.Renode.Logging
             {
                 if(level == null)
                 {
-                    peripheralsWithDifferentLogging.Remove(sourceId);
+                    peripheralsWithDifferentLogging.TryRemove(sourceId, out var _);
                 }
                 else
                 {
@@ -72,7 +73,7 @@ namespace Antmicro.Renode.Logging
 
         protected LoggerBackend()
         {
-            peripheralsWithDifferentLogging = new Dictionary<int, LogLevel>();
+            peripheralsWithDifferentLogging = new ConcurrentDictionary<int, LogLevel>();
             logLevel = Logger.DefaultLogLevel;
         }
 
@@ -83,6 +84,6 @@ namespace Antmicro.Renode.Logging
 
         protected LogLevel logLevel;
 
-        private readonly Dictionary<int, LogLevel> peripheralsWithDifferentLogging;
+        private readonly ConcurrentDictionary<int, LogLevel> peripheralsWithDifferentLogging;
     }
 }
