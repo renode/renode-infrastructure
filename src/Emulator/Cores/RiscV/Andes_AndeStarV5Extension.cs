@@ -11,6 +11,8 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Utilities;
 
+using Endianess = ELFSharp.ELF.Endianess;
+
 namespace Antmicro.Renode.Peripherals.CPU
 {
     public partial class Andes_AndeStarV5Extension
@@ -103,6 +105,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.InstallCustomInstruction("0000101ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 1), "LEA.H");
             cpu.InstallCustomInstruction("0000110ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 2), "LEA.W");
             cpu.InstallCustomInstruction("0000111ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 3), "LEA.D");
+            cpu.InstallCustomInstruction("0010000ssssssssss000ddddd1011011", HandleFFB, "FFB");
 
             // TODO: CoDense extension (NDS.EXEC.IT/NDS.NEXEC.IT), and set mmsc_cfg (0xfc2) ECD (bit[3]).
         }
@@ -314,9 +317,48 @@ namespace Antmicro.Renode.Peripherals.CPU
             WriteRegister(rd, rs1 + (rs2 << shift));
         }
 
+        private void HandleFFB(ulong opcode)
+        {
+            // Every byte of Rs1 is compared against the least significant byte of Rs2
+            var compareByte = (byte)cpu.GetRegister(BaseRiscV.GetRs2(opcode)).RawValue;
+            FindByte(opcode, (rs1Byte, _) => rs1Byte == compareByte);
+        }
+
+        private void FindByte(ulong opcode, Func<byte, byte, bool> predicate, bool findLast = false)
+        {
+            var rd = BaseRiscV.GetRd(opcode);
+            var rs1 = cpu.GetRegister(BaseRiscV.GetRs1(opcode)).RawValue;
+            var rs2 = cpu.GetRegister(BaseRiscV.GetRs2(opcode)).RawValue;
+
+            var result = 0;
+            for(var i = 0; i < RegisterBytes; i++)
+            {
+                var position = findLast ? (RegisterBytes - 1 - i) : i;
+                if(predicate(GetByte(rs1, position), GetByte(rs2, position)))
+                {
+                    // The position of the found byte is returned as a negative offset from the register size
+                    result = position - RegisterBytes;
+                    break;
+                }
+            }
+
+            WriteRegister(rd, (ulong)(long)result);
+        }
+
+        private byte GetByte(ulong value, int position)
+        {
+            // Position counts bytes in the data order, which depends on the CPU endianness
+            var bitOffset = 8 * (IsBigEndian ? (RegisterBytes - 1 - position) : position);
+            return (byte)((value >> bitOffset) & 0xFF);
+        }
+
         private ulong MaskAddress(ulong address) => IsRV64 ? address : (uint)address;
 
         private bool IsRV64 => cpu.Bitness == CpuBitness.Bits64;
+
+        private int RegisterBytes => IsRV64 ? 8 : 4;
+
+        private bool IsBigEndian => cpu.Endianness == Endianess.BigEndian;
 
         private ulong machineMiscellaneousControlValue;
 
