@@ -100,6 +100,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.InstallCustomInstruction("iciiiiicccccsssss110iiiic1011011", opc => BranchOnConstantComparison(opc, expectEqual: false), "BNEC");
             cpu.InstallCustomInstruction("0mmmmm0lllllsssss011ddddd1011011", opc => HandleBitFieldOperation(opc, signExtend: true), "BFOS");
             cpu.InstallCustomInstruction("0mmmmm0lllllsssss010ddddd1011011", opc => HandleBitFieldOperation(opc, signExtend: false), "BFOZ");
+            cpu.InstallCustomInstruction("0000101ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 1), "LEA.H");
+            cpu.InstallCustomInstruction("0000110ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 2), "LEA.W");
+            cpu.InstallCustomInstruction("0000111ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 3), "LEA.D");
+
+            // TODO: CoDense extension (NDS.EXEC.IT/NDS.NEXEC.IT), and set mmsc_cfg (0xfc2) ECD (bit[3]).
         }
 
         private static ulong LoadExtractorByte(ulong opcode)
@@ -298,6 +303,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
 
             WriteRegister(rd, result);
+        }
+
+        private void HandleLoadEffectiveAddress(ulong opcode, int shift)
+        {
+            var rd = BaseRiscV.GetRd(opcode);
+            var rs1 = cpu.GetRegister(BaseRiscV.GetRs1(opcode)).RawValue;
+            var rs2 = cpu.GetRegister(BaseRiscV.GetRs2(opcode)).RawValue;
+
+            WriteRegister(rd, rs1 + (rs2 << shift));
         }
 
         private ulong MaskAddress(ulong address) => IsRV64 ? address : (uint)address;
