@@ -186,6 +186,18 @@ namespace Antmicro.Renode.Core
             PauseAll();
         }
 
+        public void SynchroniseQuantum()
+        {
+            lock(disposedLock)
+            {
+                if(disposed)
+                {
+                    throw new RecoverableException("Can't synchronise while disposing");
+                }
+            }
+            MasterTimeSource.SynchroniseQuantum();
+        }
+
         public int GetSeed()
         {
             return RandomGenerator.GetCurrentSeed();

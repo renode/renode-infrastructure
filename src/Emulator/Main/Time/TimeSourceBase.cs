@@ -86,6 +86,15 @@ namespace Antmicro.Renode.Time
         }
 
         /// <summary>
+        /// If the time source is executing, blocks until the current quantum is finished.
+        /// </summary>
+        public void SynchroniseQuantum()
+        {
+            using(sync.HighPriority)
+            { }
+        }
+
+        /// <summary>
         /// Queues an action to execute in the nearest synced state.
         /// </summary>
         /// <param name="executeImmediately">Flag indicating if the action should be executed immediately when executed in already synced context or should it wait for the next synced state.</param>
