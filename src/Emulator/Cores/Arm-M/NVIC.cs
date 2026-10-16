@@ -1032,6 +1032,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             return Enum.IsDefined(typeof(SystemException), interrupt);
         }
 
+        private static bool IsSynchronousException(int interrupt)
+        {
+            if(IsAnException(interrupt))
+            {
+                var exception = (SystemException)interrupt;
+                switch(exception)
+                {
+                // These are the asynchronous system exceptions
+                // Taken from https://support.arm.com/documentation/107706/0100/Exceptions-and-interrupts-overview/Classification-of-synchronous-and-asynchronous-exceptions
+                case SystemException.NMI:
+                case SystemException.SysTick:
+                case SystemException.SysTick_S:
+                case SystemException.PendSV:
+                case SystemException.PendSV_S:
+                    return false;
+                default:
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private static string ExceptionToString(int exception)
         {
             if(IsAnException(exception))
@@ -2265,7 +2287,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         private void SetPendingWithoutEscalation(int i)
         {
-            if(IsAnException(i) && (irqs[i] & IRQState.Active) != 0)
+            if(IsSynchronousException(i) && (irqs[i] & IRQState.Active) != 0)
             {
                 this.ErrorLog($"Ignoring request to set {ExceptionToString(i)} pending.");
                 return;
