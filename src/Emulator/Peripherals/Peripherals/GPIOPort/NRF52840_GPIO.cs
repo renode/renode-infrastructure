@@ -40,6 +40,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
 
             detectState = false;
+            latch = 0;
+            pinDetectState = 0;
         }
 
         public uint ReadDoubleWord(long offset)
@@ -126,11 +128,24 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             ;
 
             Registers.Latch.Define(this)
-                .WithTag("LATCH", 0, 32)
+                .WithValueField(0, 32, name: "LATCH",
+                    valueProviderCallback: _ => latch,
+                    writeCallback: (_, val) =>
+                    {
+                        // Preserve bits whose PINx.DETECT signal remains high after the clear.
+                        latch &= ~((uint)val & ~pinDetectState);
+                        if(detectMode.Value == DetectSignalMode.LDetect)
+                        {
+                            // Re-emit the edge because uncleared bits keep LDETECT asserted.
+                            detectState = false;
+                        }
+                        UpdateDetect();
+                    })
             ;
 
             Registers.DetectMode.Define(this)
-                .WithTaggedFlag("DETECTMODE", 0)
+                .WithEnumField<DoubleWordRegister, DetectSignalMode>(0, 1, out detectMode, name: "DETECTMODE",
+                    writeCallback: (_, __) => UpdateDetect())
                 .WithReservedBits(1, 31)
             ;
 
@@ -190,7 +205,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         private void UpdateDetect()
         {
-            var nextDetectState = Pins.Any(x => x.IsSensing);
+            var sensing = Pins.Where(x => x.IsSensing).Aggregate(0u, (bits, pin) => bits | (1u << pin.Id));
+            latch |= sensing & ~pinDetectState;
+            pinDetectState = sensing;
+
+            var nextDetectState = detectMode.Value == DetectSignalMode.LDetect ? latch != 0 : sensing != 0;
             if(nextDetectState != detectState)
             {
                 detectState = nextDetectState;
@@ -202,6 +221,9 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         }
 
         private bool detectState;
+        private uint latch;
+        private uint pinDetectState;
+        private IEnumRegisterField<DetectSignalMode> detectMode;
 
         private const int NumberOfPins = 32;
 
@@ -362,6 +384,12 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             OpenZeroHighDriveOne,
             StandardZeroOpenOne,
             HighDriveZeroOpenOne
+        }
+
+        public enum DetectSignalMode
+        {
+            Default = 0,
+            LDetect = 1
         }
 
         public enum PinDirection
