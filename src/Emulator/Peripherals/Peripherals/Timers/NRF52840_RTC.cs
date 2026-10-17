@@ -13,6 +13,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Miscellaneous;
+using Antmicro.Renode.Time;
 
 namespace Antmicro.Renode.Peripherals.Timers
 {
@@ -36,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             {
                 var j = i;
                 // counters are 24-bits
-                innerTimers[i] = new ComparingTimer(machine.ClockSource, InitialFrequency, this, $"compare{i}", eventEnabled: true, limit: 0xFFFFFF, compare: 0xFFFFFF);
+                innerTimers[i] = new ComparingTimer(machine.ClockSource, InitialFrequency, this, $"compare{i}", eventEnabled: true, limit: CounterPeriod, compare: CounterPeriod);
                 innerTimers[i].CompareReached += () =>
                 {
                     this.Log(LogLevel.Noisy, "IRQ #{0} triggered", j);
@@ -53,6 +54,17 @@ namespace Antmicro.Renode.Peripherals.Timers
             tickTimer.LimitReached += () =>
             {
                 tickEvent.Value = true;
+                UpdateInterrupts();
+            };
+
+            overflowTimer = new LimitTimer(machine.ClockSource, InitialFrequency, this, "overflow", CounterPeriod, Direction.Ascending, eventEnabled: true);
+            overflowTimer.LimitReached += () =>
+            {
+                overflowEvent.Value = true;
+                if(overflowEventEnabled.Value)
+                {
+                    EventTriggered?.Invoke((uint)Register.Overflow);
+                }
                 UpdateInterrupts();
             };
 
@@ -77,6 +89,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 timer.Reset();
             }
             tickTimer.Reset();
+            overflowTimer.Reset();
             IRQ.Unset();
         }
 
@@ -94,6 +107,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     timer.Enabled = global.Value;
                 }
+                overflowTimer.Enabled = global.Value;
             }
 
             // due to optimization reasons we try to keep
@@ -140,13 +154,28 @@ namespace Antmicro.Renode.Peripherals.Timers
                                 timer.Value = 0;
                             }
                             tickTimer.Value = 0;
+                            overflowTimer.Value = 0;
+                        }
+                    })
+                    .WithReservedBits(1, 31)
+                },
+                {(long)Register.TriggerOverflow, new DoubleWordRegister(this)
+                    .WithFlag(0, FieldMode.Write, name: "TASKS_TRIGOVRFLW", writeCallback: (_, value) =>
+                    {
+                        if(value)
+                        {
+                            foreach(var timer in innerTimers)
+                            {
+                                timer.Value = TriggerOverflowValue;
+                            }
+                            overflowTimer.Value = TriggerOverflowValue;
                         }
                     })
                     .WithReservedBits(1, 31)
                 },
                 {(long)Register.InterruptEnableSet, new DoubleWordRegister(this)
                     .WithFlag(0, out tickInterruptEnabled, FieldMode.Set | FieldMode.Read, name: "TICK")
-                    .WithTaggedFlag("OVRFLW", 1)
+                    .WithFlag(1, out overflowInterruptEnabled, FieldMode.Set | FieldMode.Read, name: "OVRFLW")
                     .WithReservedBits(2, 14)
                     .WithFlags(16, numberOfEvents, out compareInterruptEnabled, FieldMode.Set | FieldMode.Read, name: "COMPARE")
                     .WithChangeCallback((_, __) =>
@@ -159,7 +188,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithFlag(0, name: "TICK",
                           writeCallback: (_, value) => tickInterruptEnabled.Value &= !value,
                           valueProviderCallback: _ => tickInterruptEnabled.Value)
-                    .WithTaggedFlag("OVRFLW", 1)
+                    .WithFlag(1, name: "OVRFLW",
+                          writeCallback: (_, value) => overflowInterruptEnabled.Value &= !value,
+                          valueProviderCallback: _ => overflowInterruptEnabled.Value)
                     .WithReservedBits(2, 14)
                     .WithFlags(16, numberOfEvents, name: "COMPARE",
                           writeCallback: (j, _, value) => compareInterruptEnabled[j].Value &= !value,
@@ -187,27 +218,39 @@ namespace Antmicro.Renode.Peripherals.Timers
                             timer.Divider = value + 1;
                         }
                         tickTimer.Divider = value + 1;
+                        overflowTimer.Divider = value + 1;
                     })
                     .WithReservedBits(12, 20)
                 },
                 {(long)Register.EventEnable, new DoubleWordRegister(this)
+                   .WithFlag(1, out overflowEventEnabled, name: "OVRFLW")
                    .WithFlags(16, numberOfEvents, out compareEventEnabled, name: "COMPARE")
                 },
                 {(long)Register.EventSet, new DoubleWordRegister(this)
                    .WithTaggedFlag("TICK", 0)
-                   .WithTaggedFlag("OVRFLW", 1)
+                   .WithFlag(1, name: "OVRFLW",
+                         writeCallback: (_, val) => overflowEventEnabled.Value |= val,
+                         valueProviderCallback: _ => overflowEventEnabled.Value)
                    .WithReservedBits(2, 14)
                    .WithFlags(16, numberOfEvents,
                          writeCallback: (i, _, val) => compareEventEnabled[i].Value |= val,
                          valueProviderCallback: (i, _) => compareEventEnabled[i].Value)
                 },
                 {(long)Register.EventClear, new DoubleWordRegister(this)
+                   .WithFlag(1, name: "OVRFLW",
+                         writeCallback: (_, val) => overflowEventEnabled.Value &= !val,
+                         valueProviderCallback: _ => overflowEventEnabled.Value)
                    .WithFlags(16, numberOfEvents,
                          writeCallback: (i, _, val) => compareEventEnabled[i].Value &= !val,
                          valueProviderCallback: (i, _) => compareEventEnabled[i].Value)
                 },
                 {(long)Register.Tick, new DoubleWordRegister(this)
                    .WithFlag(0, out tickEvent, name: "EVENTS_TICK")
+                   .WithReservedBits(1, 31)
+                   .WithWriteCallback((_, __) => UpdateInterrupts())
+                },
+                {(long)Register.Overflow, new DoubleWordRegister(this)
+                   .WithFlag(0, out overflowEvent, name: "EVENTS_OVRFLW")
                    .WithReservedBits(1, 31)
                    .WithWriteCallback((_, __) => UpdateInterrupts())
                 }
@@ -225,7 +268,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     },
                     valueProviderCallback: _ =>
                     {
-                        return (uint)innerTimers[j].Compare;
+                        return (uint)innerTimers[j].Compare & CounterMask;
                     })
                     .WithReservedBits(24, 8)
                 );
@@ -258,6 +301,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
 
             flag |= tickEvent.Value && tickInterruptEnabled.Value;
+            flag |= overflowEvent.Value && overflowInterruptEnabled.Value;
             IRQ.Set(flag);
         }
 
@@ -265,16 +309,23 @@ namespace Antmicro.Renode.Peripherals.Timers
         private IValueRegisterField prescaler;
         private IFlagRegisterField tickInterruptEnabled;
         private IFlagRegisterField tickEvent;
+        private IFlagRegisterField overflowInterruptEnabled;
+        private IFlagRegisterField overflowEventEnabled;
+        private IFlagRegisterField overflowEvent;
 
         private DoubleWordRegisterCollection registers;
         private IFlagRegisterField[] compareEventEnabled;
         private readonly IFlagRegisterField[] compareReached;
 
         private readonly LimitTimer tickTimer;
+        private readonly LimitTimer overflowTimer;
         private readonly ComparingTimer[] innerTimers;
 
         private readonly int numberOfEvents;
         private const ulong InitialFrequency = 32768;
+        private const ulong CounterPeriod = 1UL << 24;
+        private const uint CounterMask = 0xFFFFFF;
+        private const ulong TriggerOverflowValue = 0xFFFFF0;
         private const int MaxNumberOfEvents = 4;
 
         private enum Register : long
