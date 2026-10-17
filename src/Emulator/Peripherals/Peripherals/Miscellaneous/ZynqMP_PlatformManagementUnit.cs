@@ -49,6 +49,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             powerManagement.Reset();
         }
 
+        // Real hardware exposes its boot source (JTAG/QSPI/SD/eMMC/...) via
+        // CRL_APB_BOOT_MODE_USER, which ATF/U-Boot read through a PM_MMIO_READ
+        // IPI call to the PMU rather than a plain sysbus load - this model had
+        // no PM_MMIO_READ handling at all (fell through to HandleDefault's
+        // bare success-with-zero-payload response, silently reporting
+        // JTAG_MODE=0 regardless of what the platform actually wants).
+        // BootMode is settable per-machine from a .resc/.repl
+        // (e.g. `platformManagementUnit BootMode 0x6` for EMMC_MODE) so each
+        // board description can match its own real strap value; see
+        // BOOT_MODES_MASK in U-Boot's arch/arm/mach-zynqmp/include/mach/hardware.h
+        // for the encoding (JTAG_MODE=0x0, QSPI_MODE_24BIT=0x1, ..., EMMC_MODE=0x6, ...).
+        public uint BootMode { get; set; }
+
         public void RegisterIPI(ZynqMP_IPI ipi)
         {
             this.ipi = ipi;
@@ -286,6 +299,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             {
                 receivedUnhandledMessageTypes.Clear();
                 resetStatus.Clear();
+                bootModeUserReadCount = 0;
             }
 
             public IpiMessage HandleMessage(IpiMessage message)
@@ -309,6 +323,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                     return HandlePllGetParameter(message);
                 case PmApi.SystemShutdown:
                     return HandleSystemShutdown(message);
+                case PmApi.MmioRead:
+                    return HandleMmioRead(message);
                 default:
                     // Warn only about the first message of each type because there are lots of messages for certain types (ClockGetState, PinCtrl*, etc.).
                     if(!receivedUnhandledMessageTypes.Contains(apiId))
@@ -486,6 +502,32 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 return response;
             }
 
+            private IpiMessage HandleMmioRead(IpiMessage message)
+            {
+                var address = message.Payload[0];
+                var response = IpiMessage.CreateSuccessResponse();
+                if(address == CrlApbBootModeUser)
+                {
+                    // BL31's own bl31_zynqmp_setup.c checks this exact register itself,
+                    // BEFORE ever handing off to BL33/U-Boot: seeing anything other than
+                    // JTAG_MODE there makes it require a real FSBL/BOOT.BIN XBL handoff
+                    // blob (xbl_handover) that Renode has no way to provide, and it
+                    // panics when that's missing. U-Boot's own later bootmode check
+                    // (via the same register/IPI call) needs the real strap value
+                    // (BootMode) to pick "emmcboot" instead of silently no-op'ing.
+                    // Since Renode skips the FSBL/BOOT.BIN chain entirely (direct
+                    // ELF load), BL31's check always happens first and exactly once;
+                    // answering it with JTAG_MODE and only switching to the real
+                    // BootMode value for subsequent reads satisfies both.
+                    response.Payload[0] = bootModeUserReadCount++ == 0 ? JtagMode : pmu.BootMode;
+                }
+                else
+                {
+                    response.Payload[0] = 0;
+                }
+                return response;
+            }
+
             private IpiMessage HandlePllGetParameter(IpiMessage message)
             {
                 var pllNode = (Node)message.Payload[0];
@@ -602,6 +644,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             private readonly List<IPeripheral> peripheralsPreservedOnAPUResets = new List<IPeripheral>();
             private readonly List<IPeripheral> peripheralsPreservedOnPSResets = new List<IPeripheral>();
             private readonly List<IPeripheral> peripheralsPreservedOnSystemResets = new List<IPeripheral>();
+            private int bootModeUserReadCount;
+
+            // CRL_APB_BOOT_MODE_USER (see zynqmp_def.h/hardware.h in ATF/U-Boot).
+            private const uint CrlApbBootModeUser = 0xFF5E0200;
+            // BOOT_MODES_MASK encoding (U-Boot's arch/arm/mach-zynqmp/include/mach/hardware.h).
+            private const uint JtagMode = 0x0;
 
             private const uint ApiVersion = 0x10001;
             private const uint ClockDividerMask = 0x3f;
