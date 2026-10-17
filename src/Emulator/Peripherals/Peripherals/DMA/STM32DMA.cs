@@ -198,7 +198,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(4, out transferCompleteIrqEnable, name: "TCIE")
                     .WithTaggedFlag("PFCTRL", 5)
                     .WithEnumField(6, 2, out direction, name: "DIR")
-                    .WithTaggedFlag("CIRC", 8)
+                    .WithFlag(8, out circularMode, name: "CIRC")
                     .WithFlag(9, out peripheralIncrementOffset, name: "PINC")
                     .WithFlag(10, out memoryIncrementOffset, name: "MINC")
                     .WithEnumField(11, 2, out peripheralDataSize, name: "PSIZE")
@@ -258,6 +258,10 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                     if(nrOfData.Value == 0)
                     {
+                        if(!circularMode.Value)
+                        {
+                            isEnabled.Value = false;
+                        }
                         parent.transferCompleteIrqStatus[id].Value = true;
                         dataOffset = 0;
                         parent.UpdateInterrupts();
@@ -367,6 +371,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private IFlagRegisterField isEnabled;
             private IFlagRegisterField transferCompleteIrqEnable;
             private IEnumRegisterField<Direction> direction;
+            private IFlagRegisterField circularMode;
             private IFlagRegisterField peripheralIncrementOffset;
             private IFlagRegisterField memoryIncrementOffset;
             private IEnumRegisterField<DataSize> peripheralDataSize;
