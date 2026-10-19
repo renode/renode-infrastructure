@@ -96,15 +96,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.InstallCustomInstruction("iiiiiiisssssiiiii100iiiii0101011", opc => WriteRegisterToMemory(opc, AccessWidth.DoubleWord, StoreExtractorDoubleWord, 19), "SWGP");
 
             // Custom2
-            cpu.InstallCustomInstruction("i0iiiiicccccsssss111iiii01011011", opc => BranchOnBitTest(opc, expectSet: false), "BBC");
-            cpu.InstallCustomInstruction("i1iiiiicccccsssss111iiii01011011", opc => BranchOnBitTest(opc, expectSet: true), "BBS");
+            cpu.InstallCustomInstruction(IsRV64 ? "i0iiiiicccccsssss111iiiic1011011" : "i0iiiiicccccsssss111iiii01011011", opc => BranchOnBitTest(opc, expectSet: false), "BBC");
+            cpu.InstallCustomInstruction(IsRV64 ? "i1iiiiicccccsssss111iiiic1011011" : "i1iiiiicccccsssss111iiii01011011", opc => BranchOnBitTest(opc, expectSet: true), "BBS");
             cpu.InstallCustomInstruction("iciiiiicccccsssss101iiiic1011011", opc => BranchOnConstantComparison(opc, expectEqual: true), "BEQC");
             cpu.InstallCustomInstruction("iciiiiicccccsssss110iiiic1011011", opc => BranchOnConstantComparison(opc, expectEqual: false), "BNEC");
-            cpu.InstallCustomInstruction("0mmmmm0lllllsssss011ddddd1011011", opc => HandleBitFieldOperation(opc, signExtend: true), "BFOS");
-            cpu.InstallCustomInstruction("0mmmmm0lllllsssss010ddddd1011011", opc => HandleBitFieldOperation(opc, signExtend: false), "BFOZ");
+            cpu.InstallCustomInstruction(IsRV64 ? "mmmmmmllllllsssss011ddddd1011011" : "0mmmmm0lllllsssss011ddddd1011011", opc => HandleBitFieldOperation(opc, signExtend: true), "BFOS");
+            cpu.InstallCustomInstruction(IsRV64 ? "mmmmmmllllllsssss010ddddd1011011" : "0mmmmm0lllllsssss010ddddd1011011", opc => HandleBitFieldOperation(opc, signExtend: false), "BFOZ");
             cpu.InstallCustomInstruction("0000101ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 1), "LEA.H");
             cpu.InstallCustomInstruction("0000110ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 2), "LEA.W");
             cpu.InstallCustomInstruction("0000111ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 3), "LEA.D");
+            if(IsRV64)
+            {
+                cpu.InstallCustomInstruction("0001000ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 0, zeroExtend: true), "LEA.B.ZE");
+                cpu.InstallCustomInstruction("0001001ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 1, zeroExtend: true), "LEA.H.ZE");
+                cpu.InstallCustomInstruction("0001010ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 2, zeroExtend: true), "LEA.W.ZE");
+                cpu.InstallCustomInstruction("0001011ssssssssss000ddddd1011011", opc => HandleLoadEffectiveAddress(opc, 3, zeroExtend: true), "LEA.D.ZE");
+            }
             cpu.InstallCustomInstruction("0010000ssssssssss000ddddd1011011", HandleFFB, "FFB");
             cpu.InstallCustomInstruction("0010001ssssssssss000ddddd1011011", HandleFFZMISM, "FFZMISM");
             cpu.InstallCustomInstruction("0010010ssssssssss000ddddd1011011", opc => HandleMismatch(opc, findLast: false), "FFMISM");
@@ -175,6 +182,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        // TODO: GP MMU/PMP/alignment handling, RV64-specific GP instructions.
         private void ReadFromMemoryToRegister(ulong opcode, AccessWidth width, Func<ulong, ulong> extractor, int immediateBits = 18, bool extendSign = true)
         {
             var rd = BaseRiscV.GetRd(opcode);
@@ -249,7 +257,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void BranchOnBitTest(ulong opcode, bool expectSet)
         {
             var rs1Value = cpu.GetRegister(BaseRiscV.GetRs1(opcode)).RawValue;
-            var bitIndex = (byte)BitHelper.GetValue(opcode, 20, 5);
+            var bitIndex = (byte)(BitHelper.GetValue(opcode, 20, 5) | (IsRV64 ? BitHelper.GetValue(opcode, 7, 1) << 5 : 0));
             if(BitHelper.IsBitSet(rs1Value, bitIndex) == expectSet)
             {
                 BranchRelative(opcode);
@@ -284,8 +292,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             var rd = BaseRiscV.GetRd(opcode);
             var source = cpu.GetRegister(BaseRiscV.GetRs1(opcode)).RawValue;
-            var msb = (int)BitHelper.GetValue(opcode, 26, 5);
-            var lsb = (int)BitHelper.GetValue(opcode, 20, 5);
+            var msb = (int)BitHelper.GetValue(opcode, 26, IsRV64 ? 6 : 5);
+            var lsb = (int)BitHelper.GetValue(opcode, 20, IsRV64 ? 6 : 5);
 
             ulong result;
             if(msb == 0)
@@ -311,11 +319,15 @@ namespace Antmicro.Renode.Peripherals.CPU
             WriteRegister(rd, result);
         }
 
-        private void HandleLoadEffectiveAddress(ulong opcode, int shift)
+        private void HandleLoadEffectiveAddress(ulong opcode, int shift, bool zeroExtend = false)
         {
             var rd = BaseRiscV.GetRd(opcode);
             var rs1 = cpu.GetRegister(BaseRiscV.GetRs1(opcode)).RawValue;
             var rs2 = cpu.GetRegister(BaseRiscV.GetRs2(opcode)).RawValue;
+            if(zeroExtend)
+            {
+                rs2 = (uint)rs2;
+            }
 
             WriteRegister(rd, rs1 + (rs2 << shift));
         }
