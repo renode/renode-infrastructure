@@ -378,22 +378,6 @@ namespace Antmicro.Renode.Peripherals.PCI
             public EcamAddress EcamAddress;
         }
 
-        private struct EcamAddress
-        {
-            public EcamAddress(uint address) : this()
-            {
-                Bus = (int)BitHelper.GetValue(address, 20, 8);
-                Device = (int)BitHelper.GetValue(address, 15, 5);
-                Function = (int)BitHelper.GetValue(address, 12, 3);
-                Offset = BitHelper.GetValue(address, 0, 12);
-            }
-
-            public int Bus;
-            public int Device;
-            public int Function;
-            public uint Offset;
-        }
-
         private enum AddressTranslationRegisters
         {
             SourceAddressLowAndParameters = 0x0,
