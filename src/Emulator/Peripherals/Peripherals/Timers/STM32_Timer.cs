@@ -837,6 +837,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     cpu.SyncTime();
                 }
+                var wasArmed = Timer.Enabled;
                 // Only a strictly interior 0 < CCRx < ARR compare can be modelled by the
                 // one-shot count timer; both wrap boundaries are delivered by the parent's
                 // update handler instead.
@@ -845,6 +846,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                 if(Timer.Enabled)
                 {
                     Timer.Value = parent.Value;
+                }
+                else if(wasArmed && IsInterruptOrOutputEnabled
+                    && parent.Value == Timer.Limit && Timer.Limit < parent.autoReloadValue)
+                {
+                    // The counter is at CCRx, but this channel keeps its own sub-tick phase, can
+                    // trail the counter by up to a tick and has not matched yet: deliver it now.
+                    CompareMatch();
                 }
                 Timer.Direction = parent.Direction;
             }
