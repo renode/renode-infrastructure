@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -36,7 +36,7 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
 
         public override object GetObjectValue()
         {
-            return Value;
+            return value;
         }
 
         public override string ToString()
@@ -44,6 +44,12 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
             return string.Format("[StringToken: Value={0}]", Value);
         }
 
-        public string Value { get; protected set; }
+        public string Value
+        {
+            get => (string)GetObjectValue();
+            protected set => this.value = value;
+        }
+
+        private string value;
     }
 }
