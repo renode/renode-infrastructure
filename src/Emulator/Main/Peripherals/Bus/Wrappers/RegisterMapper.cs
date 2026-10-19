@@ -40,7 +40,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
             }
         }
 
-        public void RegisterEnumMapping(Type @enum)
+        public void RegisterEnumMapping(Type @enum, int offset = 0)
         {
             if(!@enum.IsEnum)
             {
@@ -49,7 +49,7 @@ namespace Antmicro.Renode.Peripherals.Bus.Wrappers
 
             foreach(var value in @enum.GetEnumValues())
             {
-                var l = Convert.ToInt64(value);
+                var l = Convert.ToInt64(value) + offset;
                 var s = Enum.GetName(@enum, value);
 
                 if(!map.ContainsKey(l))

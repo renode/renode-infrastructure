@@ -14,7 +14,7 @@ namespace Antmicro.Renode.Peripherals.PCI.Capabilities
     {
         public Capability(IPCIePeripheral parent, byte id, uint size)
         {
-            Registers = new List<DoubleWordRegister>();
+            Registers = new();
             Id = id;
             Size = size;
             this.parent = parent;
@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Peripherals.PCI.Capabilities
 
         public byte NextCapability { get; set; }
 
-        public List<DoubleWordRegister> Registers { get; }
+        public Dictionary<long, DoubleWordRegister> Registers { get; }
 
         protected readonly IPCIePeripheral parent;
     }

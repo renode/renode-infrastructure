@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -26,15 +26,15 @@ namespace Antmicro.Renode.Peripherals.PCI
             return value;
         }
 
-        public virtual void Reset()
-        {
-            registers.Reset();
-        }
-
         public virtual void ConfigurationWriteDoubleWord(long offset, uint value)
         {
             this.Log(LogLevel.Noisy, "Accessing Configuration space, writing to {0} (0x{1:X}), value {2:X}.", (Registers)offset, offset, value);
             registers.Write(offset, value);
+        }
+
+        public virtual void Reset()
+        {
+            registers.Reset();
         }
 
         public uint MemoryReadDoubleWord(uint bar, long offset)
@@ -67,6 +67,11 @@ namespace Antmicro.Renode.Peripherals.PCI
             WriteDoubleWordToBar(bar, offset, value);
         }
 
+        public PCIeCapability GetPCIeCapability(int nth = 0)
+        {
+            return capabilities.Values.OfType<PCIeCapability>().Skip(nth).First();
+        }
+
         public ushort DeviceId { get; set; }
 
         public ushort VendorId { get; set; }
@@ -76,6 +81,8 @@ namespace Antmicro.Renode.Peripherals.PCI
         public uint ClassCode { get; set; }
 
         public HeaderType HeaderType { get; }
+
+        public const byte PCIeCapabilitiesOffset = 0x70;
 
         protected PCIeBasePeripheral(HeaderType headerType)
         {
@@ -131,10 +138,11 @@ namespace Antmicro.Renode.Peripherals.PCI
                 },
                 {(long)Registers.Capabilities, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => capabilities.FirstOrDefault().Key)
+                    .WithReservedBits(8, 24)
                 },
             };
             registers = new DoubleWordRegisterCollection(this, registerMap);
-            AddCapability(0x80, new PCIeCapability(this));
+            AddCapability(PCIeCapabilitiesOffset, new PCIeCapability(this));
         }
 
         protected virtual void WriteDoubleWordToBar(uint bar, long offset, uint value)
@@ -166,26 +174,25 @@ namespace Antmicro.Renode.Peripherals.PCI
                     .WithWriteCallback((_, value) => parent.RegisterBar(new Range(baseAddressRegisters[i].BaseAddress, baseAddressRegisters[i].RequestedSize), this, i));
         }
 
-        protected void AddCapability(byte offset, Capability capability)
+        protected void AddCapability(byte initialOffset, Capability capability)
         {
-            if(offset < CapabilitiesOffset)
+            if(initialOffset < CapabilitiesOffset)
             {
-                throw new ConstructionException($"Capability offset (0x{offset:X}) is below the minimal address (0x{CapabilitiesOffset:X})");
+                throw new ConstructionException($"Capability offset (0x{initialOffset:X}) is below the minimal address (0x{CapabilitiesOffset:X})");
             }
-            if(capabilities.ContainsKey(offset))
+            if(capabilities.ContainsKey(initialOffset))
             {
-                throw new ConstructionException($"Capability already registered at 0x{offset}");
+                throw new ConstructionException($"Capability already registered at 0x{initialOffset}");
             }
             if(capabilities.Any())
             {
                 var lastCapability = capabilities.Last();
-                lastCapability.Value.NextCapability = offset;
+                lastCapability.Value.NextCapability = initialOffset;
             }
-            capabilities.Add(offset, capability);
-            foreach(var register in capability.Registers)
+            capabilities.Add(initialOffset, capability);
+            foreach(var (address, register) in capability.Registers)
             {
-                registers.AddRegister(offset, register);
-                offset += 4;
+                registers.AddRegister(address + initialOffset, register);
             }
         }
 
@@ -199,7 +206,7 @@ namespace Antmicro.Renode.Peripherals.PCI
         }
 
         private readonly BaseAddressRegister[] baseAddressRegisters;
-        private readonly Dictionary<byte, Capability> capabilities = new Dictionary<byte, Capability>();
+        private readonly SortedDictionary<byte, Capability> capabilities = new ();
 
         private const byte CapabilitiesOffset = 0x40;
 
