@@ -185,39 +185,14 @@ namespace Antmicro.Renode.UserInterface
                 var pathToken = token as PathToken;
                 if(pathToken != null)
                 {
-                    string fileName;
-                    if(PathHelpers.TryGetFilenameFromAvailablePaths(pathToken.Value, MonitorContext.MonitorPath.PathElements, out fileName))
+                    if(PathHelpers.TryGetFilenameFromAvailablePaths(pathToken.Path, MonitorContext.MonitorPath.PathElements, out var fileName))
                     {
                         resultToken = new PathToken("@" + fileName);
                     }
                     else
                     {
-                        Uri uri;
-                        string filename;
-                        string fname = pathToken.Value;
-                        try
-                        {
-                            uri = new Uri(fname);
-                            if(uri.IsFile)
-                            {
-                                throw new UriFormatException();
-                            }
-                            var success = Emulation.FileFetcher.TryFetchFromUri(uri, out filename);
-                            if(!success)
-                            {
-                                writer.WriteError("Failed to download {0}, see log for details.".FormatWith(fname));
-                                filename = null;
-                                if(breakOnException)
-                                {
-                                    return false;
-                                }
-                            }
-                            resultToken = new PathToken("@" + filename);
-                        }
-                        catch(UriFormatException)
-                        {
-                            //Not a proper uri, so probably a nonexisting local path
-                        }
+                        pathToken.Update(EmulationManager.Instance.CurrentEmulation.FileFetcher);
+                        resultToken = pathToken;
                     }
                 }
 
@@ -511,6 +486,7 @@ namespace Antmicro.Renode.UserInterface
             {
                 if(monitorContextOverride.Value != null)
                 {
+                    monitorContextOverride.Value.Dispose();
                     monitorContextOverride.Value = value;
                 }
                 else
@@ -519,7 +495,7 @@ namespace Antmicro.Renode.UserInterface
                     {
                         MachineChanged?.Invoke(value.MachineName);
                     }
-
+                    monitorContext.Dispose();
                     monitorContext = value;
                 }
             }
