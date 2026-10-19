@@ -13,14 +13,9 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public class Andes_AndeStarV5Extension
+    public partial class Andes_AndeStarV5Extension
     {
-        public static void RegisterIn(IMachine machine, RiscV32 cpu)
-        {
-            new Andes_AndeStarV5Extension().RegisterInternal(machine, cpu);
-        }
-
-        private void RegisterInternal(IMachine machine, RiscV32 cpu)
+        public Andes_AndeStarV5Extension(IMachine machine, BaseRiscV cpu)
         {
             this.bus = machine.SystemBus;
             this.cpu = cpu;
@@ -71,11 +66,21 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress13, "PMAADDR13");
             cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress14, "PMAADDR14");
             cpu.RegisterCSRStub((ushort)CustomCSR.PMAAddress15, "PMAADDR15");
+        }
+
+        public void RegisterPerformanceInstructions()
+        {
+            if(performanceRegistered)
+            {
+                return;
+            }
+            performanceRegistered = true;
 
             // Custom0
             cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiiii00ddddd0001011", opc => ReadFromMemoryToRegister(opc, AccessWidth.Byte, LoadExtractorByte), "LBGP");
             cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiiii10ddddd0001011", opc => ReadFromMemoryToRegister(opc, AccessWidth.Byte, LoadExtractorByte, extendSign: false), "LBUGP");
             cpu.InstallCustomInstruction("iiiiiiisssssiiiiii11iiiii0001011", opc => WriteRegisterToMemory(opc, AccessWidth.Byte, StoreExtractorByte), "SBGP");
+
             cpu.InstallCustomInstruction("iiiiiiiiiiiiiiiiii01ddddd0001011", HandleADDIGP, "ADDIGP");
 
             // Custom1
@@ -86,11 +91,55 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.InstallCustomInstruction("iiiiiiisssssiiiii100iiiii0101011", opc => WriteRegisterToMemory(opc, AccessWidth.DoubleWord, StoreExtractorDoubleWord, 19), "SWGP");
         }
 
+        private static ulong LoadExtractorByte(ulong opcode)
+        {
+            return LoadExtractorWord(opcode) | BitHelper.GetValue(opcode, 14, 1);
+        }
+
+        private static ulong StoreExtractorByte(ulong opcode)
+        {
+            return StoreExtractorWord(opcode) | BitHelper.GetValue(opcode, 14, 1);
+        }
+
+        private static ulong LoadExtractorWord(ulong opcode)
+        {
+            return BitHelper.GetValue(opcode, 21, 10) << 1 |
+                BitHelper.GetValue(opcode, 20, 1) << 11 |
+                BitHelper.GetValue(opcode, 17, 3) << 12 |
+                BitHelper.GetValue(opcode, 15, 2) << 15 |
+                BitHelper.GetValue(opcode, 31, 1) << 17;
+        }
+
+        private static ulong StoreExtractorWord(ulong opcode)
+        {
+            return StoreExtractorDoubleWord(opcode) | (BitHelper.GetValue(opcode, 8, 1) << 1);
+        }
+
+        private static ulong StoreExtractorDoubleWord(ulong opcode)
+        {
+            return BitHelper.GetValue(opcode, 9, 3) << 2 |
+                BitHelper.GetValue(opcode, 25, 6) << 5 |
+                BitHelper.GetValue(opcode, 7, 1) << 11 |
+                BitHelper.GetValue(opcode, 17, 3) << 12 |
+                BitHelper.GetValue(opcode, 15, 2) << 15 |
+                BitHelper.GetValue(opcode, 31, 1) << 17;
+        }
+
+        private static ulong LoadExtractorDoubleWord(ulong opcode)
+        {
+            return BitHelper.GetValue(opcode, 22, 9) << 2 |
+                BitHelper.GetValue(opcode, 20, 1) << 11 |
+                BitHelper.GetValue(opcode, 17, 3) << 12 |
+                BitHelper.GetValue(opcode, 15, 2) << 15 |
+                BitHelper.GetValue(opcode, 21, 1) << 17 |
+                BitHelper.GetValue(opcode, 31, 1) << 18;
+        }
+
         private void ReadFromMemoryToRegister(ulong opcode, AccessWidth width, Func<ulong, ulong> extractor, int immediateBits = 18, bool extendSign = true)
         {
             var rd = BaseRiscV.GetRd(opcode);
-            var imm = GetImmediate(opcode, extractor, immediateBits);
-            var memoryOffset = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
+            var imm = BitHelper.SignExtend(extractor(opcode), immediateBits);
+            var memoryOffset = MaskAddress(imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue);
 
             int valueBits;
             ulong data;
@@ -126,8 +175,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void WriteRegisterToMemory(ulong opcode, AccessWidth width, Func<ulong, ulong> extractor, int immediateBits = 18)
         {
             var rs2 = BaseRiscV.GetRs2(opcode);
-            var imm = GetImmediate(opcode, extractor, immediateBits);
-            var memoryOffset = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
+            var imm = BitHelper.SignExtend(extractor(opcode), immediateBits);
+            var memoryOffset = MaskAddress(imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue);
 
             var regValue = cpu.GetRegister(rs2).RawValue;
 
@@ -151,73 +200,22 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void HandleADDIGP(ulong opcode)
         {
             var rd = BaseRiscV.GetRd(opcode);
-            var imm = GetImmediate(opcode, LoadExtractorByte, 18);
+            var imm = BitHelper.SignExtend(LoadExtractorByte(opcode), 18);
             var value = imm + cpu.GetRegister(MemoryOperationsImpliedRegister).RawValue;
 
             cpu.SetRegister(rd, value);
         }
 
-        private ulong LoadExtractorByte(ulong opcode)
-        {
-            return LoadExtractorWord(opcode) | BitHelper.GetValue(opcode, 14, 1);
-        }
+        private ulong MaskAddress(ulong address) => IsRV64 ? address : (uint)address;
 
-        private ulong StoreExtractorByte(ulong opcode)
-        {
-            return StoreExtractorWord(opcode) | BitHelper.GetValue(opcode, 14, 1);
-        }
-
-        private ulong LoadExtractorWord(ulong opcode)
-        {
-            return BitHelper.GetValue(opcode, 21, 10) << 1 |
-                BitHelper.GetValue(opcode, 20, 1) << 11 |
-                BitHelper.GetValue(opcode, 17, 3) << 12 |
-                BitHelper.GetValue(opcode, 15, 2) << 15 |
-                BitHelper.GetValue(opcode, 31, 1) << 17;
-        }
-
-        private ulong StoreExtractorWord(ulong opcode)
-        {
-            return StoreExtractorDoubleWord(opcode) | (BitHelper.GetValue(opcode, 8, 1) << 1);
-        }
-
-        private ulong StoreExtractorDoubleWord(ulong opcode)
-        {
-            return BitHelper.GetValue(opcode, 9, 3) << 2 |
-                BitHelper.GetValue(opcode, 25, 6) << 5 |
-                BitHelper.GetValue(opcode, 7, 1) << 11 |
-                BitHelper.GetValue(opcode, 17, 3) << 12 |
-                BitHelper.GetValue(opcode, 15, 2) << 15 |
-                BitHelper.GetValue(opcode, 31, 1) << 17;
-        }
-
-        private ulong LoadExtractorDoubleWord(ulong opcode)
-        {
-            return BitHelper.GetValue(opcode, 22, 9) << 2 |
-                BitHelper.GetValue(opcode, 20, 1) << 11 |
-                BitHelper.GetValue(opcode, 17, 3) << 12 |
-                BitHelper.GetValue(opcode, 15, 2) << 15 |
-                BitHelper.GetValue(opcode, 21, 1) << 17 |
-                BitHelper.GetValue(opcode, 31, 1) << 18;
-        }
-
-        private ulong GetImmediate(ulong opcode, Func<ulong, ulong> valueExtractor, int bitCount, bool extendSign = true)
-        {
-            var value = valueExtractor(opcode);
-            if(extendSign)
-            {
-                return BitHelper.SignExtend(value, bitCount);
-            }
-            else
-            {
-                return value;
-            }
-        }
+        private bool IsRV64 => cpu.Bitness == CpuBitness.Bits64;
 
         private ulong machineMiscellaneousControlValue;
 
-        private RiscV32 cpu;
-        private IBusController bus;
+        private bool performanceRegistered;
+
+        private readonly BaseRiscV cpu;
+        private readonly IBusController bus;
 
         private const int AllowUnalignedAccessesBit = 6;
         private const int MemoryOperationsImpliedRegister = 3;
@@ -231,8 +229,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private enum CustomCSR : ulong
         {
-            MachineCacheControl = 0x7ca,
             MachineExtendedStatus = 0x7c4,
+            MachineCacheControl = 0x7ca,
             MachineMiscellaneousControl = 0x7d0,
             InstructionCacheAndMemoryConfiguration = 0xfc0,
             DataCacheAndMemoryConfiguration = 0xfc1,

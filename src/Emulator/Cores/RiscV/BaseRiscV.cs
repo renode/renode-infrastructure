@@ -1584,7 +1584,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                     break;
                 case "SMEPMP": standardExtensions.Add(StandardInstructionSetExtensions.SMEPMP); break;
                 case "SSCOFPMF": standardExtensions.Add(StandardInstructionSetExtensions.SSCOFPMF); break;
-                case "XANDES": Andes_AndeStarV5Extension.RegisterIn(machine, (RiscV32)parent); break;
+                case "XANDES":
+                case "XANDESPERF": GetAndesExtension().RegisterPerformanceInstructions(); break;
                 case "ZBA": standardExtensions.Add(StandardInstructionSetExtensions.BA); break;
                 case "ZBB": standardExtensions.Add(StandardInstructionSetExtensions.BB); break;
                 case "ZBC": standardExtensions.Add(StandardInstructionSetExtensions.BC); break;
@@ -1661,6 +1662,13 @@ namespace Antmicro.Renode.Peripherals.CPU
                     throw new ConstructionException($"RV32E can only have M, A and C standard extensions");
                 }
             }
+
+            private Andes_AndeStarV5Extension GetAndesExtension()
+            {
+                return andesExtension ??= new Andes_AndeStarV5Extension(machine, parent);
+            }
+
+            private Andes_AndeStarV5Extension andesExtension;
 
             private readonly ISet<StandardInstructionSetExtensions> standardExtensions;
             private readonly ISet<InstructionSet> instructionSets;
