@@ -353,16 +353,17 @@ public partial class ARM_EthosU55
     private (long Start, long Length) GetFeatureMapBufferRange(FeatureMap map, long width, long height, long depth)
     {
         // Strides are signed (U55 Table 4-113). Include both ends of each axis,
-        // including full bricks preceding a partial final NHCWB16 brick.
+        // including the padding channels of the final NHCWB16 brick.
         var rowOffset = GetTensorAddress(map, height - 1, 0, 0);
         var columnOffset = GetTensorAddress(map, 0, width - 1, 0);
-        var channelOffset = GetTensorAddress(map, 0, 0, depth - 1);
+        var paddedDepth = IsNHCWB16Layout(map) ? (depth + 15) / 16 * 16 : depth;
+        var channelOffset = GetTensorAddress(map, 0, 0, paddedDepth - 1);
         var minimumChannelOffset = Math.Min(0, channelOffset);
         var maximumChannelOffset = Math.Max(0, channelOffset);
-        if(IsNHCWB16Layout(map) && depth > 16)
+        if(IsNHCWB16Layout(map) && paddedDepth > 16)
         {
-            var lastFullChannel = ((depth - 1) / 16) * 16 - 1;
-            foreach(var channel in new[] { 15L, lastFullChannel - 15, lastFullChannel, lastFullChannel + 1 })
+            var lastBrickStart = paddedDepth - 16;
+            foreach(var channel in new[] { 15L, lastBrickStart, lastBrickStart + 15 })
             {
                 channelOffset = GetTensorAddress(map, 0, 0, channel);
                 minimumChannelOffset = Math.Min(minimumChannelOffset, channelOffset);
@@ -520,7 +521,9 @@ public partial class ARM_EthosU55
                 for(var channel = 0L; channel < tiles.Depth; channel += channelsPerWrite)
                 {
                     var offset = GetFeatureMapByteOffset(tiles, row, column, channel, out var tile);
-                    var count = Math.Min(channelsPerWrite, tiles.Depth - channel) * elementBytes;
+                    // NHCWB16 writes whole 16-channel bricks, including the
+                    // padding channels of a partial final brick.
+                    var count = channelsPerWrite * elementBytes;
                     sysbus.WriteBytes(tiles.Buffers[tile], tiles.Addresses[tile] + (ulong)offset, (int)offset, count);
                 }
             }
