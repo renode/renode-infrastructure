@@ -870,13 +870,8 @@ public partial class ARM_EthosU55
                     switch(mode)
                     {
                     case ElementwiseMode.Mul:
+                        // TOSA truncates the product to 32 bits, but the U55 saturates.
                         result = operandA * operandB;
-                        if(inputByteLength == 4 && activation.InputByteLength == 4 && commandRegisters.OfmScaleShift == 0)
-                        {
-                            // TOSA MUL with shift=0 retains the low 32 bits of the product.
-                            result = unchecked((int)result);
-                            rescaleMode = RescaleMode.None;
-                        }
                         break;
                     case ElementwiseMode.Add:
                         result = is32Bit ? operandA + operandB : ScaleAddSubOperands(operandA, operandB, 1);
