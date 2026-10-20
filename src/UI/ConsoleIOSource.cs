@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -117,10 +117,20 @@ namespace Antmicro.Renode.UI
         private void RedirectedHandling()
         {
             // For cases in which input has been redirected from a file
-            while(true)
+            int readByte;
+            do
             {
-                ByteRead?.Invoke(Console.Read());
+                try
+                {
+                    readByte = Console.Read();
+                }
+                catch
+                {
+                    readByte = -1;
+                }
+                ByteRead?.Invoke(readByte);
             }
+            while(readByte != -1);
         }
 
         private void StandardHandling()
