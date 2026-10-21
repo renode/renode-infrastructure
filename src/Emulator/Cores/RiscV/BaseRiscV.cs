@@ -1601,6 +1601,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     instructionSets.Add(InstructionSet.V);
                     GetAndesExtension().RegisterPackedInt4Loads();
                     break;
+                case "XANDESVPACKFPH":
+                    instructionSets.Add(InstructionSet.V);
+                    GetAndesExtension().RegisterPackedFloat16();
+                    break;
                 case "ZBA": standardExtensions.Add(StandardInstructionSetExtensions.BA); break;
                 case "ZBB": standardExtensions.Add(StandardInstructionSetExtensions.BB); break;
                 case "ZBC": standardExtensions.Add(StandardInstructionSetExtensions.BC); break;
