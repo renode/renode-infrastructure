@@ -193,6 +193,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 value |= 1ul << 44; // VPFH
             }
+            if(dotProductRegistered)
+            {
+                value |= 1ul << 43; // VDOT
+            }
             if(!IsRV64 && (value >> 32) != 0)
             {
                 value |= 1ul << 31; // MSC_EXT
@@ -439,6 +443,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool bfloat16Registered;
         private bool packedInt4Registered;
         private bool packedFloat16Registered;
+        private bool dotProductRegistered;
 
         private bool performanceRegistered;
 
