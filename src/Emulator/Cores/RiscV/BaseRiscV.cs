@@ -1613,6 +1613,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                     instructionSets.Add(InstructionSet.V);
                     GetAndesExtension().RegisterSmallInteger();
                     break;
+                case "XANDESVQMAC":
+                    instructionSets.Add(InstructionSet.V);
+                    GetAndesExtension().RegisterQuadMac();
+                    break;
                 case "ZBA": standardExtensions.Add(StandardInstructionSetExtensions.BA); break;
                 case "ZBB": standardExtensions.Add(StandardInstructionSetExtensions.BB); break;
                 case "ZBC": standardExtensions.Add(StandardInstructionSetExtensions.BC); break;

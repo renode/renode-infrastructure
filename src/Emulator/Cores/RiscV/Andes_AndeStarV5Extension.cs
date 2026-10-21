@@ -42,7 +42,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.RegisterCSR((ushort)CustomCSR.VectorProcessorConfiguration, ReadVectorConfiguration,
                 value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc7) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.ClusterCacheControlBaseAddress, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfcf) is not supported"); });
-            cpu.RegisterCSR((ushort)CustomCSR.Architecture, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfca) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.Architecture, () => ReadArchitectureConfiguration(), value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfca) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.ArchitectureRV32, () => ReadArchitectureConfiguration(upperWord: true), value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfcb) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.CurrentStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc8) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.MstatusStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc9) is not supported"); });
 
@@ -201,6 +202,14 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 value |= 1ul << 40; // VSIH
             }
+            if(quadMacRegistered)
+            {
+                value |= 1ul << 52; // RVARCH
+                if(!IsRV64)
+                {
+                    value |= 1ul << 60; // RVARCH2
+                }
+            }
             if(!IsRV64 && (value >> 32) != 0)
             {
                 value |= 1ul << 31; // MSC_EXT
@@ -220,6 +229,12 @@ namespace Antmicro.Renode.Peripherals.CPU
                     || packedFloat16Registered
                     || smallIntegerRegistered) ? 1ul : 0;
             return maximumFloatWidth << 16;
+        }
+
+        private ulong ReadArchitectureConfiguration(bool upperWord = false)
+        {
+            var value = quadMacRegistered ? 1ul << 35 : 0;
+            return ReadConfiguration(value, upperWord);
         }
 
         private ulong ReadConfiguration(ulong value, bool upperWord)
@@ -450,6 +465,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool packedFloat16Registered;
         private bool dotProductRegistered;
         private bool smallIntegerRegistered;
+        private bool quadMacRegistered;
 
         private bool performanceRegistered;
 
@@ -481,6 +497,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             VectorProcessorConfiguration = 0xfc7,
             ClusterCacheControlBaseAddress = 0xfcf,
             Architecture = 0xfca,
+            ArchitectureRV32 = 0xfcb,
             CurrentStateSaveForCrashDebugging = 0xfc8,
             MstatusStateSaveForCrashDebugging = 0xfc9,
             UserITB = 0x800,
