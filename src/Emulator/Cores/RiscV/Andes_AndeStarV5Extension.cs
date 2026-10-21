@@ -37,9 +37,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.RegisterCSR((ushort)CustomCSR.InstructionCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc0) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.DataCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc1) is not supported"); });
             // Bit 16 is checked by Zephyr driver to see if CCTL is supported
-            cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfiguration, () => 0x0 | (1 << 16), value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc2) is not supported"); });
-            cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfigurationRV32, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc3) is not supported"); });
-            cpu.RegisterCSR((ushort)CustomCSR.VectorProcessorConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc7) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfiguration, () => ReadMiscellaneousConfiguration(), value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc2) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfigurationRV32, () => ReadMiscellaneousConfiguration(upperWord: true), value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc3) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.VectorProcessorConfiguration, ReadVectorConfiguration,
+                value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc7) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.ClusterCacheControlBaseAddress, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfcf) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.Architecture, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfca) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.CurrentStateSaveForCrashDebugging, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc8) is not supported"); });
@@ -171,6 +172,45 @@ namespace Antmicro.Renode.Peripherals.CPU
                 BitHelper.GetValue(opcode, 15, 2) << 15 |
                 BitHelper.GetValue(opcode, 21, 1) << 17 |
                 BitHelper.GetValue(opcode, 31, 1) << 18;
+        }
+
+        private ulong ReadMiscellaneousConfiguration(bool upperWord = false)
+        {
+            var value = 1ul << 16; // CCTL
+            if(cpu.SupportsInstructionSet(BaseRiscV.InstructionSet.V))
+            {
+                value |= 1ul << 36; // VECCFG
+            }
+            if(bfloat16Registered)
+            {
+                value |= 1ul << 32; // BF16CVT
+            }
+            if(!IsRV64 && (value >> 32) != 0)
+            {
+                value |= 1ul << 31; // MSC_EXT
+            }
+            return ReadConfiguration(value, upperWord);
+        }
+
+        private ulong ReadVectorConfiguration()
+        {
+            if(!cpu.SupportsInstructionSet(BaseRiscV.InstructionSet.V) || !cpu.SupportsInstructionSet(BaseRiscV.InstructionSet.F))
+            {
+                return 0;
+            }
+            var width = cpu.VectorElementMaxWidth;
+            var maximumFloatWidth = width >= 64 && cpu.SupportsInstructionSet(BaseRiscV.InstructionSet.D) ? 3ul
+                : width >= 32 ? 2ul : width >= 16 && (cpu.SupportsExtensionSet(BaseRiscV.StandardInstructionSetExtensions.ZVFH)) ? 1ul : 0;
+            return maximumFloatWidth << 16;
+        }
+
+        private ulong ReadConfiguration(ulong value, bool upperWord)
+        {
+            if(IsRV64)
+            {
+                return upperWord ? 0 : value;
+            }
+            return upperWord ? value >> 32 : (uint)value;
         }
 
         private void WriteRegister(int register, ulong value)
@@ -386,6 +426,8 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool IsBigEndian => cpu.Endianness == Endianess.BigEndian;
 
         private ulong machineMiscellaneousControlValue;
+
+        private bool bfloat16Registered;
 
         private bool performanceRegistered;
 

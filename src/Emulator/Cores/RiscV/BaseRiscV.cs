@@ -324,6 +324,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public uint VectorElementMaxWidth
         {
+            get => vectorElementMaxWidth;
             set
             {
                 if(!SupportsInstructionSet(InstructionSet.V))
@@ -334,6 +335,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     throw new RecoverableException($"Attempted to set Vector Element Max Width (ELEN), but {value} is not a valid value");
                 }
+                vectorElementMaxWidth = value;
             }
         }
 
@@ -1156,6 +1158,7 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private CoreLocalInterruptController clic;
 
+        private uint vectorElementMaxWidth = 64;
         private ExternalPMPBase externalPMP;
 
         private bool pcWrittenFlag;
@@ -1586,6 +1589,14 @@ namespace Antmicro.Renode.Peripherals.CPU
                 case "SSCOFPMF": standardExtensions.Add(StandardInstructionSetExtensions.SSCOFPMF); break;
                 case "XANDES":
                 case "XANDESPERF": GetAndesExtension().RegisterPerformanceInstructions(); break;
+                case "XANDESBFHCVT":
+                    instructionSets.Add(InstructionSet.F);
+                    GetAndesExtension().RegisterBFloat16();
+                    break;
+                case "XANDESVBFHCVT":
+                    instructionSets.Add(InstructionSet.V);
+                    GetAndesExtension().RegisterBFloat16();
+                    break;
                 case "ZBA": standardExtensions.Add(StandardInstructionSetExtensions.BA); break;
                 case "ZBB": standardExtensions.Add(StandardInstructionSetExtensions.BB); break;
                 case "ZBC": standardExtensions.Add(StandardInstructionSetExtensions.BC); break;
