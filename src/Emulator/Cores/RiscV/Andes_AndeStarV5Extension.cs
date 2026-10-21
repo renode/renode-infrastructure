@@ -197,6 +197,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 value |= 1ul << 43; // VDOT
             }
+            if(smallIntegerRegistered)
+            {
+                value |= 1ul << 40; // VSIH
+            }
             if(!IsRV64 && (value >> 32) != 0)
             {
                 value |= 1ul << 31; // MSC_EXT
@@ -213,7 +217,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             var width = cpu.VectorElementMaxWidth;
             var maximumFloatWidth = width >= 64 && cpu.SupportsInstructionSet(BaseRiscV.InstructionSet.D) ? 3ul
                 : width >= 32 ? 2ul : width >= 16 && (cpu.SupportsExtensionSet(BaseRiscV.StandardInstructionSetExtensions.ZVFH)
-                    || packedFloat16Registered) ? 1ul : 0;
+                    || packedFloat16Registered
+                    || smallIntegerRegistered) ? 1ul : 0;
             return maximumFloatWidth << 16;
         }
 
@@ -444,6 +449,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private bool packedInt4Registered;
         private bool packedFloat16Registered;
         private bool dotProductRegistered;
+        private bool smallIntegerRegistered;
 
         private bool performanceRegistered;
 
