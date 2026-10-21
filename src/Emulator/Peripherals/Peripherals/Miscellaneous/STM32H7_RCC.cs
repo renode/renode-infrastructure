@@ -54,6 +54,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
             }
 
             RegisteredPeripherals.Add(registrationPoint.Name, peripheral);
+            PropagateClock();
         }
 
         public void Unregister(IPeripheral peripheral)
