@@ -1,5 +1,6 @@
 //
 // Copyright (c) 2010-2023 Antmicro
+// Copyright (c) 2026 ML!PA Consulting GmbH
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -66,8 +67,11 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void DefineRegisters()
         {
+            // DATA is acutally a 32 bit register to support e.g. 5 to 9 bit
+            // chars. This models only the reset configuration of 8 bit chars
+            // and just ignores writes to bits 8:31 of DATA for now.
             Registers.DataRegister0.Define(this)
-                .WithValueField(0, 8, name: "DATA",
+                .WithValueField(0, 8, name: "DATA[0:7]",
                     valueProviderCallback: _ =>
                     {
                         if(TryGetCharacter(out var b))
@@ -85,6 +89,18 @@ namespace Antmicro.Renode.Peripherals.UART
                         UpdateInterrupt();
                     })
             ;
+
+            Registers.DataRegister1.Define(this)
+                .WithValueField(0, 8, name: "DATA[8:15]",
+                    valueProviderCallback: _ => 0);
+
+            Registers.DataRegister2.Define(this)
+                .WithValueField(0, 8, name: "DATA[16:23]",
+                    valueProviderCallback: _ => 0);
+
+            Registers.DataRegister3.Define(this)
+                .WithValueField(0, 8, name: "DATA[24:31]",
+                    valueProviderCallback: _ => 0);
 
             Registers.InterruptFlag.Define(this)
                 .WithFlag(0, FieldMode.Read, name: "DRE - Data Register Empty", valueProviderCallback: _ => Count == 0)
@@ -120,6 +136,22 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithReservedBits(6, 1)
                 .WithTaggedFlag("ERROR Interrupt Enable", 7)
                 .WithWriteCallback((_, __) => UpdateInterrupt())
+            ;
+
+            Registers.ControlA0.Define(this)
+                .WithValueField(0, 1, name: "SWRST",
+                    valueProviderCallback: _ => 0,
+                    writeCallback: (_, value) =>
+                    {
+                        if (value != 0)
+                        {
+                            transmitComplete.Value = false;
+                            receiveComplete.Value = false;
+                            receiveStart.Value = false;
+                            UpdateInterrupt();
+                        }
+                    })
+                .WithValueField(1, 7, name: "CTRLA0")
             ;
         }
 
