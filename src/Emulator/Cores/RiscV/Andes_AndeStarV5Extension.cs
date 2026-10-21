@@ -185,6 +185,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 value |= 1ul << 32; // BF16CVT
             }
+            if(packedInt4Registered)
+            {
+                value |= 1ul << 34; // VL4
+            }
             if(!IsRV64 && (value >> 32) != 0)
             {
                 value |= 1ul << 31; // MSC_EXT
@@ -428,6 +432,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private ulong machineMiscellaneousControlValue;
 
         private bool bfloat16Registered;
+        private bool packedInt4Registered;
 
         private bool performanceRegistered;
 
