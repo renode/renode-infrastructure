@@ -454,6 +454,146 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        [Register]
+        public RegisterValue LBEG
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.LBEG);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.LBEG, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue LEND
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.LEND);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.LEND, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue LCOUNT
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.LCOUNT);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.LCOUNT, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue BR
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.BR);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.BR, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ACCLO
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.ACCLO);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.ACCLO, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue ACCHI
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.ACCHI);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.ACCHI, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue CPENABLE
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.CPENABLE);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.CPENABLE, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue THREADPTR
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.THREADPTR);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.THREADPTR, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue FCR
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.FCR);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.FCR, value);
+            }
+        }
+
+        [Register]
+        public RegisterValue FSR
+        {
+            get
+            {
+                return GetRegisterValue32((int)XtensaRegisters.FSR);
+            }
+
+            set
+            {
+                SetRegisterValue32((int)XtensaRegisters.FSR, value);
+            }
+        }
+
         public RegistersGroup AR { get; private set; }
 
         public RegistersGroup CONFIGID { get; private set; }
@@ -477,6 +617,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         public RegistersGroup MISC { get; private set; }
 
         public RegistersGroup A { get; private set; }
+
+        public RegistersGroup M { get; private set; }
+
+        public RegistersGroup F { get; private set; }
 
 #pragma warning disable SA1508
         protected override void InitializeRegisters()
@@ -515,6 +659,38 @@ namespace Antmicro.Renode.Peripherals.CPU
                 { 29, XtensaRegisters.AR29 },
                 { 30, XtensaRegisters.AR30 },
                 { 31, XtensaRegisters.AR31 },
+                { 32, XtensaRegisters.AR32 },
+                { 33, XtensaRegisters.AR33 },
+                { 34, XtensaRegisters.AR34 },
+                { 35, XtensaRegisters.AR35 },
+                { 36, XtensaRegisters.AR36 },
+                { 37, XtensaRegisters.AR37 },
+                { 38, XtensaRegisters.AR38 },
+                { 39, XtensaRegisters.AR39 },
+                { 40, XtensaRegisters.AR40 },
+                { 41, XtensaRegisters.AR41 },
+                { 42, XtensaRegisters.AR42 },
+                { 43, XtensaRegisters.AR43 },
+                { 44, XtensaRegisters.AR44 },
+                { 45, XtensaRegisters.AR45 },
+                { 46, XtensaRegisters.AR46 },
+                { 47, XtensaRegisters.AR47 },
+                { 48, XtensaRegisters.AR48 },
+                { 49, XtensaRegisters.AR49 },
+                { 50, XtensaRegisters.AR50 },
+                { 51, XtensaRegisters.AR51 },
+                { 52, XtensaRegisters.AR52 },
+                { 53, XtensaRegisters.AR53 },
+                { 54, XtensaRegisters.AR54 },
+                { 55, XtensaRegisters.AR55 },
+                { 56, XtensaRegisters.AR56 },
+                { 57, XtensaRegisters.AR57 },
+                { 58, XtensaRegisters.AR58 },
+                { 59, XtensaRegisters.AR59 },
+                { 60, XtensaRegisters.AR60 },
+                { 61, XtensaRegisters.AR61 },
+                { 62, XtensaRegisters.AR62 },
+                { 63, XtensaRegisters.AR63 },
             };
             AR = new RegistersGroup(
                 indexValueMapAR.Keys,
@@ -659,6 +835,42 @@ namespace Antmicro.Renode.Peripherals.CPU
                 i => GetRegister((int)indexValueMapA[i]),
                 (i, v) => SetRegister((int)indexValueMapA[i], v));
 
+            var indexValueMapM = new Dictionary<int, XtensaRegisters>
+            {
+                { 0, XtensaRegisters.M0 },
+                { 1, XtensaRegisters.M1 },
+                { 2, XtensaRegisters.M2 },
+                { 3, XtensaRegisters.M3 },
+            };
+            M = new RegistersGroup(
+                indexValueMapM.Keys,
+                i => GetRegister((int)indexValueMapM[i]),
+                (i, v) => SetRegister((int)indexValueMapM[i], v));
+
+            var indexValueMapF = new Dictionary<int, XtensaRegisters>
+            {
+                { 0, XtensaRegisters.F0 },
+                { 1, XtensaRegisters.F1 },
+                { 2, XtensaRegisters.F2 },
+                { 3, XtensaRegisters.F3 },
+                { 4, XtensaRegisters.F4 },
+                { 5, XtensaRegisters.F5 },
+                { 6, XtensaRegisters.F6 },
+                { 7, XtensaRegisters.F7 },
+                { 8, XtensaRegisters.F8 },
+                { 9, XtensaRegisters.F9 },
+                { 10, XtensaRegisters.F10 },
+                { 11, XtensaRegisters.F11 },
+                { 12, XtensaRegisters.F12 },
+                { 13, XtensaRegisters.F13 },
+                { 14, XtensaRegisters.F14 },
+                { 15, XtensaRegisters.F15 },
+            };
+            F = new RegistersGroup(
+                indexValueMapF.Keys,
+                i => GetRegister((int)indexValueMapF[i]),
+                (i, v) => SetRegister((int)indexValueMapF[i], v));
+
         }
 #pragma warning restore SA1508
 
@@ -784,6 +996,68 @@ namespace Antmicro.Renode.Peripherals.CPU
             { XtensaRegisters.PSEXCM,  new CPURegister(108, 32, isGeneral: false, isReadonly: false, aliases: new [] { "PSEXCM" }) },
             { XtensaRegisters.PSCALLINC,  new CPURegister(109, 32, isGeneral: false, isReadonly: false, aliases: new [] { "PSCALLINC" }) },
             { XtensaRegisters.PSOWB,  new CPURegister(110, 32, isGeneral: false, isReadonly: false, aliases: new [] { "PSOWB" }) },
+            { XtensaRegisters.AR32,  new CPURegister(111, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR32" }) },
+            { XtensaRegisters.AR33,  new CPURegister(112, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR33" }) },
+            { XtensaRegisters.AR34,  new CPURegister(113, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR34" }) },
+            { XtensaRegisters.AR35,  new CPURegister(114, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR35" }) },
+            { XtensaRegisters.AR36,  new CPURegister(115, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR36" }) },
+            { XtensaRegisters.AR37,  new CPURegister(116, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR37" }) },
+            { XtensaRegisters.AR38,  new CPURegister(117, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR38" }) },
+            { XtensaRegisters.AR39,  new CPURegister(118, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR39" }) },
+            { XtensaRegisters.AR40,  new CPURegister(119, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR40" }) },
+            { XtensaRegisters.AR41,  new CPURegister(120, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR41" }) },
+            { XtensaRegisters.AR42,  new CPURegister(121, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR42" }) },
+            { XtensaRegisters.AR43,  new CPURegister(122, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR43" }) },
+            { XtensaRegisters.AR44,  new CPURegister(123, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR44" }) },
+            { XtensaRegisters.AR45,  new CPURegister(124, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR45" }) },
+            { XtensaRegisters.AR46,  new CPURegister(125, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR46" }) },
+            { XtensaRegisters.AR47,  new CPURegister(126, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR47" }) },
+            { XtensaRegisters.AR48,  new CPURegister(127, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR48" }) },
+            { XtensaRegisters.AR49,  new CPURegister(128, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR49" }) },
+            { XtensaRegisters.AR50,  new CPURegister(129, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR50" }) },
+            { XtensaRegisters.AR51,  new CPURegister(130, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR51" }) },
+            { XtensaRegisters.AR52,  new CPURegister(131, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR52" }) },
+            { XtensaRegisters.AR53,  new CPURegister(132, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR53" }) },
+            { XtensaRegisters.AR54,  new CPURegister(133, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR54" }) },
+            { XtensaRegisters.AR55,  new CPURegister(134, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR55" }) },
+            { XtensaRegisters.AR56,  new CPURegister(135, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR56" }) },
+            { XtensaRegisters.AR57,  new CPURegister(136, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR57" }) },
+            { XtensaRegisters.AR58,  new CPURegister(137, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR58" }) },
+            { XtensaRegisters.AR59,  new CPURegister(138, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR59" }) },
+            { XtensaRegisters.AR60,  new CPURegister(139, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR60" }) },
+            { XtensaRegisters.AR61,  new CPURegister(140, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR61" }) },
+            { XtensaRegisters.AR62,  new CPURegister(141, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR62" }) },
+            { XtensaRegisters.AR63,  new CPURegister(142, 32, isGeneral: false, isReadonly: false, aliases: new [] { "AR63" }) },
+            { XtensaRegisters.LBEG,  new CPURegister(143, 32, isGeneral: false, isReadonly: false, aliases: new [] { "LBEG" }) },
+            { XtensaRegisters.LEND,  new CPURegister(144, 32, isGeneral: false, isReadonly: false, aliases: new [] { "LEND" }) },
+            { XtensaRegisters.LCOUNT,  new CPURegister(145, 32, isGeneral: false, isReadonly: false, aliases: new [] { "LCOUNT" }) },
+            { XtensaRegisters.BR,  new CPURegister(146, 32, isGeneral: false, isReadonly: false, aliases: new [] { "BR" }) },
+            { XtensaRegisters.ACCLO,  new CPURegister(147, 32, isGeneral: false, isReadonly: false, aliases: new [] { "ACCLO" }) },
+            { XtensaRegisters.ACCHI,  new CPURegister(148, 32, isGeneral: false, isReadonly: false, aliases: new [] { "ACCHI" }) },
+            { XtensaRegisters.M0,  new CPURegister(149, 32, isGeneral: false, isReadonly: false, aliases: new [] { "M0" }) },
+            { XtensaRegisters.M1,  new CPURegister(150, 32, isGeneral: false, isReadonly: false, aliases: new [] { "M1" }) },
+            { XtensaRegisters.M2,  new CPURegister(151, 32, isGeneral: false, isReadonly: false, aliases: new [] { "M2" }) },
+            { XtensaRegisters.M3,  new CPURegister(152, 32, isGeneral: false, isReadonly: false, aliases: new [] { "M3" }) },
+            { XtensaRegisters.CPENABLE,  new CPURegister(153, 32, isGeneral: false, isReadonly: false, aliases: new [] { "CPENABLE" }) },
+            { XtensaRegisters.THREADPTR,  new CPURegister(154, 32, isGeneral: false, isReadonly: false, aliases: new [] { "THREADPTR" }) },
+            { XtensaRegisters.FCR,  new CPURegister(155, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FCR" }) },
+            { XtensaRegisters.FSR,  new CPURegister(156, 32, isGeneral: false, isReadonly: false, aliases: new [] { "FSR" }) },
+            { XtensaRegisters.F0,  new CPURegister(157, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F0" }) },
+            { XtensaRegisters.F1,  new CPURegister(158, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F1" }) },
+            { XtensaRegisters.F2,  new CPURegister(159, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F2" }) },
+            { XtensaRegisters.F3,  new CPURegister(160, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F3" }) },
+            { XtensaRegisters.F4,  new CPURegister(161, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F4" }) },
+            { XtensaRegisters.F5,  new CPURegister(162, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F5" }) },
+            { XtensaRegisters.F6,  new CPURegister(163, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F6" }) },
+            { XtensaRegisters.F7,  new CPURegister(164, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F7" }) },
+            { XtensaRegisters.F8,  new CPURegister(165, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F8" }) },
+            { XtensaRegisters.F9,  new CPURegister(166, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F9" }) },
+            { XtensaRegisters.F10,  new CPURegister(167, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F10" }) },
+            { XtensaRegisters.F11,  new CPURegister(168, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F11" }) },
+            { XtensaRegisters.F12,  new CPURegister(169, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F12" }) },
+            { XtensaRegisters.F13,  new CPURegister(170, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F13" }) },
+            { XtensaRegisters.F14,  new CPURegister(171, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F14" }) },
+            { XtensaRegisters.F15,  new CPURegister(172, 32, isGeneral: false, isReadonly: false, aliases: new [] { "F15" }) },
         };
     }
 
@@ -818,6 +1092,16 @@ namespace Antmicro.Renode.Peripherals.CPU
         PSEXCM = 108,
         PSCALLINC = 109,
         PSOWB = 110,
+        LBEG = 143,
+        LEND = 144,
+        LCOUNT = 145,
+        BR = 146,
+        ACCLO = 147,
+        ACCHI = 148,
+        CPENABLE = 153,
+        THREADPTR = 154,
+        FCR = 155,
+        FSR = 156,
         AR0 = 1,
         AR1 = 2,
         AR2 = 3,
@@ -850,6 +1134,38 @@ namespace Antmicro.Renode.Peripherals.CPU
         AR29 = 30,
         AR30 = 31,
         AR31 = 32,
+        AR32 = 111,
+        AR33 = 112,
+        AR34 = 113,
+        AR35 = 114,
+        AR36 = 115,
+        AR37 = 116,
+        AR38 = 117,
+        AR39 = 118,
+        AR40 = 119,
+        AR41 = 120,
+        AR42 = 121,
+        AR43 = 122,
+        AR44 = 123,
+        AR45 = 124,
+        AR46 = 125,
+        AR47 = 126,
+        AR48 = 127,
+        AR49 = 128,
+        AR50 = 129,
+        AR51 = 130,
+        AR52 = 131,
+        AR53 = 132,
+        AR54 = 133,
+        AR55 = 134,
+        AR56 = 135,
+        AR57 = 136,
+        AR58 = 137,
+        AR59 = 138,
+        AR60 = 139,
+        AR61 = 140,
+        AR62 = 141,
+        AR63 = 142,
         CONFIGID0 = 36,
         CONFIGID1 = 37,
         SCOMPARE1 = 39,
@@ -900,5 +1216,25 @@ namespace Antmicro.Renode.Peripherals.CPU
         A13 = 102,
         A14 = 103,
         A15 = 104,
+        M0 = 149,
+        M1 = 150,
+        M2 = 151,
+        M3 = 152,
+        F0 = 157,
+        F1 = 158,
+        F2 = 159,
+        F3 = 160,
+        F4 = 161,
+        F5 = 162,
+        F6 = 163,
+        F7 = 164,
+        F8 = 165,
+        F9 = 166,
+        F10 = 167,
+        F11 = 168,
+        F12 = 169,
+        F13 = 170,
+        F14 = 171,
+        F15 = 172,
     }
 }
