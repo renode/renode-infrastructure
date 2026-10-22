@@ -262,7 +262,51 @@ namespace Antmicro.Renode.Peripherals.CPU
         //gdb does not contain arm-m and armv7 as independent architecteures so we need to pass "arm" in every case.
         public override string GDBArchitecture { get { return "arm"; } }
 
-        public override List<GDBFeatureDescriptor> GDBFeatures { get { return new List<GDBFeatureDescriptor>(); } }
+        public override List<GDBFeatureDescriptor> GDBFeatures
+        {
+            get
+            {
+                var hasVfp = GetArmFeature(ArmFeatures.ARM_FEATURE_VFP);
+                var hasVfp3 = GetArmFeature(ArmFeatures.ARM_FEATURE_VFP3);
+                var hasNeon = GetArmFeature(ArmFeatures.ARM_FEATURE_NEON);
+
+                var features = new List<GDBFeatureDescriptor>();
+
+                var coreFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.core");
+                for(var index = 0u; index <= 12; index++)
+                {
+                    coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ArmRegisters.R0 + index, 32, $"r{index}", "uint32", "general"));
+                }
+                coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ArmRegisters.SP, 32, "sp", "data_ptr", "general"));
+                coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ArmRegisters.LR, 32, "lr", "code_ptr", "general"));
+                coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ArmRegisters.PC, 32, "pc", "code_ptr", "general"));
+                coreFeature.Registers.Add(new GDBRegisterDescriptor((uint)ArmRegisters.CPSR, 32, "cpsr", "uint32", "general"));
+                features.Add(coreFeature);
+
+                if(hasVfp)
+                {
+                    var vfpFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.vfp");
+                    var endIndex = hasVfp3 ? 31 : 15;
+                    for(var index = 0u; index <= endIndex; index++)
+                    {
+                        vfpFeature.Registers.Add(new GDBRegisterDescriptor((uint)ArmRegisters.D0 + index, 32, $"d{index}", "ieee_double", "float"));
+                    }
+
+                    vfpFeature.Registers.Add(new GDBRegisterDescriptor((uint)ArmRegisters.FPSCR, 32, "fpscr", "int", "float"));
+                    features.Add(vfpFeature);
+                }
+
+                if(hasNeon)
+                {
+                    // From G.5.4.7 NEON architecture feature:
+                    // The ‘org.gnu.gdb.arm.neon’ feature is optional. It does not need to contain registers; it instructs GDB to display the VFP double-precision
+                    // registers as vectors and to synthesize the quad-precision registers from pairs of double-precision registers.
+                    features.Add(new GDBFeatureDescriptor("org.gnu.gdb.arm.neon"));
+                }
+
+                return features;
+            }
+        }
 
         public bool ImplementsPMSA => MemorySystemArchitecture == MemorySystemArchitectureType.Physical_PMSA;
 
