@@ -1361,6 +1361,168 @@ public partial class ARM_EthosU55
         return WriteFeatureMap(outputBuffer);
     }
 
+    private bool ExecuteConv()
+    {
+        var kernelHeight = commandRegisters.KernelHeightM1 + 1;
+        var kernelWidth = commandRegisters.KernelWidthM1 + 1;
+
+        var outputHeight = commandRegisters.OfmHeightM1 + 1;
+        var outputWidth = commandRegisters.OfmWidthM1 + 1;
+        var outputDepth = commandRegisters.OfmDepthM1 + 1;
+
+        var (kernelStrideX, kernelStrideY) = GetKernelStrides();
+
+        var kernelYDilation = BitHelper.GetValue(commandRegisters.KernelStride, 4, 1) + 1;
+        var kernelXDilation = BitHelper.GetValue(commandRegisters.KernelStride, 3, 1) + 1;
+
+        // Vela is able to compile much larger padding than 127/128, while documentation for U55 mentions padding should be below 31/32 for convolution
+        // TODO: Test how these higher paddings act on hardware
+        var padY = BitHelper.GetValue(commandRegisters.IfmPadTop, 0, 7);
+        var padX = BitHelper.GetValue(commandRegisters.IfmPadLeft, 0, 7);
+        var padBottom = BitHelper.GetValue(commandRegisters.IfmPadBottom, 0, 8);
+        var padRight = BitHelper.GetValue(commandRegisters.IfmPadRight, 0, 8);
+
+        var padHeight = padY + padBottom;
+        var padWidth = padX + padRight;
+
+        var inputHeight = commandRegisters.OfmHeightM1 * kernelStrideY + kernelHeight - padHeight;
+        var inputWidth = commandRegisters.OfmWidthM1 * kernelStrideX + kernelWidth - padWidth;
+        var inputDepth = commandRegisters.IfmDepthM1 + 1;
+
+        var (ifmSigned, ifmByteLength) = DecodeActivationType(commandRegisters.IfmPrecision, isOfm: false);
+        var (ofmSigned, ofmByteLength) = DecodeActivationType(commandRegisters.OfmPrecision, isOfm: true);
+        if(ifmByteLength == 0 || ofmByteLength == 0 ||
+           (!ifmSigned && ifmByteLength != 1) ||
+           (!ofmSigned && ofmByteLength != 1) ||
+           ifmByteLength == 4
+        )
+        {
+            this.ErrorLog("Invalid precision: IFM=0x{0:X4}, OFM=0x{1:X4}",
+                commandRegisters.IfmPrecision, commandRegisters.OfmPrecision);
+            return false;
+        }
+
+        if(!HasValidLayout(FeatureMap.Ifm) ||
+           !HasValidLayout(FeatureMap.Ofm)
+        )
+        {
+            this.ErrorLog("Invalid feature map layout");
+            return false;
+        }
+
+        if(!(
+            // U55 only allows for kernel height to be above 64, but we take U85 constraint that allows either of the dimensions (but not both) to be above 64
+            ValidateParameter(kernelHeight <= 64 || kernelWidth <= 64, "Both kernel height and width higher than 64") &&
+            ValidateParameter(kernelHeight * kernelWidth <= 64 * 64, "Dilated kernel surface higher than 64*64") &&
+            ValidateParameter(inputHeight >= 1, "Input height lower than 1") &&
+            ValidateParameter(inputWidth >= 1, "Input width lower than 1")
+        ))
+        {
+            return false;
+        }
+
+        if(!TryPrepareActivation(out var activation))
+        {
+            this.ErrorLog("Activation {0} is invalid", commandRegisters.Activation);
+            return false;
+        }
+
+        if(!TryGetIfmUpscale(out var upscale))
+        {
+            return false;
+        }
+        if(upscale != IfmUpscaleMode.None && (kernelStrideX > 1 || kernelStrideY > 1))
+        {
+            return false;
+        }
+
+        var upscaleFactor = upscale == IfmUpscaleMode.None ? 1 : 2;
+
+        if(!TryReadFeatureMap(FeatureMap.Ifm, inputWidth / upscaleFactor, inputHeight / upscaleFactor, inputDepth, out var input) ||
+           !TryReadFeatureMap(FeatureMap.Ofm, outputWidth, outputHeight, outputDepth, out var outputBuffer))
+        {
+            return false;
+        }
+
+        if(!ValidateOperationRegisters(elementwise: false) || !TryGetAccumulatorBits(out var accumulatorBits))
+        {
+            return false;
+        }
+
+        if(!TryUpdateWeights())
+        {
+            return false;
+        }
+        if(weights.Length < kernelHeight / kernelYDilation * kernelWidth / kernelXDilation * inputDepth * outputDepth)
+        {
+            this.ErrorLog("Not enough weights; decoded: {0}; required: {1}", weights.Length, kernelHeight / kernelYDilation * kernelWidth / kernelXDilation * inputDepth * outputDepth);
+            return false;
+        }
+
+        if(((commandRegisters.OfmPrecision >> 8) & 1) == 0)
+        {
+            if(!TryUpdateBiasScaleShiftStream())
+            {
+                return false;
+            }
+        }
+
+        this.Log(LogLevel.Debug,
+            "Conv2D configuration: kernel={0}x{1}, stride={2}x{3}, dilation={4}x{5}, output={6}x{7}x{8}",
+            kernelWidth, kernelHeight,
+            kernelStrideX, kernelStrideY,
+            kernelXDilation, kernelYDilation,
+            outputWidth, outputHeight, outputDepth);
+
+        for(var oX = 0; oX < outputWidth; oX++)
+        {
+            for(var oY = 0; oY < outputHeight; oY++)
+            {
+                for(var oC = 0; oC < outputDepth; oC++)
+                {
+                    long accumulator = 0; // U85 TODO: Implement different ways of initializing accumulator
+                    for(var kY = 0; kY * kernelYDilation < kernelHeight; kY++)
+                    {
+                        for(var kX = 0; kX * kernelXDilation < kernelWidth; kX++)
+                        {
+                            var iY = -padY + oY * kernelStrideY + kY * kernelYDilation;
+                            var iX = -padX + oX * kernelStrideX + kX * kernelXDilation;
+
+                            if(iY < 0 || iY >= inputHeight || iX < 0 || iX >= inputWidth)
+                            {
+                                continue;
+                            }
+
+                            for(var iC = 0; iC < inputDepth; iC++)
+                            {
+                                // U85 TODO: Implement support for IFM2 as input
+                                var inputValueV = GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
+                                var inputValueW = weights[oC, kY, kX, iC];
+                                accumulator = Accumulate(accumulator, inputValueV * inputValueW, accumulatorBits);
+                            }
+                        }
+                    }
+
+                    if(!WriteAccumulator(outputBuffer, oY, oX, oC, accumulator, RescaleMode.Normal, activation))
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return WriteFeatureMap(outputBuffer);
+    }
+
+    private bool ValidateParameter(bool result, string errorMessage)
+    {
+        if(!result)
+        {
+            this.ErrorLog("Parameters set for CONV operation are invalid: {0}", errorMessage);
+        }
+        return result;
+    }
+
     private const long MaximumFeatureMapBytes = 0x1000000;
 
     // The activation lookup tables occupy the last 2KB page of the shared buffer,

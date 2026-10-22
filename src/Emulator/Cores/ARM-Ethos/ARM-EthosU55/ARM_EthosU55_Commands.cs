@@ -198,6 +198,12 @@ public partial class ARM_EthosU55
                     }
                     continue;
                 case CommandOpcode.OpConv:
+                    if(!ExecuteConv())
+                    {
+                        ParseError("CONV operation failed");
+                        return;
+                    }
+                    continue;
                 case CommandOpcode.OpDepthwise:
                     this.Log(LogLevel.Warning, $"NPU operation {command} is not implemented");
                     isRunning.Value = false;
