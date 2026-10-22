@@ -75,6 +75,11 @@ namespace Antmicro.Renode.UI
                 {
                     throw new ArgumentException(string.Format("UI thread is already running: {0}", UiThreadId));
                 }
+                if(ApplicationExitRequested)
+                {
+                    // Avoid starting the application if an exit request was received before startup
+                    return;
+                }
                 UiThreadId = Thread.CurrentThread.ManagedThreadId;
             }
 
@@ -138,6 +143,7 @@ namespace Antmicro.Renode.UI
         {
             lock(internalLock)
             {
+                ApplicationExitRequested = true;
                 if(UiThreadId == -1)
                 {
                     return;
@@ -145,5 +151,7 @@ namespace Antmicro.Renode.UI
                 ApplicationExtensions.InvokeInUIThread(Application.Exit);
             }
         }
+
+        private bool ApplicationExitRequested;
     }
 }
