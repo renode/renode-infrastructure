@@ -83,6 +83,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void RegisterAccessFlags(ulong startAddress, ulong size, bool isIoMemory = false)
         {
+            if(startAddress > bitness.GetMaxAddress() || checked(startAddress + size - 1) > bitness.GetMaxAddress())
+            {
+                var localName = machine.GetLocalName(this);
+                throw new RecoverableException($"{localName}: Could not register access flags for range at 0x{startAddress:X}, size 0x{size:X}: it does not fit into address space");
+            }
             TlibRegisterAccessFlagsForRange(startAddress, size, isIoMemory ? 1u : 0u);
         }
 

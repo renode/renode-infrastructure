@@ -1077,7 +1077,16 @@ namespace Antmicro.Renode.Core
                         var cpus = SystemBus.GetCPUs().OfType<ICPUWithMappedMemory>().ToArray();
                         foreach(var cpu in cpus)
                         {
-                            cpu.RegisterAccessFlags(range.StartAddress, range.Size, isIoMemory: true);
+                            try
+                            {
+                                cpu.RegisterAccessFlags(range.StartAddress, range.Size, isIoMemory: true);
+                            }
+                            catch(RecoverableException e)
+                            {
+                                // It's a registration in a global context so we are fine with
+                                // ignoring a range that is outside of an address space of a particular CPU.
+                                this.DebugLog(e.Message);
+                            }
                         }
                     }
                     else
