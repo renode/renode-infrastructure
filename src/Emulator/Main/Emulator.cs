@@ -45,6 +45,27 @@ namespace Antmicro.Renode
             actionsOnMainThread.CompleteAdding();
         }
 
+        public static void RegisterCleanUp(Action handler)
+        {
+            if(handler == null)
+            {
+                return;
+            }
+
+            lock(exitLock)
+            {
+                if(exitEvent.IsSet)
+                {
+                    // The cleanup callback is registered after
+                    // emulator exited, so execute its callback immediately
+                    handler();
+                    return;
+                }
+
+                CleanUp += handler;
+            }
+        }
+
         public static void Exit()
         {
             lock(exitLock)
@@ -53,12 +74,11 @@ namespace Antmicro.Renode
                 {
                     return;
                 }
-                var beforeExit = BeforeExit;
-                if(beforeExit != null)
+                if(CleanUp != null)
                 {
                     try
                     {
-                        beforeExit();
+                        CleanUp();
                     }
                     catch(RecoverableException)
                     {
@@ -150,8 +170,6 @@ namespace Antmicro.Renode
 
         private static readonly BlockingCollection<Action> actionsOnMainThread = new BlockingCollection<Action>();
 
-        public static event Action BeforeExit;
-
         public static event Action EnableGUI;
 
         public static event Action DisableGUI;
@@ -159,6 +177,9 @@ namespace Antmicro.Renode
         private static IUserInterfaceProvider userInterfaceProvider;
         private static readonly object exitLock;
         private static readonly ManualResetEventSlim exitEvent = new ManualResetEventSlim();
+
+        private static event Action CleanUp;
+
         private static bool disposed;
     }
 }

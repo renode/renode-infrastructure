@@ -122,12 +122,13 @@ namespace Antmicro.Renode.UI
                     Name = "Shell thread"
                 }.Start();
 
-                Emulator.BeforeExit += () =>
+                var cleanup = () =>
                 {
                     Emulator.DisposeAll();
                     ui?.Dispose();
                     ui = null;
                 };
+                Emulator.RegisterCleanUp(cleanup);
 
                 if(beforeRun != null)
                 {
