@@ -23,7 +23,8 @@ namespace Antmicro.Renode.Peripherals.Timers
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.WordToDoubleWord)]
     public class STM32_Timer : LimitTimer, IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRegisterablePeripheral<IGPIOReceiver, NumberRegistrationPoint<int>>, IRegisterablePeripheral<IGPIOReceiver, NullRegistrationPoint>, IGPIOReceiver
     {
-        public STM32_Timer(IMachine machine, ulong frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: initialLimit, direction: Direction.Ascending, enabled: false, eventEnabled: true, autoUpdate: false)
+        // The counter counts ARR + 1 values, 0 to ARR, so the clock entry's limit is ARR + 1 (see Counter).
+        public STM32_Timer(IMachine machine, ulong frequency, uint initialLimit) : base(machine.ClockSource, frequency, limit: (ulong)initialLimit + 1, direction: Direction.Ascending, enabled: false, eventEnabled: true, autoUpdate: false)
         {
             this.machine = machine;
             sysbus = machine.GetSystemBus(this);
@@ -59,7 +60,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     enableRequested = false;
                 }
 
-                Limit = autoReloadValue;
+                Limit = (ulong)autoReloadValue + 1;
                 this.Log(LogLevel.Noisy, "IRQ pending");
                 updateInterruptFlag = true;
 
@@ -158,7 +159,15 @@ namespace Antmicro.Renode.Peripherals.Timers
                         {
                             return;
                         }
-                        Direction = val ? Direction.Descending : Direction.Ascending;
+                        // The counter keeps its value (see Counter)
+                        var direction = val ? Direction.Descending : Direction.Ascending;
+                        var counter = Counter;
+                        var changed = direction != Direction;
+                        Direction = direction;
+                        if(changed)
+                        {
+                            Counter = counter;
+                        }
                     }, valueProviderCallback: _ => Direction == Direction.Descending, name: "Direction (DIR)")
                     .WithEnumField(5, 2, out centerAlignedMode, name: "Center-aligned mode selection (CMS)")
                     .WithFlag(7, out autoReloadPreloadEnable, name: "Auto-reload preload enable (APRE)")
@@ -275,7 +284,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         }
                         else if(Direction == Direction.Descending)
                         {
-                            Value = autoReloadValue;
+                            Counter = autoReloadValue;
                         }
 
                         repetitionsLeft = (uint)repetitionCounter.Value;
@@ -323,14 +332,14 @@ namespace Antmicro.Renode.Peripherals.Timers
                 },
                 {(long)Registers.Counter, new DoubleWordRegister(this)
                     .WithValueField(0, timerCounterLengthInBits,
-                        writeCallback: (_, val) => Value = val,
+                        writeCallback: (_, val) => Counter = val,
                         valueProviderCallback: _ =>
                         {
                             if(sysbus.TryGetCurrentCPU(out var cpu))
                             {
                                 cpu.SyncTime();
                             }
-                            return (uint)Value;
+                            return (uint)Counter;
                         }, name: "Counter value (CNT)")
                     .WithReservedBits(timerCounterLengthInBits, 32 - timerCounterLengthInBits)
                     .WithWriteCallback((_, val) =>
@@ -364,7 +373,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                         Enabled = enableRequested && autoReloadValue > 0;
                         if(!autoReloadPreloadEnable.Value)
                         {
-                            Limit = autoReloadValue;
+                            Limit = (ulong)autoReloadValue + 1;
                         }
                     }, valueProviderCallback: _ => autoReloadValue, name: "Auto-reload value (ARR)")
                     .WithReservedBits(timerCounterLengthInBits, 32 - timerCounterLengthInBits)
@@ -558,7 +567,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             registers.Reset();
             autoReloadValue = initialLimit;
             enableRequested = false;
-            Limit = initialLimit;
+            Limit = (ulong)initialLimit + 1;
             repetitionsLeft = 0;
             updateInterruptFlag = false;
             for(var i = 0; i < NumberOfCCChannels; ++i)
@@ -773,6 +782,29 @@ namespace Antmicro.Renode.Peripherals.Timers
         private bool IsEncoderMode => IsEncoderMode1 || IsEncoderMode2 || IsEncoderMode3;
 
         private bool IsTriggerMode => slaveModeSelection.Value == SlaveModeSelection.TriggerMode;
+
+        // The counter (TIMx_CNT). It counts ARR + 1 values per period, so an update event comes every
+        // (ARR + 1) * (PSC + 1) timer clocks: up, from 0 to ARR, overflowing to 0; down, from ARR to 0,
+        // underflowing to ARR. The clock entry's limit is ARR + 1 and reaching it is the overflow or
+        // underflow: counting up, the entry's value is the counter (0 to ARR); counting down, it is
+        // the counter + 1 (ARR + 1 to 1), since a descending entry fires when its value reaches 0.
+        private ulong Counter
+        {
+            get
+            {
+                if(Direction == Direction.Descending)
+                {
+                    var value = Value;
+                    return value > 0 ? value - 1 : 0;
+                }
+                return Value;
+            }
+
+            set
+            {
+                Value = Direction == Direction.Descending ? value + 1 : value;
+            }
+        }
 
         private uint autoReloadValue;
         private uint repetitionsLeft;
