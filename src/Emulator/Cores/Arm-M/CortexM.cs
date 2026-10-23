@@ -239,10 +239,10 @@ namespace Antmicro.Renode.Peripherals.CPU
                 var mProfileFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.m-profile");
                 for(var index = 0u; index <= 12; index++)
                 {
-                    mProfileFeature.Registers.Add(new GDBRegisterDescriptor(index, 32, $"r{index}", "uint32", "general"));
+                    mProfileFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.R0 + index, 32, $"r{index}", "uint32", "general"));
                 }
                 mProfileFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.SP, 32, "sp", "data_ptr", "general"));
-                mProfileFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.LR, 32, "lr", "uint32", "general"));
+                mProfileFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.LR, 32, "lr", "code_ptr", "general"));
                 mProfileFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.PC, 32, "pc", "code_ptr", "general"));
                 mProfileFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.CPSR, 32, "xpsr", "uint32", "general"));    // cpsr is aliased to xpsr in tlibs
                 features.Add(mProfileFeature);
@@ -256,7 +256,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 mSystemFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.Control, 32, "control", "uint32", "general"));
                 features.Add(mSystemFeature);
 
-                bool hasMProfileVectorExtensions = GetArmFeature(ArmFeatures.ARM_FEATURE_MVE);
+                var hasMProfileVectorExtensions = GetArmFeature(ArmFeatures.ARM_FEATURE_MVE);
                 if(hasMProfileVectorExtensions)
                 {
                     var mveProfileFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.m-profile-mve");
@@ -290,25 +290,23 @@ namespace Antmicro.Renode.Peripherals.CPU
                 // Each D (double) register holds two F (fp) registers! (arm/cpu.h)
                 // To keep consistency with tlibs, the code below uses D registers.
 
-                bool has32RegisterVfp = (GetArmFeature(ArmFeatures.ARM_FEATURE_VFP3)
+                var has32RegisterVfp = (GetArmFeature(ArmFeatures.ARM_FEATURE_VFP3)
                         || GetArmFeature(ArmFeatures.ARM_FEATURE_NEON)
                         || GetArmFeature(ArmFeatures.ARM_FEATURE_VFP4));
 
-                bool has16RegisterVfp = ((GetArmFeature(ArmFeatures.ARM_FEATURE_VFP_FP16)
+                var has16RegisterVfp = ((GetArmFeature(ArmFeatures.ARM_FEATURE_VFP_FP16)
                         || GetArmFeature(ArmFeatures.ARM_FEATURE_VFP))
                         && !has32RegisterVfp);
 
                 if(has32RegisterVfp || has16RegisterVfp)
                 {
                     var mVfpFeature = new GDBFeatureDescriptor("org.gnu.gdb.arm.vfp");
-                    const int vfpRegisterOffset = 42;
-                    int vfpRegisterEnd = has32RegisterVfp ? 31 : 15;
+                    var vfpRegisterEnd = has32RegisterVfp ? 31 : 15;
                     for(var reg = 0u; reg <= vfpRegisterEnd; reg++)
                     {
-                        mVfpFeature.Registers.Add(new GDBRegisterDescriptor(reg + vfpRegisterOffset, 64, $"d{reg}", "ieee_double", "float"));
+                        mVfpFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.D0 + reg, 64, $"d{reg}", "ieee_double", "float"));
                     }
-                    // The fpscr is always reg# = 74
-                    mVfpFeature.Registers.Add(new GDBRegisterDescriptor(74, 32, "fpscr", "int", "float"));
+                    mVfpFeature.Registers.Add(new GDBRegisterDescriptor((uint)CortexMRegisters.FPSCR, 32, "fpscr", "int", "float"));
                     features.Add(mVfpFeature);
                 }
 
