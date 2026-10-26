@@ -76,12 +76,12 @@ public class WebSocketCANAnalyzer : BasicPeripheralBackendAnalyzer<CANBackend>, 
     {
         CANNumber = Interlocked.Increment(ref canCount);
         this.DebugLog("Opening CAN endpoint at /can/{0}", CANNumber);
-        server = new WebSocketSingleConnectionServer($"/can/{CANNumber}", true);
+        server = new WebSocketBufferedServer($"/can/{CANNumber}", true);
         server.Start();
         ((CANBackend)Backend).CANHub.FrameReceived += SendFrameToWebsocket;
     }
 
-    private WebSocketSingleConnectionServer? server;
+    private WebSocketBufferedServer? server;
 
     private class WrappedCANMessage
     {
