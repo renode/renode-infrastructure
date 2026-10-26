@@ -17,8 +17,8 @@
 * appropriate *.tt file.
 *
 */
-using System;
 using System.Text;
+
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
@@ -27,8 +27,7 @@ using Antmicro.Renode.Utilities;
 namespace Antmicro.Renode.Core.Extensions
 {
     public static class ReadWriteExtensions
-    {
-<#
+    {<#
     var widthNames = new Dictionary<int, string>()
     {
         {8, "Byte"},
@@ -79,6 +78,7 @@ namespace Antmicro.Renode.Core.Extensions
             if(inWidth < outWidth)
             {
 #>
+
         public static <#= outType #> Read<#= outName #>Using<#= inName #>(this I<#= inName #>Peripheral peripheral, long address)
         {
             unchecked
@@ -218,13 +218,13 @@ namespace Antmicro.Renode.Core.Extensions
                 }
             };
         }
-
 <#
             }
             else // inWidth >= outWidth
             {
                 var mask = masks[outWidth];
 #>
+
         public static <#= outType #> Read<#= outName #>Using<#= inName #>(this I<#= inName #>Peripheral peripheral, long address)
         {
             unchecked
@@ -357,7 +357,6 @@ namespace Antmicro.Renode.Core.Extensions
         {
             peripheral.Write<#= name #>(address, <#= swapFunc #>(value));
         }
-
 <#
     } // foreach
 
