@@ -100,7 +100,7 @@ namespace Antmicro.Renode.UserInterface
         public bool SetPeripheralMacro(IPeripheral peripheral, string macroName, string contents, IMachine machine = null) =>
             MonitorContext.SetPeripheralMacro(peripheral, macroName, contents, machine);
 
-        public bool Parse(string cmd, ICommandInteraction writer = null)
+        public bool Parse(string cmd, ICommandInteraction writer = null, bool isInteractive = false)
         {
             writer = writer ?? Interaction;
 
@@ -136,7 +136,7 @@ namespace Antmicro.Renode.UserInterface
 
             if(string.IsNullOrWhiteSpace(cmd))
             {
-                if(RepeatLastCommand && TokensOfLastExecutedCommand != null)
+                if(isInteractive && RepeatLastCommand && TokensOfLastExecutedCommand != null)
                 {
                     return ExecuteCommand(TokensOfLastExecutedCommand, writer);
                 }
@@ -404,7 +404,7 @@ namespace Antmicro.Renode.UserInterface
 
         public ICommandInteraction HandleCommand(string cmd, ICommandInteraction ci)
         {
-            Parse(cmd, ci);
+            Parse(cmd, ci, isInteractive: true);
             return ci;
         }
 
