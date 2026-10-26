@@ -5,6 +5,7 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 using Antmicro.Renode.Core;
@@ -185,7 +186,7 @@ namespace Antmicro.Renode.Peripherals.PCI
                 }
                 result.Endpoint.ConfigurationWriteDoubleWord(result.EcamAddress.Offset, value);
             }
-            else if(table.TargetSpace == PCIeSpace.TxRx)
+            else if(table.TargetSpace == PCIeSpace.Memory)
             {
                 var barCandidates = memoryMap.Where(x => x.Key.Contains(translatedAddress));
                 if(!barCandidates.Any())
@@ -224,7 +225,7 @@ namespace Antmicro.Renode.Peripherals.PCI
                 }
                 return result.Endpoint.ConfigurationReadDoubleWord(result.EcamAddress.Offset);
             }
-            else if(table.TargetSpace == PCIeSpace.TxRx)
+            else if(table.TargetSpace == PCIeSpace.Memory)
             {
                 var barCandidates = memoryMap.Where(x => x.Key.Contains(translatedAddress));
                 if(!barCandidates.Any())
@@ -290,8 +291,14 @@ namespace Antmicro.Renode.Peripherals.PCI
                                                    valueProviderCallback: _ => (uint)BitHelper.GetValue(table.SourceAddress, 32, 32), name: "TRSL_ADDR_UDW")
                         );
             registers.Add(baseOffset + (long)AddressTranslationRegisters.TranslationParametersLow, new DoubleWordRegister(this)
-                            .WithEnumField(0, 4, changeCallback: (_, value) => table.TargetSpace = value,
-                                                 valueProviderCallback: (PCIeSpace _) => table.TargetSpace, name: "TRSL_ID")
+                            .WithValueField(0, 4, changeCallback: (_, value) => table.TargetSpace = (value == 0 ? PCIeSpace.Memory : PCIeSpace.Configuration),
+                                                 valueProviderCallback: (_) => table.TargetSpace switch
+                                                 {
+                                                     PCIeSpace.Memory => 0,
+                                                     PCIeSpace.Configuration => 1,
+                                                     _ => throw new UnreachableException($"Invalid TargetSpace: {table.TargetSpace}"),
+                                                 },
+                                                 name: "TRSL_ID")
                             .WithReservedBits(4, 12)
                             .WithTag("TRSF_PARAM", 16, 12)
                             .WithReservedBits(28, 4)
