@@ -25,19 +25,17 @@ types.Add("ulong", "QuadWord");
 */
 
 using Antmicro.Renode.Core.Structure.Registers;
-using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.Peripherals;
 
 namespace Antmicro.Renode.Hooks
 {
     public static class RegisterCollectionHookExtensions
-    {
-<#
+    {<#
     foreach(var entry in types)
     {
         var type = entry.Key;
         var suffix = entry.Value;
 #>
+
         public static void AddBeforeRead<#= suffix #>Hook(this IProvidesRegisterCollection<<#= suffix #>RegisterCollection> @this, long offset, string script)
         {
             var engine = new RegisterCollectionHookPythonEngine<<#= type #>, <#= suffix #>RegisterCollection>(@this, script);
@@ -70,7 +68,6 @@ namespace Antmicro.Renode.Hooks
 
         public static void AddAfterWrite<#= suffix #>Hook(this IProvidesRegisterCollection<<#= suffix #>RegisterCollection> @this, long offset, string script)
         {
-
             var engine = new RegisterCollectionHookPythonEngine<<#= type #>, <#= suffix #>RegisterCollection>(@this, script);
             @this.AddAfterWriteHook<<#= type #>, <#= suffix #>RegisterCollection>(offset, (addr, value) =>
             {
@@ -97,7 +94,6 @@ namespace Antmicro.Renode.Hooks
         {
             @this.RemoveAfterWriteHook(offset);
         }
-
 <#
     }
 #>
