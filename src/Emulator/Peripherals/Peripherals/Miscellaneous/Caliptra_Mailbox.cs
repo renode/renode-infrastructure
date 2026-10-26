@@ -25,6 +25,11 @@ public class Caliptra_Mailbox : BasicDoubleWordPeripheral
         writePointer = 0;
     }
 
+    public IMemory GetInternalBackingMemory()
+    {
+        return backingMemory;
+    }
+
     private void DefineRegisters()
     {
         Registers.Lock.Define(this)
