@@ -266,13 +266,16 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
 
         if(kvTagWrite.Value)
         {
-            if(!keyVault.TrySetKey((uint)kvTagWriteSlot.Value, digest, kvTagWriteAllowed.Value))
+            if(keyVault.TrySetKey((uint)kvTagWriteSlot.Value, digest, kvTagWriteAllowed.Value))
+            {
+                kvTagWriteStatus.Value = KeyvalutOperationStatus.Success;
+            }
+            else
             {
                 kvTagWriteStatus.Value = KeyvalutOperationStatus.WriteFail;
                 this.Log(LogLevel.Warning, "Writing tag to KeyVault slot {0} failed", kvTagWriteSlot.Value);
             }
             kvTagWriteValid.Value = true;
-            kvTagWriteStatus.Value = KeyvalutOperationStatus.Success;
         }
         // Do not output the tag if the secret (key or block) was obtained from the Keyvault
         else if(!kvKeyReadValid.Value && !kvBlockReadValid.Value)
