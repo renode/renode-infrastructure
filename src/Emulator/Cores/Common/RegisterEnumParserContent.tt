@@ -10,10 +10,9 @@
 <#@ template language="C#" #>
 <#@ assembly name="System.Core" #>
 <#@ import namespace="System" #>
+<#@ import namespace="System.Collections.Generic" #>
 <#@ import namespace="System.IO" #>
 <#@ import namespace="System.Linq" #>
-<#@ import namespace="System.Text" #>
-<#@ import namespace="System.Collections.Generic" #>
 <#@ import namespace="System.Text.RegularExpressions" #>
 <#+
     public class RegistersEnumParser
@@ -68,6 +67,7 @@
         }
 
         public RegisterDescriptor[] Registers { get { return registers.ToArray(); } }
+
         public RegisterGroupDescriptor[] RegisterGroups { get { return registerGroups.ToArray(); } }
 
         private void Parse(Stream stream)
@@ -233,14 +233,6 @@
         private const string BeginningOfEnum = "typedef enum {";
         private const string EndOfEnum = "} Registers;";
 
-        private enum Mode
-        {
-            ScanForEnum,
-            InsideEnum,
-            SkipLines,
-            IncludeLines
-        }
-
         public class RegisterDescriptor : RegisterDescriptorBase
         {
             public int Value { get; set; }
@@ -248,8 +240,6 @@
 
         public class RegisterGroupDescriptor : RegisterDescriptorBase
         {
-            public Dictionary<int, int> IndexValueMap { get; set; }
-
             public IEnumerable<RegisterDescriptor> GetRegisters()
             {
                 return IndexValueMap.Select(x => new RegisterDescriptor
@@ -260,13 +250,25 @@
                     Value = x.Value
                 });
             }
+
+            public Dictionary<int, int> IndexValueMap { get; set; }
         }
 
         public class RegisterDescriptorBase
         {
             public string Name { get; set; }
+
             public int Width { get; set; }
+
             public bool IsIgnored { get; set; }
+        }
+
+        private enum Mode
+        {
+            ScanForEnum,
+            InsideEnum,
+            SkipLines,
+            IncludeLines
         }
     }
 
