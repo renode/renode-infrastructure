@@ -145,15 +145,17 @@ namespace Antmicro.Renode.Peripherals.PCI
 
         public void RegisterBar(Range range, IPCIePeripheral peripheral, uint bar)
         {
-            //This has to be improved greatly.
-            //1. have fast search
-            //2. invalidate overlaps
-            var previousRegistration = memoryMap.Where(x => x.Value.BarNumber == bar && x.Value.TargetPeripheral == peripheral).Select(x => x.Key);
-            if(previousRegistration.Any())
+            if(!barContainer.TryRegisterBar(range, peripheral, bar))
             {
-                memoryMap.Remove(previousRegistration.SingleOrDefault());
+                // This is a valid path, that is triggered by SW discovering BAR sizes
+                this.Log(LogLevel.Debug, "Cannot register BAR: {0} for peripheral: {1} at range: {2}, because it overlaps with an existing BAR",
+                    bar, peripheral.GetName(), range);
             }
-            memoryMap[range] = new TargetBar { BarNumber = bar, TargetPeripheral = peripheral };
+            else
+            {
+                this.Log(LogLevel.Debug, "Registered BAR: {0} for peripheral: {1} at range: {2}",
+                    bar, peripheral.GetName(), range);
+            }
         }
 
         public uint ReadDoubleWord(long offset)
@@ -188,15 +190,12 @@ namespace Antmicro.Renode.Peripherals.PCI
             }
             else if(table.TargetSpace == PCIeSpace.Memory)
             {
-                var barCandidates = memoryMap.Where(x => x.Key.Contains(translatedAddress));
-                if(!barCandidates.Any())
+                if(!barContainer.TryFindBar(translatedAddress, out var targetBarEntry))
                 {
                     this.Log(LogLevel.Warning, "Trying to write to a BAR at 0x{0:X}, but nothing is registered there, value 0x{1:X}.", translatedAddress, value);
                     return;
                 }
-                //This should not be required, but we need to improve RegisterBar first
-                var targetBarEntry = barCandidates.Single();
-                targetBarEntry.Value.TargetPeripheral.MemoryWriteDoubleWord(targetBarEntry.Value.BarNumber, (long)(translatedAddress - targetBarEntry.Key.StartAddress), value);
+                targetBarEntry.TargetPeripheral.MemoryWriteDoubleWord(targetBarEntry.BarNumber, (long)(translatedAddress - targetBarEntry.BarRange.StartAddress), value);
             }
             else
             {
@@ -227,15 +226,12 @@ namespace Antmicro.Renode.Peripherals.PCI
             }
             else if(table.TargetSpace == PCIeSpace.Memory)
             {
-                var barCandidates = memoryMap.Where(x => x.Key.Contains(translatedAddress));
-                if(!barCandidates.Any())
+                if(!barContainer.TryFindBar(translatedAddress, out var targetBarEntry))
                 {
                     this.Log(LogLevel.Warning, "Trying to read from a BAR at 0x{0:X}, but nothing is registered there.", translatedAddress);
                     return 0;
                 }
-                //This should not be required, but we need to improve RegisterBar first
-                var targetBarEntry = barCandidates.Single();
-                return targetBarEntry.Value.TargetPeripheral.MemoryReadDoubleWord(targetBarEntry.Value.BarNumber, (long)(translatedAddress - targetBarEntry.Key.StartAddress));
+                return targetBarEntry.TargetPeripheral.MemoryReadDoubleWord(targetBarEntry.BarNumber, (long)(translatedAddress - targetBarEntry.BarRange.StartAddress));
             }
             else
             {
@@ -316,17 +312,11 @@ namespace Antmicro.Renode.Peripherals.PCI
 
         private readonly AddressTranslationTable[] pcieAddressTables = new AddressTranslationTable[NumberOfTranslationTables];
         private readonly AddressTranslationTable[] axiAddressTables = new AddressTranslationTable[NumberOfTranslationTables];
-        private readonly Dictionary<Range, TargetBar> memoryMap = new Dictionary<Range, TargetBar>();
+        private readonly BarContainer barContainer = new();
 
         private const int NumberOfTranslationTables = 6;
 
         private const uint FunctionNotImplemented = 0xFFFF;
-
-        protected struct TargetBar
-        {
-            public IPCIePeripheral TargetPeripheral;
-            public uint BarNumber;
-        }
 
         private class AddressTranslationTable
         {
