@@ -22,7 +22,7 @@ namespace Antmicro.Renode.Peripherals.PCI.Capabilities
                 .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => Id, name: "PCI Express Cap ID")
                 .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => NextCapability, name: "Next Cap Pointer")
                 .WithValueField(16, 4, FieldMode.Read, valueProviderCallback: _ => 0x2 /* current specification */, name: "Capability Version")
-                .WithEnumField(20, 4, FieldMode.Read, valueProviderCallback: (DeviceType _) => parent.HeaderType.HasFlag(HeaderType.Bridge) ? DeviceType.RootComplexIntegratedEndpoint : DeviceType.PCIExpressEndpoint, name: "Device/Port Type") // this is a guess and an approximation to the two types of devices we have
+                .WithEnumField(20, 4, FieldMode.Read, valueProviderCallback: (DeviceType _) => parent.HeaderType.HasFlag(HeaderType.Bridge) ? DeviceType.RootPortOfPCIExpressRootComplex : DeviceType.PCIExpressEndpoint, name: "Device/Port Type") // this is a guess and an approximation to the two types of devices we have
                 .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => false, name: "Slot Implemented")
                 .WithTag("Interrupt Message Number", 25, 5)
                 .WithReservedBits(30, 1)
