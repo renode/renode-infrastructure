@@ -17,7 +17,8 @@ namespace Antmicro.Renode.Peripherals.PCI
         {
             VendorId = 0x8086;
             DeviceId = 0x7010;
-            ClassCode = 0x0101;
+            BaseClassCode = 0x1;
+            SubClassCode = 0x1;
 
             for(var i = 0; i < HeaderType.MaxNumberOfBARs(); ++i)
             {

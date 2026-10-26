@@ -78,7 +78,11 @@ namespace Antmicro.Renode.Peripherals.PCI
 
         public byte RevisionId { get; set; }
 
-        public uint ClassCode { get; set; }
+        public uint BaseClassCode { get; set; }
+
+        public uint SubClassCode { get; set; }
+
+        public uint ProgrammingInterface { get; set; }
 
         public HeaderType HeaderType { get; }
 
@@ -128,7 +132,9 @@ namespace Antmicro.Renode.Peripherals.PCI
                 },
                 {(long)RegistersCommon.ClassCode, new DoubleWordRegister(this)
                     .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => RevisionId)
-                    .WithValueField(16, 16, FieldMode.Read, valueProviderCallback: _ => ClassCode)
+                    .WithValueField(8, 8, FieldMode.Read, valueProviderCallback: _ => ProgrammingInterface)
+                    .WithValueField(16, 8, FieldMode.Read, valueProviderCallback: _ => SubClassCode)
+                    .WithValueField(24, 8, FieldMode.Read, valueProviderCallback: _ => BaseClassCode)
                 },
                 {(long)RegistersCommon.Header, new DoubleWordRegister(this)
                     .WithTag("Cacheline Size", 0, 8)
