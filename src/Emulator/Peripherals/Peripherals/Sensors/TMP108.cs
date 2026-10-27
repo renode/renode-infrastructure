@@ -141,6 +141,10 @@ namespace Antmicro.Renode.Peripherals.Sensors
                     this.WarningLog("{0} is lower than minimum of {1} and has been clamped", value, MinPossibleTemperature);
                 }
                 defaultTemperature = value;
+                if(mode.Value == Mode.Shutdown)
+                {
+                    temperatureLatched = defaultTemperature;
+                }
             }
         }
 
