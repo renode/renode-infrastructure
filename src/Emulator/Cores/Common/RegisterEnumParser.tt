@@ -28,7 +28,7 @@
 
     var usings = new List<string>();
     var content = new List<string>();
-    var baseDirectoryPath = Path.GetDirectoryName(BASE_PATH);
+    var baseDirectoryPath = Path.GetDirectoryName(this.Host.TemplateFile);
 
     var skipLineMode = false;
     foreach(var line in File.ReadAllLines(baseDirectoryPath + "/RegisterEnumParserContent.tt"))
