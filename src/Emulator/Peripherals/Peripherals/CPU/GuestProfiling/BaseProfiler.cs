@@ -249,7 +249,10 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
         {
             if(flushInstantly || ShouldFlush)
             {
-                TryFlushToOutputStream();
+                if(TryFlushToOutputStream() && flushInstantly)
+                {
+                    outputStream.Flush();
+                }
             }
         }
 
