@@ -325,7 +325,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
         if(kvWriteEn.Value)
         {
             uint slotId = (uint)kvWriteEntry.Value;
-            bool success = keyVault.TrySetKey(slotId, privKey, kvTagWriteAllowed.Value);
+            bool success = keyVault.TrySetKey(slotId, BitHelper.ToUInt32Array(privKey, littleEndian: false), kvTagWriteAllowed.Value);
 
             if(success)
             {
@@ -454,7 +454,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
         var sharedPoint = pubPoint.Multiply(priv).Normalize();
         var sharedX = sharedPoint.AffineXCoord.ToBigInteger();
 
-        byte[] sharedKey = sharedX.ToByteArrayUnsigned();
+        var sharedKey = sharedX.ToByteArrayUnsigned();
         if(sharedKey.Length > BlockSizeInBytes)
         {
             throw new ArgumentException("Shared key too long");
@@ -466,7 +466,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
         if(kvWriteEn.Value)
         {
             uint slotId = (uint)kvWriteEntry.Value;
-            bool success = keyVault.TrySetKey(slotId, paddedSharedKey, kvTagWriteAllowed.Value);
+            bool success = keyVault.TrySetKey(slotId, BitHelper.ToUInt32Array(paddedSharedKey, false), kvTagWriteAllowed.Value);
 
             if(success)
             {
@@ -495,7 +495,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
 
         if(keyVault.TryGetKey((uint)kvReadSeedEntry.Value, out var key, Caliptra_KeyVault.DestinationCode.EccSeed))
         {
-            Array.Copy(key, kvSeed, BlockSizeInBytes);
+            Array.Copy(BitHelper.ToBigEndianBytes(key), kvSeed, BlockSizeInBytes);
             seedFromKeyVault = true;
             kvRdSeedStatusError.Value = KeyVaultOperationError.Success;
         }
@@ -512,7 +512,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
 
         if(keyVault.TryGetKey((uint)kvReadPkeyEntry.Value, out var key, Caliptra_KeyVault.DestinationCode.EccPKey))
         {
-            BitHelper.ToUintAndCopy(key, privKeyIn, littleEndian: false);
+            Array.Copy(key, privKeyIn, privKeyIn.Length);
             kvRdPkeyStatusError.Value = KeyVaultOperationError.Success;
         }
         else

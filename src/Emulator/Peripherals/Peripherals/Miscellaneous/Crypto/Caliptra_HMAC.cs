@@ -186,11 +186,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
             return;
         }
 
-        var items = BitHelper.ToUInt32Array(keyBytes, false);
-        for(int i = 0; i < items.Length; ++i)
-        {
-            hmacKey[i] = items[i];
-        }
+        Array.Copy(keyBytes, hmacKey, keyBytes.Length);
         kvKeyReadStatus.Value = KeyvalutOperationStatus.Success;
     }
 
@@ -204,11 +200,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
             return;
         }
 
-        var items = BitHelper.ToUInt32Array(blockBytes, false);
-        for(int i = 0; i < items.Length; ++i)
-        {
-            hmacBlock[i] = items[i];
-        }
+        Array.Copy(blockBytes, hmacBlock, blockBytes.Length);
         kvBlockReadStatus.Value = KeyvalutOperationStatus.Success;
     }
 
@@ -266,7 +258,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
 
         if(kvTagWrite.Value)
         {
-            if(keyVault.TrySetKey((uint)kvTagWriteSlot.Value, digest, kvTagWriteAllowed.Value))
+            if(keyVault.TrySetKey((uint)kvTagWriteSlot.Value, BitHelper.ToUInt32Array(digest, false), kvTagWriteAllowed.Value))
             {
                 kvTagWriteStatus.Value = KeyvalutOperationStatus.Success;
             }

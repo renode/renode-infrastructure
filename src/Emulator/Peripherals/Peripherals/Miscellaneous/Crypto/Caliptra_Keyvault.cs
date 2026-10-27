@@ -34,7 +34,7 @@ public class Caliptra_KeyVault : BasicDoubleWordPeripheral, IKnownSize
         }
     }
 
-    public bool TrySetKey(uint slot, byte[] key, DestinationCode destination = DestinationCode.Any, bool force = false)
+    public bool TrySetKey(uint slot, uint[] key, DestinationCode destination = DestinationCode.Any, bool force = false)
     {
         if(slot >= NumberOfSlots)
         {
@@ -50,7 +50,7 @@ public class Caliptra_KeyVault : BasicDoubleWordPeripheral, IKnownSize
         return success;
     }
 
-    public bool TryGetKey(uint slot, out byte[] outKey, DestinationCode destination = DestinationCode.Any, bool force = false)
+    public bool TryGetKey(uint slot, out uint[] outKey, DestinationCode destination = DestinationCode.Any, bool force = false)
     {
         outKey = null;
         if(slot >= NumberOfSlots)
@@ -64,12 +64,12 @@ public class Caliptra_KeyVault : BasicDoubleWordPeripheral, IKnownSize
             this.WarningLog("Failed to read from Key vault slot {0}", slot);
             return false;
         }
-        outKey = key.SelectMany(e => BitConverter.GetBytes(e)).ToArray();
+        outKey = key;
         return true;
     }
 
     // Meant to be used interactively
-    public byte[] GetKeyValue(uint slot)
+    public uint[] GetKeyValue(uint slot)
     {
         TryGetKey(slot, out var key, force: true);
         return key;
@@ -168,11 +168,6 @@ public class Caliptra_KeyVault : BasicDoubleWordPeripheral, IKnownSize
             this.parent = parent;
             Idx = i;
             entry = new uint[KeySize];
-        }
-
-        public bool WriteKey(byte[] newKey, DestinationCode destination = DestinationCode.Any, bool force = false)
-        {
-            return WriteKey(BitHelper.ToUInt32Array(newKey, true), destination, force);
         }
 
         public bool WriteKey(uint[] newKey, DestinationCode destination = DestinationCode.Any, bool force = false)

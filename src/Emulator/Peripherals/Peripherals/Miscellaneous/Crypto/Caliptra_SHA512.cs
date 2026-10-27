@@ -316,7 +316,7 @@ public class Caliptra_SHA512 : BasicDoubleWordPeripheral, IKnownSize
             Array.Copy(fullDigest, kvOutput, digestSize);
 
             uint slotId = (uint)kvWriteEntry.Value;
-            bool success = keyVault.TrySetKey(slotId, kvOutput, kvTagWriteAllowed.Value);
+            bool success = keyVault.TrySetKey(slotId, BitHelper.ToUInt32Array(kvOutput, littleEndian: false), kvTagWriteAllowed.Value);
 
             if(success)
             {
@@ -347,7 +347,7 @@ public class Caliptra_SHA512 : BasicDoubleWordPeripheral, IKnownSize
 
         if(keyVault.TryGetKey((uint)kvReadEntry.Value, out var key, Caliptra_KeyVault.DestinationCode.None))
         {
-            Array.Copy(key, kvBlock, 128);
+            Array.Copy(BitHelper.ToBigEndianBytes(key), kvBlock, BlockSizeInBytes);
             blockFromKeyVault = true;
             kvRdStatusError.Value = KeyVaultOperationError.Success;
         }
