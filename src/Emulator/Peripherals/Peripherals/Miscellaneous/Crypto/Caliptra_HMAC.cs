@@ -40,9 +40,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
 
     public long Size => 0xA14;
 
-    private static IEnumerable<byte> SwapEndiannessByWord(IEnumerable<byte> reg) => reg.Chunk(4).SelectMany(e => e.Reverse());
-
-    private static IEnumerable<byte> ToBytes(uint[] reg) => reg.SelectMany(e => BitConverter.GetBytes(e));
+    private static IEnumerable<byte> ToBytesBigEndian(uint[] reg) => reg.SelectMany(e => BitConverter.GetBytes(e).Reverse());
 
     private void DefineRegisters()
     {
@@ -211,11 +209,11 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
         byte[] keyBytes;
         if(csrMode.Value)
         {
-            keyBytes = ToBytes(defaultCsrHmacKey).ToArray();
+            keyBytes = ToBytesBigEndian(defaultCsrHmacKey).ToArray();
         }
         else
         {
-            keyBytes = ToBytes(hmacKey).ToArray();
+            keyBytes = ToBytesBigEndian(hmacKey).ToArray();
         }
 
         // SHA384 uses a shorter key
@@ -242,7 +240,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
             this.Log(LogLevel.Warning, "HMAC engine not initialized. Hash will not be computed");
             return;
         }
-        byte[] blockBytes = ToBytes(hmacBlock).ToArray();
+        byte[] blockBytes = ToBytesBigEndian(hmacBlock).ToArray();
 
         var digest = new byte[TagLength * sizeof(uint)];
         try
@@ -340,8 +338,6 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
 
         public void Init(byte[] key)
         {
-            key = SwapEndiannessByWord(key).ToArray();
-
             var ipadBlock = new byte[BlockSizeInBytes];
             opadBlock = new byte[BlockSizeInBytes];
             Array.Fill(ipadBlock, Ipad);
@@ -358,7 +354,6 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
 
         public void Next(byte[] block)
         {
-            block = SwapEndiannessByWord(block).ToArray();
             hashInner.BlockUpdate(block);
 
             hashOuter.BlockUpdate(opadBlock);
