@@ -68,12 +68,14 @@ namespace Antmicro.Renode
 
         public static void Exit()
         {
+            // Don't wait for an exit already in progress.
+            // We don't use the exitEvent because it has to be checked inside a lock, historically leading to deadlocks on UI quitting.
+            if(Interlocked.Exchange(ref exiting, 1) == 1)
+            {
+                return;
+            }
             lock(exitLock)
             {
-                if(exitEvent.IsSet)
-                {
-                    return;
-                }
                 if(CleanUp != null)
                 {
                     try
@@ -177,6 +179,7 @@ namespace Antmicro.Renode
         private static IUserInterfaceProvider userInterfaceProvider;
         private static readonly object exitLock;
         private static readonly ManualResetEventSlim exitEvent = new ManualResetEventSlim();
+        private static int exiting;
 
         private static event Action CleanUp;
 
