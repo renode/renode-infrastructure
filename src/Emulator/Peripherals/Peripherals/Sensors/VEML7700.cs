@@ -115,12 +115,15 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
             set
             {
-                if(illuminanceStream == null)
+                if(illuminanceStream != null)
                 {
-                    illuminance = value;
-                    return;
+                    throw new RecoverableException("Cannot set sensor value when using RESD stream");
                 }
-                throw new RecoverableException("Cannot set sensor value when using RESD stream");
+                illuminance = value;
+                if(shutdownRegister.Value)
+                {
+                    illuminanceLatched = value;
+                }
             }
         }
 
