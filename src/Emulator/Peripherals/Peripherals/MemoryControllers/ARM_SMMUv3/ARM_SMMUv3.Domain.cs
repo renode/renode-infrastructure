@@ -104,7 +104,7 @@ namespace Antmicro.Renode.Peripherals.MemoryControllers
                     parent.WarningLog("Attempt to invalidate STE {0} which is out of range (table size: {1})", streamId, StreamTableSize);
                     return;
                 }
-                var ste = parent.sysbus.ReadStruct<StreamTableEntry>(StreamTableAddress.Value << 6, streamId);
+                var ste = parent.sysbus.ReadStruct<StreamTableEntry>(StreamTableAddress.Value << 6, streamId, context: parent.Context);
                 parent.NoisyLog("Invalidated STE {0} = {1}", streamId, ste);
                 StreamTable[streamId] = ste;
             }
