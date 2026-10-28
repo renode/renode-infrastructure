@@ -41,6 +41,9 @@ namespace Antmicro.Renode.UI
             };
             process.Exited += ProcessExited;
             process.Start();
+            // renode-ui closes itself when Renode quits, possibly with a non-zero exit code that sometimes triggers a relaunch.
+            // Because it could be caused by some transmission in progress issues, we should ignore it
+            Emulator.RegisterCleanUp(() => process.Exited -= ProcessExited);
         }
 
         public void Dispose()
