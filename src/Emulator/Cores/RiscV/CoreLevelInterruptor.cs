@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
@@ -13,10 +14,12 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Timers;
 
+#nullable enable
+
 namespace Antmicro.Renode.Peripherals.IRQControllers
 {
     [AllowedTranslations(AllowedTranslation.QuadWordToDoubleWord)]
-    public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRiscVTimeProvider
+    public class CoreLevelInterruptor : IDoubleWordPeripheral, IKnownSize, INumberedGPIOOutput, IRiscVTimeProvider, IHasFrequency
     {
         public CoreLevelInterruptor(IMachine machine, ulong frequency, int numberOfTargets = 1, ulong divider = 1)
         {
@@ -118,6 +121,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             foreach(var timer in mTimers)
             {
                 timer.Reset();
+                // The input clock is independent of the timer's reset state.
+                timer.Frequency = timerFrequency;
             }
         }
 
@@ -146,6 +151,28 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public long Size => 0x10000;
 
+        public ulong Frequency
+        {
+            get => timerFrequency;
+            set
+            {
+                if(value == 0)
+                {
+                    throw new ArgumentException("Frequency cannot be zero.");
+                }
+                if(timerFrequency == value)
+                {
+                    return;
+                }
+
+                timerFrequency = value;
+                foreach(var timer in mTimers)
+                {
+                    timer.Frequency = value;
+                }
+            }
+        }
+
         public IReadOnlyDictionary<int, IGPIO> Connections { get; }
 
         protected void AddRegister(long offset, DoubleWordRegister register)
@@ -153,10 +180,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             registers.AddRegister(offset, register);
         }
 
+        private ulong timerFrequency;
+
         private readonly DoubleWordRegisterCollection registers;
         private readonly Dictionary<int, IGPIO> irqs = new Dictionary<int, IGPIO>();
         private readonly List<ComparingTimer> mTimers = new List<ComparingTimer>();
-        private readonly ulong timerFrequency;
         private readonly IMachine machine;
 
         private enum Registers : long
