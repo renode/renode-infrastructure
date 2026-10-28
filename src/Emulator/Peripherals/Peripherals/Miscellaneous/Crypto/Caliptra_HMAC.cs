@@ -194,7 +194,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
         if(!keyVault.TryGetKey((uint)kvBlockReadSlot.Value, out var blockBytes, Caliptra_KeyVault.DestinationCode.HmacBlock))
         {
             kvBlockReadStatus.Value = KeyvalutOperationStatus.ReadFail;
-            this.Log(LogLevel.Warning, "Reading block from KeyVault slot {0} failed", kvBlockRead.Value);
+            this.Log(LogLevel.Warning, "Reading block from KeyVault slot {0} failed", kvBlockReadSlot.Value);
             return;
         }
 
