@@ -57,12 +57,21 @@ namespace Antmicro.Renode.Peripherals.Sensors
                 return;
             }
             addressToRead = -1;
-            if(data.Length != 3)
-            {
-                this.WarningLog("Written {0} bytes when expecting 3", data.Length);
-            }
+            ushort value = 0;
             // data[0] is the address byte, so we read the value from 1
-            var value = BitHelper.ToUInt16(data, index: 1, reverse: true);
+            if(data.Length == 2)
+            {
+                value = (ushort)data[1];
+            }
+            if(data.Length == 3)
+            {
+                value = BitHelper.ToUInt16(data, index: 1, reverse: true);
+            }
+            if(data.Length > 3)
+            {
+                this.WarningLog("Written {0} bytes when expecting at most 3", data.Length);
+                return;
+            }
             RegistersCollection.Write(data[0], value);
         }
 
