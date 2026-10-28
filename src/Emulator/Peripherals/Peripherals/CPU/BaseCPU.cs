@@ -327,6 +327,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public Endianess Endianness { get; }
 
+        public CpuBitness Bitness => bitness;
+
         //The debug mode disables interrupt handling in the emulated CPU
         //Additionally, some instructions, suspending execution, until an interrupt arrives (e.g. HLT on x86 or WFI on ARM) are treated as NOP
         public virtual bool ShouldEnterDebugMode
