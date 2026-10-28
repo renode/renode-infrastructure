@@ -345,7 +345,7 @@ namespace Antmicro.Renode.Peripherals.Video
             {
                 this.owner = owner;
                 Uid = uid;
-                var param = owner.sysbus.ReadStruct<EncodeChannelParameters>(owner.TranslateICacheAddress(msg.ParamPointer));
+                var param = owner.sysbus.ReadStruct<EncodeChannelParameters>(owner.TranslateICacheAddress(msg.ParamPointer), context: owner);
                 owner.DebugLog("[ch{0}] Encoding parameters: {1}", Uid, param);
                 EncodedWidth = param.EncodedWidth;
                 EncodedHeight = param.EncodedHeight;
