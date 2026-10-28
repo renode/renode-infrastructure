@@ -571,7 +571,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
             // The entropy should be 48 bytes long
             if(entropy == null || entropy.Length != BlockSizeInBytes)
             {
-                throw new ArgumentException(string.Format("Entropy must be exactly {0} bytes, BlockSizeInBytes"));
+                throw new ArgumentException(string.Format("Entropy must be exactly {0} bytes", BlockSizeInBytes));
             }
             // The nonce should be 48 bytes long
             if(nonce == null || nonce.Length != BlockSizeInBytes)
