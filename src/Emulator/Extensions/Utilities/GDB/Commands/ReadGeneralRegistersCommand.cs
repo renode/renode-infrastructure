@@ -7,6 +7,8 @@
 using System.Linq;
 using System.Text;
 
+using Antmicro.Renode.Peripherals.CPU;
+
 namespace Antmicro.Renode.Utilities.GDB.Commands
 {
     internal class ReadGeneralRegistersCommand : Command
@@ -19,6 +21,15 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
         public PacketData Execute()
         {
             var registers = new StringBuilder();
+            if(manager.Cpu is ICpuWithGdbRegisterMap mapped && mapped.GdbRegisterMap != null)
+            {
+                foreach(var slot in mapped.GdbRegisterMap)
+                {
+                    AppendMappedRegister(registers, slot);
+                }
+                return new PacketData(registers.ToString());
+            }
+
             foreach(var i in manager.Cpu.GetAllRegisters().Where(x => x.IsGeneral))
             {
                 var start = registers.Length;
