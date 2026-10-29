@@ -202,7 +202,7 @@ namespace Antmicro.Renode.Backends.Display
                 return (inBuf, clutBuf, pos) =>
                 {
                     var alpha = endianess == Endianess.LittleEndian ? inBuf[2 * pos + 1] : inBuf[2 * pos];
-                    var luminance = endianess == Endianess.LittleEndian ? inBuf[2 * pos + 1] : inBuf[2 * pos];
+                    var luminance = endianess == Endianess.LittleEndian ? inBuf[2 * pos] : inBuf[2 * pos + 1];
                     var color = fromClut(clutBuf, null, luminance);
                     color.Alpha = (byte)alpha;
                     return color;
@@ -228,11 +228,11 @@ namespace Antmicro.Renode.Backends.Display
 
             case PixelFormat.XRGB4444:
             case PixelFormat.XBGR4444:
-                return Takes4Half(endianess, format == PixelFormat.XRGB4444, (_, b, c, d) => new Pixel(b, c, d));
+                return Takes4Half(endianess, format == PixelFormat.XBGR4444, (_, b, c, d) => new Pixel(b, c, d));
 
             case PixelFormat.XRGB8888:
             case PixelFormat.XBGR8888:
-                return Takes4(endianess, format == PixelFormat.XRGB8888, (_, b, c, d) => new Pixel(b, c, d));
+                return Takes4(endianess, format == PixelFormat.XBGR8888, (_, b, c, d) => new Pixel(b, c, d));
 
             case PixelFormat.RGBA4444:
             case PixelFormat.BGRA4444:
