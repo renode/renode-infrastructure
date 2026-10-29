@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithReservedBits(8, 4)
                 .WithValueField(0, 8, out outputMultiplier, name: "MFI")
                 .WithChangeCallback((_, _) => UpdateFrequency());
-            Registers.FrequencyModulation.Define(this, 0x4000_000)
+            Registers.FrequencyModulation.Define(this, 0x4000_0000)
                 .WithReservedBits(31, 1)
                 .WithFlag(30, name: "SSCGBYP")
                 .WithFlag(29, name: "SPREADCTL")
