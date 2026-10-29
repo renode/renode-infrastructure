@@ -42,7 +42,7 @@ namespace Antmicro.Renode.Time
         {
             lock(sync)
             {
-                if(clockEntries.FindIndex(x => x.Handler == entry.Handler) != -1)
+                if(FindClockEntryIndex(entry.Handler) != -1)
                 {
                     throw new ArgumentException("A clock entry with given handler already exists in the clock source.");
                 }
@@ -62,7 +62,7 @@ namespace Antmicro.Renode.Time
             lock(sync)
             {
                 UpdateLimits();
-                var indexOfEntry = clockEntries.FindIndex(x => x.Handler == handler);
+                var indexOfEntry = FindClockEntryIndex(handler);
 
                 if(indexOfEntry == -1)
                 {
@@ -91,7 +91,7 @@ namespace Antmicro.Renode.Time
         {
             lock(sync)
             {
-                var i = clockEntries.IndexOf(x => x.Handler == handler);
+                var i = FindClockEntryIndex(handler);
                 if(i == -1)
                 {
                     throw new KeyNotFoundException();
@@ -156,12 +156,12 @@ namespace Antmicro.Renode.Time
             lock(sync)
             {
                 UpdateLimits();
-                var result = clockEntries.FirstOrDefault(x => x.Handler == handler);
-                if(result.Handler == null)
+                var i = FindClockEntryIndex(handler);
+                if(i == -1)
                 {
                     throw new KeyNotFoundException();
                 }
-                visitor(result);
+                visitor(clockEntries[i]);
             }
         }
 
@@ -171,7 +171,7 @@ namespace Antmicro.Renode.Time
             lock(sync)
             {
                 oldCount = clockEntries.Count;
-                var indexToRemove = clockEntries.FindIndex(x => x.Handler == handler);
+                var indexToRemove = FindClockEntryIndex(handler);
                 if(indexToRemove == -1)
                 {
                     return false;
@@ -436,6 +436,19 @@ namespace Antmicro.Renode.Time
             {
                 updateAlreadyInProgress.Value = false;
             }
+        }
+
+        private int FindClockEntryIndex(Action handler)
+        {
+            // A simple for loop gives a huge performance boost over `clockEntries.FindIndex(x => x.Handler == handler)`.
+            for(var i = 0; i < clockEntries.Count; i++)
+            {
+                if(clockEntries[i].Handler == handler)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         private void UpdateUpdateHandler(int clockEntryIndex)
