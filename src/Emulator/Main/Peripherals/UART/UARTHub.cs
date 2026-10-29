@@ -80,6 +80,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     d = x => HandleCharReceived(x, TimeDomainsManager.Instance.VirtualTimeStamp, uart);
                 }
                 uarts.Add(uart, d);
+                uartMachines.Add(uart, uart.GetMachine());
                 uart.CharReceived += d;
             }
         }
@@ -95,6 +96,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
                 uart.CharReceived -= uarts[uart];
                 uarts.Remove(uart);
+                uartMachines.Remove(uart);
             }
         }
 
@@ -214,7 +216,7 @@ namespace Antmicro.Renode.Peripherals.UART
                             frame.StopBits = allStopBitValues.Where(x => x != frame.StopBits).ElementAt(rng.Next(allStopBitValues.Length - 1));
                         }
 
-                        recipient.GetMachine().HandleTimeDomainEvent(frameRecipient.WriteChar, obj, frame, localWhen, () =>
+                        uartMachines[recipient].HandleTimeDomainEvent(frameRecipient.WriteChar, obj, frame, localWhen, () =>
                         {
                             DataRouted?.Invoke(sender, recipient, obj);
                         });
@@ -223,7 +225,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     {
                         if(!StrictMode || compatible)
                         {
-                            recipient.GetMachine().HandleTimeDomainEvent(recipient.WriteChar, obj, localWhen, () =>
+                            uartMachines[recipient].HandleTimeDomainEvent(recipient.WriteChar, obj, localWhen, () =>
                             {
                                 DataRouted?.Invoke(sender, recipient, obj);
                             });
@@ -314,5 +316,8 @@ namespace Antmicro.Renode.Peripherals.UART
         private double droppedCharacterRate;
         private double frameErrorRate;
         private bool immediateLoopback;
+
+        // Peripherals never change machines so we just get their machines when UART gets attached and cache here.
+        private readonly Dictionary<I, IMachine> uartMachines = [];
     }
 }
