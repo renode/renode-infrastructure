@@ -60,7 +60,14 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
         public void WriteDoubleWord(long offset, uint value)
         {
+            if(BusController.TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+            }
+            // Counters only tick on scheduled events, so bring them up to date before the write changes what is scheduled
+            CatchUpCounters();
             RegistersCollection.Write(offset, value);
+            ScheduleCounters();
         }
 
         public void UpdateInterrupts()
@@ -100,8 +107,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             get => this.clockFrequency;
             set
             {
+                CatchUpCounters();
                 this.clockFrequency = value;
                 UpdateGlobalPrescaler();
+                ScheduleCounters();
             }
         }
 
@@ -188,6 +197,31 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        private UnifiedChannel GetChannelDrivingBus(CounterBus bus)
+        {
+            if(!BusDrivingChannelNumbers.TryGetValue(bus, out var channelNumber))
+            {
+                return null;
+            }
+            return unifiedChannels[channelNumber];
+        }
+
+        private void CatchUpCounters()
+        {
+            foreach(var channel in unifiedChannels)
+            {
+                channel.CatchUp();
+            }
+        }
+
+        private void ScheduleCounters()
+        {
+            foreach(var channel in unifiedChannels)
+            {
+                channel.ScheduleNextTick();
+            }
+        }
+
         private void UpdateGlobalPrescaler()
         {
             foreach(var channel in unifiedChannels)
@@ -236,6 +270,28 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 }
             }
 
+            // Most of eMIOS channel ticks only increment internal counters and have no influence on the system besides counter values.
+            // Therefore we don't set `internalTimer` with limit etc. directly derived from software configuration for performance reasons.
+            // Frequent events mean frequent clocks reevaluation, shorter CPU execution loops etc.
+            //
+            // The most important parts of the logic involved in limiting number of events are in `ScheduleNextTick`, `InternalCounterTick`,
+            // `CatchUp`, `CurrentCounter` and `TicksToNextMatch`. See their remarks for more details.
+            //
+            // Which ticks can change state (the model acts on a tick in only these modes; all others do nothing in CounterTick):
+            // ┌────────────────────────┬────────────────────────────────────────────────────────────────┬───────────────────────────────────────┐
+            // │          Mode          │                      Acts on a tick when                       │      Ticks until the next event       │
+            // ├────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────┤
+            // │ MCB on its own counter │ counter ≥ AS1 (flag, reset to 0, reload AS1/BS1)               │ AS1 − counter, or 1 if already past   │
+            // ├────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────┤
+            // │ MCB ticked externally  │ its own counter ≥ AS1                                          │ 1 if already past, otherwise never    │
+            // ├────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────┤
+            // │ OPWMB listener         │ bus value = AS1 or BS1 (output edge, flag)                     │ distance to the nearer of AS1 and BS1 │
+            // ├────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────┤
+            // │ SAIC listener          │ never (only copies the bus value; captures use CurrentCounter) │ never                                 │
+            // ├────────────────────────┼────────────────────────────────────────────────────────────────┼───────────────────────────────────────┤
+            // │ Any mode               │ 24-bit overflow                                                │ 0x1000000 − counter                   │
+            // └────────────────────────┴────────────────────────────────────────────────────────────────┴───────────────────────────────────────┘
+
             public UnifiedChannel(S32K3XX_eMIOS parent, ChannelType type, uint channelNumber, IGPIO outputPin, ulong clockFrequency, Dictionary<long, DoubleWordRegister> registerMap)
             {
                 this.type = type;
@@ -246,12 +302,76 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 this.internalTimer = new LimitTimer(parent.machine.ClockSource, clockFrequency, parent,
                     $"UC{this.channelNumber} Internal Timer",
                     limit: 1,
+                    direction: Time.Direction.Ascending,
                     eventEnabled: true,
                     enabled: false
                 );
                 internalTimer.LimitReached += () => InternalCounterTick();
                 DefineRegisters(registerMap);
                 Reset();
+            }
+
+            /// <summary>
+            /// Adds the elapsed timer value to the counter register, copies the result to SAIC and OPWMB listeners on that bus,
+            /// and resets the timer value.
+            /// </summary>
+            public void CatchUp()
+            {
+                if(!internalTimer.Enabled)
+                {
+                    return;
+                }
+
+                if(!DisableChannel && !parent.ModuleDisable)
+                {
+                    // ScheduleNextTick guarantees that ticks before the timer limit only increment the counter
+                    counterField.Value += internalTimer.Value;
+                    foreach(var listener in Listeners)
+                    {
+                        if(listener.Mode is ChannelModes.SingleActionInputCapture or ChannelModes.OutputPWMBuffered)
+                        {
+                            listener.counterField.Value = counterField.Value;
+                        }
+                    }
+                }
+                internalTimer.Value = 0;
+            }
+
+            /// <summary>
+            /// Sets the timer limit to the smallest of:
+            /// - the number of ticks to the 24-bit overflow,
+            /// - the number of ticks to this channel's own match,
+            /// - the number of ticks to a match on any channel listening on the bus this channel drives.
+            ///
+            /// A disabled channel gets the maximum limit.
+            /// </summary>
+            public void ScheduleNextTick()
+            {
+                if(!internalTimer.Enabled)
+                {
+                    return;
+                }
+
+                if(DisableChannel || parent.ModuleDisable)
+                {
+                    // Ticks are ignored, so there is nothing to schedule
+                    internalTimer.Limit = MaxCounterValue;
+                    return;
+                }
+                var counter = (uint)counterField.Value;
+
+                // Overflow of the internal counter
+                var ticks = (ulong)MaxCounterValue + 1 - Math.Min(counter, MaxCounterValue);
+
+                // This channel's own match
+                ticks = Math.Min(ticks, TicksToNextMatch(counter, ownCounter: true));
+
+                // Match on any channel listening on the bus this channel drives.
+                foreach(var listener in Listeners)
+                {
+                    ticks = Math.Min(ticks, listener.TicksToNextMatch(counter, ownCounter: false));
+                }
+                internalTimer.Limit = ticks;
             }
 
             public void Reset()
@@ -332,6 +452,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {
                     return;
                 }
+
+                // NOTE: `TicksToNextMatch` needs to be updated whenever the logic below gets updated!
                 switch(Mode)
                 {
                 case ChannelModes.ModulusCounterBuffered:
@@ -385,6 +507,28 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     parent.NoisyLog("UC channel {0} is in mode {1} which does not update anything in tick function", channelNumber, Mode);
 #endif
                     break;
+                }
+            }
+
+            /// <summary>
+            /// Gets register value plus the elapsed timer value.
+            /// For a SAIC or OPWMB channel, it gives the value of the channel driving its bus.
+            /// Counter register reads and SAIC captures (AS2) use it.
+            /// </summary>
+            public uint CurrentCounter
+            {
+                get
+                {
+                    if(internalTimer.Enabled)
+                    {
+                        return (uint)(counterField.Value + internalTimer.Value);
+                    }
+
+                    var channel = parent.GetChannelDrivingBus(SelectedCounterBus);
+                    var isExternallyDriven = Mode is ChannelModes.SingleActionInputCapture or ChannelModes.OutputPWMBuffered;
+                    return channel != null && channel.internalTimer.Enabled && isExternallyDriven
+                        ? channel.CurrentCounter
+                        : (uint)counterField.Value;
                 }
             }
 
@@ -592,7 +736,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                         {
                             riseFall.Value = SAICEdgeCapture ? edgePolarity.Value : false;
                             // Capture the timestamp from the currently active bus
-                            AS2 = (uint)counterField.Value;
+                            AS2 = CurrentCounter;
                             if(Flag)
                             {
                                 // Flag is already set, so set overrun flag
@@ -613,13 +757,50 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
             public IGPIO OutputPin;
 
+            /// <summary>
+            /// Gets number of ticks of a driving counter, currently at `counter`, until this channel's CounterTick changes any state.
+            /// <summary>
+            private ulong TicksToNextMatch(uint counter, bool ownCounter)
+            {
+                switch(Mode)
+                {
+                case ChannelModes.ModulusCounterBuffered:
+                    if(!ownCounter)
+                    {
+                        // Externally ticked MCB only acts on its own counter
+                        return counterField.Value >= AS1 ? 1 : ulong.MaxValue;
+                    }
+                    return AS1 > counter ? AS1 - counter : 1;
+                case ChannelModes.OutputPWMBuffered:
+                    var ticks = ulong.MaxValue;
+                    if(AS1 > counter)
+                    {
+                        ticks = AS1 - counter;
+                    }
+                    if(BS1 > counter)
+                    {
+                        ticks = Math.Min(ticks, BS1 - counter);
+                    }
+                    return ticks;
+                default:
+                    return ulong.MaxValue;
+                }
+            }
+
+            /// <summary>
+            /// Adds Limit - 1 to the counter, because the skipped ticks only increment it.
+            /// It then runs the original single-tick code and schedules the next event.
+            /// </summary>
             private void InternalCounterTick()
             {
                 if(DisableChannel || parent.ModuleDisable)
                 {
                     return;
                 }
-                if(counterField.Value >= BitHelper.Bits(0, 24))
+
+                // All ticks but the last one were scheduled to only increment the counter
+                counterField.Value += internalTimer.Limit - 1;
+                if(counterField.Value >= MaxCounterValue)
                 {
                     // Internal Counter overflow
                     overflowFlag.Value = true;
@@ -629,9 +810,11 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 {
                     counterField.Value += 1;
                 }
+
                 // In externally driven modes the internal counter is disabled so we can unconditionally call CounterTick here
-                this.CounterTick((uint)counterField.Value);
+                CounterTick((uint)counterField.Value);
                 CounterTickEvent?.Invoke((uint)counterField.Value);
+                ScheduleNextTick();
             }
 
             private void UpdateFrequency()
@@ -659,12 +842,16 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
 
                 registerMap.Add((long)Registers.UChannelCounter0 + (channelNumber * ChannelOffset), new DoubleWordRegister(parent)
                     .WithReservedBits(24, 8)
-                    .WithValueField(0, 24, out counterField, readCallback: (_, __) =>
+                    .WithValueField(0, 24, out counterField, valueProviderCallback: _ =>
                     {
                         if(parent.BusController.TryGetCurrentCPU(out var cpu))
                         {
                             cpu.SyncTime();
                         }
+                        // The returned value is stored in the field, so fold the elapsed ticks into it first
+                        CatchUp();
+                        ScheduleNextTick();
+                        return CurrentCounter;
                     })
                 );
 
@@ -729,6 +916,19 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 );
             }
 
+            private IEnumerable<UnifiedChannel> Listeners
+            {
+                get
+                {
+                    // Only a few channels drive buses so there's no point in going through all channels if this isn't one of them.
+                    if(!BusDrivingChannelNumbers.ContainsValue(channelNumber))
+                    {
+                        return default;
+                    }
+                    return parent.unifiedChannels.Where(ch => ch != this && parent.GetChannelDrivingBus(ch.SelectedCounterBus) == this);
+                }
+            }
+
             private uint AS1 { get; set; }
 
             private uint AS2 { get; set; }
@@ -770,6 +970,8 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             private const byte OPWMBMask = 0b111_1101;
             private const byte OPWMBOpcode = 0b110_0000;
             private const uint ChannelOffset = 0x20;
+            private const byte CounterWidth = 24;
+            private const uint MaxCounterValue = (1u << CounterWidth) - 1;
         }
 
         private enum ChannelModes
