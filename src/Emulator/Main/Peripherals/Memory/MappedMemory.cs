@@ -25,8 +25,6 @@ using Antmicro.Renode.Utilities;
 
 using K4os.Compression.LZ4;
 
-using Microsoft.CSharp.RuntimeBinder;
-
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Memory
@@ -676,19 +674,11 @@ namespace Antmicro.Renode.Peripherals.Memory
             this.NoisyLog("Invalidating memory fragment at 0x{0:X} of size {1} bytes.", start, length);
 
             var registrationPoints = GetRegistrationPoints();
-            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CPU.ICPU>())
+            foreach(var cpu in machine.SystemBus.GetCPUs().OfType<CPU.TranslationCPU>())
             {
                 foreach(var regPoint in registrationPoints)
                 {
-                    try
-                    {
-                        //it's dynamic to avoid cyclic dependency to TranslationCPU
-                        ((dynamic)cpu).OrderTranslationBlocksInvalidation(new IntPtr(regPoint + start), new IntPtr(regPoint + start + length), delayedInvalidation);
-                    }
-                    catch(RuntimeBinderException)
-                    {
-                        // CPU does not implement `InvalidateTranslationBlocks`, there is not much we can do
-                    }
+                    cpu.OrderTranslationBlocksInvalidation(new IntPtr(regPoint + start), new IntPtr(regPoint + start + length), delayedInvalidation);
                 }
             }
         }
