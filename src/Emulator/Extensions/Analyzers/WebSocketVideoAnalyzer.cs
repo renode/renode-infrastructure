@@ -39,8 +39,9 @@ namespace Antmicro.Renode.Analyzers
         {
             base.AttachTo(backend);
             video = backend.Video;
-            displayNumber = Interlocked.Increment(ref DisplayCount);
-            server = new WebSocketServerProvider($"/display/{displayNumber}", true);
+            var machine = video.GetMachine();
+            var machineName = EmulationManager.Instance.CurrentEmulation[machine];
+            server = new WebSocketServerProvider($"/display/{machineName}/{machine.GetAnyNameOrTypeName(video)}", true);
             server.NewConnection += HandleNewConnection;
             server.Start();
 
@@ -78,11 +79,6 @@ namespace Antmicro.Renode.Analyzers
             server?.Dispose();
         }
 
-        public int GetDisplayNumber()
-        {
-            return displayNumber;
-        }
-
         public IVideo Video => video;
 
         private static byte[] BuildStatsMessage(float framesPerSecond)
@@ -92,8 +88,6 @@ namespace Antmicro.Renode.Analyzers
             BinaryPrimitives.WriteSingleLittleEndian(message.AsSpan(1), framesPerSecond);
             return message;
         }
-
-        private static int DisplayCount = 0;
 
         private void HandleNewConnection(WebSocketConnection sender, List<string> extraSegments)
         {
@@ -322,7 +316,6 @@ namespace Antmicro.Renode.Analyzers
             height = Math.Min(tileSize, frameHeight - y);
         }
 
-        private int displayNumber;
         private IVideo video;
         private WebSocketServerProvider server;
         private Timer flushTimer;
