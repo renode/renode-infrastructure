@@ -161,7 +161,7 @@ public partial class ARM_EthosU55
     }
 
     // U85 TRM rescale
-    private bool TryRescale(long accumulator, RescaleMode mode, int validCount, out long result, bool saturateToInt32 = false)
+    private bool TryRescale(long accumulator, RescaleMode mode, out long result, int validCount = 0, int channel = -1, bool saturateToInt32 = false)
     {
         long scale;
         int shift;
@@ -191,9 +191,26 @@ public partial class ARM_EthosU55
         }
         else if(((commandRegisters.OfmPrecision >> 8) & 1) == 0)
         {
-            // TODO: Implement per-channel scale, shift and bias
-            this.Log(LogLevel.Error, "Per-channel rescaling is not implemented");
-            return false;
+            if(channel == -1)
+            {
+                this.Log(LogLevel.Error, "Invalid channel: {0}", channel);
+                return false;
+            }
+
+            if(scaleStream == null)
+            {
+                this.Log(LogLevel.Error, "Scale/shift stream not initialized");
+                return false;
+            }
+
+            if(!TryGetAccumulatorBits(out var accumulatorBits))
+            {
+                return false;
+            }
+            accumulator = Accumulate(accumulator, biasStream[channel], accumulatorBits);
+
+            scale = scaleStream[channel];
+            shift = shiftStream[channel];
         }
         else
         {
@@ -227,9 +244,9 @@ public partial class ARM_EthosU55
     }
 
     // U85 TRM write_accumulator: rescale, then activation stage.
-    private bool WriteAccumulator(FeatureMapTiles output, int row, int column, int channel, long accumulator, RescaleMode rescaleMode, int validCount, FusedActivation activation)
+    private bool WriteAccumulator(FeatureMapTiles output, int row, int column, int channel, long accumulator, RescaleMode rescaleMode, FusedActivation activation, int validCount = 0)
     {
-        if(!TryRescale(accumulator, rescaleMode, validCount, out var outputValue))
+        if(!TryRescale(accumulator, rescaleMode, out var outputValue, validCount, channel))
         {
             return false;
         }
@@ -914,7 +931,7 @@ public partial class ARM_EthosU55
                     default:
                         throw new UnreachableException();
                     }
-                    if(!TryRescale(result, rescaleMode, 0, out var outputValue, saturateToInt32: true))
+                    if(!TryRescale(result, rescaleMode, out var outputValue, saturateToInt32: true))
                     {
                         return false;
                     }
@@ -1263,6 +1280,22 @@ public partial class ARM_EthosU55
             return false;
         }
 
+        var rescaleMode = mode switch
+        {
+            PoolMode.Max => RescaleMode.None,
+            PoolMode.Average => hasPadding ? RescaleMode.AveragePool : RescaleMode.Normal,
+            PoolMode.ReduceSum => RescaleMode.ShiftOnly,
+            _ => throw new UnreachableException(),
+        };
+
+        if(rescaleMode == RescaleMode.Normal && (((commandRegisters.OfmPrecision >> 8) & 1) == 0))
+        {
+            if(!TryUpdateBiasScaleShiftStream())
+            {
+                return false;
+            }
+        }
+
         this.Log(LogLevel.Debug,
             "POOL configuration: kernel={0}x{1}, stride={2}x{3}, dilation={4}x{5}, output={6}x{7}x{8}, pad={9},{10},{11},{12}, mode={13}",
             kernelWidth, kernelHeight, kernelStrideX, kernelStrideY, kernelXDilation, kernelYDilation,
@@ -1317,15 +1350,7 @@ public partial class ARM_EthosU55
                         }
                     }
 
-                    var rescaleMode = mode switch
-                    {
-                        PoolMode.Max => RescaleMode.None,
-                        PoolMode.Average => hasPadding ? RescaleMode.AveragePool : RescaleMode.Normal,
-                        PoolMode.ReduceSum => RescaleMode.ShiftOnly,
-                        _ => throw new UnreachableException()
-                    };
-
-                    if(!WriteAccumulator(outputBuffer, oY, oX, oD, accumulator, rescaleMode, validCount, activation))
+                    if(!WriteAccumulator(outputBuffer, oY, oX, oD, accumulator, rescaleMode, activation, validCount: validCount))
                     {
                         return false;
                     }

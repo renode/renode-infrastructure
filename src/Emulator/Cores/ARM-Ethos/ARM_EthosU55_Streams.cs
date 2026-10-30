@@ -426,5 +426,61 @@ public partial class ARM_EthosU55
         return true;
     }
 
+    // Section for bias, scale and shift parsing
+
+    private bool TryUpdateBiasScaleShiftStream()
+    {
+        biasStream = new List<long>();
+        scaleStream = new List<long>();
+        shiftStream = new List<int>();
+
+        if(!TryGetBufferAddress(commandRegisters.ScaleRegion, commandRegisters.ScaleBase, out var address, "bias, scale, shift", commandRegisters.ScaleLength))
+        {
+            return false;
+        }
+
+        var encodedBuffer = sysbus.ReadBytes(address, (int)commandRegisters.ScaleLength);
+        if(!TryParseBiasScaleShiftStream(new BitStreamReader(encodedBuffer)))
+        {
+            this.ErrorLog("Bias, scale, shift stream decoding aborted");
+            return false;
+        }
+        return true;
+    }
+
+    private bool TryParseBiasScaleShiftStream(BitStreamReader encodedStream)
+    {
+        // This method referenced encoding from Vela compiler as implementation for U85 is slightly different
+        // U85 TODO: Implement decoding for U85
+        var ocSize = commandRegisters.OfmDepthM1 + 1;
+        try
+        {
+            for(var i = 0; i < ocSize; i++)
+            {
+                biasStream.Add((long)BitHelper.SignExtend(encodedStream.ReadAsUInt64(40), 40));
+                scaleStream.Add((long)encodedStream.ReadAsUInt32(32));
+                shiftStream.Add(encodedStream.ReadAsByte(6));
+                ValidateReserved(encodedStream.ReadAsUInt64(2));
+            }
+        }
+        catch(ArgumentOutOfRangeException e)
+        {
+            this.ErrorLog("Run out of buffer while reading stream: {0}", e.Message);
+            return false;
+        }
+        return true;
+    }
+
+    private void ValidateReserved(ulong reserved)
+    {
+        if(reserved > 0)
+        {
+            this.WarningLog("Received 1 when reading reserved sequence");
+        }
+    }
+
+    private List<long> biasStream;
+    private List<long> scaleStream;
+    private List<int> shiftStream;
     private int[,,,] weights;
 }
