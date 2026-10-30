@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2020 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -195,7 +195,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private byte Convert(double value, bool upperByte)
         {
-            var v = (uint)(value * 160);
+            var v = (int)(value * 160);
 
             // lower byte contains only 4 bits that are left-shifted
             var result = upperByte
