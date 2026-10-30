@@ -785,6 +785,36 @@ namespace Antmicro.Renode.Utilities
             return res;
         }
 
+        public static void ToUintAndCopy(byte[] src, uint[] dst, bool littleEndian)
+        {
+            Array.Clear(dst, 0, dst.Length);
+            uint[] tmp = BitHelper.ToUInt32Array(src, littleEndian);
+
+            if(tmp.Length > dst.Length)
+            {
+                throw new ArgumentException("Source data is too large for the destination buffer", nameof(src));
+            }
+
+            Array.Copy(tmp, dst, tmp.Length);
+        }
+
+        public static byte[] ToBigEndianBytes(uint[] array)
+        {
+            var result = new byte[array.Length * 4];
+            int index = 0;
+            foreach(var val in array)
+            {
+                var bytes = BitConverter.GetBytes(val);
+                if(BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(bytes);
+                }
+                Buffer.BlockCopy(bytes, 0, result, index, 4);
+                index += 4;
+            }
+            return result;
+        }
+
         public const int BitsPerByte = 8;
 
         private static void AssertMaskParameters(int width, int position, int maxWidth)

@@ -52,37 +52,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
     private static byte[] ToBigEndianBytes(IValueRegisterField[] reg)
     {
         var values = reg.Select(e => (uint)e.Value).ToArray();
-        return ToBigEndianBytes(values);
-    }
-
-    private static byte[] ToBigEndianBytes(uint[] array)
-    {
-        var result = new byte[array.Length * 4];
-        int index = 0;
-        foreach(var val in array)
-        {
-            var bytes = BitConverter.GetBytes(val);
-            if(BitConverter.IsLittleEndian)
-            {
-                Array.Reverse(bytes);
-            }
-            Buffer.BlockCopy(bytes, 0, result, index, 4);
-            index += 4;
-        }
-        return result;
-    }
-
-    private static void ToUintAndCopy(byte[] src, uint[] dst)
-    {
-        Array.Clear(dst, 0, dst.Length);
-        uint[] tmp = BitHelper.ToUInt32Array(src, littleEndian: false);
-
-        if(tmp.Length > dst.Length)
-        {
-            throw new ArgumentException("Source data is too large for the destination buffer", nameof(src));
-        }
-
-        Array.Copy(tmp, dst, tmp.Length);
+        return BitHelper.ToBigEndianBytes(values);
     }
 
     private void DefineRegisters()
@@ -377,7 +347,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
         }
         else
         {
-            ToUintAndCopy(privKey, privKeyOut);
+            BitHelper.ToUintAndCopy(privKey, privKeyOut, littleEndian: false);
         }
 
         var curveParams = NistNamedCurves.GetByName(CurveName);
@@ -387,15 +357,15 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
         byte[] pubX = q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned();
         byte[] pubY = q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned();
 
-        ToUintAndCopy(pubX, pubKeyX);
-        ToUintAndCopy(pubY, pubKeyY);
+        BitHelper.ToUintAndCopy(pubX, pubKeyX, littleEndian: false);
+        BitHelper.ToUintAndCopy(pubY, pubKeyY, littleEndian: false);
     }
 
     private void ExecuteSign(byte[] messageBytes)
     {
         this.Log(LogLevel.Debug, "Executing ECC Sign");
 
-        var privKey = ToBigEndianBytes(privKeyIn);
+        var privKey = BitHelper.ToBigEndianBytes(privKeyIn);
         byte[] h = messageBytes;
 
         byte[] k = HMAC_DRBG.Generate(privKey, h);
@@ -422,18 +392,18 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
         byte[] rFinal = rInt.ToByteArrayUnsigned();
         byte[] sFinal = sInt.ToByteArrayUnsigned();
 
-        ToUintAndCopy(rFinal, signR);
-        ToUintAndCopy(sFinal, signS);
+        BitHelper.ToUintAndCopy(rFinal, signR, littleEndian: false);
+        BitHelper.ToUintAndCopy(sFinal, signS, littleEndian: false);
     }
 
     private void ExecuteVerify(byte[] messageBytes)
     {
         this.Log(LogLevel.Debug, "Executing ECC Verify");
 
-        byte[] s = ToBigEndianBytes(signS);
-        byte[] r = ToBigEndianBytes(signR);
-        byte[] pubKeyXBytes = ToBigEndianBytes(pubKeyX);
-        byte[] pubKeyYBytes = ToBigEndianBytes(pubKeyY);
+        byte[] s = BitHelper.ToBigEndianBytes(signS);
+        byte[] r = BitHelper.ToBigEndianBytes(signR);
+        byte[] pubKeyXBytes = BitHelper.ToBigEndianBytes(pubKeyX);
+        byte[] pubKeyYBytes = BitHelper.ToBigEndianBytes(pubKeyY);
         byte[] h = messageBytes;
 
         var curveParams = NistNamedCurves.GetByName(CurveName);
@@ -461,7 +431,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
         var rPrime = rPrimePoint.AffineXCoord.ToBigInteger().Mod(n);
         byte[] rPrimeBytes = rPrime.ToByteArrayUnsigned();
 
-        ToUintAndCopy(rPrimeBytes, verifyR);
+        BitHelper.ToUintAndCopy(rPrimeBytes, verifyR, littleEndian: false);
     }
 
     private void ExecuteECDH()
@@ -471,9 +441,9 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
 
         this.Log(LogLevel.Debug, "Executing ECC ECDH");
 
-        byte[] privKeyBytes = ToBigEndianBytes(privKeyIn);
-        byte[] pubKeyXBytes = ToBigEndianBytes(pubKeyX);
-        byte[] pubKeyYBytes = ToBigEndianBytes(pubKeyY);
+        byte[] privKeyBytes = BitHelper.ToBigEndianBytes(privKeyIn);
+        byte[] pubKeyXBytes = BitHelper.ToBigEndianBytes(pubKeyX);
+        byte[] pubKeyYBytes = BitHelper.ToBigEndianBytes(pubKeyY);
 
         var curveParams = NistNamedCurves.GetByName(CurveName);
         var priv = new BigInteger(1, privKeyBytes);
@@ -512,7 +482,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
         }
         else
         {
-            ToUintAndCopy(paddedSharedKey, dhSharedKey);
+            BitHelper.ToUintAndCopy(paddedSharedKey, dhSharedKey, littleEndian: false);
         }
 
         eccReady.Value = true;
@@ -542,7 +512,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
 
         if(keyVault.TryGetKey((uint)kvReadPkeyEntry.Value, out var key, Caliptra_KeyVault.DestinationCode.EccPKey))
         {
-            ToUintAndCopy(key, privKeyIn);
+            BitHelper.ToUintAndCopy(key, privKeyIn, littleEndian: false);
             kvRdPkeyStatusError.Value = KeyVaultOperationError.Success;
         }
         else
