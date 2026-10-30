@@ -628,7 +628,11 @@ namespace Antmicro.Renode.Core
             Action clockEntryHandler = null;
             clockEntryHandler = () =>
             {
-                this.Log(LogLevel.Noisy, "{0}: Executing action scheduled at {1} (current time: {2})", name ?? "unnamed", startTime, currentTime);
+                // Boxing the times allocates on every scheduled action, even when the message is dropped
+                if(Logger.MinimumLogLevel <= LogLevel.Noisy)
+                {
+                    this.Log(LogLevel.Noisy, "{0}: Executing action scheduled at {1} (current time: {2})", name ?? "unnamed", startTime, currentTime);
+                }
                 action(currentTime);
                 if(!ClockSource.TryRemoveClockEntry(clockEntryHandler))
                 {
