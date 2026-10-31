@@ -19,7 +19,7 @@ public class DummyCANAnalyzer : BasicPeripheralBackendAnalyzer<CANBackend>, IExt
 
     public override void Show()
     {
-        this.ErrorLog("CAN Analyzer is only supported on the new UI");
+        this.ErrorLog("CAN Analyzer is only supported in the UI mode");
     }
 
     public override void Clear()

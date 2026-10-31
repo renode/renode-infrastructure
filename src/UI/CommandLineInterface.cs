@@ -17,6 +17,7 @@ using Antmicro.Renode.Extensions.Analyzers.Video;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Logging.Backends;
 using Antmicro.Renode.Peripherals.CAN;
+using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
@@ -98,6 +99,7 @@ namespace Antmicro.Renode.UI
                 var uartAnalyzerType = typeof(ConsoleWindowBackendAnalyzer);
                 var videoAnalyzerType = typeof(VideoAnalyzer);
                 var canAnalyzerType = typeof(DummyCANAnalyzer);
+                var spiAnalyzerType = typeof(DummySPIAnalyzer);
 
                 if(options.ServerMode)
                 {
@@ -114,11 +116,13 @@ namespace Antmicro.Renode.UI
                 EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), uartAnalyzerType);
                 EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(VideoBackend), videoAnalyzerType);
                 EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(CANBackend), canAnalyzerType);
+                EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(SPIBackend), spiAnalyzerType);
                 EmulationManager.Instance.EmulationChanged += () =>
                 {
                     EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(UARTBackend), uartAnalyzerType);
                     EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(VideoBackend), videoAnalyzerType);
                     EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(CANBackend), canAnalyzerType);
+                    EmulationManager.Instance.CurrentEmulation.BackendManager.SetPreferredAnalyzer(typeof(SPIBackend), spiAnalyzerType);
                 };
 
                 var shell = PrepareShell(options, monitor);
