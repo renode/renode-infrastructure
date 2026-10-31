@@ -86,7 +86,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(13, out dataMatch, FieldMode.Read | FieldMode.WriteOneToClear, name: "DMF - Data Match Flag")
                 .WithReservedBits(14, 10)
                 .WithTaggedFlag("MBF - Module Busy Flag", 24)
-                .WithReservedBits(25, 7);
+                .WithReservedBits(25, 7)
+                .WithWriteCallback((_, __) => UpdateInterrupts());
 
             Registers.TransmitCommand.Define(this)
                 .WithValueField(0, 12, out frameSize, name: "FRAMESZ - Frame Size")
@@ -428,7 +429,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
             flag |= receiveDataInterruptEnable.Value && receiveFifo.Count > (int)rxWatermark.Value;
             flag |= transferComplete.Value && transferCompleteInterruptEnable.Value;
-            flag |= dataMatch.Value | dataMatchInterruptEnable.Value;
+            flag |= dataMatch.Value && dataMatchInterruptEnable.Value;
 
             this.Log(LogLevel.Debug, "Setting IRQ flag to {0}", flag);
             IRQ.Set(flag);
