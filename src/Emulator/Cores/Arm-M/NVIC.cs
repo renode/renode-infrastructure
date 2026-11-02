@@ -82,6 +82,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         /// NOTE: RFKXX is not respected here. `tlib_nvic_find_pending_irq()`
         /// does not respect PRIMASK/BASEPRI/FAULTMASK.
         /// </remarks>
+        public IEnumerable<int> GetPendingInterrupts()
+        {
+            lock(irqs)
+            {
+                return pendingIRQs.ToArray();
+            }
+        }
+
         public int? FindPendingInterrupt()
         {
             lock(irqs)
