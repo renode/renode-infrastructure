@@ -60,14 +60,14 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
         Registers.Name.DefineMany(this, 2, (register, idx) =>
         {
             register.WithValueField(0, 32, FieldMode.Read,
-                valueProviderCallback: _ => (uint)(ECC_CORE_NAME >> (idx * 32)),
+                valueProviderCallback: _ => (uint)(EccCoreName >> (idx * 32)),
                 name: $"NAME_{idx}");
         });
 
         Registers.Version.DefineMany(this, 2, (register, idx) =>
         {
             register.WithValueField(0, 32, FieldMode.Read,
-                valueProviderCallback: _ => (uint)(ECC_CORE_VERSION >> (idx * 32)),
+                valueProviderCallback: _ => (uint)(EccCoreVersion >> (idx * 32)),
                 name: $"VERSION_{idx}");
         });
 
@@ -466,7 +466,7 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
         if(kvWriteEn.Value)
         {
             uint slotId = (uint)kvWriteEntry.Value;
-            bool success = keyVault.TrySetKey(slotId, BitHelper.ToUInt32Array(paddedSharedKey, false), kvTagWriteAllowed.Value);
+            bool success = keyVault.TrySetKey(slotId, BitHelper.ToUInt32Array(paddedSharedKey, littleEndian: false), kvTagWriteAllowed.Value);
 
             if(success)
             {
@@ -558,8 +558,8 @@ public class Caliptra_ECC : BasicDoubleWordPeripheral, IKnownSize
     private const string CurveName = "P-384";
     private const int BlockSizeInBytes = 48;
 
-    private const ulong ECC_CORE_NAME = 0x38342D33_63707365; // secp-384
-    private const ulong ECC_CORE_VERSION = 0x00000000_3030312e; // 1.00
+    private const ulong EccCoreName = 0x38342D33_63707365; // secp-384
+    private const ulong EccCoreVersion = 0x00000000_3030312e; // 1.00
 
     // Implemented based on: https://chipsalliance.github.io/caliptra-web/docs/2.1/hardware/hardware_spec.html#operation-5
     private static class HMAC_DRBG

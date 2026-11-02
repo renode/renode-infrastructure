@@ -240,7 +240,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
             this.Log(LogLevel.Warning, "HMAC engine not initialized. Hash will not be computed");
             return;
         }
-        byte[] blockBytes = ToBytesBigEndian(hmacBlock).ToArray();
+        var blockBytes = ToBytesBigEndian(hmacBlock).ToArray();
 
         var digest = new byte[TagLength * sizeof(uint)];
         try
@@ -256,7 +256,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
 
         if(kvTagWrite.Value)
         {
-            if(keyVault.TrySetKey((uint)kvTagWriteSlot.Value, BitHelper.ToUInt32Array(digest, false), kvTagWriteAllowed.Value))
+            if(keyVault.TrySetKey((uint)kvTagWriteSlot.Value, BitHelper.ToUInt32Array(digest, littleEndian: false), kvTagWriteAllowed.Value))
             {
                 kvTagWriteStatus.Value = KeyvalutOperationStatus.Success;
             }
@@ -270,7 +270,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
         // Do not output the tag if the secret (key or block) was obtained from the Keyvault
         else if(!kvKeyReadValid.Value && !kvBlockReadValid.Value)
         {
-            Array.Copy(BitHelper.ToUInt32Array(digest, false), hmacTag, TagLength);
+            Array.Copy(BitHelper.ToUInt32Array(digest, littleEndian: false), hmacTag, TagLength);
         }
 
         valid.Value = true;
