@@ -398,7 +398,32 @@ public partial class ARM_EthosU55
         return true;
     }
 
-    // U85 TRM read_ifm/read_ifm2: read an IFM element already including zero point subtraction.
+    // U85 TRM read_ifm/read_ifm2: read an IFM element including zero point subtraction.
+    private long[] DecodeInputForReuseIfBeneficial(FeatureMapTiles input, double estimatedReads)
+    {
+        var elements = checked(input.Width * input.Height * input.Depth);
+        if(elements <= 0 || elements > MaximumFeatureMapBytes / sizeof(long) || estimatedReads <= elements)
+        {
+            return null;
+        }
+
+        // OPTIMIZATION: Decode each input value once instead of decoding it again for every window or output channel.
+        // Store values in row/column/channel order so later reads do not need to calculate tile addresses.
+        var values = new long[(int)elements];
+        var index = 0;
+        for(var row = 0; row < input.Height; row++)
+        {
+            for(var column = 0; column < input.Width; column++)
+            {
+                for(var channel = 0; channel < input.Depth; channel++)
+                {
+                    values[index++] = GetFeatureMapValue(input, row, column, channel);
+                }
+            }
+        }
+        return values;
+    }
+
     private long GetFeatureMapValue(FeatureMapTiles tiles, long row, long column, long channel)
     {
         var offset = GetFeatureMapByteOffset(tiles, row, column, channel, out var tile);
@@ -1258,6 +1283,10 @@ public partial class ARM_EthosU55
             kernelWidth, kernelHeight, kernelStrideX, kernelStrideY, kernelXDilation, kernelYDilation,
             outputWidth, outputHeight, outputDepth, topPad, leftPad, bottomPad, rightPad, mode);
 
+        var inputValues = mode != PoolMode.ReduceSum && upscale == IfmUpscaleMode.None && inputDepth == outputDepth
+            ? DecodeInputForReuseIfBeneficial(input, (double)outputHeight * outputWidth * outputDepth * kernelHeight * kernelWidth)
+            : null;
+
         for(var oY = 0; oY < outputHeight; oY++)
         {
             for(var oX = 0; oX < outputWidth; oX++)
@@ -1294,7 +1323,9 @@ public partial class ARM_EthosU55
                                 }
                                 validCount++;
 
-                                var value = GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
+                                var value = inputValues != null
+                                    ? inputValues[(iY * inputWidth + iX) * inputDepth + iC]
+                                    : GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
                                 if(mode == PoolMode.Max)
                                 {
                                     accumulator = Math.Max(accumulator, value);
@@ -1428,11 +1459,23 @@ public partial class ARM_EthosU55
             kernelXDilation, kernelYDilation,
             outputWidth, outputHeight, outputDepth);
 
-        for(var oX = 0; oX < outputWidth; oX++)
+        // OPTIMIZATION: Decode reused inputs once for non-upscaled convolution.
+        long[] inputValues = null;
+        if(upscale == IfmUpscaleMode.None)
+        {
+            var kernelRows = (kernelHeight + kernelYDilation - 1) / kernelYDilation;
+            var kernelColumns = (kernelWidth + kernelXDilation - 1) / kernelXDilation;
+            var inputChannelsPerKernelPosition = isDepthwise ? 1 : inputDepth;
+            var outputElements = (double)outputHeight * outputWidth * outputDepth;
+            var estimatedReads = outputElements * kernelRows * kernelColumns * inputChannelsPerKernelPosition;
+            inputValues = DecodeInputForReuseIfBeneficial(input, estimatedReads);
+        }
+
+        for(var oC = 0; oC < outputDepth; oC++)
         {
             for(var oY = 0; oY < outputHeight; oY++)
             {
-                for(var oC = 0; oC < outputDepth; oC++)
+                for(var oX = 0; oX < outputWidth; oX++)
                 {
                     long accumulator = 0; // U85 TODO: Implement different ways of initializing accumulator
                     for(var kY = 0; kY * kernelYDilation < kernelHeight; kY++)
@@ -1446,10 +1489,11 @@ public partial class ARM_EthosU55
                             {
                                 continue;
                             }
+                            var inputBase = inputValues != null ? (iY * inputWidth + iX) * inputDepth : 0;
                             // U85 TODO: Implement support for IFM2 as input
                             if(isDepthwise)
                             {
-                                var inputValueV = GetUpscaledFeatureMapValue(input, iY, iX, oC, upscale);
+                                var inputValueV = inputValues != null ? inputValues[inputBase + oC] : GetUpscaledFeatureMapValue(input, iY, iX, oC, upscale);
                                 var inputValueW = weights[oC, kY, kX, 0];
                                 accumulator = Accumulate(accumulator, inputValueV * inputValueW, accumulatorBits);
                             }
@@ -1457,7 +1501,7 @@ public partial class ARM_EthosU55
                             {
                                 for(var iC = 0; iC < inputDepth; iC++)
                                 {
-                                    var inputValueV = GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
+                                    var inputValueV = inputValues != null ? inputValues[inputBase + iC] : GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
                                     var inputValueW = weights[oC, kY, kX, iC];
                                     accumulator = Accumulate(accumulator, inputValueV * inputValueW, accumulatorBits);
                                 }
