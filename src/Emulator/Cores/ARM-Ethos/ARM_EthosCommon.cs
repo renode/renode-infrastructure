@@ -6,7 +6,6 @@
 //
 
 using System;
-using System.Numerics;
 
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
@@ -59,8 +58,8 @@ public static class ARM_EthosCommon
             return acc;
         }
 
-        var rounding = BigInteger.One << (shift - 1);
-        var doubleRounding = shift > (31 - doubleRoundShift) ? BigInteger.One << (30 - doubleRoundShift) : BigInteger.Zero;
+        var rounding = Int128.One << (shift - 1);
+        var doubleRounding = shift > (31 - doubleRoundShift) ? Int128.One << (30 - doubleRoundShift) : Int128.Zero;
         switch(mode)
         {
         case RoundingMode.DoubleSymmetric:
@@ -70,10 +69,10 @@ public static class ARM_EthosCommon
             rounding += doubleRounding;
             break;
         case RoundingMode.TruncateToZero:
-            rounding = acc >= 0 ? BigInteger.Zero : (BigInteger.One << shift) - 1;
+            rounding = acc >= 0 ? Int128.Zero : (Int128.One << shift) - 1;
             break;
         case RoundingMode.TruncateToLower:
-            rounding = BigInteger.Zero;
+            rounding = Int128.Zero;
             break;
         case RoundingMode.Natural:
             break;
@@ -86,7 +85,7 @@ public static class ARM_EthosCommon
         default:
             throw new ArgumentOutOfRangeException(nameof(mode));
         }
-        return (long)(((BigInteger)acc + rounding) >> shift);
+        return (long)(((Int128)acc + rounding) >> shift);
     }
 
     // Decode the activation type of an xFM precision register.
