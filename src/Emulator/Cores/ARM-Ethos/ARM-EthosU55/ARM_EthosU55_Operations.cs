@@ -410,14 +410,26 @@ public partial class ARM_EthosU55
         // OPTIMIZATION: Decode each input value once instead of decoding it again for every window or output channel.
         // Store values in row/column/channel order so later reads do not need to calculate tile addresses.
         var values = new long[(int)elements];
-        var index = 0;
+        const int channelBlockSize = 16;
+        var elementBytes = GetElementByteLength(input.Map);
+        var signed = IsSigned(input.Map);
+        var zeroPoint = GetZeroPoint(input.Map);
         for(var row = 0; row < input.Height; row++)
         {
             for(var column = 0; column < input.Width; column++)
             {
-                for(var channel = 0; channel < input.Depth; channel++)
+                // OPTIMIZATION: Channels within each 16-lane brick are contiguous in both NHWC and NHCWB16. Resolve tiles/addresses once per block.
+                // Keep tails within their brick and precision/zero-point setup outside the loop.
+                var valueIndex = (int)((row * input.Width + column) * input.Depth);
+                for(var channel = 0; channel < input.Depth; channel += channelBlockSize)
                 {
-                    values[index++] = GetFeatureMapValue(input, row, column, channel);
+                    var count = (int)Math.Min(channelBlockSize, input.Depth - channel);
+                    var offset = GetFeatureMapByteOffset(input, row, column, channel, out var tile);
+                    var bytes = input.Buffers[tile];
+                    for(var lane = 0; lane < count; lane++)
+                    {
+                        values[valueIndex + channel + lane] = ReadValue(bytes, (int)(offset + lane * elementBytes), elementBytes, signed) - zeroPoint;
+                    }
                 }
             }
         }
