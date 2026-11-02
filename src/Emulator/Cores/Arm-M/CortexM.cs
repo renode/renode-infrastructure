@@ -72,7 +72,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
             }
 
-            this.nvic = nvic;
+            NVIC = nvic;
             try
             {
                 nvic.AttachCPU(this);
@@ -716,6 +716,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public bool TrustZoneEnabled { get; }
 
+        public NVIC NVIC { get; }
+
         public UInt32 FaultStatus
         {
             get
@@ -991,7 +993,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private int FindPendingIRQ()
         {
-            return nvic?.FindPendingInterrupt() ?? 0;
+            return NVIC?.FindPendingInterrupt() ?? 0;
         }
 
         [Export]
@@ -1015,13 +1017,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private uint InterruptTargetsSecure(int interruptNumber)
         {
-            return nvic.GetTargetInterruptSecurityState(interruptNumber) == NVIC.InterruptTargetSecurityState.Secure ? 1u : 0u;
+            return NVIC.GetTargetInterruptSecurityState(interruptNumber) == NVIC.InterruptTargetSecurityState.Secure ? 1u : 0u;
         }
 
         [Export]
         private int PendingMaskedIRQ()
         {
-            return nvic.MaskedInterruptPresent ? 1 : 0;
+            return NVIC.MaskedInterruptPresent ? 1 : 0;
         }
 
         [Export]
@@ -1029,24 +1031,24 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             if(secure > 0)
             {
-                nvic.BASEPRI_S = (byte)value;
+                NVIC.BASEPRI_S = (byte)value;
             }
             else
             {
-                nvic.BASEPRI_NS = (byte)value;
+                NVIC.BASEPRI_NS = (byte)value;
             }
         }
 
         [Export]
         private int CompleteIRQ(int number)
         {
-            return nvic.CompleteIRQ(number) ? 1 : 0;
+            return NVIC.CompleteIRQ(number) ? 1 : 0;
         }
 
         [Export]
         private int AcknowledgeIRQ()
         {
-            return nvic?.AcknowledgeIRQ() ?? 0;
+            return NVIC?.AcknowledgeIRQ() ?? 0;
         }
 
         private uint ShouldAccessBeSecure()
@@ -1135,7 +1137,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             // Armv8-M ARM rule RBHVG and pseudocode operation TakeReset:
             // a BusFault reading the initial MSP or reset vector enters
             // Lockup with HardFault active and HFSR.VECTTBL set.
-            nvic.EnterResetLockup(TrustZoneEnabled);
+            NVIC.EnterResetLockup(TrustZoneEnabled);
             tlibEnterResetLockup();
         }
 
@@ -1157,7 +1159,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private uint IsSTIRAddress(uint address)
         {
-            return machine.SystemBus.GetRegistrationPoints(nvic)
+            return machine.SystemBus.GetRegistrationPoints(NVIC)
                 .Where(p => address == p.Range.StartAddress + NVIC.STIROffset)
                 .Any() ? 1u : 0u;
         }
@@ -1165,43 +1167,43 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void SetPendingIRQ(int number)
         {
-            nvic.SetPendingIRQ(number);
+            NVIC.SetPendingIRQ(number);
         }
 
         [Export]
         private int SetPendingSynchronousFault(int number)
         {
-            return (int)nvic.SetPendingSynchronousFault(number);
+            return (int)NVIC.SetPendingSynchronousFault(number);
         }
 
         [Export]
         private int SetPendingStackingFault(int number, int originalException)
         {
-            return (int)nvic.SetPendingStackingFault(number, originalException);
+            return (int)NVIC.SetPendingStackingFault(number, originalException);
         }
 
         [Export]
         private int SetPendingVectorFault(int secure, int originalException, int ignoreFaults)
         {
-            return (int)nvic.SetPendingVectorFault(secure != 0, originalException, ignoreFaults != 0);
+            return (int)NVIC.SetPendingVectorFault(secure != 0, originalException, ignoreFaults != 0);
         }
 
         [Export]
         private uint GetFpccrReadyBits(int originalException, int secure)
         {
-            return nvic.GetFpccrReadyBits(originalException, secure != 0);
+            return NVIC.GetFpccrReadyBits(originalException, secure != 0);
         }
 
         [Export]
         private int SetPendingLazyFpFault(int number, uint fpccr)
         {
-            return (int)nvic.SetPendingLazyFpFault(number, fpccr);
+            return (int)NVIC.SetPendingLazyFpFault(number, fpccr);
         }
 
         [Export]
         private void OnLockupStateChange(int value)
         {
-            nvic.SetLockupState(value != 0);
+            NVIC.SetLockupState(value != 0);
         }
 
         private void SetTrustZoneRelatedRegister(string registerName, Action<uint> setter, uint value)
@@ -1434,8 +1436,6 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         private readonly Func<uint, uint, uint> tlibGetPmsav8Mair;
 #pragma warning restore 649
-
-        private readonly NVIC nvic;
 
         public class ContextState : IContextState
         {
