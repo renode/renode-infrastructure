@@ -94,7 +94,8 @@ public partial class ARM_EthosU55
         queueReadOffset.Value = 0;
         isRunning.Value = true;
 
-        if((QueueBaseAddress & 0xF) != 0)
+        // QBASE must be four-byte aligned (U55 TRM 4.2.5).
+        if((QueueBaseAddress & 0x3) != 0)
         {
             ParseError("QBASE address is not aligned");
             return;
