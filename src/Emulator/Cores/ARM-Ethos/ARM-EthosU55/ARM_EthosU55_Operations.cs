@@ -1314,7 +1314,7 @@ public partial class ARM_EthosU55
                         for(var iC = 0; iC < inputDepth; iC++)
                         {
                             var value = GetFeatureMapValue(input, oY, oX, iC);
-                            accumulator = Accumulate(accumulator, value, accumulatorBits);
+                            accumulator = unchecked(accumulator + value);
                         }
                     }
                     else
@@ -1344,10 +1344,16 @@ public partial class ARM_EthosU55
                                 }
                                 else
                                 {
-                                    accumulator = Accumulate(accumulator, value, accumulatorBits);
+                                    accumulator = unchecked(accumulator + value);
                                 }
                             }
                         }
+                    }
+
+                    // OPTIMIZATION: Wrap once after summing, before rescaling.
+                    if(mode != PoolMode.Max)
+                    {
+                        accumulator = Accumulate(0, accumulator, accumulatorBits);
                     }
 
                     if(!WriteAccumulator(outputBuffer, oY, oX, oD, accumulator, rescaleMode, activation, validCount: validCount))
@@ -1507,7 +1513,7 @@ public partial class ARM_EthosU55
                             {
                                 var inputValueV = inputValues != null ? inputValues[inputBase + oC] : GetUpscaledFeatureMapValue(input, iY, iX, oC, upscale);
                                 var inputValueW = weights[oC, kY, kX, 0];
-                                accumulator = Accumulate(accumulator, inputValueV * inputValueW, accumulatorBits);
+                                accumulator = unchecked(accumulator + inputValueV * inputValueW);
                             }
                             else
                             {
@@ -1515,11 +1521,16 @@ public partial class ARM_EthosU55
                                 {
                                     var inputValueV = inputValues != null ? inputValues[inputBase + iC] : GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
                                     var inputValueW = weights[oC, kY, kX, iC];
-                                    accumulator = Accumulate(accumulator, inputValueV * inputValueW, accumulatorBits);
+                                    accumulator = unchecked(accumulator + inputValueV * inputValueW);
                                 }
                             }
                         }
                     }
+
+                    // OPTIMIZATION: Wrap once after summing instead of after every multiply-add.
+                    // This preserves the same low 32/40 bits, even if the long sum overflows.
+                    // Wrap before bias and scaling, which need the signed result.
+                    accumulator = Accumulate(0, accumulator, accumulatorBits);
 
                     if(!WriteAccumulator(outputBuffer, oY, oX, oC, accumulator, RescaleMode.Normal, activation))
                     {
