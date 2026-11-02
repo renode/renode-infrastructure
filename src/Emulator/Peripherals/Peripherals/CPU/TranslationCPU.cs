@@ -795,6 +795,19 @@ namespace Antmicro.Renode.Peripherals.CPU
             return Clustered.GetEnumerator();
         }
 
+        public void HandleBusAccessError(ulong address, SysbusAccessWidth width, BusAccess.Operation operation, BusAccessError error)
+        {
+            var mode = operation switch
+            {
+                BusAccess.Operation.Read  => BusFaultAccessMode.Load,
+                BusAccess.Operation.Write => BusFaultAccessMode.Store,
+                _                         => throw new ArgumentException("Unhandled operation type"),
+            };
+
+            this.WarningLog("Raising a bus access fault because of {0} on {1} {2} from/to address 0x{3:X}", error, width, operation, address);
+            TlibRaiseBusFault(checked((uint)address), (int)mode);
+        }
+
         // This method is overriden only to add [Export] attribute
         [Export]
         public override uint CheckExternalPermissions(ulong address)
@@ -1519,337 +1532,10 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Import]
         protected readonly Action TlibCleanWfiProcState;
 
-        [Import]
-        private readonly Func<uint> TlibGetBusFaultAddress;
-
-        [Import]
-        private readonly Action<uint, int> TlibRaiseBusFault;
-
         [Export]
         private IntPtr Reallocate(IntPtr oldPointer, IntPtr newSize)
         {
             return memoryManager.Reallocate(oldPointer, newSize);
-        }
-#pragma warning restore 649
-
-        private void UpdateBlockBeginHookPresent()
-        {
-            TlibSetBlockBeginHookPresent((blockBeginInternalHook != null || blockBeginUserHook != null || IsSingleStepMode || hooks.IsAnyInactive) ? 1u : 0u);
-        }
-
-        private void ReactivateHooks() => hooks.Reactivate();
-
-        [Export]
-        private uint IsInDebugMode()
-        {
-            return InDebugMode ? 1u : 0u;
-        }
-
-        [Export]
-        private void LogDisassembly(ulong pc, uint size, uint flags)
-        {
-            if(LogFile == null)
-            {
-                return;
-            }
-            if(Disassembler == null)
-            {
-                return;
-            }
-
-            if(!TryTranslateAddress(pc, MpuAccess.InstructionFetch, out var phy))
-            {
-                this.Log(LogLevel.Warning, "Failed to translate address 0x{0:X} while trying to log instruction disassembly", pc);
-                return;
-            }
-            var symbol = Bus.FindSymbolAt(pc, this);
-            var tab = Bus.ReadBytes(phy, (int)size, true, context: this);
-            Disassembler.DisassembleBlock(pc, tab, flags, false, out var disas);
-
-            if(disas == null)
-            {
-                return;
-            }
-
-            using(var file = File.AppendText(LogFile))
-            {
-                file.WriteLine("-------------------------");
-                if(size > 0)
-                {
-                    file.Write("IN: {0} ", symbol ?? string.Empty);
-                    if(phy != pc)
-                    {
-                        file.WriteLine("(physical: 0x{0:x8}, virtual: 0x{1:x8})", phy, pc);
-                    }
-                    else
-                    {
-                        file.WriteLine("(address: 0x{0:x8})", phy);
-                    }
-                }
-                else
-                {
-                    // special case when disassembling magic addresses in Cortex-M
-                    file.WriteLine("Magic PC value detected: 0x{0:x8}", flags > 0 ? pc | 1 : pc);
-                }
-
-                file.WriteLine(string.IsNullOrWhiteSpace(disas) ? string.Format("Cannot disassemble from 0x{0:x8} to 0x{1:x8}", pc, pc + size) : disas);
-                file.WriteLine(string.Empty);
-            }
-        }
-
-        /// <summary>
-        /// See <see cref="CPUCore.MultiprocessingId" /> for explanation on how this property should be interpreted and used.
-        /// Here, we can propagate this value to translation library, e.g. so it can be reflected in CPU's registers
-        /// </summary>
-        [Export]
-        private uint GetMpIndex()
-        {
-            return MultiprocessingId;
-        }
-
-        private void TlibSetIrqWrapped(int number, bool state)
-        {
-            var decodedInterrupt = DecodeInterrupt(number);
-            if(!decodedIrqs.TryGetValue(decodedInterrupt, out var irqs))
-            {
-                irqs = new HashSet<int>();
-                decodedIrqs.Add(decodedInterrupt, irqs);
-            }
-            this.Log(LogLevel.Noisy, "Setting CPU IRQ #{0} to {1}", number, state);
-            if(state)
-            {
-                irqs.Add(number);
-                TlibSetIrq((int)decodedInterrupt, 1);
-            }
-            else
-            {
-                irqs.Remove(number);
-                if(irqs.Count == 0)
-                {
-                    TlibSetIrq((int)decodedInterrupt, 0);
-                }
-            }
-        }
-
-        private void DeactivateHooks(ulong address) => hooks.DeactivateHooks(address);
-
-        [Export]
-        private IntPtr Allocate(IntPtr size)
-        {
-            return memoryManager.Allocate(size);
-        }
-
-        private CpuThreadPauseGuard ObtainPauseGuardForWriting(ulong address, SysbusAccessWidth width, ulong value)
-        {
-            pauseGuard.InitializeForWriting(address, width, value);
-            return pauseGuard;
-        }
-
-        private void RebuildMemoryMappings()
-        {
-            checked
-            {
-                var hostBlocks = currentMappings.Where(x => x.Touched).Select(x => x.Segment)
-                    .Select(x => new HostMemoryBlock { Start = x.StartingOffset, Size = x.Size, HostPointer = x.Pointer })
-                    .OrderBy(x => x.HostPointer.ToInt64()).ToArray();
-                if(hostBlocks.Length > 0)
-                {
-                    var blockBuffer = memoryManager.Allocate(new IntPtr(Marshal.SizeOf(typeof(HostMemoryBlock)) * hostBlocks.Length));
-                    BlitArray(blockBuffer, hostBlocks.OrderBy(x => x.HostPointer.ToInt64()).Cast<dynamic>().ToArray());
-                    RenodeSetHostBlocks(blockBuffer, hostBlocks.Length);
-                    memoryManager.Free(blockBuffer);
-                    this.NoisyLog("Memory mappings rebuilt, there are {0} host blocks now.", hostBlocks.Length);
-                }
-            }
-        }
-
-        [Export]
-        private void TouchHostBlock(ulong offset)
-        {
-            this.NoisyLog("Trying to find the mapping for offset 0x{0:X}.", offset);
-            var mapping = currentMappings.FirstOrDefault(x => x.Segment.StartingOffset <= offset && offset <= x.Segment.StartingOffset + (x.Segment.Size - 1));
-            if(mapping == null)
-            {
-                throw new InvalidOperationException(string.Format("Could not find mapped segment for offset 0x{0:X}.", offset));
-            }
-            mapping.Segment.Touch();
-            mapping.Touched = true;
-            RebuildMemoryMappings();
-        }
-
-        private void Init()
-        {
-            memoryManager = new SimpleMemoryManager(this);
-            isPaused = true;
-
-            onTranslationBlockFetch = OnTranslationBlockFetch;
-
-            // PowerPC always uses the big-endian translation library
-            var endianSuffix = (Endianness == Endianess.BigEndian || Architecture.StartsWith("ppc")) ? "be" : "le";
-
-            libraryFile = PlatformFileLoader.CopyPlatformFile($"translate-{Architecture}-{endianSuffix}.so");
-
-            binder = new NativeBinder(this, libraryFile);
-            MaximumBlockSize = DefaultMaximumBlockSize;
-
-            // Need to call these before initializing TCG, so to save us an immediate TB flush
-            // Note, that there is an additional hard limit within the translation library itself,
-            // that can prevent setting the new size of translation cache, with a warning log
-            var translationCacheSizeMin = (ulong)ConfigurationManager.Instance.Get("translation", "min-tb-size", DefaultMinimumTranslationCacheSize);
-            var translationCacheSizeMax = (ulong)ConfigurationManager.Instance.Get("translation", "max-tb-size", DefaultMaximumTranslationCacheSize);
-            TlibSetTranslationCacheConfiguration(translationCacheSizeMin, translationCacheSizeMax);
-
-            var result = TlibInit(Model);
-            if(result == -1)
-            {
-                throw new ConstructionException("Unknown CPU type");
-            }
-            if(cpuState != null)
-            {
-                var statePtr = TlibExportState();
-                Marshal.Copy(cpuState, 0, statePtr, cpuState.Length);
-                AfterLoad(statePtr);
-            }
-            if(externalMmuState != null)
-            {
-                var externalMmuStatePtr = TlibExportExternalMmuState();
-                Marshal.Copy(externalMmuState, 0, externalMmuStatePtr, externalMmuState.Length);
-            }
-
-            atomicId = TlibAtomicMemoryStateInit(AtomicMemoryStatePointer, atomicId);
-            if(atomicId == -1)
-            {
-                throw new ConstructionException("Failed to initialize atomic state, see the log for details");
-            }
-
-            HandleRamSetup();
-            ActivateNewHooks();
-            CyclesPerInstruction = 1;
-        }
-
-        [Export]
-        private void ReportAbort(string message)
-        {
-            this.Log(LogLevel.Error, "CPU abort [PC=0x{0:X}]: {1}.", PC.RawValue, message);
-            /* If the trace writer runs asynchronyously, we need to disable it.
-             * Otherwise it might catch the CpuAbortException when we cross the tlib boundary
-             * since the tracer can read emulated CPU registers (tlib callbacks)
-             * and catch the exception there, before the CPU thread does.
-             */
-            ExecutionTracerExtensions.DisableExecutionTracing(this);
-            throw new CpuAbortException(message);
-        }
-
-        private void HandleRamSetup()
-        {
-            foreach(var mapping in currentMappings)
-            {
-                var range = mapping.Segment.GetRange();
-                if(!disabledMemory.ContainsOverlappingRange(range))
-                {
-                    SetAccessMethod(range, asMemory: true);
-                }
-            }
-        }
-
-        [Export]
-        private void OnTranslationCacheSizeChange(ulong realSize)
-        {
-            this.Log(LogLevel.Debug, "Translation cache size was corrected to {0}B ({1}B).", Misc.NormalizeBinary(realSize), realSize);
-        }
-
-        private void OnTranslationBlockFetch(ulong offset)
-        {
-            var info = Bus.FindSymbolAt(offset, this);
-            if(info != string.Empty)
-            {
-                info = " - " + info;
-            }
-            this.Log(LogLevel.Info, "Fetching block @ 0x{0:X8}{1}", offset, info);
-        }
-
-        [Export]
-        private IntPtr GetDirty(IntPtr size)
-        {
-            var dirtyAddressesList = machine.GetNewDirtyAddressesForCore(this);
-            var newAddressesCount = dirtyAddressesList.Length;
-
-            if(newAddressesCount > 0)
-            {
-                dirtyAddressesPtr = memoryManager.Reallocate(dirtyAddressesPtr, new IntPtr(newAddressesCount * 8));
-                Marshal.Copy(dirtyAddressesList, 0, dirtyAddressesPtr, newAddressesCount);
-            }
-            Marshal.WriteInt64(size, newAddressesCount);
-
-            return dirtyAddressesPtr;
-        }
-
-        [Export]
-        private void OnMassBroadcastDirty(IntPtr arrayStart, int size)
-        {
-            var tempArray = new long[size];
-            Marshal.Copy(arrayStart, tempArray, 0, size);
-            machine.AppendDirtyAddresses(this, tempArray);
-        }
-
-        [Export]
-        private void OnMemoryAccess(ulong pc, uint operation, ulong virtualAddress, uint width, ulong value)
-        {
-            // We don't care if translation fails here (the address is unchanged in this case)
-            TryTranslateAddress(virtualAddress, Misc.MemoryOperationToMpuAccess((MemoryOperation)operation), out var physicalAddress);
-            memoryAccessHook?.Invoke(pc, (MemoryOperation)operation, virtualAddress, physicalAddress, width, value);
-        }
-
-        private void RemoveHookAtInterruptBegin(Action<ulong> hook)
-        {
-            interruptBeginHook -= hook;
-            if(interruptBeginHook == null)
-            {
-                TlibSetInterruptBeginHookPresent(0u);
-            }
-        }
-
-        [Export]
-        private ulong GetTotalElapsedCycles()
-        {
-            return this.ElapsedCycles;
-        }
-
-        [Export]
-        private uint IsMemoryDisabled(ulong start, ulong size)
-        {
-            return disabledMemory.ContainsOverlappingRange(start.By(size)) ? 1u : 0u;
-        }
-
-        /// <remarks>
-        /// This method should be called from tlib only, and never from C#, since it uses `ObtainGenericPauseGuard`
-        /// see: <see cref="ObtainGenericPauseGuard" /> for more information.
-        /// </remarks>
-        [Export]
-        private void OnWfiStateChange(int isInWfi)
-        {
-            using(ObtainGenericPauseGuard())
-            {
-                wfiStateChangeHook?.Invoke(isInWfi > 0);
-            }
-        }
-
-        /// <remarks>
-        /// This method should be called from tlib only, and never from C#, since it uses `ObtainGenericPauseGuard`
-        /// see: <see cref="ObtainGenericPauseGuard" /> for more information.
-        /// </remarks>
-        [Export]
-        private uint OnBlockBegin(ulong address, uint size)
-        {
-            ReactivateHooks();
-
-            using(ObtainGenericPauseGuard())
-            {
-                blockBeginInternalHook?.Invoke(address, size);
-                blockBeginUserHook?.Invoke(address, size);
-            }
-
-            return (currentHaltedState || isPaused) ? 0 : 1u;
         }
 
         [Export]
@@ -1979,19 +1665,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.Log(LogLevel.Info, "Begin of the interrupt: {0}", GetExceptionDescription(exceptionIndex));
         }
 
-        /// <remarks>
-        /// This method should be called from tlib only, and never from C#, since it uses `ObtainGenericPauseGuard`
-        /// see: <see cref="ObtainGenericPauseGuard" /> for more information.
-        /// </remarks>
-        [Export]
-        private void OnBlockFinished(ulong pc, uint executedInstructions)
-        {
-            using(ObtainGenericPauseGuard())
-            {
-                blockFinishedHook?.Invoke(pc, executedInstructions);
-            }
-        }
-
         private void SetInternalHookAtBlockBegin(Action<ulong, uint> hook)
         {
             using(machine?.ObtainPausedState(true))
@@ -2080,6 +1753,340 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
         }
 
+        /// <remarks>
+        /// This method should be called from tlib only, and never from C#, since it uses `ObtainGenericPauseGuard`
+        /// see: <see cref="ObtainGenericPauseGuard" /> for more information.
+        /// </remarks>
+        [Export]
+        private uint OnBlockBegin(ulong address, uint size)
+        {
+            ReactivateHooks();
+
+            using(ObtainGenericPauseGuard())
+            {
+                blockBeginInternalHook?.Invoke(address, size);
+                blockBeginUserHook?.Invoke(address, size);
+            }
+
+            return (currentHaltedState || isPaused) ? 0 : 1u;
+        }
+
+        /// <remarks>
+        /// This method should be called from tlib only, and never from C#, since it uses `ObtainGenericPauseGuard`
+        /// see: <see cref="ObtainGenericPauseGuard" /> for more information.
+        /// </remarks>
+        [Export]
+        private void OnWfiStateChange(int isInWfi)
+        {
+            using(ObtainGenericPauseGuard())
+            {
+                wfiStateChangeHook?.Invoke(isInWfi > 0);
+            }
+        }
+
+        /// <remarks>
+        /// This method should be called from tlib only, and never from C#, since it uses `ObtainGenericPauseGuard`
+        /// see: <see cref="ObtainGenericPauseGuard" /> for more information.
+        /// </remarks>
+        [Export]
+        private void OnBlockFinished(ulong pc, uint executedInstructions)
+        {
+            using(ObtainGenericPauseGuard())
+            {
+                blockFinishedHook?.Invoke(pc, executedInstructions);
+            }
+        }
+
+        [Export]
+        private ulong GetTotalElapsedCycles()
+        {
+            return this.ElapsedCycles;
+        }
+
+        [Export]
+        private uint IsMemoryDisabled(ulong start, ulong size)
+        {
+            return disabledMemory.ContainsOverlappingRange(start.By(size)) ? 1u : 0u;
+        }
+#pragma warning restore 649
+
+        private void UpdateBlockBeginHookPresent()
+        {
+            TlibSetBlockBeginHookPresent((blockBeginInternalHook != null || blockBeginUserHook != null || IsSingleStepMode || hooks.IsAnyInactive) ? 1u : 0u);
+        }
+
+        private void ReactivateHooks() => hooks.Reactivate();
+
+        [Export]
+        private void LogDisassembly(ulong pc, uint size, uint flags)
+        {
+            if(LogFile == null)
+            {
+                return;
+            }
+            if(Disassembler == null)
+            {
+                return;
+            }
+
+            if(!TryTranslateAddress(pc, MpuAccess.InstructionFetch, out var phy))
+            {
+                this.Log(LogLevel.Warning, "Failed to translate address 0x{0:X} while trying to log instruction disassembly", pc);
+                return;
+            }
+            var symbol = Bus.FindSymbolAt(pc, this);
+            var tab = Bus.ReadBytes(phy, (int)size, true, context: this);
+            Disassembler.DisassembleBlock(pc, tab, flags, false, out var disas);
+
+            if(disas == null)
+            {
+                return;
+            }
+
+            using(var file = File.AppendText(LogFile))
+            {
+                file.WriteLine("-------------------------");
+                if(size > 0)
+                {
+                    file.Write("IN: {0} ", symbol ?? string.Empty);
+                    if(phy != pc)
+                    {
+                        file.WriteLine("(physical: 0x{0:x8}, virtual: 0x{1:x8})", phy, pc);
+                    }
+                    else
+                    {
+                        file.WriteLine("(address: 0x{0:x8})", phy);
+                    }
+                }
+                else
+                {
+                    // special case when disassembling magic addresses in Cortex-M
+                    file.WriteLine("Magic PC value detected: 0x{0:x8}", flags > 0 ? pc | 1 : pc);
+                }
+
+                file.WriteLine(string.IsNullOrWhiteSpace(disas) ? string.Format("Cannot disassemble from 0x{0:x8} to 0x{1:x8}", pc, pc + size) : disas);
+                file.WriteLine(string.Empty);
+            }
+        }
+
+        /// <summary>
+        /// See <see cref="CPUCore.MultiprocessingId" /> for explanation on how this property should be interpreted and used.
+        /// Here, we can propagate this value to translation library, e.g. so it can be reflected in CPU's registers
+        /// </summary>
+        [Export]
+        private uint GetMpIndex()
+        {
+            return MultiprocessingId;
+        }
+
+        private void TlibSetIrqWrapped(int number, bool state)
+        {
+            var decodedInterrupt = DecodeInterrupt(number);
+            if(!decodedIrqs.TryGetValue(decodedInterrupt, out var irqs))
+            {
+                irqs = new HashSet<int>();
+                decodedIrqs.Add(decodedInterrupt, irqs);
+            }
+            this.Log(LogLevel.Noisy, "Setting CPU IRQ #{0} to {1}", number, state);
+            if(state)
+            {
+                irqs.Add(number);
+                TlibSetIrq((int)decodedInterrupt, 1);
+            }
+            else
+            {
+                irqs.Remove(number);
+                if(irqs.Count == 0)
+                {
+                    TlibSetIrq((int)decodedInterrupt, 0);
+                }
+            }
+        }
+
+        private void DeactivateHooks(ulong address) => hooks.DeactivateHooks(address);
+
+        [Export]
+        private IntPtr Allocate(IntPtr size)
+        {
+            return memoryManager.Allocate(size);
+        }
+
+        private CpuThreadPauseGuard ObtainPauseGuardForWriting(ulong address, SysbusAccessWidth width, ulong value)
+        {
+            pauseGuard.InitializeForWriting(address, width, value);
+            return pauseGuard;
+        }
+
+        private void RebuildMemoryMappings()
+        {
+            checked
+            {
+                var hostBlocks = currentMappings.Where(x => x.Touched).Select(x => x.Segment)
+                    .Select(x => new HostMemoryBlock { Start = x.StartingOffset, Size = x.Size, HostPointer = x.Pointer })
+                    .OrderBy(x => x.HostPointer.ToInt64()).ToArray();
+                if(hostBlocks.Length > 0)
+                {
+                    var blockBuffer = memoryManager.Allocate(new IntPtr(Marshal.SizeOf(typeof(HostMemoryBlock)) * hostBlocks.Length));
+                    BlitArray(blockBuffer, hostBlocks.OrderBy(x => x.HostPointer.ToInt64()).Cast<dynamic>().ToArray());
+                    RenodeSetHostBlocks(blockBuffer, hostBlocks.Length);
+                    memoryManager.Free(blockBuffer);
+                    this.NoisyLog("Memory mappings rebuilt, there are {0} host blocks now.", hostBlocks.Length);
+                }
+            }
+        }
+
+        [Export]
+        private uint IsInDebugMode()
+        {
+            return InDebugMode ? 1u : 0u;
+        }
+
+        private void Init()
+        {
+            memoryManager = new SimpleMemoryManager(this);
+            isPaused = true;
+
+            onTranslationBlockFetch = OnTranslationBlockFetch;
+
+            // PowerPC always uses the big-endian translation library
+            var endianSuffix = (Endianness == Endianess.BigEndian || Architecture.StartsWith("ppc")) ? "be" : "le";
+
+            libraryFile = PlatformFileLoader.CopyPlatformFile($"translate-{Architecture}-{endianSuffix}.so");
+
+            binder = new NativeBinder(this, libraryFile);
+            MaximumBlockSize = DefaultMaximumBlockSize;
+
+            // Need to call these before initializing TCG, so to save us an immediate TB flush
+            // Note, that there is an additional hard limit within the translation library itself,
+            // that can prevent setting the new size of translation cache, with a warning log
+            var translationCacheSizeMin = (ulong)ConfigurationManager.Instance.Get("translation", "min-tb-size", DefaultMinimumTranslationCacheSize);
+            var translationCacheSizeMax = (ulong)ConfigurationManager.Instance.Get("translation", "max-tb-size", DefaultMaximumTranslationCacheSize);
+            TlibSetTranslationCacheConfiguration(translationCacheSizeMin, translationCacheSizeMax);
+
+            var result = TlibInit(Model);
+            if(result == -1)
+            {
+                throw new ConstructionException("Unknown CPU type");
+            }
+            if(cpuState != null)
+            {
+                var statePtr = TlibExportState();
+                Marshal.Copy(cpuState, 0, statePtr, cpuState.Length);
+                AfterLoad(statePtr);
+            }
+            if(externalMmuState != null)
+            {
+                var externalMmuStatePtr = TlibExportExternalMmuState();
+                Marshal.Copy(externalMmuState, 0, externalMmuStatePtr, externalMmuState.Length);
+            }
+
+            atomicId = TlibAtomicMemoryStateInit(AtomicMemoryStatePointer, atomicId);
+            if(atomicId == -1)
+            {
+                throw new ConstructionException("Failed to initialize atomic state, see the log for details");
+            }
+
+            HandleRamSetup();
+            ActivateNewHooks();
+            CyclesPerInstruction = 1;
+        }
+
+        private void RemoveHookAtInterruptBegin(Action<ulong> hook)
+        {
+            interruptBeginHook -= hook;
+            if(interruptBeginHook == null)
+            {
+                TlibSetInterruptBeginHookPresent(0u);
+            }
+        }
+
+        [Export]
+        private void TouchHostBlock(ulong offset)
+        {
+            this.NoisyLog("Trying to find the mapping for offset 0x{0:X}.", offset);
+            var mapping = currentMappings.FirstOrDefault(x => x.Segment.StartingOffset <= offset && offset <= x.Segment.StartingOffset + (x.Segment.Size - 1));
+            if(mapping == null)
+            {
+                throw new InvalidOperationException(string.Format("Could not find mapped segment for offset 0x{0:X}.", offset));
+            }
+            mapping.Segment.Touch();
+            mapping.Touched = true;
+            RebuildMemoryMappings();
+        }
+
+        [Export]
+        private void OnMassBroadcastDirty(IntPtr arrayStart, int size)
+        {
+            var tempArray = new long[size];
+            Marshal.Copy(arrayStart, tempArray, 0, size);
+            machine.AppendDirtyAddresses(this, tempArray);
+        }
+
+        [Export]
+        private IntPtr GetDirty(IntPtr size)
+        {
+            var dirtyAddressesList = machine.GetNewDirtyAddressesForCore(this);
+            var newAddressesCount = dirtyAddressesList.Length;
+
+            if(newAddressesCount > 0)
+            {
+                dirtyAddressesPtr = memoryManager.Reallocate(dirtyAddressesPtr, new IntPtr(newAddressesCount * 8));
+                Marshal.Copy(dirtyAddressesList, 0, dirtyAddressesPtr, newAddressesCount);
+            }
+            Marshal.WriteInt64(size, newAddressesCount);
+
+            return dirtyAddressesPtr;
+        }
+
+        [Export]
+        private void OnMemoryAccess(ulong pc, uint operation, ulong virtualAddress, uint width, ulong value)
+        {
+            // We don't care if translation fails here (the address is unchanged in this case)
+            TryTranslateAddress(virtualAddress, Misc.MemoryOperationToMpuAccess((MemoryOperation)operation), out var physicalAddress);
+            memoryAccessHook?.Invoke(pc, (MemoryOperation)operation, virtualAddress, physicalAddress, width, value);
+        }
+
+        [Export]
+        private void OnTranslationCacheSizeChange(ulong realSize)
+        {
+            this.Log(LogLevel.Debug, "Translation cache size was corrected to {0}B ({1}B).", Misc.NormalizeBinary(realSize), realSize);
+        }
+
+        private void HandleRamSetup()
+        {
+            foreach(var mapping in currentMappings)
+            {
+                var range = mapping.Segment.GetRange();
+                if(!disabledMemory.ContainsOverlappingRange(range))
+                {
+                    SetAccessMethod(range, asMemory: true);
+                }
+            }
+        }
+
+        [Export]
+        private void ReportAbort(string message)
+        {
+            this.Log(LogLevel.Error, "CPU abort [PC=0x{0:X}]: {1}.", PC.RawValue, message);
+            /* If the trace writer runs asynchronyously, we need to disable it.
+             * Otherwise it might catch the CpuAbortException when we cross the tlib boundary
+             * since the tracer can read emulated CPU registers (tlib callbacks)
+             * and catch the exception there, before the CPU thread does.
+             */
+            ExecutionTracerExtensions.DisableExecutionTracing(this);
+            throw new CpuAbortException(message);
+        }
+
+        private void OnTranslationBlockFetch(ulong offset)
+        {
+            var info = Bus.FindSymbolAt(offset, this);
+            if(info != string.Empty)
+            {
+                info = " - " + info;
+            }
+            this.Log(LogLevel.Info, "Fetching block @ 0x{0:X8}{1}", offset, info);
+        }
+
         private IntPtr AtomicMemoryStatePointer =>
             UseMachineAtomicState
                 ? machine.AtomicMemoryStatePointer
@@ -2095,60 +2102,62 @@ namespace Antmicro.Renode.Peripherals.CPU
                 ? machine.StoreTableBits
                 : localAtomicState.StoreTableBits;
 
-        private ExternalMmuPosition externalMmuPosition;
+        private Action<bool> wfiStateChangeHook;
+        private MemoryAccessHook memoryAccessHook;
+
+        [Transient]
+        private NativeBinder binder;
+        private volatile bool wakeUpFromWfiRequested;
+
+        private List<SegmentMapping> currentMappings;
+
+        private bool logTranslatedBlocks;
+
+        [Transient]
+        private SimpleMemoryManager memoryManager;
+        private LogFunctionNamesState? logFunctionNamesCurrentState;
+        private Action<ulong, uint> blockFinishedHook;
+
+        private bool pendingTranslationCacheClearing;
+        private ExternalMmuFaultHook mmuFaultHook;
+
+        [Transient]
+        private bool disposed;
+        private bool isInterruptLoggingEnabled;
+        private Action<ulong> interruptEndHook;
+        private byte[] cpuState;
+        private Action<ulong, uint> blockBeginUserHook;
+
+        [Transient]
+        private string libraryFile;
+
+        private Action<ulong, uint> blockBeginInternalHook;
+
+        [Transient]
+        private List<IntPtr> addressesToInvalidate;
+
+        private bool logTranslationBlockFetchEnabled;
+        private int? slot;
+        private TlibExecutionResult lastTlibResult;
+
+        [Transient]
+        private IntPtr dirtyAddressesPtr = IntPtr.Zero;
+
+        [Transient]
+        private TranslationBlockFetchCallback onTranslationBlockFetch;
+        private byte[] externalMmuState;
 
         /// <summary>
         /// <see cref="atomicId" /> acts as a binder between the CPU and atomic state.
         /// It's used to restore the atomic state after deserialization
         /// </summary>
         private int atomicId;
-        private byte[] cpuState;
-        private byte[] externalMmuState;
 
-        [Transient]
-        private TranslationBlockFetchCallback onTranslationBlockFetch;
-
-        [Transient]
-        private IntPtr dirtyAddressesPtr = IntPtr.Zero;
-        private TlibExecutionResult lastTlibResult;
-        private int? slot;
-
-        private bool logTranslationBlockFetchEnabled;
-
-        [Transient]
-        private List<IntPtr> addressesToInvalidate;
-
-        private Action<ulong, uint> blockBeginInternalHook;
-
-        [Transient]
-        private string libraryFile;
-        private Action<ulong, uint> blockBeginUserHook;
-        private Action<ulong> interruptBeginHook;
-        private Action<ulong> interruptEndHook;
-        private ExternalMmuFaultHook mmuFaultHook;
-        private MemoryAccessHook memoryAccessHook;
-        private Action<bool> wfiStateChangeHook;
-        private volatile bool wakeUpFromWfiRequested;
-
-        private List<SegmentMapping> currentMappings;
-
-        [Transient]
-        private NativeBinder binder;
-
-        private bool logTranslatedBlocks;
-        private bool isInterruptLoggingEnabled;
-        private LogFunctionNamesState? logFunctionNamesCurrentState;
-        private Action<ulong, uint> blockFinishedHook;
-
-        private bool pendingTranslationCacheClearing;
-
-        [Transient]
-        private SimpleMemoryManager memoryManager;
-
-        [Transient]
-        private bool disposed;
+        private ExternalMmuPosition externalMmuPosition;
 
         private string logFile;
+        private Action<ulong> interruptBeginHook;
+
         private readonly HookDescriptorBase hooks;
 
         private readonly AtomicState localAtomicState;
@@ -2372,6 +2381,12 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         [Import]
         private readonly Action<ulong, ulong, ulong> TlibEnableWriteCache;
+
+        [Import]
+        private readonly Func<uint> TlibGetBusFaultAddress;
+
+        [Import]
+        private readonly Action<uint, int> TlibRaiseBusFault;
 #pragma warning restore 649
 
         private readonly ConcurrentQueue<Action> actionsToExecuteOnCpuThread = new ConcurrentQueue<Action>();
@@ -2386,6 +2401,14 @@ namespace Antmicro.Renode.Peripherals.CPU
         private const int DefaultMinimumTranslationCacheSize = 32 * 1024 * 1024; // 32 MiB
 
         private const int DefaultMaximumBlockSize = 0x7FF;
+
+        // Must be in sync with cpu-defs:bus_fault_access_mode
+        public enum BusFaultAccessMode
+        {
+            None = 0,
+            Store = 1,
+            Load = 2,
+        }
 
         protected sealed class CpuThreadPauseGuard : IDisposable
         {
@@ -2545,14 +2568,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             TargetExternal1 = 1 << 4,
             TargetExternal2 = 1 << 6,
             TargetExternal3 = 1 << 9,
-        }
-
-        // Must be in sync with cpu-defs:bus_fault_access_mode
-        public enum BusFaultAccessMode
-        {
-            None = 0,
-            Store = 1,
-            Load = 2,
         }
 
         private class HookDescriptor : HookDescriptorBase
