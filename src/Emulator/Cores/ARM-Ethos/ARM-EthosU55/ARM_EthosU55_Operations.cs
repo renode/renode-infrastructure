@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Numerics;
 
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
 
 using static Antmicro.Renode.Peripherals.ARM_Ethos.ARM_EthosCommon;
@@ -441,6 +442,10 @@ public partial class ARM_EthosU55
     private bool WriteFeatureMap(FeatureMapTiles tiles)
     {
         var elementBytes = GetElementByteLength(tiles.Map);
+        if(TryWriteContiguousFeatureMap(tiles, elementBytes))
+        {
+            return true;
+        }
         var channelsPerWrite = IsNHCWB16Layout(tiles.Map) ? 16 : tiles.Depth;
         for(var row = 0; row < tiles.Height; row++)
         {
@@ -456,6 +461,47 @@ public partial class ARM_EthosU55
                 }
             }
         }
+        return true;
+    }
+
+    private bool TryWriteContiguousFeatureMap(FeatureMapTiles tiles, int elementBytes)
+    {
+        if(tiles.Buffers[0] == null || tiles.Buffers[1] != null || tiles.Buffers[2] != null || tiles.Buffers[3] != null || tiles.BufferOffsets[0] != 0)
+        {
+            return false;
+        }
+
+        var pixelBytes = tiles.Depth * elementBytes;
+        var rowBytes = tiles.Width * pixelBytes;
+        var buffer = tiles.Buffers[0];
+        if(buffer.LongLength != tiles.Height * rowBytes)
+        {
+            return false;
+        }
+
+        var (strideX, strideY, strideC) = GetTensorStrides(tiles.Map);
+        if(IsNHCWB16Layout(tiles.Map))
+        {
+            // A partial final brick introduces padding.
+            if(tiles.Depth % 16 != 0 || (tiles.Depth > 16 && strideC != tiles.Width * 16 * elementBytes))
+            {
+                return false;
+            }
+        }
+        else if(tiles.Width > 1 && strideX != pixelBytes) // Next pixel must start immediately after the previous one.
+        {
+            return false;
+        }
+
+        // Next row must start immediately after the previous row.
+        if(tiles.Height > 1 && strideY != rowBytes)
+        {
+            return false;
+        }
+
+        // OPTIMIZATION: Dense RAM outputs already use physical layout; flush once instead of once per pixel/brick.
+        this.DebugLog("Writing contiguous {0} feature map: {1} bytes", tiles.Map, buffer.Length);
+        sysbus.WriteBytes(buffer, tiles.Addresses[0]);
         return true;
     }
 
