@@ -19,7 +19,7 @@ using AntShell.Terminal;
 namespace Antmicro.Renode.Analyzers
 {
     [Transient]
-    public class SocketUartAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IExternal, IDisposable, IDisconnectableState
+    public class SocketUartAnalyzer : BasicUARTBackendAnalyzer, IDisposable, IDisconnectableState
     {
         public SocketUartAnalyzer()
         {

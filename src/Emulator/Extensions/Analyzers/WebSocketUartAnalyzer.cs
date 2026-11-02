@@ -5,14 +5,13 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using Antmicro.Migrant;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.UART;
 
 namespace Antmicro.Renode.Analyzers
 {
     [Transient]
-    public class WebSocketUartAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IExternal
+    public class WebSocketUartAnalyzer : BasicUARTBackendAnalyzer
     {
         public override void Show()
         {

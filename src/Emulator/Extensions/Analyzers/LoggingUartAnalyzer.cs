@@ -25,7 +25,7 @@ namespace Antmicro.Renode.Analyzers
     // showAnalyzer "ExternalName" sysbus.uart_name LoggingUartAnalyzer
     //
     [Transient]
-    public class LoggingUartAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IExternal
+    public class LoggingUartAnalyzer : BasicUARTBackendAnalyzer
     {
         public LoggingUartAnalyzer()
         {

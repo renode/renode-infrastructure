@@ -8,7 +8,6 @@ using System;
 using System.Text;
 
 using Antmicro.Migrant;
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.UART;
 
@@ -17,7 +16,7 @@ using AntShell.Terminal;
 namespace Antmicro.Renode.Analyzers
 {
     [Transient]
-    public class RawStdoutAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IExternal
+    public class RawStdoutAnalyzer : BasicUARTBackendAnalyzer
     {
         public RawStdoutAnalyzer()
         {

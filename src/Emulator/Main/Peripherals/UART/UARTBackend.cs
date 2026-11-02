@@ -66,6 +66,11 @@ namespace Antmicro.Renode.Peripherals.UART
             {
                 lock(lockObject)
                 {
+                    if(b == CarriageReturn && LineEnding == UartExtensions.LineEnding.CR)
+                    {
+                        // Our frontends use LF for line endings, so we have to add a LF if the software only sends CR
+                        io.Write(LineFeed);
+                    }
                     io.Write(b);
                 }
             });
@@ -121,6 +126,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public IAnalyzable AnalyzableElement { get { return UART; } }
 
+        public UartExtensions.LineEnding LineEnding { get; set; } = UartExtensions.LineEnding.LF;
+
         private void EnqueueHistory(byte b)
         {
             lock(lockObject)
@@ -152,5 +159,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private readonly CircularBuffer<byte> history;
 
         private const int BUFFER_SIZE = 100000;
+        private const char LineFeed = '\n';
+        private const char CarriageReturn = '\r';
     }
 }
