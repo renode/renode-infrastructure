@@ -234,7 +234,7 @@ public partial class ARM_EthosU55
         this.Log(LogLevel.Error, "U55 command parse error at +0x{0:X}: {1}", queueReadOffset.Value, reason);
     }
 
-    private const uint MaximumCommandBytes = 0x10000;
+    private const uint MaximumCommandBytes = 0x1000000; // 16 MB
 
     private const uint Cmd0Encoding = 0b000000;
     private const uint Cmd1Encoding = 0b010000;
