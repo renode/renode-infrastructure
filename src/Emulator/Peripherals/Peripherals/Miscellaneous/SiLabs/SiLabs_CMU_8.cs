@@ -574,22 +574,35 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             }
         }
 
-        // Implementation to check if a peripheral is enabled
+        private ISiLabs_DPLL Dpll0
+        {
+            get
+            {
+                if(dpll0 is null)
+                {
+                    foreach(var peripheral in machine.GetPeripheralsOfType<ISiLabs_DPLL>())
+                    {
+                        if(peripheral.Instance == 0)
+                        {
+                            dpll0 = peripheral;
+                            break;
+                        }
+                    }
+                }
+                return dpll0;
+            }
+        }
+
         private bool Dpll0Enabled
         {
             get
             {
-                // TODO: use a better way to determine if DPLL is present
-                var dpll1 = (SiLabs_DPLL_1)machine["sysbus.dpll"];
-                if(Object.ReferenceEquals(dpll1, null))
-                {
-                    this.Log(LogLevel.Error, "Non existing Peripheral : {0}", dpll1);
-                    return false;
-                }
-                return dpll1.Enabled;
+                return Dpll0?.Enabled ?? false;
             }
         }
 
+        // Reference to dpll to check if a peripheral is enabled
+        private ISiLabs_DPLL dpll0;
         private ISiLabs_HFXO hfxo;
 
         private ISiLabs_SOCPLL socpll0;
