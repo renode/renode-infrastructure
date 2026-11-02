@@ -226,25 +226,8 @@ namespace Antmicro.Renode.Testing
         {
             var emulation = EmulationManager.Instance.CurrentEmulation;
             this.pauseEmulation = pauseEmulation;
-            // First check if the message has already been received
-            CANMessageFrame foundFrame = null;
-            lock(frames)
-            {
-                for(var i = 0; i < frames.Count; i++)
-                {
-                    var frame = frames[i];
-                    if(filter.IsFrameMatching(frame))
-                    {
-                        foundFrame = frame;
-                        if(!keep)
-                        {
-                            // Consume up to and including the matched frame, otherwise a subsequent wait would return this same (now stale) frame again
-                            frames.RemoveRange(0, i + 1);
-                        }
-                    }
-                }
-            }
-            if(foundFrame != null)
+
+            if(FindAlreadyReceivedFrame(filter, keep, out var foundFrame))
             {
                 // Match found so we shortcut
                 if(pauseEmulation)
@@ -304,6 +287,32 @@ namespace Antmicro.Renode.Testing
         }
 
         public event Action<CANMessageFrame> FrameSent;
+
+        private bool FindAlreadyReceivedFrame(CANMatcher filter, bool keep, out CANMessageFrame foundFrame)
+        {
+            var emulation = EmulationManager.Instance.CurrentEmulation;
+
+            lock(frames)
+            {
+                for(var i = 0; i < frames.Count; i++)
+                {
+                    var frame = frames[i];
+                    if(filter.IsFrameMatching(frame))
+                    {
+                        foundFrame = frame;
+                        if(!keep)
+                        {
+                            // Consume up to and including the matched frame, otherwise a subsequent wait would return this same (now stale) frame again
+                            frames.RemoveRange(0, i + 1);
+                        }
+                        return true;
+                    }
+                }
+            }
+
+            foundFrame = default(CANMessageFrame);
+            return false;
+        }
 
         private CANMessageFrame matchedFrame;
         private CANMatcher pendingMatch;
