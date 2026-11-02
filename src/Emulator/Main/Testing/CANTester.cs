@@ -227,6 +227,7 @@ namespace Antmicro.Renode.Testing
             var emulation = EmulationManager.Instance.CurrentEmulation;
             this.pauseEmulation = pauseEmulation;
             // First check if the message has already been received
+            CANMessageFrame foundFrame = null;
             lock(frames)
             {
                 for(var i = 0; i < frames.Count; i++)
@@ -234,19 +235,23 @@ namespace Antmicro.Renode.Testing
                     var frame = frames[i];
                     if(filter.IsFrameMatching(frame))
                     {
-                        // Match found so we shortcut
-                        if(pauseEmulation)
-                        {
-                            emulation.PauseAll();
-                        }
+                        foundFrame = frame;
                         if(!keep)
                         {
                             // Consume up to and including the matched frame, otherwise a subsequent wait would return this same (now stale) frame again
                             frames.RemoveRange(0, i + 1);
                         }
-                        return frame;
                     }
                 }
+            }
+            if(foundFrame != null)
+            {
+                // Match found so we shortcut
+                if(pauseEmulation)
+                {
+                    emulation.PauseAll();
+                }
+                return foundFrame;
             }
 
             // No matching frames received so setup for waiting
