@@ -108,6 +108,7 @@ namespace Antmicro.Renode.Core
                 {
                     return generator.Value;
                 }
+                var seed = GetSeedForThread();
                 var threadName = Thread.CurrentThread.Name;
                 if(generators.TryGetValue(threadName, out var rand))
                 {
@@ -118,7 +119,7 @@ namespace Antmicro.Renode.Core
                 {
                     Logger.Log(LogLevel.Info, "Pseudorandom Number Generator was created with seed: {0}", baseSeed);
                 }
-                rand = new Random(GetSeedForThread());
+                rand = new Random(seed);
                 generators[threadName] = rand;
                 generator.Value = rand;
                 return rand;
