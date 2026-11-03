@@ -308,6 +308,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     if(sequence[i].Abort())
                     {
                         sequenceAborted = true;
+                        if(timerSequenceIndex == i)
+                        {
+                            timer.Enabled = false;
+                        }
                     }
                 }
             }
