@@ -199,9 +199,41 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        public override Bits StopBits { get { return stopBitsModeField.Value; } }
+        public override Bits StopBits
+        {
+            get
+            {
+                switch(stopBitsModeField.Value)
+                {
+                case 0:
+                    return Bits.Half;
+                case 1:
+                    return Bits.One;
+                case 2:
+                    return Bits.OneAndAHalf;
+                default:
+                    return Bits.Two;
+                }
+            }
+        }
 
-        public override Parity ParityBit { get { return parityBitModeField.Value; } }
+        public override Parity ParityBit
+        {
+            get
+            {
+                switch(parityBitModeField.Value)
+                {
+                case 0:
+                    return Parity.None;
+                case 2:
+                    return Parity.Even;
+                case 3:
+                    return Parity.Odd;
+                default:
+                    return Parity.Unsupported;
+                }
+            }
+        }
 
         public GPIO TxBufferLowRightSingleRequest { get; }
 
@@ -595,9 +627,9 @@ namespace Antmicro.Renode.Peripherals.UART
                 {(long)Registers.FrameFormat, new DoubleWordRegister(this)
                     .WithValueField(0, 4, name: "DATABITS")
                     .WithReservedBits(4, 4)
-                    .WithEnumField(8, 2, out parityBitModeField, name: "PARITY")
+                    .WithValueField(8, 2, out parityBitModeField, name: "PARITY")
                     .WithReservedBits(10, 2)
-                    .WithEnumField(12, 2, out stopBitsModeField, name: "STOPBITS")
+                    .WithValueField(12, 2, out stopBitsModeField, name: "STOPBITS")
                     .WithReservedBits(14, 18)
                 },
                 {(long)Registers.TriggerControl, new DoubleWordRegister(this)
@@ -827,13 +859,13 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField rxOverflowInterruptEnable;
         private IFlagRegisterField rxUnderflowInterruptEnable;
         private IFlagRegisterField txCompleteInterruptEnable;
-        private IEnumRegisterField<Parity> parityBitModeField;
+        private IValueRegisterField parityBitModeField;
         private IFlagRegisterField transmitterEnableFlag;
         private IFlagRegisterField receiverEnableFlag;
         private IFlagRegisterField receiveDataValidFlag;
         private IFlagRegisterField transferCompleteFlag;
         private IValueRegisterField fractionalClockDividerField;
-        private IEnumRegisterField<Bits> stopBitsModeField;
+        private IValueRegisterField stopBitsModeField;
         private IEnumRegisterField<OperationMode> operationModeField;
         private IEnumRegisterField<OversamplingMode> oversamplingField;
         private readonly Machine machine;
