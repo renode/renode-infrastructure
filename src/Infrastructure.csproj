@@ -36,7 +36,6 @@
       <GeneratePathProperty>true</GeneratePathProperty>
     </PackageReference>
     <PackageReference Include="DynamicLanguageRuntime" Version="1.3.5" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <Reference Include="ProtobufNet">
       <HintPath>../../../lib/resources/libraries/protobuf-net.dll</HintPath>
     </Reference>
