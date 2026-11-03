@@ -7191,6 +7191,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     Field_376.Value = true;
                     Field_400.Value = false;
 
+                    // TODO: Same pre-decrement as in SiLabs_xG24_LPW. It shifts compare matches one
+                    // precounter cycle earlier (compare == TOP never matches) and makes TOP 0 and 1
+                    // equivalent. Consider detecting the underflow in Update() instead.
                     Field_52.Value = Field_54.Value > 0 ? Field_54.Value - 1 : 0;
                     Field_300.Value = Field_302.Value;
                 }

@@ -6916,6 +6916,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     // logic below requires an extra full precounter cycle to detect Counter==0, so we
                     // pre-decrement the loaded count by one to remove that spurious cycle while keeping
                     // the match-at-(0,0) event firing one precounter cycle before the underflow.
+                    // TODO: This shifts CounterCompare matches one precounter cycle earlier
+                    // (CounterCompare == CounterTop never matches) and makes CounterTop 0 and 1
+                    // equivalent. Consider detecting the underflow in Update() instead.
                     Counter.Value = CounterTop.Value > 0 ? CounterTop.Value - 1 : 0;
                     PreCounter.Value = PreCounterTop.Value;
                 }
