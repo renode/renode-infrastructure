@@ -1162,7 +1162,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             if(commandParamsCount != 2)
             {
-                throw new NotSupportedException("TRANSFER_KEY: invalid parameter count");
+                parent.Log(LogLevel.Error, "TRANSFER_KEY: invalid parameter count");
+                return ResponseCode.Abort;
             }
 
             KeyMode srcKeyMode;
