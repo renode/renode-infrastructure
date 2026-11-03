@@ -11,7 +11,6 @@ using System.IO;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Python
@@ -39,7 +38,6 @@ namespace Antmicro.Renode.Peripherals.Python
         }
     }
 
-    [Icon("python")]
     public class PythonPeripheral : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IQuadWordPeripheral, IKnownSize, IAbsoluteAddressAware
     {
         public PythonPeripheral(int size, bool initable = false, string script = null, string filename = null)

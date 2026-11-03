@@ -11,12 +11,10 @@ using Antmicro.Migrant;
 using Antmicro.Renode.Backends.Display;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Video
 {
-    [Icon("lcd")]
     public abstract class AutoRepaintingVideo : IVideo, IDisposable
     {
         public RawImageData TakeScreenshot()

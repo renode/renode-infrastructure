@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -8,11 +8,9 @@
 using System;
 
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.Peripherals.Network
 {
-    [Icon("phy")]
     public class EthernetPhysicalLayer : IPhysicalLayer<ushort>
     {
         public EthernetPhysicalLayer()

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2024 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -13,12 +13,10 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
 {
-    [Icon("gpio")]
     public abstract class BaseGPIOPort : INumberedGPIOOutput, IRegisterablePeripheral<IGPIOReceiver, NullRegistrationPoint>,
         IRegisterablePeripheral<IGPIOSender, NullRegistrationPoint>, IRegisterablePeripheral<IGPIOReceiver, NumberRegistrationPoint<int>>,
         IPeripheral, IGPIOReceiver, IRegisterablePeripheral<IGPIOSender, NumberRegistrationPoint<int>>

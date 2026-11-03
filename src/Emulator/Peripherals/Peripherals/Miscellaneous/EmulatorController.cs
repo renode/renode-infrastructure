@@ -19,12 +19,10 @@ using Antmicro.Migrant.Hooks;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous
 {
-    [Icon("controller")]
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord)]
     public class EmulatorController : IDoubleWordPeripheral, IKnownSize
     {

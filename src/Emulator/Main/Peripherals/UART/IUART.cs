@@ -9,11 +9,8 @@
 using System;
 using System.Numerics;
 
-using Antmicro.Renode.UserInterface;
-
 namespace Antmicro.Renode.Peripherals.UART
 {
-    [Icon("monitor")]
     public interface IUART<T> : IPeripheral
         where T : IBinaryInteger<T>
     {

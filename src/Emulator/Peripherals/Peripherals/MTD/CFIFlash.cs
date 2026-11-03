@@ -12,12 +12,10 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Storage;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.MTD
 {
-    [Icon("sd")]
     public sealed class CFIFlash : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IKnownSize, IDisposable
     {
         public CFIFlash(string fileName, int? size = null, SysbusAccessWidth bits = SysbusAccessWidth.DoubleWord, bool nonPersistent = false)

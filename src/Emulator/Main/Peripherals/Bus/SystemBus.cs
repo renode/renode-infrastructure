@@ -39,7 +39,6 @@ namespace Antmicro.Renode.Peripherals.Bus
     /// <summary>
     ///     The <c>SystemBus</c> is the main system class, where all data passes through.
     /// </summary>
-    [Icon("sysbus")]
     [ControllerMask(typeof(IPeripheral))]
     public sealed partial class SystemBus : IBusController, IDisposable, IHasPreservableState
     {

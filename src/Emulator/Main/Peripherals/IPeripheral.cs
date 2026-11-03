@@ -12,13 +12,11 @@ using System.Linq;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.UserInterface;
 
 using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals
 {
-    [Icon("box")]
     public interface IPeripheral : IEmulationElement, IAnalyzable
     {
         void Reset();

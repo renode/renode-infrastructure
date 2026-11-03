@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -14,11 +14,9 @@ using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.PCI;
-using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.Peripherals.USBDeprecated
 {
-    [Icon("usb")]
     public class ISP1761 : IDoubleWordPeripheral, IRegisterablePeripheral<IUSBHub, USBRegistrationPoint>, IPeripheralContainer<IUSBPeripheral, USBRegistrationPoint>, IPCIPeripheral
     {
         public ISP1761(IMachine machine)

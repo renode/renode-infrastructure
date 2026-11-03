@@ -21,7 +21,6 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 using K4os.Compression.LZ4;
@@ -32,7 +31,6 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.Memory
 {
-    [Icon("memory")]
     public sealed class MappedMemory : IBytePeripheral, IWordPeripheral, IDoubleWordPeripheral, IQuadWordPeripheral, IMapped, IDisposable, IKnownSize, ISpeciallySerializable, IMemory, IMultibyteWritePeripheral, ICanLoadFiles, IEndiannessAware, IHasDelayedInvalidationContext
     {
         public MappedMemory(IMachine machine, long size, int? segmentSize = null, string sharedMemoryFileRoot = null)
