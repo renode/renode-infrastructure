@@ -266,7 +266,7 @@ namespace Antmicro.Renode.Peripherals.Sensors
 
         private void AccumulateElapsedInterval(TimeInterval now)
         {
-            var elapsedSeconds = (decimal)System.Math.Max(0.0, (now - lastAccumulationTime).TotalSeconds);
+            var elapsedSeconds = (decimal)(now - lastAccumulationTime).Ticks / TimeInterval.TicksPerSecond;
             accumulatedEnergyCounts += GetPowerCounts() * elapsedSeconds / EnergyLsbDivisor;
             accumulatedChargeCounts += GetCurrentCounts() * elapsedSeconds;
 
