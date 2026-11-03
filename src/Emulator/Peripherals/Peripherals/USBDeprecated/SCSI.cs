@@ -32,8 +32,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     this.ParameterListLength = data[4];
                     this.Control = data[5];
                 }
-                else
-                if(this.Size == 10)
+                else if(this.Size == 10)
                 {
                     this.ServiceAction = (byte)(data[1] & 0xE0u);
                     this.LogicalBlockAddress = (uint)(data[2] << 24 | data[3] << 16 | data[4] << 8 | data[5]);
@@ -43,8 +42,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     this.ParameterListLength = this.TransferLength;
                     this.Control = data[9];
                 }
-                else
-                if(this.Size == 12)
+                else if(this.Size == 12)
                 {
                     this.ServiceAction = (byte)(data[1] & 0xE0u);
                     this.LogicalBlockAddress = (uint)(data[2] << 24 | data[3] << 16 | data[4] << 8 | data[5]);

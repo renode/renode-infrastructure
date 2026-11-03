@@ -646,8 +646,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                             targetDevice.ProcessVendorGet(packet, setupData);
                         }
                     }
-                    else//if host to device transfer
-                        if(((setupData.RequestType & 0x60) >> 5) == (uint)USBRequestType.Standard)
+                    else if(((setupData.RequestType & 0x60) >> 5) == (uint)USBRequestType.Standard) //if host to device transfer
                     {
                         switch((DeviceRequestType)setupData.Request)
                         {
@@ -748,8 +747,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                                         targetDevice.ProcessVendorGet(packet, setupData);
                                     }
                                 }
-                                else//if host to device transfer
-                                    if(((setupData.RequestType & 0x60) >> 5) == (uint)USBRequestType.Standard)
+                                else if(((setupData.RequestType & 0x60) >> 5) == (uint)USBRequestType.Standard) //if host to device transfer
                                 {
                                     switch((DeviceRequestType)setupData.Request)
                                     {

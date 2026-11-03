@@ -342,8 +342,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
         {
             if(device.GetSpeed() == USBDeviceSpeed.High)
                 Ports[port - 1] |= (uint)PortStatus.CPortConnection | (uint)PortStatus.PortConnection | (uint)PortStatus.PortHighSpeed;
-            else
-                if(device.GetSpeed() == USBDeviceSpeed.Low)
+            else if(device.GetSpeed() == USBDeviceSpeed.Low)
                 Ports[port - 1] |= (uint)PortStatus.CPortConnection | (uint)PortStatus.PortConnection | (uint)PortStatus.PortLowSpeed;
             else
                 Ports[port - 1] |= (uint)PortStatus.CPortConnection | (uint)PortStatus.PortConnection;

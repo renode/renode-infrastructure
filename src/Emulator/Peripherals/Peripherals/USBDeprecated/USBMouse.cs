@@ -85,8 +85,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 {
                     x = 127;
                 }
-                else
-                    if(x < -127)
+                else if(x < -127)
                 {
                     x = -127;
                 }
@@ -94,8 +93,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                 {
                     y = 127;
                 }
-                else
-                    if(y < -127)
+                else if(y < -127)
                 {
                     y = -127;
                 }
@@ -304,8 +302,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     {
                         x = 127;
                     }
-                    else
-                        if(datas[1] + x < -127)
+                    else if(datas[1] + x < -127)
                     {
                         x = -127;
                     }
@@ -317,8 +314,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     {
                         y = 127;
                     }
-                    else
-                        if(datas[2] + y < -127)
+                    else if(datas[2] + y < -127)
                     {
                         y = -127;
                     }

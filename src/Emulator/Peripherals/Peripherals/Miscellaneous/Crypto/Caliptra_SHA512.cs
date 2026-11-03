@@ -69,7 +69,7 @@ public class Caliptra_SHA512 : BasicDoubleWordPeripheral, IKnownSize
             break;
         default:
             throw new UnreachableException();
-        };
+        }
         return cryptoEngine;
     }
 

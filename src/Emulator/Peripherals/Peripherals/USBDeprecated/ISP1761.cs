@@ -202,8 +202,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                             targetDevice.ProcessVendorGet(packet, SetupData);
                         }
                     }
-                    else//if host to device transfer
-                        if(((SetupData.RequestType & 0x60) >> 5) == (uint)USBRequestType.Standard)
+                    else if(((SetupData.RequestType & 0x60) >> 5) == (uint)USBRequestType.Standard) //if host to device transfer
                     {
                         switch((DeviceRequestType)SetupData.Request)
                         {
@@ -237,9 +236,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                             break;
                         }//end of switch request
                     }//end of request type.standard
-                    else
-
-                    if((SetupData.RequestType >> 5) == (uint)USBRequestType.Class)
+                    else if((SetupData.RequestType >> 5) == (uint)USBRequestType.Class)
                     {
                         targetDevice.ProcessClassSet(packet, SetupData);
                     }
@@ -1210,8 +1207,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     return ptdi[(address - 0x800) / 32].DW7;
                 }
             }
-            else
-            /* Read QH registers */ if(address >= (uint)0xc00 && address < (uint)0x1000)
+            else /* Read QH registers */ if(address >= (uint)0xc00 && address < (uint)0x1000)
             {
                 //this.Log(LogType.Warning, "READ PTD {0} reg {1}", (address - 0xc00) / 32, ((address - 0xc00) / 4) % 8);
                 if(((address - 0xc00) / 4) % 8 == 0)
@@ -1248,8 +1244,7 @@ namespace Antmicro.Renode.Peripherals.USBDeprecated
                     return ptd[(address - 0xc00) / 32].DW7;
                 }
             }
-            else
-            /* Read from memory area*/ if(address >= (uint)0x1000 && address <= (uint)0xffff)
+            else /* Read from memory area*/ if(address >= (uint)0x1000 && address <= (uint)0xffff)
             {
                 //this.Log(LogType.Warning, "Read payLoad 0{0:X}", address);
                 return (uint)BitConverter.ToUInt32(payLoad, (int)((address)));
