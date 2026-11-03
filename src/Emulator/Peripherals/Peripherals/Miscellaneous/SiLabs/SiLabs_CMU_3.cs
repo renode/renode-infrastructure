@@ -549,7 +549,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             get
             {
-                return Dpll0.Enabled;
+                return Dpll0?.Enabled ?? false;
             }
         }
 
