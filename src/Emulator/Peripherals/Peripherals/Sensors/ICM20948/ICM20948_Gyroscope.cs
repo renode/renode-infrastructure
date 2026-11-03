@@ -175,7 +175,9 @@ namespace Antmicro.Renode.Peripherals.Sensors
         private RESDStream<AngularRateSample> gyroResdStream;
         private IManagedThread gyroFeederThread;
 
-        private const decimal RadiansToDegrees = 180m / (decimal)Math.PI;
+        // The compiler folds `(decimal)Math.PI` at build time, and the .NET 11 SDK converts `double` to `decimal` exactly
+        // while .NET 10 rounds to 15 digits, so the result would depend on which SDK builds Renode.
+        private const decimal RadiansToDegrees = 180m / 3.1415926535897932384626433833m;
         private const decimal GyroMaxOutputDataRateHz = 9000;
         private const decimal GyroOffsetCancellationStepSizeDPS = 0.0305m;
 
