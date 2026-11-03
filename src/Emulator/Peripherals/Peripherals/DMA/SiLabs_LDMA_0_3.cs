@@ -265,11 +265,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(8, 24)
                 },
                 {(long)LdmaRegisters.CHEN, new DoubleWordRegister(this)
-                    .WithFlags(0, 31, writeCallback: (i, _, value) => { if (value) channels[i].Enabled = true; }, name: "CHEN")
+                    .WithFlags(0, 31, FieldMode.Set, writeCallback: (i, _, value) => { if (value) channels[i].Enabled = true; }, name: "CHEN")
                     .WithReservedBits(31, 1)
                 },
                 {(long)LdmaRegisters.CHDIS, new DoubleWordRegister(this)
-                    .WithFlags(0, 31, writeCallback: (i, _, value) => { if (value) channels[i].Enabled = false; }, name: "CHDIS")
+                    .WithFlags(0, 31, FieldMode.Set, writeCallback: (i, _, value) => { if (value) channels[i].Enabled = false; }, name: "CHDIS")
                     .WithReservedBits(31, 1)
                 },
                 {(long)LdmaRegisters.CHBUSY, new DoubleWordRegister(this)
