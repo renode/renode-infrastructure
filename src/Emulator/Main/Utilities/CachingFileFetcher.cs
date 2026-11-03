@@ -30,11 +30,13 @@ namespace Antmicro.Renode.Utilities
     {
         static CachingFileFetcher()
         {
+#pragma warning disable SYSLIB0014 // ServicePointManager settings still apply to WebClient, which this class uses
             ServicePointManager.ServerCertificateValidationCallback = delegate
             {
                 return true;
             };
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
+#pragma warning restore SYSLIB0014
         }
 
         public CachingFileFetcher()
