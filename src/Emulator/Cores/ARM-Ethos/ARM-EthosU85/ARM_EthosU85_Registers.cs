@@ -21,7 +21,6 @@ public partial class ARM_EthosU85
             .WithTag("faulting_channel", 12, 4)
             .WithTag("faulting_interface", 11, 1)
             .WithReservedBits(10, 1)
-
             .WithFlag(9, out branchFault, FieldMode.Read, name: "branch_fault")
             .WithTaggedFlag("ecc_fault", 8)
             .WithReservedBits(7, 1)

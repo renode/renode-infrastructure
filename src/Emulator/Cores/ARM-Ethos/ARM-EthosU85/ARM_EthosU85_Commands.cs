@@ -57,8 +57,15 @@ public partial class ARM_EthosU85
 
         // QREAD points at the command being executed. Earlier commands are complete (U85 TRM 3.3.1.6).
         var lastCommandLength = 0U;
+        var executedCommands = 0UL;
         while(queueReadOffset.Value < (ulong)bytes.Length)
         {
+            if(++executedCommands > MaximumExecutedCommands)
+            {
+                ParseError("Command limit exceeded, possibly an endless branch loop");
+                return;
+            }
+
             queueReadOffset.Value += lastCommandLength;
             if(queueReadOffset.Value == (ulong)bytes.Length)
             {
@@ -152,9 +159,16 @@ public partial class ARM_EthosU85
                     queueReadOffset.Value, opcode, parameter, payload);
                 if((PayloadCommandOpcode)opcode == PayloadCommandOpcode.OpBranch)
                 {
-                    // TODO
-                    ParseError("NPU_OP_BRANCH is not implemented");
-                    return;
+                    if(!ExecuteBranch(parameter, payload, out var taken))
+                    {
+                        return;
+                    }
+                    if(taken)
+                    {
+                        // QREAD is already the branch target, so don't advance past it.
+                        lastCommandLength = 0;
+                    }
+                    continue;
                 }
                 if(!SetPayloadRegister((PayloadCommandOpcode)opcode, payload, parameter))
                 {
@@ -167,6 +181,35 @@ public partial class ARM_EthosU85
         // Ran out of commands (QREAD == QSIZE): a normal stop (U85 TRM 3.5.2, 3.3.1.2).
         commandEndReached.Value = true;
         StopAndRaiseIrq();
+    }
+
+    // U85 TRM 3.11.2 NPU_OP_BRANCH
+    private bool ExecuteBranch(ushort parameter, uint branchTarget, out bool taken)
+    {
+        taken = false;
+        // branch_cond (header bit 16): 0 = always, 1 = when COND_STATUS.result_flag is set.
+        var conditional = (parameter & 0x1) != 0;
+
+        if((branchTarget & 0x3) != 0)
+        {
+            ParseError($"Branch target 0x{branchTarget:X} is not four-byte aligned");
+            return false;
+        }
+        if(branchTarget >= queueSize.Value)
+        {
+            branchFault.Value = true;
+            this.ErrorLog("U85 branch fault at +0x{0:X}: target 0x{1:X} is not below QSIZE 0x{2:X}",
+                queueReadOffset.Value, branchTarget, queueSize.Value);
+            StopAndRaiseIrq();
+            return false;
+        }
+
+        if(!conditional || conditionResultFlag.Value)
+        {
+            queueReadOffset.Value = branchTarget;
+            taken = true;
+        }
+        return true;
     }
 
     private void StopAndRaiseIrq(ushort irqMask = 0)
@@ -186,6 +229,10 @@ public partial class ARM_EthosU85
     }
 
     private const uint MaximumCommandBytes = 0x1000000; // 16 MB
+
+    // Model safeguard, not from the TRM: a branch loop runs inside the CMD write,
+    // so an endless loop would otherwise hang the emulation.
+    private const ulong MaximumExecutedCommands = 10_000_000;
 
     private const uint Cmd0Encoding = 0b000000;
     private const uint Cmd1Encoding = 0b010000;
