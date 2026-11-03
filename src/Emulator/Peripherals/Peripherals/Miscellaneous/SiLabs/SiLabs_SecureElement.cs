@@ -800,16 +800,20 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             {
                 parent.Log(LogLevel.Error, "ProcessCommand(): Queue is EMPTY!");
                 WriteResponse(ResponseCode.InvalidParameter, commandHandle);
+                return;
             }
 
             uint header = txFifo.Dequeue();
             // First 2 bytes of the header is the number of bytes in the message (header included)
             uint wordsCount = (header & 0xFFFF)/4;
+            uint headerWords = series3 ? 5U : 4U;
 
-            if(txFifo.Count < wordsCount - 1)
+            if(wordsCount < headerWords || wordsCount - headerWords > MaxCommandParams || txFifo.Count < wordsCount - 1)
             {
-                parent.Log(LogLevel.Error, "ProcessCommand(): Not enough words FifoSize={0}, expectedWords={1}", txFifo.Count, wordsCount - 1);
+                parent.Log(LogLevel.Error, "ProcessCommand(): Invalid command length FifoSize={0}, expectedWords={1}", txFifo.Count, wordsCount - 1);
+                txFifo.Clear();
                 WriteResponse(ResponseCode.InvalidParameter, commandHandle);
+                return;
             }
 
             if(series3)
@@ -822,8 +826,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             commandOptions &= 0xFFFF;
             uint inputDmaDescriptorPtr = txFifo.Dequeue();
             uint outputDmaDescriptorPtr = txFifo.Dequeue();
-            uint commandParamsCount = wordsCount - (series3 ? 5U : 4U);
-            uint[] commandParams = new uint[13];
+            uint commandParamsCount = wordsCount - headerWords;
+            uint[] commandParams = new uint[MaxCommandParams];
             for(var i = 0; i < commandParamsCount; i++)
             {
                 commandParams[i] = txFifo.Dequeue();
@@ -4967,6 +4971,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private const uint UserDataWriteLimit = 100;
         private const int CcmBlockSize = 16;
         private const int CcmContextSize = 2 * CcmBlockSize;
+        private const uint MaxCommandParams = 13;
 
         private class EccWeirstrassKeyMetadata
         {
