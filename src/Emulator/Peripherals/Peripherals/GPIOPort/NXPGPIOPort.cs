@@ -13,7 +13,6 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.GPIOPort
@@ -90,7 +89,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             IRQ.Unset();
         }
 
-        [UiAccessible]
         public string[,] PrintCurrentConfiguration()
         {
             const string notApplicable = "---";

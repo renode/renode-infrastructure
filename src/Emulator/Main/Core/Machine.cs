@@ -26,7 +26,6 @@ using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Time;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 using Antmicro.Renode.Utilities.GDB;
@@ -142,7 +141,6 @@ namespace Antmicro.Renode.Core
             return new ManagedThreadWrappingClockEntry(this, action, period, name, owner, stopCondition);
         }
 
-        [UiAccessible]
         public string[,] GetClockSourceInfo()
         {
             var entries = ClockSource.GetAllClockEntries();

@@ -11,7 +11,6 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.Network
@@ -52,7 +51,6 @@ namespace Antmicro.Renode.Peripherals.Network
             Write<RegistersDMA>(dmaRegisters, "DMA", offset, value);
         }
 
-        [UiAccessible]
         public string[,] GetCoutersInfo()
         {
             var table = new Table();
