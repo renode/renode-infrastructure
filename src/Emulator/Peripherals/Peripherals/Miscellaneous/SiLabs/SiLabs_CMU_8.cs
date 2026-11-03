@@ -62,6 +62,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     em01grpdclkctrl_clksel_field.Value == EM01GRPDCLKCTRL_CLKSEL.HFRCODPLL
                     && IsEm01GrpdClkEnabled()
                 )
+                // TODO: Looks copied from the HFXO check, should likely test HFRCODPLL/HFRCODPLLRT.
                 || (
                     pixelrzclkctrl_clksel_field.Value == PIXELRZCLKCTRL_CLKSEL.HFXO
                     && clken1_pixelrz0_bit.Value
@@ -359,6 +360,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                         && clken1_eusart0_bit.Value
                         && eusart0clkctrl_clksel_field.Value == EUSART0CLKCTRL_CLKSEL.HFRCOEM23
                     )
+                    // TODO: Looks copied from the HFXO check, should likely test HFRCOEM23.
                     || (
                         pixelrzclkctrl_clksel_field.Value == PIXELRZCLKCTRL_CLKSEL.HFXO
                         && clken1_pixelrz0_bit.Value
