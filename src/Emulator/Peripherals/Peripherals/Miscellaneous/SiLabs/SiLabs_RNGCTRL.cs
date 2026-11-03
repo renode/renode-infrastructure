@@ -49,6 +49,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         public void Reset()
         {
+            Enable = false;
             SoftwareReset = false;
             SoftwareReset = true;
             SoftwareReset = false;
