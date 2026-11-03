@@ -1228,7 +1228,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             if(ev < PROTIMER_Event.PreCounterOverflow || ev > PROTIMER_Event.InternalTrigger)
             {
-                throw new Exception("Unreachable. Invalid event value for PROTIMER_TriggerEvent.");
+                this.Log(LogLevel.Error, "Unreachable. Invalid event value for PROTIMER_TriggerEvent.");
+                return;
             }
 
             if(ev >= PROTIMER_Event.CaptureCompareChannel0Event && ev <= PROTIMER_Event.CaptureCompareChannel4Event)
@@ -1292,7 +1293,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 break;
             }
             default:
-                throw new Exception("Unreachable. Invalid PROTIMER RX Request state.");
+                this.Log(LogLevel.Error, "Unreachable. Invalid PROTIMER RX Request state.");
+                return;
             }
 
             switch(PROTIMER_txRequestState)
@@ -1327,7 +1329,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 break;
             }
             default:
-                throw new Exception("Unreachable. Invalid PROTIMER TX Request state.");
+                this.Log(LogLevel.Error, "Unreachable. Invalid PROTIMER TX Request state.");
+                return;
             }
         }
 
@@ -3971,7 +3974,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             if(PROTIMER_listenBeforeTalkState == Enumeration_S.EnumerationSValue0)
             {
-                throw new Exception("PROTIMER_ListenBeforeTalkCcaCompleted while LBT_STATE=idle");
+                this.Log(LogLevel.Error, "PROTIMER_ListenBeforeTalkCcaCompleted while LBT_STATE=idle");
+                return;
             }
 
             if(forceFailure)
@@ -4041,7 +4045,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private void PROTIMER_ListenBeforeTalkPauseCommand()
         {
-            throw new Exception("LBT Pausing not supported");
+            this.Log(LogLevel.Error, "LBT Pausing not supported");
         }
 
         private void PROTIMER_ListenBeforeTalkStartCommand()
@@ -4150,7 +4154,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
             default:
             {
-                throw new Exception("Unreachable. Invalid LBT state in PROTIMER_TimeoutCounter0HandleUnderflow");
+                this.Log(LogLevel.Error, "Unreachable. Invalid LBT state in PROTIMER_TimeoutCounter0HandleUnderflow");
+                break;
             }
             }
         }
@@ -4244,7 +4249,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             if(proTimer.Enabled)
             {
-                throw new Exception("PROTIMER_IncrementBaseCounter invoked while the proTimer running");
+                this.Log(LogLevel.Error, "PROTIMER_IncrementBaseCounter invoked while the proTimer running");
+                return;
             }
 
             PROTIMER_baseCounterValue += increment;
@@ -4291,7 +4297,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             if(proTimer.Enabled)
             {
-                throw new Exception("PROTIMER_IncrementWrapCounter invoked while the proTimer running");
+                this.Log(LogLevel.Error, "PROTIMER_IncrementWrapCounter invoked while the proTimer running");
+                return;
             }
 
             PROTIMER_wrapCounterValue += increment;
@@ -4368,7 +4375,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             if(proTimer.Enabled)
             {
-                throw new Exception("PROTIMER_ComputeTimerLimit invoked while the proTimer running");
+                this.Log(LogLevel.Error, "PROTIMER_ComputeTimerLimit invoked while the proTimer running");
+                return uint.MaxValue;
             }
 
             uint limit = PROTIMER_DefaultTimerLimit;
@@ -4379,7 +4387,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 if(PROTIMER_baseCounterValue > field_239.Value)
                 {
                     this.Log(LogLevel.Error, "BASECNT > BASECNTTOP {0} {1}", PROTIMER_baseCounterValue, field_239.Value);
-                    throw new Exception("BASECNT > BASECNTTOP");
+                    return uint.MaxValue;
                 }
 
                 uint temp = (uint)field_239.Value - PROTIMER_baseCounterValue;
@@ -4395,7 +4403,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 if(PROTIMER_wrapCounterValue > field_298.Value)
                 {
                     this.Log(LogLevel.Error, "WRAPCNT > WRAPCNTTOP {0} {1}", PROTIMER_wrapCounterValue, field_298.Value);
-                    throw new Exception("WRAPCNT > WRAPCNTTOP");
+                    return uint.MaxValue;
                 }
 
                 uint temp = (uint)field_298.Value - PROTIMER_wrapCounterValue;
@@ -4500,7 +4508,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             if(proTimer.Enabled)
             {
-                throw new Exception("PROTIMER_HandlePreCntOverflows invoked while the proTimer running");
+                this.Log(LogLevel.Error, "PROTIMER_HandlePreCntOverflows invoked while the proTimer running");
+                return;
             }
 
             if((PROTIMER_preCounterSourcedBitmask & (uint)Enumeration_T.EnumerationTValue0) > 0)
@@ -6126,7 +6135,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             }
             else
             {
-                throw new Exception("RAC_RxTimerLimitReached: unexpected RX state");
+                this.Log(LogLevel.Error, "RAC_RxTimerLimitReached: unexpected RX state");
+                return;
             }
 
             RAC_internalRxState = Enumeration_Z.EnumerationZValue0;
@@ -6243,7 +6253,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             if(RAC_internalTxState != Enumeration_AA.EnumerationAAValue0)
             {
-                throw new Exception("TransmitFrame(): state not IDLE");
+                this.Log(LogLevel.Error, "TransmitFrame(): state not IDLE");
+                return false;
             }
 
             RAC_TxEnable = false;
@@ -6514,7 +6525,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 if(value != 2 && value != 3)
                 {
-                    throw new Exception("Setting illegal FRC_ActiveReceiveFrameDescriptor value.");
+                    this.Log(LogLevel.Error, "Setting illegal FRC_ActiveReceiveFrameDescriptor value.");
+                    return;
                 }
 
                 field_58.Value = (value == 3);
@@ -6532,7 +6544,8 @@ namespace Antmicro.Renode.Peripherals.Wireless
             {
                 if(value != 0 && value != 1)
                 {
-                    throw new Exception("Setting illegal FRC_ActiveTransmitFrameDescriptor value.");
+                    this.Log(LogLevel.Error, "Setting illegal FRC_ActiveTransmitFrameDescriptor value.");
+                    return;
                 }
 
                 field_59.Value = (value == 1);
