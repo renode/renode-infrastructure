@@ -51,7 +51,7 @@ namespace Antmicro.Renode.Peripherals.Network
             Write<RegistersDMA>(dmaRegisters, "DMA", offset, value);
         }
 
-        public string[,] GetCoutersInfo()
+        public string[,] GetCountersInfo()
         {
             var table = new Table();
             table.AddRow("Name", "Value");
