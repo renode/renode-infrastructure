@@ -128,7 +128,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(2, 30)
                 },
                 {(long)Registers.SoftwareReset, new DoubleWordRegister(this)
-                    .WithFlag(0, FieldMode.Write, writeCallback: (_, __) => Reset(), name: "SWRST")
+                    .WithFlag(0, FieldMode.Write, writeCallback: (_, value) => { if(value) Reset(); }, name: "SWRST")
                     .WithFlag(1, name: "RESETTING")
                     .WithReservedBits(2, 30)
                 },
