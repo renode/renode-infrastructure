@@ -4,6 +4,7 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
+using System;
 using System.Globalization;
 
 namespace Antmicro.Renode.UserInterface.Tokenizer
@@ -17,6 +18,19 @@ namespace Antmicro.Renode.UserInterface.Tokenizer
 
         public override object GetObjectValue()
         {
+            return Value;
+        }
+
+        // Parsing the text at the precision of the target type keeps the digits that rounding to float loses.
+        public override object GetObjectValue(Type targetType)
+        {
+            switch(Type.GetTypeCode(Nullable.GetUnderlyingType(targetType) ?? targetType))
+            {
+            case TypeCode.Decimal when decimal.TryParse(OriginalValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var decimalValue):
+                return decimalValue;
+            case TypeCode.Double when double.TryParse(OriginalValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var doubleValue):
+                return doubleValue;
+            }
             return Value;
         }
 

@@ -6,10 +6,17 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System;
+
 namespace Antmicro.Renode.UserInterface.Tokenizer
 {
     public abstract class Token
     {
+        public virtual object GetObjectValue(Type targetType)
+        {
+            return GetObjectValue();
+        }
+
         public abstract object GetObjectValue();
 
         public string OriginalValue { get; protected set; }

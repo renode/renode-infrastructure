@@ -507,7 +507,7 @@ namespace Antmicro.Renode.UserInterface
                 result = null;
                 return false;
             }
-            result = ConvertValueOrThrowRecoverable(token.GetObjectValue(), type);
+            result = ConvertValueOrThrowRecoverable(token.GetObjectValue(type), type);
             return true;
         }
 
