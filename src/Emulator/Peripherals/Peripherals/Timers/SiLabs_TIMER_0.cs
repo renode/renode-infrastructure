@@ -121,14 +121,26 @@ namespace Antmicro.Renode.Peripherals.Timers
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
             {
                 {(long)Registers.Config, new DoubleWordRegister(this)
-                    .WithEnumField<DoubleWordRegister, TimerMode>(0, 2, out timerMode, name: "MODE")
+                    .WithEnumField<DoubleWordRegister, TimerMode>(0, 2, out timerMode, name: "MODE", changeCallback: (_, value) =>
+                    {
+                        if(value != TimerMode.Up && value != TimerMode.Down)
+                        {
+                            this.Log(LogLevel.Error, "MODE {0} is not supported, the timer will not run", value);
+                        }
+                    })
                     .WithReservedBits(2, 1)
                     .WithFlag(3, name: "SYNC")
                     .WithFlag(4, out oneShotMode, name: "OSMEN")
                     .WithFlag(5, name: "QDM")
                     .WithFlag(6, name: "DEBUGRUN")
                     .WithFlag(7, name: "DMACLRACT")
-                    .WithEnumField<DoubleWordRegister, ClockSource>(8, 2, out clockSource, name: "CLKSEL")
+                    .WithEnumField<DoubleWordRegister, ClockSource>(8, 2, out clockSource, name: "CLKSEL", changeCallback: (_, value) =>
+                    {
+                        if(value != ClockSource.Prescaled)
+                        {
+                            this.Log(LogLevel.Error, "CLKSEL {0} is not supported, the timer will not run", value);
+                        }
+                    })
                     .WithFlag(10, name: "RETIMEEN")
                     .WithFlag(11, name: "DISSYNCOUT")
                     .WithFlag(12, name: "RETIMESEL")
@@ -319,7 +331,14 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             if(timerMode.Value != TimerMode.Up && timerMode.Value != TimerMode.Down)
             {
-                throw new Exception("Mode not supported");
+                this.Log(LogLevel.Error, "Cannot start the timer, MODE {0} is not supported", timerMode.Value);
+                return;
+            }
+
+            if(clockSource.Value != ClockSource.Prescaled)
+            {
+                this.Log(LogLevel.Error, "Cannot start the timer, CLKSEL {0} is not supported", clockSource.Value);
+                return;
             }
 
             uint currentValue = restartFromInitialValue ? (timerMode.Value == TimerMode.Up ? 0 : topValue) : TimerCounter;
@@ -410,7 +429,8 @@ namespace Antmicro.Renode.Peripherals.Timers
                 {
                     if(OutputCompareValue > limit)
                     {
-                        throw new Exception("OC > TOP");
+                        parent.Log(LogLevel.Error, "CC{0}: OC 0x{1:X} is greater than TOP 0x{2:X}, compare will not match", index, OutputCompareValue, limit);
+                        return;
                     }
 
                     if(direction == Direction.Ascending
