@@ -19,5 +19,11 @@ namespace Antmicro.Renode.Peripherals
             get => ((UARTBackend)Backend).LineEnding;
             set => ((UARTBackend)Backend).LineEnding = value;
         }
+
+        public bool SelfEcho
+        {
+            get => ((UARTBackend)Backend).SelfEcho;
+            set => ((UARTBackend)Backend).SelfEcho = value;
+        }
     }
 }

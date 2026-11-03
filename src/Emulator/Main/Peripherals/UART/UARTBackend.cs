@@ -128,6 +128,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
         public UartExtensions.LineEnding LineEnding { get; set; } = UartExtensions.LineEnding.LF;
 
+        public bool SelfEcho { get; set; } = false;
+
         private void EnqueueHistory(byte b)
         {
             lock(lockObject)
@@ -138,6 +140,10 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void ByteRead(int b)
         {
+            if(SelfEcho)
+            {
+                io.Write((byte)b);
+            }
             var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
             UART.GetMachine().HandleTimeDomainEvent(UART.WriteChar, (byte)b, vts);
         }
