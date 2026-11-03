@@ -23,7 +23,6 @@ using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.CPU;
 using Antmicro.Renode.Peripherals.Memory;
-using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 using ELFSharp.ELF;
@@ -39,7 +38,6 @@ namespace Antmicro.Renode.Peripherals.Bus
     /// <summary>
     ///     The <c>SystemBus</c> is the main system class, where all data passes through.
     /// </summary>
-    [ControllerMask(typeof(IPeripheral))]
     public sealed partial class SystemBus : IBusController, IDisposable, IHasPreservableState
     {
         internal SystemBus(IMachine machine)

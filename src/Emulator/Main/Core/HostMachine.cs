@@ -13,11 +13,9 @@ using Antmicro.Migrant;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals;
-using Antmicro.Renode.UserInterface;
 
 namespace Antmicro.Renode.Core
 {
-    [ControllerMask(typeof(IExternal))]
     public class HostMachine : IExternal, IHasChildren<IHostMachineElement>, IDisposable
     {
         public HostMachine()
