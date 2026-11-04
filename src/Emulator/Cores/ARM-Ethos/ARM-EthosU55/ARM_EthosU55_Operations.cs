@@ -12,86 +12,12 @@ using System.Numerics;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
+using static Antmicro.Renode.Peripherals.ARM_Ethos.ARM_EthosCommon;
+
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 public partial class ARM_EthosU55
 {
-    private static long ReadValue(byte[] bytes, int byteId, int byteLength, bool signed)
-    {
-        if(byteId < 0 || byteId + byteLength > bytes.Length)
-        {
-            throw new InvalidOperationException($"Out of bounds read at {byteId} ({byteLength} bytes, buffer length {bytes.Length})");
-        }
-
-        return byteLength switch
-        {
-            1 => signed ? unchecked((sbyte)bytes[byteId]) : bytes[byteId],
-            2 => signed ? BitConverter.ToInt16(bytes, byteId) : BitConverter.ToUInt16(bytes, byteId),
-            4 => signed ? BitConverter.ToInt32(bytes, byteId) : BitConverter.ToUInt32(bytes, byteId),
-            _ => throw new InvalidOperationException($"Invalid element byte length: {byteLength}"),
-        };
-    }
-
-    private static void WriteValue(byte[] bytes, long byteId, long value, int byteLength)
-    {
-        if(byteId < 0 || byteId + byteLength > bytes.Length)
-        {
-            throw new InvalidOperationException($"Out of bounds write at {byteId} ({byteLength} bytes, buffer length {bytes.Length})");
-        }
-
-        for(var i = 0; i < byteLength; i++)
-        {
-            bytes[byteId + i] = unchecked((byte)(value >> (8 * i)));
-        }
-    }
-
-    // U85 TRM rounded_shift_right
-    private static long RoundedShiftRight(long acc, int shift, RoundingMode mode, int doubleRoundShift = 0)
-    {
-        if(shift < 0 || shift > 63)
-        {
-            throw new ArgumentOutOfRangeException(nameof(shift));
-        }
-        if(doubleRoundShift < 0 || doubleRoundShift > 30)
-        {
-            throw new ArgumentOutOfRangeException(nameof(doubleRoundShift));
-        }
-
-        if(shift == 0)
-        {
-            return acc;
-        }
-
-        var rounding = BigInteger.One << (shift - 1);
-        var doubleRounding = shift > (31 - doubleRoundShift) ? BigInteger.One << (30 - doubleRoundShift) : BigInteger.Zero;
-        switch(mode)
-        {
-        case RoundingMode.DoubleSymmetric:
-            rounding += acc >= 0 ? doubleRounding : -doubleRounding;
-            break;
-        case RoundingMode.DoubleAsymmetric:
-            rounding += doubleRounding;
-            break;
-        case RoundingMode.TruncateToZero:
-            rounding = acc >= 0 ? BigInteger.Zero : (BigInteger.One << shift) - 1;
-            break;
-        case RoundingMode.TruncateToLower:
-            rounding = BigInteger.Zero;
-            break;
-        case RoundingMode.Natural:
-            break;
-        case RoundingMode.Symmetric:
-            if(acc < 0)
-            {
-                rounding -= 1;
-            }
-            break;
-        default:
-            throw new ArgumentOutOfRangeException(nameof(mode));
-        }
-        return (long)(((BigInteger)acc + rounding) >> shift);
-    }
-
     // Adapted from:
     // https://github.com/tensorflow/tflite-micro/blob/7b49bf8dd673394808938aae9a255323d2573a02/tensorflow/lite/micro/kernels/internal/reference/integer_ops/tanh.h#L95
     private static long EvaluateTanh(long value)
@@ -119,21 +45,6 @@ public partial class ARM_EthosU55
         return index >= SigmoidTable.Length - 1 ? limit
             : (SigmoidTable[index] << fractionBits)
                 + (magnitude & ((1 << fractionBits) - 1)) * (SigmoidTable[index + 1] - SigmoidTable[index]);
-    }
-
-    // Decode the activation type of an xFM precision register.
-    private static (bool Signed, int ByteLength) DecodeActivationType(ushort precision, bool isOfm)
-    {
-        var signed = (precision & 1) != 0;
-        var precisionBits = isOfm ? (precision >> 1) & 0b11 : (precision >> 2) & 0b11;
-        var byteLength = precisionBits switch
-        {
-            0 => 1,
-            1 => 2,
-            2 => 4,
-            _ => 0,
-        };
-        return (signed, byteLength);
     }
 
     private static RoundingMode? DecodeRoundingMode(ushort precision)
@@ -273,7 +184,7 @@ public partial class ARM_EthosU55
 
     private int GetElementByteLength(FeatureMap map)
     {
-        var (_, byteLength) = DecodeActivationType(GetPrecision(map), isOfm: map == FeatureMap.Ofm);
+        var (_, byteLength) = DecodeActivationType(GetPrecision(map), isOfm: map == FeatureMap.Ofm, allow64: false);
         return byteLength != 0 ? byteLength : throw new InvalidOperationException($"Invalid {map} precision: 0x{GetPrecision(map):X}");
     }
 
@@ -656,8 +567,8 @@ public partial class ARM_EthosU55
 
     private bool ValidateElementwisePrecisions(ElementwiseMode mode, bool isUnary)
     {
-        var (ifmSigned, ifmByteLength) = DecodeActivationType(commandRegisters.IfmPrecision, isOfm: false);
-        var (ofmSigned, ofmByteLength) = DecodeActivationType(commandRegisters.OfmPrecision, isOfm: true);
+        var (ifmSigned, ifmByteLength) = DecodeActivationType(commandRegisters.IfmPrecision, isOfm: false, allow64: false);
+        var (ofmSigned, ofmByteLength) = DecodeActivationType(commandRegisters.OfmPrecision, isOfm: true, allow64: false);
         if(ifmByteLength == 0 || ofmByteLength == 0
             || (!ifmSigned && ifmByteLength != 1) || (!ofmSigned && ofmByteLength != 1))
         {
@@ -668,7 +579,7 @@ public partial class ARM_EthosU55
 
         if(!isUnary)
         {
-            var (ifm2Signed, ifm2ByteLength) = DecodeActivationType(commandRegisters.Ifm2Precision, isOfm: false);
+            var (ifm2Signed, ifm2ByteLength) = DecodeActivationType(commandRegisters.Ifm2Precision, isOfm: false, allow64: false);
             if(ifm2ByteLength == 0 || ifm2Signed != ifmSigned || ifm2ByteLength != ifmByteLength)
             {
                 this.ErrorLog("IFM2 precision 0x{0:X4} must match IFM precision 0x{1:X4}",
@@ -1627,20 +1538,6 @@ public partial class ARM_EthosU55
         65534, 65534, 65534, 65534, 65534, 65534, 65534, 65535,
     };
 
-    private enum FeatureMap
-    {
-        Ifm,
-        Ifm2,
-        Ofm,
-    }
-
-    private enum IfmUpscaleMode
-    {
-        None = 0,
-        Nearest = 1,
-        InsertZeros = 2,
-    }
-
     // NPU_OP_POOL modes (U55 Table 4-112).
     private enum PoolMode
     {
@@ -1671,16 +1568,6 @@ public partial class ARM_EthosU55
         Sigmoid,
         Lut,
         Reserved,
-    }
-
-    private enum RoundingMode
-    {
-        DoubleSymmetric,
-        DoubleAsymmetric,
-        TruncateToZero,
-        TruncateToLower,
-        Natural,
-        Symmetric,
     }
 
     private enum RescaleMode
