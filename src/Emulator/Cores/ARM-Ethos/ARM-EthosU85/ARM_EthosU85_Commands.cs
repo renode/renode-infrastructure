@@ -124,10 +124,16 @@ public partial class ARM_EthosU85
                 case CommandOpcode.OpPmuMask:
                     // PMU is not implemented
                     continue;
+                case CommandOpcode.OpElementwise:
+                    if(!ExecuteElementwise(parameter))
+                    {
+                        ParseError("Elementwise operation failed");
+                        return;
+                    }
+                    continue;
                 case CommandOpcode.OpConv:
                 case CommandOpcode.OpDepthwise:
                 case CommandOpcode.OpPool:
-                case CommandOpcode.OpElementwise:
                 case CommandOpcode.OpResize:
                 case CommandOpcode.OpDmaStart:
                     // TODO
