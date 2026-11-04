@@ -10,7 +10,6 @@ using System.Diagnostics;
 using System.Numerics;
 
 using Antmicro.Renode.Logging;
-using Antmicro.Renode.Peripherals.Memory;
 using Antmicro.Renode.Utilities;
 
 using static Antmicro.Renode.Peripherals.ARM_Ethos.ARM_EthosCommon;
@@ -1477,12 +1476,16 @@ public partial class ARM_EthosU55
             kernelXDilation, kernelYDilation,
             outputWidth, outputHeight, outputDepth);
 
+        var kernelRows = (kernelHeight + kernelYDilation - 1) / kernelYDilation;
+        var kernelColumns = (kernelWidth + kernelXDilation - 1) / kernelXDilation;
+        var weightInputDepth = isDepthwise ? 1 : inputDepth;
+        var weightsPerRow = kernelColumns * weightInputDepth;
+        var weightsPerOutputChannel = kernelRows * weightsPerRow;
+
         // OPTIMIZATION: Decode reused inputs once for non-upscaled convolution.
         long[] inputValues = null;
         if(upscale == IfmUpscaleMode.None)
         {
-            var kernelRows = (kernelHeight + kernelYDilation - 1) / kernelYDilation;
-            var kernelColumns = (kernelWidth + kernelXDilation - 1) / kernelXDilation;
             var inputChannelsPerKernelPosition = isDepthwise ? 1 : inputDepth;
             var outputElements = (double)outputHeight * outputWidth * outputDepth;
             var estimatedReads = outputElements * kernelRows * kernelColumns * inputChannelsPerKernelPosition;
@@ -1491,6 +1494,7 @@ public partial class ARM_EthosU55
 
         for(var oC = 0; oC < outputDepth; oC++)
         {
+            var channelWeights = weights.AsSpan(oC * weightsPerOutputChannel, weightsPerOutputChannel);
             for(var oY = 0; oY < outputHeight; oY++)
             {
                 for(var oX = 0; oX < outputWidth; oX++)
@@ -1508,20 +1512,33 @@ public partial class ARM_EthosU55
                                 continue;
                             }
                             var inputBase = inputValues != null ? (iY * inputWidth + iX) * inputDepth : 0;
+                            var weightOffset = kY * weightsPerRow + kX * weightInputDepth;
                             // U85 TODO: Implement support for IFM2 as input
                             if(isDepthwise)
                             {
                                 var inputValueV = inputValues != null ? inputValues[inputBase + oC] : GetUpscaledFeatureMapValue(input, iY, iX, oC, upscale);
-                                var inputValueW = weights[oC, kY, kX, 0];
+                                var inputValueW = channelWeights[weightOffset];
                                 accumulator = unchecked(accumulator + inputValueV * inputValueW);
                             }
                             else
                             {
-                                for(var iC = 0; iC < inputDepth; iC++)
+                                // OPTIMIZATION: Use equal-length spans for linear channel access.
+                                var weightBlock = channelWeights.Slice(weightOffset, inputDepth);
+                                if(inputValues != null)
                                 {
-                                    var inputValueV = inputValues != null ? inputValues[inputBase + iC] : GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
-                                    var inputValueW = weights[oC, kY, kX, iC];
-                                    accumulator = unchecked(accumulator + inputValueV * inputValueW);
+                                    var inputBlock = inputValues.AsSpan(inputBase, inputDepth);
+                                    for(var iC = 0; iC < inputBlock.Length; iC++)
+                                    {
+                                        accumulator = unchecked(accumulator + inputBlock[iC] * weightBlock[iC]);
+                                    }
+                                }
+                                else
+                                {
+                                    for(var iC = 0; iC < weightBlock.Length; iC++)
+                                    {
+                                        var inputValue = GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
+                                        accumulator = unchecked(accumulator + inputValue * weightBlock[iC]);
+                                    }
                                 }
                             }
                         }

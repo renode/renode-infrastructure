@@ -303,7 +303,7 @@ public partial class ARM_EthosU55
         return true;
     }
 
-    private bool TryGenerateWeightTensor(List<int> weightStream, bool isDepthwise, out int[,,,] weightTensor)
+    private bool TryGenerateWeightTensor(List<int> weightStream, bool isDepthwise, out int[] weightTensor)
     {
         var isPartkernel = BitHelper.GetValue(commandRegisters.KernelStride, 2, 1) == 1;
 
@@ -332,14 +332,9 @@ public partial class ARM_EthosU55
         var decompositionWidth = decomposition >> kernelXDilationM1;
         var decompositionHeight = decomposition >> kernelYDilationM1;
 
-        if(isDepthwise)
-        {
-            weightTensor = new int[outputDepth, kernelHeight, kernelWidth, 1];
-        }
-        else
-        {
-            weightTensor = new int[outputDepth, kernelHeight, kernelWidth, inputDepth];
-        }
+        // OPTIMIZATION: Keep input-channel weights adjacent in a flat array.
+        var weightInputDepth = isDepthwise ? 1 : inputDepth;
+        weightTensor = new int[checked(outputDepth * kernelHeight * kernelWidth * weightInputDepth)];
 
         var inputBitDepth = (int)BitHelper.GetValue(commandRegisters.IfmPrecision, 2, 2);
         if(inputBitDepth == 2)
@@ -424,7 +419,7 @@ public partial class ARM_EthosU55
                                                 }
                                                 else
                                                 {
-                                                    weightTensor[oz, ky, kx, iz] = weightStream[weightStreamIndex++];
+                                                    weightTensor[((oz * kernelHeight + ky) * kernelWidth + kx) * weightInputDepth + iz] = weightStream[weightStreamIndex++];
                                                 }
                                             }
                                         }
@@ -495,5 +490,5 @@ public partial class ARM_EthosU55
     private List<long> biasStream;
     private List<long> scaleStream;
     private List<int> shiftStream;
-    private int[,,,] weights;
+    private int[] weights;
 }
