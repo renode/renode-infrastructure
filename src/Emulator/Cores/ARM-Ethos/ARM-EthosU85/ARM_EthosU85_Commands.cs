@@ -148,10 +148,16 @@ public partial class ARM_EthosU85
                         return;
                     }
                     continue;
+                case CommandOpcode.OpResize:
+                    if(!ExecuteResize(parameter))
+                    {
+                        ParseError("Resize operation failed");
+                        return;
+                    }
+                    continue;
                 case CommandOpcode.OpConv:
                 case CommandOpcode.OpDepthwise:
                 case CommandOpcode.OpPool:
-                case CommandOpcode.OpResize:
                     // TODO
                     ParseError($"opcode +0x{opcode:X} is not implemented");
                     return;

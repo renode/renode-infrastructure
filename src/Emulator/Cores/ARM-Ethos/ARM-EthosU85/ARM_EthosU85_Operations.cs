@@ -258,25 +258,78 @@ public partial class ARM_EthosU85
         return true;
     }
 
-    private bool WriteFeatureMapValue(FeatureMap map, long row, long column, long channel, long value)
+    private bool ValidateOutputChannelReverse()
+    {
+        var precision = commandRegisters.OfmPrecision;
+        var storage = (TileStorage)((precision >> 14) & 0b11);
+        var reverse = (ActivationReverse)((precision >> 9) & 0b11);
+        if(storage == TileStorage.None || reverse != ActivationReverse.C)
+        {
+            return true;
+        }
+
+        // U85 TRM 3.6.4 microblock_depth() and 3.6.5 write_ofm().
+        var microblockDepth = ((commandRegisters.AccFormat >> 8) & 0b111) switch
+        {
+            0 => macsPerCycle / 8,   // u1x1
+            1 => macsPerCycle / 16,  // u1x2
+            2 => macsPerCycle / 32,  // u1x4
+            3 => macsPerCycle / 32,  // u2x2
+            4 => macsPerCycle / 64,  // u2x4
+            5 => macsPerCycle / 128, // u4x4
+            _ => 0,
+        };
+        if(microblockDepth == 0)
+        {
+            this.ErrorLog("Reserved microblock encoding for OFM channel reverse");
+            return false;
+        }
+        var (_, _, depth) = GetOfmStripeDimensions();
+        if(depth % Math.Max(16, microblockDepth) != 0
+            && (IsNHCWB16Layout(FeatureMap.Ofm) || commandRegisters.OfmBlkDepthM1 >= 16))
+        {
+            this.ErrorLog("OFM channel reverse with a partial microblock requires NHWC and block depth at most 16");
+            return false;
+        }
+        return true;
+    }
+
+    private bool WriteOfmValue(long row, long column, long channel, long value)
     {
         // U85 TRM write_ofm: record the low bit even when output storage is
-        // disabled. The flag is unspecified for tensors with multiple elements.
+        // disabled. Only the OFM has a result flag, it is unspecified for
+        // tensors with multiple elements.
         if(GetOfmStripeDimensions() == (1, 1, 1))
         {
             conditionResultFlag.Value = (value & 1) != 0;
         }
-        var storage = (GetPrecision(map) >> 14) & 0b11;
+        var storage = (GetPrecision(FeatureMap.Ofm) >> 14) & 0b11;
         if(storage == (int)TileStorage.None)
         {
             return true;
         }
-        if(!TryGetElementAddress(map, row, column, channel, out var address))
+
+        // Reverse coordinates before selecting the output tile.
+        var reverse = (ActivationReverse)((GetPrecision(FeatureMap.Ofm) >> 9) & 0b11);
+        var (width, height, depth) = GetOfmStripeDimensions();
+        switch(reverse)
+        {
+        case ActivationReverse.H:
+            row = height - 1 - row;
+            break;
+        case ActivationReverse.W:
+            column = width - 1 - column;
+            break;
+        case ActivationReverse.C:
+            channel = depth - 1 - channel;
+            break;
+        }
+        if(!TryGetElementAddress(FeatureMap.Ofm, row, column, channel, out var address))
         {
             return false;
         }
 
-        var (_, byteLength) = DecodeActivationType(GetPrecision(map), isOfm: true);
+        var (_, byteLength) = DecodeActivationType(GetPrecision(FeatureMap.Ofm), isOfm: true);
         var bytes = new byte[byteLength];
         WriteValue(bytes, 0, value, byteLength);
         sysbus.WriteBytes(bytes, address);
@@ -475,6 +528,14 @@ public partial class ARM_EthosU85
     {
         NHWC = 0,
         NHCWB16 = 1,
+    }
+
+    private enum ActivationReverse
+    {
+        None,
+        H,
+        W,
+        C,
     }
 
     private enum TileStorage

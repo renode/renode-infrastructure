@@ -246,7 +246,7 @@ public partial class ARM_EthosU85
                         return false;
                     }
                     outputValue = ActivationStage(outputValue, activation);
-                    if(!WriteFeatureMapValue(FeatureMap.Ofm, oY, oX, oD, outputValue))
+                    if(!WriteOfmValue(oY, oX, oD, outputValue))
                     {
                         return false;
                     }
