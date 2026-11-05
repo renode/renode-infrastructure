@@ -3495,6 +3495,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                         bool ok = verifier.VerifySignature(signature);
                         return ok ? ResponseCode.Ok : ResponseCode.InvalidSignature;
                     }
+                    catch(ArgumentException)
+                    {
+                        // The public key does not decode to a valid curve point
+                        return ResponseCode.InvalidSignature;
+                    }
                     catch(Exception e)
                     {
                         parent.Log(LogLevel.Error, "{0}: EdDSA verify exception: {1}", logTag, e.Message);
