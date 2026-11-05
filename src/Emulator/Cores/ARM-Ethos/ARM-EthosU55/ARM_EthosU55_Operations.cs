@@ -1272,7 +1272,7 @@ public partial class ARM_EthosU55
         return WriteFeatureMap(outputBuffer);
     }
 
-    private bool ExecuteConv()
+    private bool ExecuteConv(bool isDepthwise)
     {
         var kernelHeight = commandRegisters.KernelHeightM1 + 1;
         var kernelWidth = commandRegisters.KernelWidthM1 + 1;
@@ -1286,8 +1286,10 @@ public partial class ARM_EthosU55
         var kernelYDilation = BitHelper.GetValue(commandRegisters.KernelStride, 4, 1) + 1;
         var kernelXDilation = BitHelper.GetValue(commandRegisters.KernelStride, 3, 1) + 1;
 
-        // Vela is able to compile much larger padding than 127/128, while documentation for U55 mentions padding should be below 31/32 for convolution
-        // TODO: Test how these higher paddings act on hardware
+        // Vela is able to compile much larger padding than 127/128 (top/left padding is within 0-127 and bottom/right padding is within 0-128),
+        // while U55 documentation specifies padding to be below 31/32.
+        // Testing on hardware showed that U55 is able to process padding above 31/32 and it seems it can process them to around 127/255.
+        // Actual value still needs to be tested.
         var padY = BitHelper.GetValue(commandRegisters.IfmPadTop, 0, 7);
         var padX = BitHelper.GetValue(commandRegisters.IfmPadLeft, 0, 7);
         var padBottom = BitHelper.GetValue(commandRegisters.IfmPadBottom, 0, 8);
@@ -1298,7 +1300,7 @@ public partial class ARM_EthosU55
 
         var inputHeight = commandRegisters.OfmHeightM1 * kernelStrideY + kernelHeight - padHeight;
         var inputWidth = commandRegisters.OfmWidthM1 * kernelStrideX + kernelWidth - padWidth;
-        var inputDepth = commandRegisters.IfmDepthM1 + 1;
+        var inputDepth = isDepthwise ? outputDepth : commandRegisters.IfmDepthM1 + 1;
 
         var (ifmSigned, ifmByteLength) = DecodeActivationType(commandRegisters.IfmPrecision, isOfm: false);
         var (ofmSigned, ofmByteLength) = DecodeActivationType(commandRegisters.OfmPrecision, isOfm: true);
@@ -1360,13 +1362,8 @@ public partial class ARM_EthosU55
             return false;
         }
 
-        if(!TryUpdateWeights())
+        if(!TryUpdateWeights(isDepthwise))
         {
-            return false;
-        }
-        if(weights.Length < kernelHeight / kernelYDilation * kernelWidth / kernelXDilation * inputDepth * outputDepth)
-        {
-            this.ErrorLog("Not enough weights; decoded: {0}; required: {1}", weights.Length, kernelHeight / kernelYDilation * kernelWidth / kernelXDilation * inputDepth * outputDepth);
             return false;
         }
 
@@ -1403,13 +1400,21 @@ public partial class ARM_EthosU55
                             {
                                 continue;
                             }
-
-                            for(var iC = 0; iC < inputDepth; iC++)
+                            // U85 TODO: Implement support for IFM2 as input
+                            if(isDepthwise)
                             {
-                                // U85 TODO: Implement support for IFM2 as input
-                                var inputValueV = GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
-                                var inputValueW = weights[oC, kY, kX, iC];
+                                var inputValueV = GetUpscaledFeatureMapValue(input, iY, iX, oC, upscale);
+                                var inputValueW = weights[oC, kY, kX, 0];
                                 accumulator = Accumulate(accumulator, inputValueV * inputValueW, accumulatorBits);
+                            }
+                            else
+                            {
+                                for(var iC = 0; iC < inputDepth; iC++)
+                                {
+                                    var inputValueV = GetUpscaledFeatureMapValue(input, iY, iX, iC, upscale);
+                                    var inputValueW = weights[oC, kY, kX, iC];
+                                    accumulator = Accumulate(accumulator, inputValueV * inputValueW, accumulatorBits);
+                                }
                             }
                         }
                     }

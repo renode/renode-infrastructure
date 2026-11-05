@@ -198,19 +198,19 @@ public partial class ARM_EthosU55
                     }
                     continue;
                 case CommandOpcode.OpConv:
-                    if(!ExecuteConv())
+                    if(!ExecuteConv(isDepthwise: false))
                     {
                         ParseError("CONV operation failed");
                         return;
                     }
                     continue;
                 case CommandOpcode.OpDepthwise:
-                    this.Log(LogLevel.Warning, $"NPU operation {command} is not implemented");
-                    isRunning.Value = false;
-                    commandParseError.Value = true;
-                    irqRaised.Value = true;
-                    UpdateInterrupts();
-                    return;
+                    if(!ExecuteConv(isDepthwise: true))
+                    {
+                        ParseError("DEPTHWISE operation failed");
+                        return;
+                    }
+                    continue;
                 default:
                     ParseError($"Unknown CMD0 opcode +0x{opcode:X}");
                     return;

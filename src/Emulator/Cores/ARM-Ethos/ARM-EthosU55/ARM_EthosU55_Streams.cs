@@ -18,7 +18,7 @@ public partial class ARM_EthosU55
 {
     // Section for weight stream parsing
 
-    private bool TryUpdateWeights()
+    private bool TryUpdateWeights(bool isDepthwise)
     {
         var region = commandRegisters.WeightRegion;
         var baseAddress = commandRegisters.WeightBase;
@@ -36,7 +36,7 @@ public partial class ARM_EthosU55
             return false;
         }
 
-        if(!TryGenerateWeightTensor(weightStream, out weights))
+        if(!TryGenerateWeightTensor(weightStream, isDepthwise, out weights))
         {
             this.ErrorLog("Weight stream to weight tensor conversion aborted");
             return false;
@@ -303,7 +303,7 @@ public partial class ARM_EthosU55
         return true;
     }
 
-    private bool TryGenerateWeightTensor(List<int> weightStream, out int[,,,] weightTensor)
+    private bool TryGenerateWeightTensor(List<int> weightStream, bool isDepthwise, out int[,,,] weightTensor)
     {
         var isPartkernel = BitHelper.GetValue(commandRegisters.KernelStride, 2, 1) == 1;
 
@@ -332,7 +332,14 @@ public partial class ARM_EthosU55
         var decompositionWidth = decomposition >> kernelXDilationM1;
         var decompositionHeight = decomposition >> kernelYDilationM1;
 
-        weightTensor = new int[outputDepth, kernelHeight, kernelWidth, inputDepth];
+        if(isDepthwise)
+        {
+            weightTensor = new int[outputDepth, kernelHeight, kernelWidth, 1];
+        }
+        else
+        {
+            weightTensor = new int[outputDepth, kernelHeight, kernelWidth, inputDepth];
+        }
 
         var inputBitDepth = (int)BitHelper.GetValue(commandRegisters.IfmPrecision, 2, 2);
         if(inputBitDepth == 2)
@@ -352,7 +359,8 @@ public partial class ARM_EthosU55
 
         for(var outputBlockZ = 0; outputBlockZ < outputDepth; outputBlockZ += outputBlockDepth)
         {
-            for(var inputBlockZ = 0; inputBlockZ < inputDepth; inputBlockZ += inputBlockDepth)
+            // Don't iterate input for depthwise scenario (the code inside the for loop will be executed once with inputBlockZ set to 0)
+            for(var inputBlockZ = 0; inputBlockZ < (isDepthwise ? 1 : inputDepth); inputBlockZ += inputBlockDepth)
             {
                 // Don't trust the docs, it's Y first, X second just like in Vela compiler code: https://github.com/nxp-imx/ethos-u-vela/blob/lf-6.18.20_2.0.0/ethosu/mlw_codec/mlw_encode.c#L1024
                 for(var kernelY = 0; kernelY < kernelHeight; kernelY += decompositionHeight)
@@ -369,15 +377,19 @@ public partial class ARM_EthosU55
                             {
                                 subKernelSize = ((subKernelSize + 1) / 2) * 2;
                             }
-                            if(inputBitDepth == 8)
+                            else if(inputBitDepth == 8)
                             {
                                 subKernelSize = ((subKernelSize + 3) / 4) * 4;
                             }
                         }
+                        else if(isDepthwise)
+                        {
+                            subKernelSize = ((subKernelSize + 3) / 4) * 4;
+                        }
 
                         var subInputDepth = Math.Min(16, inputDepth - inputBlockZ);
-                        // Use this loop only in partkernel scenario
-                        for(var subInputZPartkernel = isPartkernel ? 0 : subInputDepth - 1; subInputZPartkernel < subInputDepth; subInputZPartkernel += inputMicroblockDepth)
+                        // Iterate with subInputZPartkernel only in partkernel scenario. Don't iterate in depthwise scenario.
+                        for(var subInputZPartkernel = 0; subInputZPartkernel < (!isPartkernel || isDepthwise ? 1 : subInputDepth); subInputZPartkernel += inputMicroblockDepth)
                         {
                             var subOutputDepth = Math.Min(outputBlockDepth, outputDepth - outputBlockZ);
                             for(var subOutputZ = 0; subOutputZ < subOutputDepth; subOutputZ += outputMicroblockDepth)
@@ -386,19 +398,20 @@ public partial class ARM_EthosU55
                                 {
                                     var subKernelX = kernelI % subKernelWidth;
                                     var subKernelY = kernelI / subKernelWidth;
-                                    // Iterate with subInputZDepthwise only in depthfirst scenario
-                                    for(var subInputZDepthfirst = isPartkernel ? inputBlockDepth - 1 : 0; subInputZDepthfirst < inputBlockDepth; subInputZDepthfirst += inputMicroblockDepth)
+                                    // Iterate with subInputZDepthfirst only in depthfirst scenario. Don't iterate in depthwise scenario.
+                                    for(var subInputZDepthfirst = 0; subInputZDepthfirst < (isPartkernel || isDepthwise ? 1 : inputBlockDepth); subInputZDepthfirst += inputMicroblockDepth)
                                     {
                                         var subInputZ = isPartkernel ? subInputZPartkernel : subInputZDepthfirst;
                                         for(var outputZ = 0; outputZ < outputMicroblockDepth; outputZ++)
                                         {
-                                            for(var inputZ = 0; inputZ < inputMicroblockDepth; inputZ++)
+                                            // Don't iterate input for depthwise scenario
+                                            for(var inputZ = 0; inputZ < (isDepthwise ? 1 : inputMicroblockDepth); inputZ++)
                                             {
                                                 var kx = kernelX + subKernelX;
                                                 var ky = kernelY + subKernelY;
                                                 var iz = inputBlockZ + subInputZ + inputZ;
                                                 var oz = outputBlockZ + subOutputZ + outputZ;
-                                                if((isPartkernel && subKernelY >= subKernelHeight) ||
+                                                if(subKernelY >= subKernelHeight ||
                                                    iz >= inputDepth ||
                                                    oz >= outputDepth)
                                                 {
