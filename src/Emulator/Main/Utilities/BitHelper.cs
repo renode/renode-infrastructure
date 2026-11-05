@@ -36,6 +36,12 @@ namespace Antmicro.Renode.Utilities
             return -1;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsOneHot(ulong value)
+        {
+            return ((value & (value - 1)) == 0);
+        }
+
         public static long Bit(byte b)
         {
             return (0x1 << b);
