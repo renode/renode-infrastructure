@@ -7,6 +7,8 @@
 
 using System;
 
+using Antmicro.Renode.Utilities;
+
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 // Helpers shared by the Ethos-U models.
@@ -39,6 +41,20 @@ public static class ARM_EthosCommon
         {
             bytes[byteId + i] = unchecked((byte)(value >> (8 * i)));
         }
+    }
+
+    // Truncate to the requested width and interpret the result as signed.
+    public static long SignExtendTruncated(long value, int bitCount)
+    {
+        if(bitCount <= 0 || bitCount > 64)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitCount));
+        }
+        if(bitCount == 64)
+        {
+            return value;
+        }
+        return unchecked((long)BitHelper.SignExtend(BitHelper.SignTruncate(value, bitCount), bitCount));
     }
 
     // U85 TRM rounded_shift_right

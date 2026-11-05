@@ -63,7 +63,7 @@ public partial class ARM_EthosU55
     {
         // Accumulator values wrap at the width selected by NPU_SET_ACC_FORMAT
         // (TRM 4.4, 0x124, and U85 TRM accumulate()).
-        return unchecked((long)BitHelper.SignExtend(BitHelper.SignTruncate(accumulator + value, accumulatorBits), accumulatorBits));
+        return SignExtendTruncated(accumulator + value, accumulatorBits);
     }
 
     private static (long Minimum, long Maximum) GetActivationRange(int byteLength, bool signed)
