@@ -1527,7 +1527,21 @@ public partial class ARM_EthosU55
                                 if(inputValues != null)
                                 {
                                     var inputBlock = inputValues.AsSpan(inputBase, inputDepth);
-                                    for(var iC = 0; iC < inputBlock.Length; iC++)
+
+                                    // OPTIMIZATION: 4 independent sums reduce loop overhead and the dependency chain.
+                                    long sum0 = 0, sum1 = 0, sum2 = 0, sum3 = 0;
+                                    var iC = 0;
+                                    for(; iC <= inputBlock.Length - 4; iC += 4)
+                                    {
+                                        sum0 = unchecked(sum0 + inputBlock[iC] * weightBlock[iC]);
+                                        sum1 = unchecked(sum1 + inputBlock[iC + 1] * weightBlock[iC + 1]);
+                                        sum2 = unchecked(sum2 + inputBlock[iC + 2] * weightBlock[iC + 2]);
+                                        sum3 = unchecked(sum3 + inputBlock[iC + 3] * weightBlock[iC + 3]);
+                                    }
+                                    accumulator = unchecked(accumulator + sum0 + sum1 + sum2 + sum3);
+
+                                    // Accumulate remaining values.
+                                    for(; iC < inputBlock.Length; iC++)
                                     {
                                         accumulator = unchecked(accumulator + inputBlock[iC] * weightBlock[iC]);
                                     }
