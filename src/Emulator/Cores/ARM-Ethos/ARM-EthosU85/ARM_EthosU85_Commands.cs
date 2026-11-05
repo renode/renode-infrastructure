@@ -8,7 +8,10 @@
 using System;
 
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.DMA;
 using Antmicro.Renode.Utilities;
+
+#nullable enable
 
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
@@ -138,11 +141,17 @@ public partial class ARM_EthosU85
                         return;
                     }
                     continue;
+                case CommandOpcode.OpDmaStart:
+                    if(!ExecuteDmaStart())
+                    {
+                        ParseError("DMA_START operation failed");
+                        return;
+                    }
+                    continue;
                 case CommandOpcode.OpConv:
                 case CommandOpcode.OpDepthwise:
                 case CommandOpcode.OpPool:
                 case CommandOpcode.OpResize:
-                case CommandOpcode.OpDmaStart:
                     // TODO
                     ParseError($"opcode +0x{opcode:X} is not implemented");
                     return;
@@ -212,6 +221,133 @@ public partial class ARM_EthosU85
         return true;
     }
 
+    // U85 TRM 3.10.4 NPU_OP_DMA_START
+    private bool ExecuteDmaStart()
+    {
+        // DMA transfers are modeled as instant, so the DMA can always accept new operations
+
+        var srcRegion = (int)BitHelper.GetValue(commandRegisters.Dma0SrcRegion, 0, 3);
+        var srcInternalRegionMode = BitHelper.IsBitSet(commandRegisters.Dma0SrcRegion, 8);
+        var srcStrideMode = (DmaStride)BitHelper.GetValue(commandRegisters.Dma0SrcRegion, 9, 2);
+        var srcIndexModeEnabled = BitHelper.IsBitSet(commandRegisters.Dma0SrcRegion, 11);
+
+        var dstRegion = (int)BitHelper.GetValue(commandRegisters.Dma0DstRegion, 0, 3);
+        var dstInternalRegionMode = BitHelper.IsBitSet(commandRegisters.Dma0DstRegion, 8);
+        var dstIndexModeEnabled = BitHelper.IsBitSet(commandRegisters.Dma0DstRegion, 11);
+
+        var length = commandRegisters.Dma0Len;
+        var width = commandRegisters.Dma0Size0;
+        var height = commandRegisters.Dma0Size1;
+
+        var srcP = commandRegisters.Dma0Src;
+        var dstP = commandRegisters.Dma0Dst;
+
+        var idxP = commandRegisters.Dma0Idx;
+        var idxRegion = commandRegisters.Dma0IdxRegion;
+        var idxMax = commandRegisters.Dma0IdxMax;
+
+        var srcStride0 = commandRegisters.Dma0SrcStride0;
+        var srcStride1 = commandRegisters.Dma0SrcStride1;
+        var dstStride0 = commandRegisters.Dma0DstStride0;
+        var dstStride1 = commandRegisters.Dma0DstStride1;
+        var idxSkip1 = commandRegisters.Dma0IdxSkip1;
+
+        if(srcInternalRegionMode)
+        {
+            this.ErrorLog("Only external source region mode is supported");
+            return false;
+        }
+
+        if(srcIndexModeEnabled && dstIndexModeEnabled)
+        {
+            this.ErrorLog("Source and destination index modes cannot be enabled simultaneously");
+            return false;
+        }
+
+        if(dstInternalRegionMode)
+        {
+            dstRegion = -1; // Copy into LUT
+        }
+
+        switch(srcStrideMode)
+        {
+        case DmaStride.Dimensions1:
+            width = 1;
+            goto case DmaStride.Dimensions2; // fallthrough
+        case DmaStride.Dimensions2:
+            height = 1;
+            break;
+        case DmaStride.Dimensions3:
+            break; // Nothing to do
+        case DmaStride.Reserved:
+            this.ErrorLog("Invalid {0} value: {1}", nameof(srcStrideMode), srcStrideMode);
+            return false;
+        }
+
+        using(sysbus.EnterDelayedInvalidationContext())
+        {
+            for(ulong y = 0; y < height; y++)
+            {
+                for(ulong x = 0; x < width; x++)
+                {
+                    var copyValid = true;
+                    var srcIdx = x;
+                    var dstIdx = x;
+
+                    if(srcIndexModeEnabled || dstIndexModeEnabled)
+                    {
+                        if(!TryGetBufferAddress(idxRegion, idxP, out var idxAddress, "DMA index read"))
+                        {
+                            return false;
+                        }
+                        var idx = (int)sysbus.ReadDoubleWord(idxAddress);
+                        idxP += 4;
+                        if(idx < 0 || idx > idxMax)
+                        {
+                            copyValid = false;
+                        }
+                        if(srcIndexModeEnabled)
+                        {
+                            srcIdx = unchecked((ulong)idx);
+                        }
+                        else
+                        {
+                            dstIdx = unchecked((ulong)idx);
+                        }
+                    }
+
+                    if(copyValid)
+                    {
+                        var srcPlace = GetDmaPlace(srcRegion, srcP + srcIdx * (ulong)srcStride0, "DMA source address", allowLut: false);
+                        var dstPlace = GetDmaPlace(dstRegion, dstP + dstIdx * (ulong)dstStride0, "DMA destination address", allowLut: true);
+                        if(srcPlace is null || dstPlace is null)
+                        {
+                            return false;
+                        }
+
+                        var request = new Request(
+                            source: srcPlace,
+                            destination: dstPlace,
+                            size: (int)length,
+                            readTransferType: TransferType.Byte,
+                            writeTransferType: TransferType.Byte,
+                            incrementReadAddress: true,
+                            incrementWriteAddress: true
+                        );
+                        dmaEngine.IssueCopy(request);
+                    }
+                }
+                srcP += (ulong)srcStride1;
+                dstP += (ulong)dstStride1;
+                if(srcIndexModeEnabled || dstIndexModeEnabled)
+                {
+                    idxP += (ulong)idxSkip1;
+                }
+            }
+        }
+        return true;
+    }
+
     private void StopAndRaiseIrq(ushort irqMask = 0)
     {
         isRunning.Value = false;
@@ -228,6 +364,30 @@ public partial class ARM_EthosU85
         StopAndRaiseIrq();
     }
 
+    private Place? GetDmaPlace(int region, ulong offset, string description, bool allowLut)
+    {
+        if(region == -1)
+        {
+            if(allowLut)
+            {
+                if(offset >= (ulong)lookupTable.Length)
+                {
+                    this.ErrorLog("LUT access at {0} is out of bounds of {1} for {2}", offset, lookupTable.Length, description);
+                    return null;
+                }
+                return new Place(lookupTable, (int)offset);
+            }
+            this.ErrorLog("LUT access is not allowed for {0}", description);
+            return null;
+        }
+
+        if(TryGetBufferAddress(region, offset, out var address, description))
+        {
+            return new Place(address);
+        }
+        return null;
+    }
+
     private const uint MaximumCommandBytes = 0x1000000; // 16 MB
 
     // Model safeguard, not from the TRM: a branch loop runs inside the CMD write,
@@ -236,4 +396,12 @@ public partial class ARM_EthosU85
 
     private const uint Cmd0Encoding = 0b000000;
     private const uint Cmd1Encoding = 0b010000;
+
+    private enum DmaStride
+    {
+        Dimensions1 = 0b00,
+        Dimensions2 = 0b01,
+        Dimensions3 = 0b10,
+        Reserved = 0b11,
+    }
 }
