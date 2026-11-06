@@ -191,7 +191,7 @@ public class Caliptra_KeyVault : BasicDoubleWordPeripheral, IKnownSize
                 parent.WarningLog("Key vault {0} has lock_use set; value not read", Idx);
                 return false;
             }
-            if(!Destination.HasFlag(destination) && !force)
+            if((!Destination.HasFlag(destination) || Destination == DestinationCode.None) && !force)
             {
                 key = new uint[KeySize];
                 parent.WarningLog("Key vault {0} has allowed writes mismatch; got {1}, but allowed are {2}", Idx, destination, Destination);
