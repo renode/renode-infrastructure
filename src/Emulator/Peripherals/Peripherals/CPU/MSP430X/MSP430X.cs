@@ -766,62 +766,49 @@ namespace Antmicro.Renode.Peripherals.CPU
                     {
                         // NOTE: RRCM/RRAM/RLAM/RRUM
                         var instructionWidth = (instr & 0x0010) > 0 ? AccessWidth._16bit : AccessWidth._20bit;
-                        var bitLocation = ((instr & 0x0C00) >> 10) + 1;
+                        var bitCount = ((instr & 0x0C00) >> 10) + 1;
                         var func = (instr & 0x0300) >> 8;
-                        var registerValue = GetRegisterValue((Registers)destination);
-                        var width = GetAccessWidthInBits(instructionWidth);
+                        var mask = GetAccessWidthMask(instructionWidth);
+                        var msb = GetAccessWidthMSB(instructionWidth);
+                        var registerValue = GetRegisterValue((Registers)destination) & mask;
+                        var carry = statusRegister.HasFlag(StatusFlags.Carry);
 
-                        switch(func)
+                        // NOTE: Shift one bit at a time, so the carry is always the last bit
+                        // shifted out and RRCM rotates the low bits through the carry
+                        for(var i = 0; i < bitCount; i++)
                         {
-                        case 0:
-                        {
-                            // NOTE: RRCM
-                            var shouldCarry = (registerValue & (1 << (bitLocation - 1))) > 0;
-
-                            registerValue >>= bitLocation;
-                            registerValue |= statusRegister.HasFlag(StatusFlags.Carry) ? (1U << (width - bitLocation)) : 0U;
-
-                            SetStatusFlag(StatusFlags.Carry, shouldCarry);
-                            TruncateWithFlags((uint)registerValue, accessWidth);
-                            SetRegisterValue((Registers)destination, registerValue);
-                            break;
-                        }
-                        case 1:
-                        {
-                            // NOTE: RRAM
-                            var signExtension = ((1U << (bitLocation + 1)) - 1) << (width - bitLocation);
-                            signExtension = (registerValue & GetAccessWidthMSB(instructionWidth)) > 0 ? signExtension : 0;
-
-                            var shouldCarry = (registerValue & (1 << (bitLocation - 1))) > 0;
-                            registerValue >>= bitLocation;
-                            registerValue |= signExtension;
-                            TruncateWithFlags(registerValue);
-                            SetStatusFlag(StatusFlags.Carry, shouldCarry);
-                            SetRegisterValue((Registers)destination, registerValue);
-                            break;
-                        }
-                        case 2:
-                        {
-                            // NOTE: RLAM
-                            var shouldCarry = (registerValue & (1 << (width - bitLocation))) > 0;
-                            registerValue <<= bitLocation;
-                            TruncateWithFlags(registerValue);
-                            SetStatusFlag(StatusFlags.Carry, shouldCarry);
-                            SetRegisterValue((Registers)destination, registerValue);
-                            break;
-                        }
-                        case 3:
-                        {
-                            // NOTE: RRUM
-                            var shouldCarry = (registerValue & (1 << (bitLocation - 1))) > 0;
-                            registerValue >>= bitLocation;
-                            TruncateWithFlags(registerValue);
-                            SetStatusFlag(StatusFlags.Carry, shouldCarry);
-                            SetRegisterValue((Registers)destination, registerValue);
-                            break;
-                        }
+                            switch(func)
+                            {
+                            case 0:
+                            {
+                                // NOTE: RRCM
+                                var carryIn = carry;
+                                carry = (registerValue & 0x1) > 0;
+                                registerValue = (registerValue >> 1) | (carryIn ? msb : 0U);
+                                break;
+                            }
+                            case 1:
+                                // NOTE: RRAM
+                                carry = (registerValue & 0x1) > 0;
+                                registerValue = (registerValue >> 1) | (registerValue & msb);
+                                break;
+                            case 2:
+                                // NOTE: RLAM
+                                carry = (registerValue & msb) > 0;
+                                registerValue = (registerValue << 1) & mask;
+                                break;
+                            case 3:
+                                // NOTE: RRUM
+                                carry = (registerValue & 0x1) > 0;
+                                registerValue >>= 1;
+                                break;
+                            }
                         }
 
+                        SetStatusFlag(StatusFlags.Carry, carry);
+                        SetStatusFlag(StatusFlags.Zero, registerValue == 0);
+                        SetStatusFlag(StatusFlags.Negative, (registerValue & msb) > 0);
+                        SetRegisterValue((Registers)destination, registerValue);
                         continue;
                     }
                     case 6:
