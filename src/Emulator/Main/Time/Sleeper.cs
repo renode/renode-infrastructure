@@ -41,7 +41,14 @@ namespace Antmicro.Renode.Time
             while(timeLeft.Ticks > 0 && !tokenSource.IsCancellationRequested)
             {
                 this.Trace($"Sleeping for {timeLeft}");
-                tokenSource.Token.WaitHandle.WaitOne(timeLeft);
+                // WaitOne(TimeSpan) truncates its timeout to whole milliseconds, so a
+                // sub-millisecond timeLeft returns immediately and turns the rest of this loop
+                // into a busy-wait until the stopwatch catches up. With the default 100 us
+                // quantum nearly every realtime catch-up nap is shorter than that, which pins
+                // the CPU thread at 100% host CPU. Wait for at least 1 ms instead: the
+                // overshoot is bounded and simply absorbed by the caller's next round, which
+                // measures the time actually slept.
+                tokenSource.Token.WaitHandle.WaitOne(timeLeft < MinimumWait ? MinimumWait : timeLeft);
                 timeLeft = time - stopwatch.Elapsed;
             }
             stopwatch.Stop();
@@ -114,5 +121,7 @@ namespace Antmicro.Renode.Time
         private CancellationTokenSource cancellationToken;
         private readonly Stopwatch stopwatch;
         private readonly object locker;
+
+        private static readonly TimeSpan MinimumWait = TimeSpan.FromMilliseconds(1);
     }
 }
