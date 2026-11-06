@@ -13,6 +13,8 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Peripherals.DMA;
 
+#nullable enable
+
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 // The M55 executes firmware; this device consumes the NPU queue submitted through MMIO.

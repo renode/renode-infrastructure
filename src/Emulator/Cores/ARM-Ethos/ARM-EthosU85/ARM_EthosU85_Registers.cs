@@ -5,13 +5,24 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System.Diagnostics.CodeAnalysis;
+
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
+
+#nullable enable
 
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 public partial class ARM_EthosU85
 {
+    [MemberNotNull(
+        nameof(isRunning), nameof(irqHistoryMask), nameof(busStatus),
+        nameof(queueBase0), nameof(queueBase1), nameof(queueSize),
+        nameof(pendingSecurityLevel), nameof(pendingPrivilegeLevel), nameof(activeSecurityLevel),
+        nameof(activePrivilegeLevel), nameof(commandParseError), nameof(queueReadOffset),
+        nameof(commandEndReached), nameof(irqRaised), nameof(branchFault),
+        nameof(conditionResultFlag), nameof(queueConfig))]
     private void DefineRegisters()
     {
         Registers.Id.Define(this, Identifier);

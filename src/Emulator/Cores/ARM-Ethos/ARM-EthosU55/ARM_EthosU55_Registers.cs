@@ -5,12 +5,22 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
+using System.Diagnostics.CodeAnalysis;
+
 using Antmicro.Renode.Core.Structure.Registers;
+
+#nullable enable
 
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 public partial class ARM_EthosU55
 {
+    [MemberNotNull(
+        nameof(irqHistoryMask), nameof(commandEndReached), nameof(commandParseError),
+        nameof(busStatus), nameof(irqRaised), nameof(isRunning),
+        nameof(lockValue), nameof(queueBase0), nameof(queueBase1),
+        nameof(queueReadOffset), nameof(queueSize), nameof(pendingSecurityLevel),
+        nameof(pendingPrivilegeLevel), nameof(activeSecurityLevel), nameof(activePrivilegeLevel))]
     private void DefineRegisters()
     {
         Registers.Id.Define(this, Identifier);
@@ -86,13 +96,7 @@ public partial class ARM_EthosU55
             .WithValueField(0, 4, FieldMode.Read, valueProviderCallback: _ => macsPerCycle == 128 ? 7u : 8u, name: "macs_per_cc");
 
         Registers.Lock.Define(this)
-            .WithValueField(0, 32, out lockValue, writeCallback: (value, _) =>
-            {
-                if(value == 0 || lockValue.Value == 0)
-                {
-                    lockValue.Value = value;
-                }
-            }, name: "LOCK");
+            .WithValueField(0, 32, out lockValue, writeCallback: WriteLock, name: "LOCK");
 
         Registers.PeripheralId4.Define(this, 0x04);
         Registers.PeripheralId5.Define(this, 0x00);
@@ -112,6 +116,14 @@ public partial class ARM_EthosU55
             {
                 register.WithValueField(0, 32, out basePointers[index], name: $"BASEP{index}");
             }, stepInBytes: 4);
+    }
+
+    private void WriteLock(ulong value, ulong _)
+    {
+        if(value == 0 || lockValue.Value == 0)
+        {
+            lockValue.Value = value;
+        }
     }
 
     private uint SharedBufferSizeInKilobytes => (uint)(sharedBuffer.Length / 1024);

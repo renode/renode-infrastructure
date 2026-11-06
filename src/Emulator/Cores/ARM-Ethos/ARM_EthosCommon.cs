@@ -9,6 +9,8 @@ using System;
 
 using Antmicro.Renode.Utilities;
 
+#nullable enable
+
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 // Helpers shared by the Ethos-U models.

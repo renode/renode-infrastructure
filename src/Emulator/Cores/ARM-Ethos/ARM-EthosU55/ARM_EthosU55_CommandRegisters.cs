@@ -8,6 +8,8 @@
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
+#nullable enable
+
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 public partial class ARM_EthosU55
