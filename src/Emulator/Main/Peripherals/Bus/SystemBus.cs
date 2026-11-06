@@ -489,6 +489,11 @@ namespace Antmicro.Renode.Peripherals.Bus
         /// <returns>True if any part of the <c>range</c> is locked for the given CPU (globally if <c>null</c> passed as <c>context</c>).</returns>
         public bool IsAddressRangeLocked(Range range, IPeripheral context = null)
         {
+            // Every bus access asks: there is nothing to look up until a range has been locked
+            if(!anyAddressRangeLocked)
+            {
+                return false;
+            }
             // The locked range is either mapped for the CPU context, or globally (that is the reason for the OR)
             return (lockedRangesCollectionByContext.TryGetValue(context, initiatorState: null, out var collection) && collection.ContainsOverlappingRange(range))
                 || lockedRangesCollectionByContext[null].ContainsOverlappingRange(range);
@@ -521,6 +526,10 @@ namespace Antmicro.Renode.Peripherals.Bus
 
                 using(Machine.ObtainPausedState(internalPause: true))
                 {
+                    if(locked)
+                    {
+                        anyAddressRangeLocked = true;
+                    }
                     RelockRange(range, locked, context);
 
                     lockedRangesCollectionByContext.WithStateCollection(context, stateMask: null, collection =>
@@ -1580,6 +1589,31 @@ namespace Antmicro.Renode.Peripherals.Bus
             return new MappedSegmentWrapper(segment, registrationPoint.Range.StartAddress - registrationPoint.Offset, desiredSize, context);
         }
 
+        // Misc.BinarySearch(r => address.CompareTo(r.StartAddress)) without allocating its closure: every bus access looks up the tags
+        private static int FindTagIndex(IList<Range> tagRanges, ulong address)
+        {
+            var first = 0;
+            var last = tagRanges.Count;
+            while(first != last)
+            {
+                var idx = (first + last) / 2;
+                var comparison = address.CompareTo(tagRanges[idx].StartAddress);
+                if(comparison < 0)
+                {
+                    last = idx;
+                }
+                else if(comparison > 0)
+                {
+                    first = idx + 1;
+                }
+                else
+                {
+                    return idx;
+                }
+            }
+            return ~first;
+        }
+
         private Dictionary<string, List<StateMask>> ParseNewConditions(string newCondition)
         {
             if(string.IsNullOrEmpty(newCondition))
@@ -2472,7 +2506,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private bool TryGetTag(ulong address, out TagEntry? foundTag)
         {
-            var tagIdx = tags.Keys.BinarySearch(r => address.CompareTo(r.StartAddress));
+            var tagIdx = FindTagIndex(tags.Keys, address);
             if(tagIdx >= 0)
             {
                 // Direct hit - the address is the start address of a tag
@@ -2626,6 +2660,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         private SymbolLookup globalLookup;
         [Transient]
         private ThreadLocalContext threadLocalContext;
+        // Set when a range is locked for the first time, never cleared
+        private volatile bool anyAddressRangeLocked;
 
         [Constructor]
         private ThreadLocal<int> cachedCpuId;
