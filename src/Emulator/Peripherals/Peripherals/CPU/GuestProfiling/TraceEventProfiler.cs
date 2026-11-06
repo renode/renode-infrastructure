@@ -111,7 +111,7 @@ namespace Antmicro.Renode.Peripherals.CPU.GuestProfiling
 
         private decimal InstructionCountToUs(ulong instructionCount)
         {
-            return (decimal)TimeInterval.FromCPUCycles(instructionCount, cpu.PerformanceInMips, out var _).TotalMicroseconds;
+            return (decimal)TimeInterval.FromCPUCycles(instructionCount, cpu.PerformanceInMips, out var _).Ticks / TimeInterval.TicksPerMicrosecond;
         }
 
         private void WriteNewContextIfNeeded(ulong id)
