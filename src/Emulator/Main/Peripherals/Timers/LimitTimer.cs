@@ -248,7 +248,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        public ulong Frequency
+        public virtual ulong Frequency
         {
             get
             {
