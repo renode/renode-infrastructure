@@ -35,7 +35,9 @@ public class Caliptra_SHA512 : BasicDoubleWordPeripheral, IKnownSize
         shaReady.Value = true;
 
         Array.Clear(shaDigest);
+        Array.Clear(shaBlock);
         Array.Clear(shaPcrDigest);
+        Array.Clear(kvBlock);
 
         blockFromKeyVault = false;
 
