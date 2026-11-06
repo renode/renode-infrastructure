@@ -1,0 +1,654 @@
+//
+// Copyright (c) 2010-2026 Antmicro
+//
+// This file is licensed under the MIT License.
+// Full license text is available in 'licenses/MIT.txt'.
+//
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus;
+
+namespace Antmicro.Renode.Peripherals.Memory
+{
+    /// <summary>
+    /// Non-volatile memory model with configurable word-write semantics and
+    /// power-loss fault injection.  Suitable for MRAM, FRAM, or any byte-
+    /// addressable NVM whose writes are atomic at a fixed word granularity.
+    ///
+    /// Key behaviors:
+    ///   - Reset() preserves storage contents (non-volatile).
+    ///   - When <see cref="EnforceWordWriteSemantics"/> is true, bus scalar and
+    ///     bulk writes are decomposed into program cycles at <see cref="WordSize"/>
+    ///     boundaries. Inherited Fill() and FillRegion() are initialization
+    ///     helpers and bypass fault counters and write tracing.
+    ///   - <see cref="InjectPartialWrite"/> simulates a power cut mid-program
+    ///     by unconditionally replacing the second half of a word with
+    ///     <see cref="EraseFill"/>. This is the core primitive for
+    ///     fault-injection campaigns.
+    ///   - <see cref="WriteFaultMode"/> selects between power-loss (torn
+    ///     write) and bit-corruption (deterministic bit flips) fault models.
+    ///     Automatic power-loss faults require the external campaign controller
+    ///     to stop and reset the machine after the fault fires.
+    ///   - <see cref="WriteTraceEnabled"/> records each word write as a
+    ///     (writeIndex, wordOffset) tuple for offline trace replay. At most
+    ///     100,000 entries are retained; check <see cref="WriteTraceTruncated"/>
+    ///     before treating the trace as complete.
+    ///   - <see cref="RetainOldDataOnFault"/> controls whether the un-programmed
+    ///     half of a partial write retains old data (MRAM) or is filled with
+    ///     <see cref="EraseFill"/> (flash).
+    /// </summary>
+    public class MRAMMemory : ArrayMemory
+    {
+        public MRAMMemory(ulong size = DefaultSize, int wordSize = DefaultWordSize) : base(size)
+        {
+            ValidateWordSize(wordSize);
+            this.wordSize = wordSize;
+            writeTrace = new List<(ulong writeIndex, long wordOffset)>();
+        }
+
+        public override void Reset()
+        {
+            // Intentionally do NOT call base.Reset() or clear storage:
+            // this models non-volatile memory that retains data across resets.
+            WriteInProgress = false;
+            LastFaultInjected = false;
+            FaultEverFired = false;
+            TotalWordWrites = 0;
+            FaultAtWordWrite = ulong.MaxValue;
+            WriteFaultMode = 0;
+            CorruptionSeed = 0;
+            ReadFaultEnabled = false;
+            ReadFaultAddress = -1;
+            ReadFaultSeed = 0;
+            ReadFaultFired = false;
+            ReadFaultSkipCount = 0;
+            ReadFaultTotalReads = 0;
+            ReadFaultBitFlips = 0;
+            WriteTraceClear();
+        }
+
+        public override void WriteByte(long offset, byte value)
+        {
+            WriteBytesWithWordSemantics(offset, new[] { value });
+        }
+
+        public override void WriteWord(long offset, ushort value)
+        {
+            WriteBytesWithWordSemantics(offset, BitConverter.GetBytes(value));
+        }
+
+        public override void WriteDoubleWord(long offset, uint value)
+        {
+            WriteBytesWithWordSemantics(offset, BitConverter.GetBytes(value));
+        }
+
+        public override void WriteQuadWord(long offset, ulong value)
+        {
+            WriteBytesWithWordSemantics(offset, BitConverter.GetBytes(value));
+        }
+
+        public override void WriteBytes(long offset, byte[] bytes, int startingIndex, int count, IPeripheral context = null)
+        {
+            if(bytes == null || startingIndex < 0 || count < 0 || startingIndex > bytes.Length - count)
+            {
+                this.Log(LogLevel.Error, "Invalid source range for a {0}-byte MRAM write", count);
+                return;
+            }
+
+            var data = new byte[count];
+            Array.Copy(bytes, startingIndex, data, 0, count);
+            WriteBytesWithWordSemantics(offset, data);
+        }
+
+        public override byte[] ReadBytes(long offset, int count, IPeripheral context = null)
+        {
+            if(offset < 0 || count < 0 || (ulong)count > (ulong)Size || (ulong)offset > (ulong)Size - (ulong)count)
+            {
+                this.Log(LogLevel.Error, "Tried to read {0} byte(s) at offset 0x{1:X} outside MRAM range 0x0 - 0x{2:X}",
+                    count, offset, Size - 1);
+                return Array.Empty<byte>();
+            }
+
+            var result = base.ReadBytes(offset, count, context);
+            ApplyReadFault(offset, result);
+            return result;
+        }
+
+        // NVM contents are not modified by transient read faults; only the
+        // value returned to the CPU is corrupted.
+
+        public override byte ReadByte(long offset)
+        {
+            var value = base.ReadByte(offset);
+            return (byte)ApplyReadFault(offset, 1, value);
+        }
+
+        public override ushort ReadWord(long offset)
+        {
+            var value = base.ReadWord(offset);
+            return (ushort)ApplyReadFault(offset, 2, value);
+        }
+
+        public override uint ReadDoubleWord(long offset)
+        {
+            var value = base.ReadDoubleWord(offset);
+            return (uint)ApplyReadFault(offset, 4, value);
+        }
+
+        public override ulong ReadQuadWord(long offset)
+        {
+            var value = base.ReadQuadWord(offset);
+            return ApplyReadFault(offset, 8, value);
+        }
+
+        /// <summary>
+        /// Simulate a power cut during a word-aligned write.  The second half of
+        /// the word at <paramref name="address"/> is unconditionally filled with
+        /// EraseFill; the first half is left unchanged, regardless of
+        /// <see cref="RetainOldDataOnFault"/>. Call after writing partial data to
+        /// model a mid-program power loss.
+        /// </summary>
+        public void InjectPartialWrite(long address)
+        {
+            var aligned = AlignDown(address);
+            if(aligned < 0 || aligned > Size - wordSize)
+            {
+                this.Log(LogLevel.Error, "InjectPartialWrite at 0x{0:X} is outside memory bounds", address);
+                return;
+            }
+
+            var half = wordSize / 2;
+            for(var i = half; i < wordSize; i++)
+            {
+                array[aligned + i] = EraseFill;
+            }
+
+            LastFaultInjected = true;
+            FaultEverFired = true;
+        }
+
+        /// <summary>
+        /// Overwrite a region with a fixed pattern, modeling arbitrary corruption.
+        /// </summary>
+        public void InjectFault(long address, long length, byte pattern = 0x00)
+        {
+            if(length <= 0)
+            {
+                return;
+            }
+
+            if(address < 0 || length > Size || address > Size - length)
+            {
+                this.Log(LogLevel.Error, "InjectFault at 0x{0:X} length {1} is outside memory bounds", address, length);
+                return;
+            }
+
+            for(var i = 0L; i < length; i++)
+            {
+                array[address + i] = pattern;
+            }
+            LastFaultInjected = true;
+            FaultEverFired = true;
+        }
+
+        /// <summary>
+        /// Query the total number of word-granularity write operations performed.
+        /// Useful for setting up fault injection at a specific write index.
+        /// </summary>
+        public ulong GetWordWriteCount()
+        {
+            return TotalWordWrites;
+        }
+
+        /// <summary>
+        /// Return all recorded write trace entries as a CSV string.
+        /// Each line is "writeIndex,wordOffset\n". At most 100,000 entries
+        /// are returned; check <see cref="WriteTraceTruncated"/> for completeness.
+        /// </summary>
+        public string WriteTraceToString()
+        {
+            var sb = new StringBuilder();
+            foreach(var entry in writeTrace)
+            {
+                sb.AppendFormat("{0},{1}\n", entry.writeIndex, entry.wordOffset);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Clear all recorded write trace entries.
+        /// </summary>
+        public void WriteTraceClear()
+        {
+            writeTrace.Clear();
+            WriteTraceTruncated = false;
+        }
+
+        /// <summary>
+        /// Indicates that one or more enabled write-trace entries were omitted
+        /// after the 100,000-entry retention limit was reached.
+        /// </summary>
+        public bool WriteTraceTruncated { get; private set; }
+
+        public int WordSize
+        {
+            get { return wordSize; }
+            set
+            {
+                ValidateWordSize(value);
+                wordSize = value;
+            }
+        }
+
+        public bool EnforceWordWriteSemantics { get; set; } = true;
+
+        public byte EraseFill { get; set; }
+
+        public bool WriteInProgress { get; private set; }
+
+        public bool LastFaultInjected { get; set; }
+
+        /// <summary>
+        /// Sticky flag: set when any fault fires, never cleared by subsequent
+        /// writes.  Use this instead of <see cref="LastFaultInjected"/> when
+        /// you need to check after the CPU has continued past the faulted write.
+        /// </summary>
+        public bool FaultEverFired { get; set; }
+
+        public ulong TotalWordWrites { get; set; }
+
+        public ulong FaultAtWordWrite { get; set; } = ulong.MaxValue;
+
+        /// <summary>
+        /// Fault model selector:
+        ///   0 = power_loss (default): torn write, with partial program and
+        ///       first half written,
+        ///       second half erased or retained depending on
+        ///       <see cref="RetainOldDataOnFault"/>.
+        ///       The external campaign controller must stop and reset the
+        ///       machine after this fault fires.
+        ///   1 = bit_corruption: full word is written, then 1-3 deterministic
+        ///       bits are flipped to model partial cell state transitions.
+        /// </summary>
+        public int WriteFaultMode
+        {
+            get { return writeFaultMode; }
+            set
+            {
+                if(value != 0 && value != 1)
+                {
+                    throw new ArgumentException("WriteFaultMode must be either 0 (power_loss) or 1 (bit_corruption)");
+                }
+                writeFaultMode = value;
+            }
+        }
+
+        /// <summary>
+        /// Seed for the bit-corruption PRNG.  When 0, the word-aligned address
+        /// is used as the seed, giving address-dependent deterministic results.
+        /// </summary>
+        public uint CorruptionSeed { get; set; }
+
+        /// <summary>
+        /// When true (default), the un-programmed half of a partial write
+        /// retains the old data that was present before the erase step.  This
+        /// models MRAM/FRAM where erase is implicit and old data survives
+        /// partial programming.  When false, the un-programmed half is filled
+        /// with <see cref="EraseFill"/>, modeling flash where erase physically
+        /// clears the cell before programming.
+        /// </summary>
+        public bool RetainOldDataOnFault { get; set; } = true;
+
+        /// <summary>
+        /// When true, each word-granularity write is recorded as a
+        /// (writeIndex, wordOffset) tuple. At most 100,000 entries are retained.
+        /// Retrieve with <see cref="WriteTraceToString"/> and clear with
+        /// <see cref="WriteTraceClear"/>; check <see cref="WriteTraceTruncated"/>
+        /// before treating the trace as complete.
+        /// </summary>
+        public bool WriteTraceEnabled { get; set; }
+
+        // Read-fault injection: one-shot transient read corruption.
+        // NVM content is unchanged; only the value returned to the CPU
+        // on the first matching read is corrupted.
+
+        /// <summary>
+        /// Master enable for read-fault injection.  When true, the next read
+        /// that overlaps <see cref="ReadFaultAddress"/> (after skipping
+        /// <see cref="ReadFaultSkipCount"/> qualifying reads) will have
+        /// deterministic bit flips applied to the returned value.  The fault
+        /// is one-shot: after firing, <see cref="ReadFaultEnabled"/> is
+        /// automatically cleared and <see cref="ReadFaultFired"/> is set.
+        /// To rearm a fired campaign, clear <see cref="ReadFaultFired"/> and
+        /// <see cref="ReadFaultTotalReads"/> before enabling it again.
+        /// </summary>
+        public bool ReadFaultEnabled { get; set; }
+
+        /// <summary>
+        /// Peripheral-relative address that arms the read fault.  Reads
+        /// overlapping the 4-byte window [ReadFaultAddress, ReadFaultAddress+4)
+        /// are candidates for corruption.  Set to -1 (default) to disable.
+        /// </summary>
+        public long ReadFaultAddress { get; set; } = -1;
+
+        /// <summary>
+        /// PRNG seed for read-fault bit selection.  When 0, a deterministic
+        /// seed derived from <see cref="ReadFaultAddress"/> is used.
+        /// </summary>
+        public uint ReadFaultSeed { get; set; }
+
+        /// <summary>
+        /// Set to true after a read fault fires.  Sticky until explicitly cleared.
+        /// </summary>
+        public bool ReadFaultFired { get; set; }
+
+        /// <summary>
+        /// Number of qualifying reads to skip before firing.  Useful for
+        /// targeting the Nth read of a specific address (e.g., the second
+        /// CRC validation pass).
+        /// </summary>
+        public ulong ReadFaultSkipCount { get; set; }
+
+        /// <summary>
+        /// Running count of qualifying reads since the last explicit clear or
+        /// reset.  Clear this before rearming a fired campaign.
+        /// </summary>
+        public ulong ReadFaultTotalReads { get; set; }
+
+        /// <summary>
+        /// Number of bits to flip on the faulted read.  When 0, a
+        /// seed-dependent count of 1-3 is used. The count is capped by the
+        /// access width, so a byte access can flip at most 8 bits.
+        /// </summary>
+        public int ReadFaultBitFlips { get; set; }
+
+        private void WriteBytesWithWordSemantics(long offset, byte[] data)
+        {
+            if(data.Length == 0)
+            {
+                return;
+            }
+
+            if(offset < 0 || data.LongLength > Size || offset > Size - data.LongLength)
+            {
+                this.Log(LogLevel.Error, "Tried to write {0} byte(s) at offset 0x{1:X} outside MRAM range 0x0 - 0x{2:X}",
+                    data.Length, offset, Size - 1);
+                return;
+            }
+
+            LastFaultInjected = false;
+
+            if(!EnforceWordWriteSemantics)
+            {
+                for(var i = 0; i < data.Length; i++)
+                {
+                    base.WriteByte(offset + i, data[i]);
+                }
+                return;
+            }
+
+            var firstWordStart = AlignDown(offset);
+            var lastWordStart = AlignDown(offset + data.Length - 1);
+
+            WriteInProgress = true;
+
+            try
+            {
+                for(var wordStart = firstWordStart; wordStart <= lastWordStart; wordStart += wordSize)
+                {
+                    // Read-modify-write: preserve unaddressed bytes and merge
+                    // the bytes supplied by this bus access.
+                    var oldWord = new byte[wordSize];
+                    var mergedWord = new byte[wordSize];
+                    for(var i = 0; i < wordSize; i++)
+                    {
+                        oldWord[i] = array[wordStart + i];
+                        mergedWord[i] = array[wordStart + i];
+                    }
+
+                    var dataEndExclusive = offset + data.LongLength;
+                    var wordEndExclusive = wordStart + wordSize;
+                    var copyStart = Math.Max(offset, wordStart);
+                    var copyEndExclusive = Math.Min(dataEndExclusive, wordEndExclusive);
+                    for(var absoluteAddress = copyStart; absoluteAddress < copyEndExclusive; absoluteAddress++)
+                    {
+                        mergedWord[(int)(absoluteAddress - wordStart)] = data[(int)(absoluteAddress - offset)];
+                    }
+
+                    // Initialize the destination before the program phase.
+                    for(var i = 0; i < wordSize; i++)
+                    {
+                        array[wordStart + i] = EraseFill;
+                    }
+
+                    // Check for automatic fault injection at this write index.
+                    var currentWriteIndex = TotalWordWrites + 1;
+                    if(currentWriteIndex == FaultAtWordWrite)
+                    {
+                        if(WriteFaultMode == 1)
+                        {
+                            // Bit-corruption mode: write the full merged word,
+                            // then flip 1-3 deterministic bits to model partial
+                            // cell state transitions during interrupted NVM programming.
+                            for(var i = 0; i < wordSize; i++)
+                            {
+                                array[wordStart + i] = mergedWord[i];
+                            }
+                            ApplyBitCorruption(wordStart);
+                        }
+                        else
+                        {
+                            // Power-loss mode: partial program, first half written.
+                            var partialBytes = wordSize / 2;
+                            for(var i = 0; i < partialBytes; i++)
+                            {
+                                array[wordStart + i] = mergedWord[i];
+                            }
+                            // Second half: retain old data (MRAM) or leave as EraseFill (flash).
+                            if(RetainOldDataOnFault)
+                            {
+                                for(var i = partialBytes; i < wordSize; i++)
+                                {
+                                    array[wordStart + i] = oldWord[i];
+                                }
+                            }
+                        }
+                        LastFaultInjected = true;
+                        FaultEverFired = true;
+                        TotalWordWrites++;
+                        RecordWriteTrace(TotalWordWrites, wordStart);
+                        break;
+                    }
+
+                    // Full program.
+                    for(var i = 0; i < wordSize; i++)
+                    {
+                        array[wordStart + i] = mergedWord[i];
+                    }
+                    TotalWordWrites++;
+                    RecordWriteTrace(TotalWordWrites, wordStart);
+                }
+            }
+            finally
+            {
+                WriteInProgress = false;
+            }
+        }
+
+        private void RecordWriteTrace(ulong writeIndex, long wordOffset)
+        {
+            if(!WriteTraceEnabled)
+            {
+                return;
+            }
+            if(writeTrace.Count >= DefaultWriteTraceMaxEntries)
+            {
+                if(!WriteTraceTruncated)
+                {
+                    WriteTraceTruncated = true;
+                    this.Log(LogLevel.Warning, "MRAM write trace reached its {0}-entry limit; subsequent entries are omitted", DefaultWriteTraceMaxEntries);
+                }
+                return;
+            }
+            writeTrace.Add((writeIndex, wordOffset));
+        }
+
+        /// <summary>
+        /// Apply deterministic bit corruption to the word at the given aligned
+        /// address.  Flips 1-3 bits using an LCG PRNG, modeling partial cell
+        /// state transitions during interrupted NVM programming.
+        /// </summary>
+        private void ApplyBitCorruption(long wordStart)
+        {
+            var seed = CorruptionSeed != 0 ? CorruptionSeed : (uint)wordStart;
+            var totalBits = (ulong)wordSize * 8UL;
+
+            // Determine number of bits to flip: 1-3 from first LCG step.
+            seed = LcgNext(seed);
+            var numFlips = (int)(seed % 3) + 1;
+            var flippedBits = new HashSet<ulong>();
+
+            while(flippedBits.Count < numFlips)
+            {
+                seed = LcgNext(seed);
+                var bitPos = (ulong)seed % totalBits;
+                if(!flippedBits.Add(bitPos))
+                {
+                    continue;
+                }
+                var byteIndex = (int)(bitPos / 8UL);
+                var bitIndex = (int)(bitPos % 8UL);
+                array[wordStart + byteIndex] ^= (byte)(1 << bitIndex);
+            }
+        }
+
+        private static uint LcgNext(uint seed)
+        {
+            return (uint)((seed * 1103515245UL + 12345UL) & 0xFFFFFFFF);
+        }
+
+        private ulong ApplyReadFault(long offset, int accessSize, ulong value)
+        {
+            if(!ReadFaultEnabled || ReadFaultFired || ReadFaultAddress < 0)
+            {
+                return value;
+            }
+
+            if(offset < 0 || accessSize <= 0 || accessSize > Size || offset > Size - accessSize || ReadFaultAddress >= Size)
+            {
+                return value;
+            }
+
+            var armedEnd = ReadFaultAddress + 4;
+            var accessEnd = offset + accessSize;
+            if(offset >= armedEnd || accessEnd <= ReadFaultAddress)
+            {
+                return value;
+            }
+
+            ReadFaultTotalReads++;
+            if(ReadFaultTotalReads <= ReadFaultSkipCount)
+            {
+                return value;
+            }
+
+            // Fire: flip deterministic bits.  NVM is NOT modified.
+            ReadFaultFired = true;
+            ReadFaultEnabled = false;
+            var seed = ReadFaultSeed != 0 ? ReadFaultSeed : (uint)(ReadFaultAddress ^ 0xDEAD);
+            if(seed == 0)
+            {
+                seed = 0xDEAD;
+            }
+            var accessBits = accessSize * 8;
+            var flipCount = Math.Min(ReadFaultBitFlips > 0 ? ReadFaultBitFlips : 1 + (int)(seed % 3), accessBits);
+            var flippedBits = new HashSet<int>();
+            while(flippedBits.Count < flipCount)
+            {
+                seed = LcgNext(seed);
+                var bitPos = (int)(seed % (uint)accessBits);
+                if(flippedBits.Add(bitPos))
+                {
+                    value ^= 1UL << bitPos;
+                }
+            }
+            return value;
+        }
+
+        private void ApplyReadFault(long offset, byte[] result)
+        {
+            if(!ReadFaultEnabled || ReadFaultFired || ReadFaultAddress < 0 || result.Length == 0)
+            {
+                return;
+            }
+
+            var accessSize = (long)result.Length;
+            if(ReadFaultAddress >= Size)
+            {
+                return;
+            }
+
+            var armedEnd = ReadFaultAddress + 4;
+            var accessEnd = offset + accessSize;
+            if(offset >= armedEnd || accessEnd <= ReadFaultAddress)
+            {
+                return;
+            }
+
+            ReadFaultTotalReads++;
+            if(ReadFaultTotalReads <= ReadFaultSkipCount)
+            {
+                return;
+            }
+
+            ReadFaultFired = true;
+            ReadFaultEnabled = false;
+            var seed = ReadFaultSeed != 0 ? ReadFaultSeed : (uint)(ReadFaultAddress ^ 0xDEAD);
+            if(seed == 0)
+            {
+                seed = 0xDEAD;
+            }
+            var accessBits = (ulong)result.Length * 8UL;
+            var requestedFlips = ReadFaultBitFlips > 0
+                ? (ulong)ReadFaultBitFlips
+                : 1UL + (seed % 3U);
+            var flipCount = Math.Min(requestedFlips, accessBits);
+            var flippedBits = new HashSet<ulong>();
+            while((ulong)flippedBits.Count < flipCount)
+            {
+                seed = LcgNext(seed);
+                var bitPos = (ulong)seed % accessBits;
+                if(flippedBits.Add(bitPos))
+                {
+                    var byteIndex = (int)(bitPos / 8UL);
+                    var bitIndex = (int)(bitPos % 8UL);
+                    result[byteIndex] ^= (byte)(1 << bitIndex);
+                }
+            }
+        }
+
+        private void ValidateWordSize(int value)
+        {
+            if(value < 2 || (value & (value - 1)) != 0 || (ulong)value > (ulong)Size || Size % value != 0)
+            {
+                throw new ArgumentException("WordSize must be a power of two between 2 and the memory size, and divide the memory size evenly");
+            }
+        }
+
+        private long AlignDown(long value)
+        {
+            return value & ~((long)wordSize - 1);
+        }
+
+        private int wordSize;
+        private int writeFaultMode;
+        private readonly List<(ulong writeIndex, long wordOffset)> writeTrace;
+
+        private const ulong DefaultSize = 0x80000;
+        private const int DefaultWordSize = 8;
+        private const int DefaultWriteTraceMaxEntries = 100000;
+    }
+}
