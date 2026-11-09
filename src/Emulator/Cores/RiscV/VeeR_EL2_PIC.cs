@@ -483,11 +483,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     if(pic.PriorityOrderReversed)
                     {
-                        return PriorityLevel <= pic.PriorityLevelThreshold;
+                        return PriorityLevel < pic.PriorityLevelThreshold;
                     }
                     else
                     {
-                        return PriorityLevel >= pic.PriorityLevelThreshold;
+                        return PriorityLevel > pic.PriorityLevelThreshold;
                     }
                 }
             }
