@@ -9,6 +9,7 @@
 using System;
 using System.Collections.Generic;
 
+using Antmicro.Renode.Core;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Time;
 
@@ -17,6 +18,21 @@ namespace Antmicro.Renode.Peripherals.Wireless
     public static class InterferenceQueue
     {
         static readonly List<PacketInfo> overTheAirPackets = new List<PacketInfo>();
+
+        static InterferenceQueue()
+        {
+            // This queue and its subscriber list are process-global, while the radios using them belong
+            // to a single emulation. Without this, radios from a previous emulation would keep receiving
+            // change notifications and would act on machine state that is gone.
+            EmulationManager.Instance.EmulationChanged += Clear;
+        }
+
+        // Drops all over-the-air packets and subscribers. Called when the emulation is replaced.
+        public static void Clear()
+        {
+            overTheAirPackets.Clear();
+            InterferenceQueueChanged = null;
+        }
 
         public static void Add(IRadio sender, PhySignature signature, int channel, int txPowerDbm, byte[] content)
         {
@@ -30,9 +46,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
                     Logger.Log(LogLevel.Error, "InterferenceQueue.Add: sender non-stale entry present");
                     return;
                 }
-                // The previous transmission from this sender has completed (its entry lingered as stale
-                // for late lookups); drop it before adding the new one.
-                Remove(sender, transmissionCompleted: false);
+                // The previous transmission from this sender is retired (completed or aborted; its entry
+                // lingered for late lookups). Drop it before adding the new one.
+                overTheAirPackets.Remove(entry);
             }
 
             var addTime = IPeripheralExtensions.GetMachine(sender).LocalTimeSource.ElapsedVirtualTime;
@@ -43,20 +59,20 @@ namespace Antmicro.Renode.Peripherals.Wireless
             InterferenceQueueChanged?.Invoke();
         }
 
-        // Removes (or retires) the over-the-air entry for a sender.
+        // Retires the over-the-air entry for a sender, recording how the transmission ended.
         //
-        // transmissionCompleted == true (normal TX completion): the frame fully went on air. We do not drop
-        // the entry immediately; instead we mark it stale so that a receiver whose (time-domain deferred)
-        // ReceiveFrame runs slightly after the sender finished can still resolve the sender's TX start time
-        // and PHY signature (see GetTxStartTime). A stale entry no longer represents a live transmission,
-        // so it is excluded from energy/overlap queries (GetCurrentRssi, AnyOtherOnAir). It is physically
-        // dropped when the sender starts transmitting again (see Add) or on an abort.
+        // The entry is not dropped immediately in either case: sender and receiver do not advance in
+        // lockstep, so a receiver may still be working on this transmission (or may not have been
+        // notified of it yet) when the sender is already done with it. Keeping the retired entry lets
+        // such a receiver still resolve the TX start time, the PHY signature, and — importantly — whether
+        // this particular transmission completed or was aborted. A retired entry is excluded from
+        // energy/overlap queries (GetCurrentRssi, AnyOtherOnAir) and is physically dropped when the
+        // sender starts transmitting again (see Add).
         //
-        // transmissionCompleted == false (TX abort, or replacing an already-stale entry): the frame did not
-        // complete, so we physically drop the entry. A receiver that has not yet been notified will then see
-        // no entry and correctly treat the frame as aborted.
+        // transmissionCompleted == false marks the entry as aborted, which is what lets a receiver
+        // distinguish "the frame I am receiving was cut short" from "the sender has simply moved on".
         //
-        // An entry that is already stale is always physically dropped: it has already had its grace window.
+        // An entry that is already retired is physically dropped: it has already had its grace window.
         public static void Remove(IRadio sender, bool transmissionCompleted)
         {
             var entry = PacketLookup(sender);
@@ -69,11 +85,13 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
             var now = IPeripheralExtensions.GetMachine(entry.Sender).LocalTimeSource.ElapsedVirtualTime;
 
-            if(transmissionCompleted && !entry.PacketIsStale)
+            if(!entry.PacketIsStale)
             {
-                Logger.Log(LogLevel.Noisy, "InterferenceQueue.Remove at {0}, OTA time={1}: [{2}] - marking it stale",
-                        now, now - entry.StartTxTimestamp, BitConverter.ToString(entry.PacketContent));
+                Logger.Log(LogLevel.Noisy, "InterferenceQueue.Remove at {0}, OTA time={1}: [{2}] - marking it {3}",
+                        now, now - entry.StartTxTimestamp, BitConverter.ToString(entry.PacketContent),
+                        transmissionCompleted ? "stale" : "aborted");
                 entry.PacketIsStale = true;
+                entry.PacketWasAborted = !transmissionCompleted;
             }
             else
             {
@@ -92,7 +110,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
             // being short and the QuantumTime being long enough).
             var entry = PacketLookup(sender);
 
-            if(entry == null)
+            // An aborted transmission never fully went on air, so there is no start time to hand out: a
+            // receiver asking about it is trying to start a reception that must be dropped.
+            if(entry == null || entry.PacketWasAborted)
             {
                 return TimeInterval.Empty;
             }
@@ -167,6 +187,40 @@ namespace Antmicro.Renode.Peripherals.Wireless
             return false;
         }
 
+        // True if the identified transmission (sender plus the TX start time the receiver locked onto)
+        // was aborted rather than completed.
+        //
+        // The transmission is identified by its start time on purpose: the sender runs ahead of the
+        // receiver in virtual time, so by the time a receiver asks, the sender may already have finished
+        // this transmission and started — or aborted — a later one. Matching on the sender alone would
+        // attribute that later outcome to the frame still being received here.
+        public static bool WasTransmissionAborted(IRadio sender, TimeInterval txStartTime)
+        {
+            var entry = PacketLookup(sender);
+
+            if(entry == null || entry.StartTxTimestamp != txStartTime)
+            {
+                return false;
+            }
+
+            return entry.PacketWasAborted;
+        }
+
+        // Snapshot of transmissions that are still on the air. Receivers use this to join a packet
+        // that started before they were on-channel or in RxSearch. Stale entries are omitted.
+        public static PacketInfo[] GetLivePackets()
+        {
+            var result = new List<PacketInfo>();
+            foreach(var entry in overTheAirPackets)
+            {
+                if(!entry.PacketIsStale)
+                {
+                    result.Add(entry);
+                }
+            }
+            return result.ToArray();
+        }
+
         public static bool ForceBusyRssi = false;
 
         private static PacketInfo PacketLookup(IRadio sender)
@@ -226,6 +280,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 return packetIsStale;
             }
         }
+
+        // Set when the transmission was cut short instead of completing. Only meaningful once the
+        // packet is stale, i.e. once the sender has retired it.
+        public bool PacketWasAborted { get; set; }
 
         public TimeInterval StartTxTimestamp
         {
