@@ -35,6 +35,16 @@ public partial class ARM_EthosU55 : BasicDoubleWordPeripheral, IKnownSize
 
     public override void Reset()
     {
+        ClearWeightCache();
+        ResetPeripheral();
+    }
+
+    public long Size => 0x1000;
+
+    public GPIO IRQ { get; }
+
+    private void ResetPeripheral()
+    {
         base.Reset();
         commandRegisters = new CommandRegisterState();
         // The shared buffer RAMs are cleared on reset (U55 TRM 3.3.4.1).
@@ -42,15 +52,12 @@ public partial class ARM_EthosU55 : BasicDoubleWordPeripheral, IKnownSize
         UpdateInterrupts();
     }
 
-    public long Size => 0x1000;
-
-    public GPIO IRQ { get; }
-
     private void SoftReset()
     {
         var security = pendingSecurityLevel.Value;
         var privilege = pendingPrivilegeLevel.Value;
-        Reset();
+        // Keep weight cache across soft resets
+        ResetPeripheral();
         pendingSecurityLevel.Value = security;
         pendingPrivilegeLevel.Value = privilege;
         activeSecurityLevel.Value = security;

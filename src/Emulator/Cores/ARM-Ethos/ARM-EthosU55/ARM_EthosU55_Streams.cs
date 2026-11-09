@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using Antmicro.Migrant;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
@@ -20,8 +21,6 @@ public partial class ARM_EthosU55
 
     private bool TryUpdateWeights(bool isDepthwise)
     {
-        var region = commandRegisters.WeightRegion;
-        var baseAddress = commandRegisters.WeightBase;
         var length = commandRegisters.WeightLength;
 
         if(!TryGetBufferAddress(commandRegisters.WeightRegion, commandRegisters.WeightBase, out var address, "weight", commandRegisters.WeightLength))
@@ -30,6 +29,17 @@ public partial class ARM_EthosU55
         }
 
         var encodedBuffer = sysbus.ReadBytes(address, (int)length);
+        // OPTIMIZATION: Reuse decoded weights after checking bytes in memory and every register used by tensor layout.
+        // Input/output dimensions do not affect weight stream format.
+        var key = new WeightCacheKey(address, length, isDepthwise, commandRegisters.KernelHeightM1,
+            commandRegisters.KernelWidthM1, commandRegisters.KernelStride,
+            commandRegisters.IfmDepthM1, commandRegisters.IfmPrecision,
+            commandRegisters.OfmDepthM1, commandRegisters.OfmBlkDepthM1);
+        if(TryGetCachedWeights(key, encodedBuffer, out var cachedWeights))
+        {
+            weights = cachedWeights;
+            return true;
+        }
         if(!TryParseWeightStream(new BitStreamReader(encodedBuffer), out var weightStream))
         {
             this.ErrorLog("Weight stream decoding aborted");
@@ -42,6 +52,7 @@ public partial class ARM_EthosU55
             return false;
         }
 
+        CacheWeights(key, encodedBuffer, weights);
         return true;
     }
 
@@ -317,15 +328,9 @@ public partial class ARM_EthosU55
         var kernelHeight = (dilatedKernelHeightM1 + (1 << kernelYDilationM1))  >> kernelYDilationM1;
         var kernelWidth = (dilatedKernelWidthM1 + (1 << kernelXDilationM1))  >> kernelXDilationM1;
 
-        var outputHeight = commandRegisters.OfmHeightM1 + 1;
-        var outputWidth = commandRegisters.OfmWidthM1 + 1;
         var outputDepth = commandRegisters.OfmDepthM1 + 1;
-
         var inputDepth = commandRegisters.IfmDepthM1 + 1;
-
         var outputBlockDepth = commandRegisters.OfmBlkDepthM1 + 1;
-        var outputBlockWidth = commandRegisters.OfmBlkWidthM1 + 1;
-        var outputBlockHeight = commandRegisters.OfmBlkHeightM1 + 1;
 
         var decomposition = BitHelper.GetValue(commandRegisters.KernelStride,5,1) == 1 ? 4 : 8;
 
@@ -487,8 +492,90 @@ public partial class ARM_EthosU55
         }
     }
 
+    private bool TryGetCachedWeights(WeightCacheKey key, byte[] encodedBuffer, out int[] tensor)
+    {
+        weightCache ??= new List<WeightCacheEntry>();
+        for(var i = 0; i < weightCache.Count; i++)
+        {
+            var entry = weightCache[i];
+            if(entry.Key != key)
+            {
+                continue;
+            }
+            // Verify that memory contents have not changed.
+            if(encodedBuffer.AsSpan().SequenceEqual(entry.Encoded))
+            {
+                tensor = entry.Tensor;
+                // Put most recently used entries at the end.
+                weightCache.RemoveAt(i);
+                weightCache.Add(entry);
+                return true;
+            }
+
+            // Discard stale entry.
+            weightCacheBytes -= entry.Size;
+            weightCache.RemoveAt(i);
+            break;
+        }
+        tensor = null;
+        return false;
+    }
+
+    private void CacheWeights(WeightCacheKey key, byte[] encodedBuffer, int[] tensor)
+    {
+        var entry = new WeightCacheEntry(key, encodedBuffer, tensor);
+        if(entry.Size > WeightCacheByteLimit)
+        {
+            return;
+        }
+        // Evict least recently used entries until the new entry fits.
+        while(weightCache.Count >= WeightCacheEntryLimit || weightCacheBytes + entry.Size > WeightCacheByteLimit)
+        {
+            weightCacheBytes -= weightCache[0].Size;
+            weightCache.RemoveAt(0);
+        }
+        weightCache.Add(entry);
+        weightCacheBytes += entry.Size;
+    }
+
+    private void ClearWeightCache()
+    {
+        weightCache = null;
+        weightCacheBytes = 0;
+    }
+
+    private readonly record struct WeightCacheKey(
+        ulong Address, uint Length, bool IsDepthwise,
+        ushort KernelHeightM1, ushort KernelWidthM1, ushort KernelStride,
+        ushort InputDepthM1, ushort InputPrecision,
+        ushort OutputDepthM1, ushort OutputBlockDepthM1);
+
+    [Transient]
+    private List<WeightCacheEntry> weightCache;
+    [Transient]
+    private long weightCacheBytes;
+
     private List<long> biasStream;
     private List<long> scaleStream;
     private List<int> shiftStream;
     private int[] weights;
+
+    private const long WeightCacheByteLimit = 128 * 1024 * 1024;
+    private const int WeightCacheEntryLimit = 64;
+
+    private sealed class WeightCacheEntry
+    {
+        public WeightCacheEntry(WeightCacheKey key, byte[] encoded, int[] tensor)
+        {
+            Key = key;
+            Encoded = encoded;
+            Tensor = tensor;
+        }
+
+        public long Size => Encoded.LongLength + Tensor.LongLength * sizeof(int);
+
+        public readonly WeightCacheKey Key;
+        public readonly byte[] Encoded;
+        public readonly int[] Tensor;
+    }
 }
