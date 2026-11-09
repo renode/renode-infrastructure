@@ -109,48 +109,29 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             return mode >= PinMode.PushPull;
         }
 
-        private void UpdateRouting()
-        {
-            for(uint i = 0; i < NumberOfPins * NumberOfPorts; i++)
-            {
-                targetExternalPins[i] = -1;
-            }
-
-            for(uint i = 0; i < NumberOfExternalInterrupts; i++)
-            {
-                var port = externalInterruptPortSelect[i].Value;
-                uint pin = (uint)externalInterruptPinSelect[i].Value;
-
-                uint pinGroup = i / 4;
-                uint pinNumber = ((uint)port * NumberOfPins) + (pinGroup * 4) + pin;
-
-                targetExternalPins[pinNumber] = (int)i;
-            }
-
-            UpdateInterrupts();
-        }
-
         private void UpdateInterrupts()
         {
             machine.ClockSource.ExecuteInLock(delegate
             {
-                for(var i = 0; i < NumberOfPorts * NumberOfPins; ++i)
+                // Each external interrupt selects its own pin through EXTIPSEL/EXTIPINSEL. Several external
+                // interrupts can select the same pin (e.g. each group of four does out of reset), so the pin is looked
+                // up per external interrupt rather than the other way around.
+                for(var i = 0; i < NumberOfExternalInterrupts; ++i)
                 {
-                    var externalInterruptIndex = targetExternalPins[i];
-
-                    if(externalInterruptIndex < 0 || !externalInterruptEnable[externalInterruptIndex].Value)
+                    if(!externalInterruptEnable[i].Value)
                     {
                         continue;
                     }
 
-                    var isEdge = (State[i] != previousState[externalInterruptIndex]);
-                    previousState[externalInterruptIndex] = State[i];
+                    var state = State[GetExternalInterruptPin(i)];
+                    var isEdge = (state != previousState[i]);
+                    previousState[i] = state;
 
                     if(isEdge
-                       && ((State[i] && ((interruptTrigger[externalInterruptIndex] & (uint)InterruptTrigger.RisingEdge) > 0))
-                           || (!State[i] && ((interruptTrigger[externalInterruptIndex] & (uint)InterruptTrigger.FallingEdge) > 0))))
+                       && ((state && ((interruptTrigger[i] & (uint)InterruptTrigger.RisingEdge) > 0))
+                           || (!state && ((interruptTrigger[i] & (uint)InterruptTrigger.FallingEdge) > 0))))
                     {
-                        externalInterrupt[externalInterruptIndex].Value = true;
+                        externalInterrupt[i].Value = true;
                     }
                 }
 
@@ -168,6 +149,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 OddIRQ.Set(odd);
                 EvenIRQ.Set(even);
             });
+        }
+
+        private int GetExternalInterruptPin(int externalInterruptIndex)
+        {
+            var port = externalInterruptPortSelect[externalInterruptIndex].Value;
+            var pinGroup = (uint)(externalInterruptIndex / 4);
+            var pinSelect = (uint)externalInterruptPinSelect[externalInterruptIndex].Value;
+
+            return GetPinNumber(port, (pinGroup * 4) + pinSelect);
         }
 
         private bool TrySyncTime()
@@ -302,7 +292,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(26, 2)
                     .WithEnumField<DoubleWordRegister, Port>(28, 2, out externalInterruptPortSelect[7], name: "EXTIPSEL7")
                     .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateRouting())
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.ExternalInterruptPortSelectHigh, new DoubleWordRegister(this)
                     .WithEnumField<DoubleWordRegister, Port>(0, 2, out externalInterruptPortSelect[8], name: "EXTIPSEL8")
@@ -313,7 +303,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(10, 2)
                     .WithEnumField<DoubleWordRegister, Port>(12, 2, out externalInterruptPortSelect[11], name: "EXTIPSEL11")
                     .WithReservedBits(14, 18)
-                    .WithChangeCallback((_, __) => UpdateRouting())
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.ExternalInterruptPinSelectLow, new DoubleWordRegister(this)
                     .WithValueField(0, 2, out externalInterruptPinSelect[0], name: "EXTIPINSEL0")
@@ -332,7 +322,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(26, 2)
                     .WithValueField(28, 2, out externalInterruptPinSelect[7], name: "EXTIPINSEL7")
                     .WithReservedBits(30, 2)
-                    .WithChangeCallback((_, __) => UpdateRouting())
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.ExternalInterruptPinSelectHigh, new DoubleWordRegister(this)
                     .WithValueField(0, 2, out externalInterruptPinSelect[8], name: "EXTIPINSEL8")
@@ -343,7 +333,7 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                     .WithReservedBits(10, 2)
                     .WithValueField(12, 2, out externalInterruptPinSelect[11], name: "EXTIPINSEL11")
                     .WithReservedBits(14, 18)
-                    .WithChangeCallback((_, __) => UpdateRouting())
+                    .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.ExternalInterruptRisingEdgeTrigger, new DoubleWordRegister(this)
                     .WithFlags(0, 12,
@@ -587,10 +577,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
                 interruptTrigger[i] = (uint)InterruptTrigger.None;
                 previousState[i] = false;
             }
-            for(var i = 0; i < NumberOfPins * NumberOfPorts; i++)
-            {
-                targetExternalPins[i] = -1;
-            }
         }
 
         private int GetPinNumberFromInternalSignal(SignalSource signalSource, SignalType signalType)
@@ -689,7 +675,6 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
         private bool configurationLocked;
         private readonly bool[] previousState = new bool[NumberOfExternalInterrupts];
         private readonly uint[] interruptTrigger = new uint[NumberOfExternalInterrupts];
-        private readonly int[] targetExternalPins = new int[NumberOfPins * NumberOfPorts];
         private readonly IFlagRegisterField[] externalInterruptEnable = new IFlagRegisterField[NumberOfExternalInterrupts];
         private readonly IFlagRegisterField[] externalInterrupt = new IFlagRegisterField[NumberOfExternalInterrupts];
         private readonly IEnumRegisterField<PinMode>[] pinMode = new IEnumRegisterField<PinMode>[NumberOfPins * NumberOfPorts];
