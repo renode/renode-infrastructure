@@ -236,6 +236,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Emu.AddExitSleepHook(() => ExitEnergyMode(EnergyMode.EM1));
             Emu.AddEnterDeepSleepHook(() => EnterEnergyMode(EnergyMode.EM2));
             Emu.AddExitDeepSleepHook(() => ExitEnergyMode(EnergyMode.EM2));
+            // EM1P is deep sleep from the host's point of view, so the watchdog
+            // follows EM2RUN. There is no separate EM1P run bit.
+            Emu.AddEnterEm1pHook(() => EnterEnergyMode(EnergyMode.EM2));
+            Emu.AddExitEm1pHook(() => ExitEnergyMode(EnergyMode.EM2));
             energyModeHooksInitialized = true;
         }
 

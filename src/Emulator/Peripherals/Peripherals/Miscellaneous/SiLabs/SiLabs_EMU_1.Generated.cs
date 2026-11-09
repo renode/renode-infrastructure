@@ -26,11 +26,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public partial class SiLabs_EMU_1 : BasicDoubleWordPeripheral, IKnownSize
     {
-        public SiLabs_EMU_1(Machine machine) : base(machine)
-        {
-            Define_Registers();
-        }
-
         private bool isEnabled = false;
 
         private void Define_Registers()

@@ -21,6 +21,14 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
+    public enum SiLabs_EnergyMode
+    {
+        EM0,
+        EM1,
+        EM1P,
+        EM2,
+    }
+
     public class SiLabs_EMU_Base : IEmulationElement
     {
         public SiLabs_EMU_Base(IMachine machine, IBusPeripheral parent = null)
@@ -29,11 +37,17 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             this.parent = parent;
 
             isWFIHookAdded = false;
-            inSleep = false; // EM1
-            inDeepSleep = false; // EM2
+            CurrentEnergyMode = SiLabs_EnergyMode.EM0;
+            pd1PoweredDownSinceEm0 = false;
             Em2CoreRetentionEnabled = true;
             noRetain = new List<IPeripheral>();
             currentBusFaulters = new Dictionary<IPeripheral, List<BusFaulter>>();
+            em1pRequesters = new HashSet<object>();
+            em1pHostClockRequesters = new HashSet<object>();
+            qChannelBusyPeripherals = new HashSet<object>();
+            radioSequencerCpus = new HashSet<CortexM>();
+            HostClocksEnabled = true;
+            HostAllClocksEnabled = true;
         }
 
         public void AddWFIHook()
@@ -80,6 +94,114 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             ExitDeepSleep += hook;
         }
 
+        public void AddEnterEm1pHook(Action hook)
+        {
+            AddWFIHook();
+            EnterEm1p += hook;
+        }
+
+        public void AddExitEm1pHook(Action hook)
+        {
+            AddWFIHook();
+            ExitEm1p += hook;
+        }
+
+        // A radio sequencer core (e.g. the LPW Cortex-M0+) executes a plain WFI while the
+        // host is in deep sleep. Its WFI state must not select the system energy mode; the
+        // radio instead keeps the system in EM1P through SetEm1pRequest.
+        public void RegisterRadioSequencerCpu(CortexM cpu)
+        {
+            if(cpu == null)
+            {
+                throw new ArgumentNullException(nameof(cpu));
+            }
+            AddWFIHook();
+            radioSequencerCpus.Add(cpu);
+        }
+
+        public void SetEm1pRequest(object requester, bool request)
+        {
+            if(requester == null)
+            {
+                throw new ArgumentNullException(nameof(requester));
+            }
+            AddWFIHook();
+
+            var changed = request ? em1pRequesters.Add(requester) : em1pRequesters.Remove(requester);
+            if(!changed)
+            {
+                return;
+            }
+            this.Log(LogLevel.Noisy, "EM1P request from {0} {1}", requester, request ? "asserted" : "deasserted");
+            UpdateEnergyMode();
+        }
+
+        public void AddEnterHostClockGateHook(Action hook)
+        {
+            AddWFIHook();
+            EnterHostClockGate += hook;
+        }
+
+        public void AddExitHostClockGateHook(Action hook)
+        {
+            AddWFIHook();
+            ExitHostClockGate += hook;
+        }
+
+        public void AddEnterHostAllClockGateHook(Action hook)
+        {
+            AddWFIHook();
+            EnterHostAllClockGate += hook;
+        }
+
+        public void AddExitHostAllClockGateHook(Action hook)
+        {
+            AddWFIHook();
+            ExitHostAllClockGate += hook;
+        }
+
+        public void SetEm1pHostClockRequest(object requester, bool request)
+        {
+            if(requester == null)
+            {
+                throw new ArgumentNullException(nameof(requester));
+            }
+            AddWFIHook();
+
+            var changed = request ? em1pHostClockRequesters.Add(requester) : em1pHostClockRequesters.Remove(requester);
+            if(!changed)
+            {
+                return;
+            }
+            this.Log(LogLevel.Noisy, "EM1P host-clock request from {0} {1}", requester, request ? "asserted" : "deasserted");
+            if(isUpdatingEnergyMode || isUpdatingHostClocks)
+            {
+                hostClockUpdatePending = true;
+                return;
+            }
+            UpdateHostClocks();
+        }
+
+        // EM2 entry starts with a quiescence request to every Q-channel peripheral. A peripheral
+        // that is not in a safe state delays the request, and the EMU keeps the host in sleep until
+        // all of them accept.
+        public void SetQChannelBusy(object peripheral, bool busy)
+        {
+            if(peripheral == null)
+            {
+                throw new ArgumentNullException(nameof(peripheral));
+            }
+            AddWFIHook();
+
+            var changed = busy ? qChannelBusyPeripherals.Add(peripheral) : qChannelBusyPeripherals.Remove(peripheral);
+            if(!changed)
+            {
+                return;
+            }
+            this.Log(LogLevel.Noisy, "Q-channel peripheral {0} {1}", peripheral, busy ? "busy" : "ready");
+            UpdateEnergyMode();
+        }
+
         public void UpdatePeripheralEnabledStatus(IPeripheral peripheral, bool enabled)
         {
             if(peripheral == null)
@@ -108,6 +230,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         public bool Em2CoreRetentionEnabled { get; set; }
 
+        public SiLabs_EnergyMode CurrentEnergyMode { get; private set; }
+
+        // Host EM1P clock domain: bus, memories, EUSART0, iADC, SYSRTC, LDMA, PRS, GPIO,
+        // VDAC, HFXO, CMU. Runs in EM0 and EM1, and in EM1P while a host-clock requester is set.
+        public bool HostClocksEnabled { get; private set; }
+
+        // HostAll clock domain: the entire HCLK tree, including the general-purpose timers,
+        // USART and SysTick. Runs in EM0 and EM1 only, never in EM1P (except for a debugger
+        // wake-up, which is not modeled) and never in EM2.
+        public bool HostAllClocksEnabled { get; private set; }
+
+        public bool Em1pRequested => em1pRequesters.Count > 0;
+
         protected event Action EnterSleep;
 
         protected event Action ExitSleep;
@@ -116,52 +251,219 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         protected event Action ExitDeepSleep;
 
+        protected event Action EnterEm1p;
+
+        protected event Action ExitEm1p;
+
+        protected event Action EnterHostClockGate;
+
+        protected event Action ExitHostClockGate;
+
+        protected event Action EnterHostAllClockGate;
+
+        protected event Action ExitHostAllClockGate;
+
         private Action<bool> WFIStateChanged(CortexM cpu)
         {
             return (wfi) =>
             {
                 CpuWfiState[cpu] = wfi;
-
-                if(!wfi && (inSleep || inDeepSleep))
+                if(radioSequencerCpus.Contains(cpu))
                 {
-                    if(inDeepSleep)
-                    {
-                        ExitDeepSleep?.Invoke();
-                        // The reset of the core must be done in the exit hook to
-                        // keep the WFI state and the NVIC state for the wakeup sources
-                        if(!Em2CoreRetentionEnabled)
-                        {
-                            ResetCortexMCores();
-                        }
-                        // This must be done after the reset of the cores because this modifies the NVIC state
-                        PowerDownAllNoRetainPeripherals();
-                        inDeepSleep = false;
-                    }
-                    else
-                    {
-                        ExitSleep?.Invoke();
-                        inSleep = false;
-                    }
                     return;
                 }
+                UpdateEnergyMode();
+            };
+        }
 
-                if(wfi && CpuWfiState.All(state => state.Value || state.Key.IsHalted))
+        private SiLabs_EnergyMode ComputeTargetEnergyMode()
+        {
+            // A halted companion CPU is quiescent and does not prevent the
+            // remaining CPUs from entering a system energy mode.
+            var hostCpus = CpuWfiState.Where(state => !radioSequencerCpus.Contains(state.Key)).ToList();
+            if(!hostCpus.All(state => state.Value || state.Key.IsHalted))
+            {
+                return SiLabs_EnergyMode.EM0;
+            }
+
+            var sleepingCpus = hostCpus.Where(state => state.Value).Select(state => state.Key).ToList();
+            if(sleepingCpus.Count == 0)
+            {
+                return SiLabs_EnergyMode.EM0;
+            }
+            if(!sleepingCpus.All(sleepingCpu => sleepingCpu.NVIC.DeepSleepEnabled))
+            {
+                return SiLabs_EnergyMode.EM1;
+            }
+            if(Em1pRequested)
+            {
+                return SiLabs_EnergyMode.EM1P;
+            }
+            // PD1 stays powered and the clocks keep running until every Q-channel peripheral
+            // has accepted the quiescence request.
+            return qChannelBusyPeripherals.Count > 0 ? SiLabs_EnergyMode.EM1 : SiLabs_EnergyMode.EM2;
+        }
+
+        private void UpdateEnergyMode()
+        {
+            // Transition hooks may change EM1P requests; those are folded into the outer loop.
+            if(isUpdatingEnergyMode)
+            {
+                energyModeUpdatePending = true;
+                return;
+            }
+
+            isUpdatingEnergyMode = true;
+            try
+            {
+                do
                 {
-                    // A halted companion CPU is quiescent and does not prevent the
-                    // remaining CPUs from entering a system energy mode.
-                    var sleepingCpus = CpuWfiState.Where(state => state.Value).Select(state => state.Key);
-                    if(sleepingCpus.All(sleepingCpu => sleepingCpu.NVIC.DeepSleepEnabled))
+                    energyModeUpdatePending = false;
+                    var target = ComputeTargetEnergyMode();
+                    if(target != CurrentEnergyMode)
                     {
-                        EnterDeepSleep?.Invoke();
-                        inDeepSleep = true;
+                        TransitionTo(target);
                     }
-                    else
+                    else if(hostClockUpdatePending)
                     {
-                        EnterSleep?.Invoke();
-                        inSleep = true;
+                        UpdateHostClocks();
                     }
                 }
-            };
+                while(energyModeUpdatePending || hostClockUpdatePending);
+            }
+            finally
+            {
+                isUpdatingEnergyMode = false;
+            }
+        }
+
+        private void TransitionTo(SiLabs_EnergyMode target)
+        {
+            var source = CurrentEnergyMode;
+            this.Log(LogLevel.Noisy, "Energy mode transition {0} -> {1}", source, target);
+
+            switch(source)
+            {
+            case SiLabs_EnergyMode.EM1:
+                ExitSleep?.Invoke();
+                break;
+            case SiLabs_EnergyMode.EM1P:
+                ExitEm1p?.Invoke();
+                break;
+            case SiLabs_EnergyMode.EM2:
+                ExitDeepSleep?.Invoke();
+                break;
+            }
+
+            // Leaving EM2 restores power to PD1, so its non-retained content is lost
+            // regardless of whether the wake-up is to EM0 or to EM1P.
+            if(source == SiLabs_EnergyMode.EM2)
+            {
+                // The reset of the core must be done after the exit hooks to keep the WFI
+                // state and the NVIC state for the wakeup sources. In EM1P the host core
+                // stays in deep sleep, so its reset is deferred to the wake-up to EM0.
+                if(target == SiLabs_EnergyMode.EM0 && !Em2CoreRetentionEnabled)
+                {
+                    ResetCortexMCores();
+                }
+                // This must be done after the reset of the cores because this modifies the NVIC state
+                PowerDownAllNoRetainPeripherals();
+            }
+            else if(source == SiLabs_EnergyMode.EM1P && target == SiLabs_EnergyMode.EM0
+                    && pd1PoweredDownSinceEm0 && !Em2CoreRetentionEnabled)
+            {
+                ResetCortexMCores();
+            }
+
+            if(target == SiLabs_EnergyMode.EM2)
+            {
+                pd1PoweredDownSinceEm0 = true;
+            }
+            else if(target == SiLabs_EnergyMode.EM0)
+            {
+                pd1PoweredDownSinceEm0 = false;
+            }
+
+            CurrentEnergyMode = target;
+
+            switch(target)
+            {
+            case SiLabs_EnergyMode.EM1:
+                EnterSleep?.Invoke();
+                break;
+            case SiLabs_EnergyMode.EM1P:
+                EnterEm1p?.Invoke();
+                break;
+            case SiLabs_EnergyMode.EM2:
+                EnterDeepSleep?.Invoke();
+                break;
+            }
+
+            UpdateHostClocks();
+        }
+
+        // EM0 and EM1 run the host clock domain. EM2 powers PD1 down, so the domain is
+        // gated. EM1P keeps PD1 powered but gates host clocks unless a requester (the RAC
+        // MCUEM1PMODE software request, or an EM2-capable EUSART/EUART with a pending DMA
+        // request) asks for them.
+        private bool ComputeHostClocksEnabled()
+        {
+            switch(CurrentEnergyMode)
+            {
+            case SiLabs_EnergyMode.EM0:
+            case SiLabs_EnergyMode.EM1:
+                return true;
+            case SiLabs_EnergyMode.EM1P:
+                return em1pHostClockRequesters.Count > 0;
+            case SiLabs_EnergyMode.EM2:
+                return false;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(CurrentEnergyMode), CurrentEnergyMode, "Unhandled energy mode");
+            }
+        }
+
+        private bool ComputeHostAllClocksEnabled()
+        {
+            return CurrentEnergyMode == SiLabs_EnergyMode.EM0 || CurrentEnergyMode == SiLabs_EnergyMode.EM1;
+        }
+
+        private void UpdateHostClocks()
+        {
+            if(isUpdatingHostClocks)
+            {
+                hostClockUpdatePending = true;
+                return;
+            }
+
+            isUpdatingHostClocks = true;
+            try
+            {
+                do
+                {
+                    hostClockUpdatePending = false;
+
+                    var enabled = ComputeHostClocksEnabled();
+                    if(enabled != HostClocksEnabled)
+                    {
+                        HostClocksEnabled = enabled;
+                        this.Log(LogLevel.Noisy, "Host clocks {0}", enabled ? "enabled" : "gated");
+                        (enabled ? ExitHostClockGate : EnterHostClockGate)?.Invoke();
+                    }
+
+                    var allEnabled = ComputeHostAllClocksEnabled();
+                    if(allEnabled != HostAllClocksEnabled)
+                    {
+                        HostAllClocksEnabled = allEnabled;
+                        this.Log(LogLevel.Noisy, "HostAll clocks {0}", allEnabled ? "enabled" : "gated");
+                        (allEnabled ? ExitHostAllClockGate : EnterHostAllClockGate)?.Invoke();
+                    }
+                }
+                while(hostClockUpdatePending);
+            }
+            finally
+            {
+                isUpdatingHostClocks = false;
+            }
         }
 
         private void PowerDownAllNoRetainPeripherals()
@@ -283,7 +585,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         private void ResetCortexMCores()
         {
-            var cortexMCpus = machine.GetPeripheralsOfType<CortexM>().ToList();
+            // The radio sequencer is reset and restarted by the radio model itself.
+            var cortexMCpus = machine.GetPeripheralsOfType<CortexM>().Where(cpu => !radioSequencerCpus.Contains(cpu)).ToList();
 
             foreach(var cpu in cortexMCpus)
             {
@@ -334,10 +637,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         }
 
         private bool isWFIHookAdded;
-        private bool inSleep;
-        private bool inDeepSleep;
+        // Set once PD1 has been powered down (EM2) since the last EM0, so that the
+        // non-retained core state is dropped when the host finally wakes up.
+        private bool pd1PoweredDownSinceEm0;
+        private bool isUpdatingEnergyMode;
+        private bool energyModeUpdatePending;
+        private bool isUpdatingHostClocks;
+        private bool hostClockUpdatePending;
         private List<IPeripheral> noRetain;
         private IDictionary<CortexM, bool> cpuWfiState;
+        private readonly HashSet<object> em1pRequesters;
+        private readonly HashSet<object> em1pHostClockRequesters;
+        private readonly HashSet<object> qChannelBusyPeripherals;
+        private readonly HashSet<CortexM> radioSequencerCpus;
         private readonly IMachine machine;
         private readonly IBusPeripheral parent;
 

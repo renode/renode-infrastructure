@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Peripherals.CPU;
 
 namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
@@ -37,6 +38,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             }
         }
 
+        partial void Status_Em1p_ValueProvider(bool a)
+        {
+            status_em1p_bit.Value = emuBase.CurrentEnergyMode == SiLabs_EnergyMode.EM1P;
+        }
+
         public void AddEnterSleepHook(Action hook)
         {
             emuBase.AddEnterSleepHook(hook);
@@ -57,6 +63,56 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             emuBase.AddExitDeepSleepHook(hook);
         }
 
+        public void AddEnterEm1pHook(Action hook)
+        {
+            emuBase.AddEnterEm1pHook(hook);
+        }
+
+        public void AddExitEm1pHook(Action hook)
+        {
+            emuBase.AddExitEm1pHook(hook);
+        }
+
+        public void RegisterRadioSequencerCpu(CortexM cpu)
+        {
+            emuBase.RegisterRadioSequencerCpu(cpu);
+        }
+
+        public void SetEm1pRequest(object requester, bool request)
+        {
+            emuBase.SetEm1pRequest(requester, request);
+        }
+
+        public void AddEnterHostClockGateHook(Action hook)
+        {
+            emuBase.AddEnterHostClockGateHook(hook);
+        }
+
+        public void AddExitHostClockGateHook(Action hook)
+        {
+            emuBase.AddExitHostClockGateHook(hook);
+        }
+
+        public void AddEnterHostAllClockGateHook(Action hook)
+        {
+            emuBase.AddEnterHostAllClockGateHook(hook);
+        }
+
+        public void AddExitHostAllClockGateHook(Action hook)
+        {
+            emuBase.AddExitHostAllClockGateHook(hook);
+        }
+
+        public void SetEm1pHostClockRequest(object requester, bool request)
+        {
+            emuBase.SetEm1pHostClockRequest(requester, request);
+        }
+
+        public void SetQChannelBusy(object peripheral, bool busy)
+        {
+            emuBase.SetQChannelBusy(peripheral, busy);
+        }
+
         public void UpdatePeripheralEnabledStatus(IPeripheral peripheral, bool enabled)
         {
         }
@@ -65,6 +121,12 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             return emuBase.GetNoRetainPeripherals();
         }
+
+        public SiLabs_EnergyMode CurrentEnergyMode => emuBase.CurrentEnergyMode;
+
+        public bool HostClocksEnabled => emuBase.HostClocksEnabled;
+
+        public bool HostAllClocksEnabled => emuBase.HostAllClocksEnabled;
 
         private readonly SiLabs_EMU_Base emuBase;
     }
