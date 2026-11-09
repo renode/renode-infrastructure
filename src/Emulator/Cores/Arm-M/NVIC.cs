@@ -1728,6 +1728,13 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                     name: "FORCED")
                 .WithTaggedFlag("DEBUGEVT", 31);
 
+            // Cache is not simulated so the following registers are unused,
+            // but registered due to performance reasons.
+            Registers.DCacheCleanByMVAToPoCAddress.Define(RegisterCollection)
+                .WithValueField(0, 32, FieldMode.Write, name: "DCCMVAC");
+            Registers.DCacheInvalidateByMVAToPoCAddress.Define(RegisterCollection)
+                .WithValueField(0, 32, FieldMode.Write, name: "DCIMVAC");
+
             Registers.CacheSizeSelection.Define(RegisterCollection)
                 .WithTaggedFlag("InD (Instruction or Data Selection)", 0)
                 .WithTag("Level", 1, 3)
