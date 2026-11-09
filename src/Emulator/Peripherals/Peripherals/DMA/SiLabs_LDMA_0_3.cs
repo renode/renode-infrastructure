@@ -15,6 +15,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Bus.Wrappers;
+using Antmicro.Renode.Peripherals.Miscellaneous.SiLabs;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities.Packets;
@@ -23,10 +24,16 @@ namespace Antmicro.Renode.Peripherals.DMA
 {
     public class SiLabs_LDMA_0_3 : IBusPeripheral, IGPIOReceiver, IKnownSize
     {
-        public SiLabs_LDMA_0_3(Machine machine, IPeripheral context = null)
+        // The LDMA is a bus master on the Host EM1P clock domain. With gateOnHostClocks set it
+        // starts no transfer while that domain is gated (EM2, or EM1P with no host-clock request)
+        // and runs the held transfers once the domain starts again. A platform sets it only when
+        // the peripherals that raise DMA requests in deep sleep also raise the matching EM1P and
+        // host-clock requests, so that a request always has a way to start the clocks.
+        public SiLabs_LDMA_0_3(Machine machine, IPeripheral context = null, bool gateOnHostClocks = false)
         {
             this.machine = machine;
             this.context = context;
+            this.gateOnHostClocks = gateOnHostClocks;
             engine = new DmaEngine(machine.GetSystemBus(this));
             signals = new HashSet<int>();
             IRQ = new GPIO();
@@ -408,11 +415,63 @@ namespace Antmicro.Renode.Peripherals.DMA
             IRQ.Set(channels.Any(channel => channel.IRQ));
         }
 
+        // The hooks are added on the first transfer, because the EMU is not necessarily
+        // registered yet when the peripheral is constructed.
+        private void EnsureHostClockHooks()
+        {
+            if(!gateOnHostClocks || hostClockHooksReady)
+            {
+                return;
+            }
+
+            hostClockHooksReady = true;
+            var emu = machine.GetPeripheralsOfType<ISiLabs_Emu>().FirstOrDefault();
+            if(emu == null)
+            {
+                return;
+            }
+
+            emu.AddEnterHostClockGateHook(EnterHostClockGate);
+            emu.AddExitHostClockGateHook(ExitHostClockGate);
+            hostClocksGated = !emu.HostClocksEnabled;
+        }
+
+        private void EnterHostClockGate()
+        {
+            hostClocksGated = true;
+            this.Log(LogLevel.Noisy, "Host clocks gated, transfers are held");
+        }
+
+        private void ExitHostClockGate()
+        {
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                hostClocksGated = false;
+                this.Log(LogLevel.Noisy, "Host clocks running, starting held transfers");
+                foreach(var channel in channels)
+                {
+                    channel.ResumeHeldTransfer();
+                }
+            });
+        }
+
         private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+
+        // True while a transfer has to wait for the Host EM1P clock domain.
+        private bool HostClocksGated
+        {
+            get
+            {
+                EnsureHostClockHooks();
+                return hostClocksGated;
+            }
+        }
 
         private byte syncTrigger;
         private bool inSyncNotification;
         private bool syncNotificationPending;
+        private bool hostClockHooksReady;
+        private bool hostClocksGated;
 
         private IValueRegisterField syncSetEnable;
         private IValueRegisterField syncClearEnable;
@@ -424,6 +483,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private readonly IPeripheral context;
         private readonly HashSet<int> signals;
         private readonly Channel[] channels;
+        private readonly bool gateOnHostClocks;
         private const uint SetRegisterOffset = 0x1000;
         private const uint ClearRegisterOffset = 0x2000;
         private const uint ToggleRegisterOffset = 0x3000;
@@ -555,7 +615,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     {
                         StartTransferInner();
                     }
-                    if(!SignalIsOn || !ShouldPullSignal)
+                    // A held transfer restarts the pull timer when the clocks return.
+                    if(!SignalIsOn || !ShouldPullSignal || transferHeld)
                     {
                         pullTimer.Enabled = false;
                     }
@@ -600,10 +661,22 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
+            // Starts the transfer that was requested while the host clocks were gated.
+            public void ResumeHeldTransfer()
+            {
+                if(!transferHeld)
+                {
+                    return;
+                }
+                transferHeld = false;
+                StartTransfer();
+            }
+
             public void Reset()
             {
                 descriptor = default(Descriptor);
                 pullTimer.Enabled = false;
+                transferHeld = false;
                 DoneInterrupt = false;
                 DoneInterruptEnable = false;
                 descriptorAddress = null;
@@ -656,6 +729,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                         return;
                     }
                     enabled = value;
+                    if(!enabled)
+                    {
+                        // A disabled channel drops the request it was holding.
+                        transferHeld = false;
+                    }
                     if(enabled)
                     {
                         Done = false;
@@ -726,6 +804,14 @@ namespace Antmicro.Renode.Peripherals.DMA
                     return;
                 }
 
+                if(parent.HostClocksGated)
+                {
+                    // The request is remembered and served once the host clocks run again.
+                    transferHeld = true;
+                    parent.Log(LogLevel.Debug, "Channel #{0} request held, host clocks are gated", Index);
+                    return;
+                }
+
                 isInProgress = true;
                 var loaded = false;
                 do
@@ -751,6 +837,12 @@ namespace Antmicro.Renode.Peripherals.DMA
                 if(Done)
                 {
                     pullTimer.Enabled = false;
+
+                    // The channel drops out of CHSTATUS when the final descriptor completes without LINK.
+                    if(!descriptor.Link)
+                    {
+                        enabled = false;
+                    }
                 }
             }
 
@@ -1023,6 +1115,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             private bool requestDisable;
             private bool enabled;
             private bool done;
+            private bool transferHeld;
 
             // A synchronization structure applies its set/clear pattern only once, even if the
             // channel has to wait for the match condition before the structure completes.
