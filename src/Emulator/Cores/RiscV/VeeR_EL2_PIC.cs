@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -22,10 +22,12 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
     public class VeeR_EL2_PIC : BasicDoubleWordPeripheral, IIRQController, IKnownSize, IBytePeripheral, IWordPeripheral
     {
         // interruptSourcesCount: RV_PIC_TOTAL_INT
-        public VeeR_EL2_PIC(IMachine machine, VeeR_EL2 cpu, uint interruptSourcesCount = InterruptSourcesMax, bool notAllGatewaysAreConfigurable = false)
+        public VeeR_EL2_PIC(IMachine machine, VeeR_EL2 cpu, uint interruptSourcesCount = InterruptSourcesMax, bool notAllGatewaysAreConfigurable = false, bool fastInterruptRedirect = false)
                 : base(machine)
         {
             this.cpu = cpu;
+            // FastInterruptRedirectEnabled works only with IRQ@11
+            this.FastInterruptRedirectEnabled = fastInterruptRedirect;
             cpu.RegisterPIC(this);
 
             if(interruptSourcesCount < InterruptSourcesMin || interruptSourcesCount > InterruptSourcesMax)
@@ -242,6 +244,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
         public uint VectorTableBaseAddress => (uint)vectorTableBaseAddressField.Value;
 
+        public readonly bool FastInterruptRedirectEnabled;
+
         public const uint PICAccessErrorSecondaryCause = 0x6;
 
         protected void DefineCSRs()
@@ -250,38 +254,44 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 .WithReservedBits(4, 28)
                 .WithValueField(0, 4, out capturedHighestPriorityLevel, name: "clidpri")
             ;
+            RegisterCSR(CustomCSR.ExternalInterruptClaimIDPriorityLevel, claimIDPriorityLevel);
 
             // "The `meicpct` register has WAR0 (Write Any value, Read 0) behavior. Writing ‘0’ is recommended."
-            var claimIDPriorityLevelCaptureTrigger = new DoubleWordRegister(this)
-                .WithValueField(0, 32, valueProviderCallback: _ => 0)
-                .WithWriteCallback((_, __) => CaptureHighestPrioritySourceAndItsLevel())
-            ;
+            if(!FastInterruptRedirectEnabled)
+            {
+                var claimIDPriorityLevelCaptureTrigger = new DoubleWordRegister(this)
+                    .WithValueField(0, 32, valueProviderCallback: _ => 0)
+                    .WithWriteCallback((_, __) => CaptureHighestPrioritySourceAndItsLevel())
+                ;
+                RegisterCSR(CustomCSR.ExternalInterruptClaimIDPriorityLevelCaptureTrigger, claimIDPriorityLevelCaptureTrigger);
+            }
 
             var currentPriorityLevel = new DoubleWordRegister(this)
                 .WithReservedBits(4, 28)
                 // Just a storage for interrupt handling routines.
                 .WithValueField(0, 4, out currentPriorityLevelField, name: "currpri")
             ;
+            RegisterCSR(CustomCSR.ExternalInterruptCurrentPriorityLevel, currentPriorityLevel);
 
             var handlerAddressPointerRegister = new DoubleWordRegister(this)
                 .WithValueField(10, 22, FieldMode.Read, valueProviderCallback: _ => VectorTableBaseAddress)
                 .WithValueField(2, 8, FieldMode.Read, name: "claimid", valueProviderCallback: _ => CapturedHighestPrioritySourceId)
                 .WithReservedBits(0, 2)
             ;
+            RegisterCSR(CustomCSR.ExternalInterruptHandlerAddressPointer, handlerAddressPointerRegister);
 
             var priorityThresholdRegister = new DoubleWordRegister(this)
                 .WithReservedBits(4, 28)
                 .WithValueField(0, 4, out priorityThresholdField, name: "prithresh")
                 .WithChangeCallback((_, __) => UpdateIRQs())
             ;
+            RegisterCSR(CustomCSR.ExternalInterruptPriorityThreshold, priorityThresholdRegister);
 
             var vectorTableRegister = new DoubleWordRegister(this)
                 .WithValueField(10, 22, out vectorTableBaseAddressField)
                 .WithReservedBits(0, 10)
             ;
-
-            RegisterCSRs(claimIDPriorityLevel, claimIDPriorityLevelCaptureTrigger, currentPriorityLevel, handlerAddressPointerRegister,
-                priorityThresholdRegister, vectorTableRegister);
+            RegisterCSR(CustomCSR.ExternalInterruptVectorTable, vectorTableRegister);
         }
 
         // "non-word sized/aligned loads cause a load access fault exception"
@@ -296,18 +306,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             this.WarningLog("Attempted {0} write to 0x{1:X} (value: 0x{2:X}) isn't supported, raising access fault", width, offset, value);
             cpu.RaiseExceptionWithSecondaryCause((uint)BaseRiscV.ExceptionCodes.StoreAccessFault, PICAccessErrorSecondaryCause);
-        }
-
-        protected virtual void RegisterCSRs(DoubleWordRegister claimIDPriorityLevel, DoubleWordRegister claimIDPriorityLevelCaptureTrigger,
-                DoubleWordRegister currentPriorityLevel, DoubleWordRegister handlerAddressPointerRegister,
-                DoubleWordRegister priorityThresholdRegister, DoubleWordRegister vectorTableRegister)
-        {
-            RegisterCSR(CustomCSR.ExternalInterruptClaimIDPriorityLevel, claimIDPriorityLevel);
-            RegisterCSR(CustomCSR.ExternalInterruptClaimIDPriorityLevelCaptureTrigger, claimIDPriorityLevelCaptureTrigger);
-            RegisterCSR(CustomCSR.ExternalInterruptCurrentPriorityLevel, currentPriorityLevel);
-            RegisterCSR(CustomCSR.ExternalInterruptHandlerAddressPointer, handlerAddressPointerRegister);
-            RegisterCSR(CustomCSR.ExternalInterruptPriorityThreshold, priorityThresholdRegister);
-            RegisterCSR(CustomCSR.ExternalInterruptVectorTable, vectorTableRegister);
         }
 
         protected void RegisterCSR<T>(T csr, DoubleWordRegister register)

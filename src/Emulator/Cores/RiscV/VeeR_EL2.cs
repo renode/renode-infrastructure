@@ -79,6 +79,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             }
             PIC = pic;
 
+            TlibSetFastInterruptRedirect(PIC.FastInterruptRedirectEnabled);
+
             PIC.MaxPriorityIRQ.AddStateChangedHook(state =>
             {
                 // We check for PIC.IRQ.IsSet to prevent OnGPIO from being called twice
@@ -108,6 +110,21 @@ namespace Antmicro.Renode.Peripherals.CPU
         }
 
         public VeeR_EL2_PIC PIC { get; protected set; }
+
+        protected override void PicFastInterruptCaptureInner()
+        {
+            if(PIC == null)
+            {
+                this.ErrorLog("Attempted to perform {0}, but PIC is not registerd", nameof(PicFastInterruptCapture));
+                return;
+            }
+            if(!PIC.FastInterruptRedirectEnabled)
+            {
+                this.ErrorLog("Attempted to perform {0}, but PIC is registered without fast interrupt redirect option", nameof(PicFastInterruptCapture));
+                return;
+            }
+            PIC.CaptureHighestPrioritySourceAndItsLevel();
+        }
 
         /// <remarks>
         /// Called on interrupt start to make sure that normal RISC-V exceptions triggered without
@@ -218,6 +235,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         // 649:  Field '...' is never assigned to, and will always have its default value null
         [Import]
         private readonly Action TlibEnterWfi;
+
+        [Import(Name = "tlib_set_pic_fast_interrupt_redirect_mode")]
+        private readonly Action<bool> TlibSetFastInterruptRedirect;
 #pragma warning restore 649
 
         private const string WfiOpcodePattern = "00010000010100000000000001110011";

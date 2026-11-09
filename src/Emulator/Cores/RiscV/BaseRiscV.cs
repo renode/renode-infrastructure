@@ -737,6 +737,17 @@ namespace Antmicro.Renode.Peripherals.CPU
             pcWrittenFlag = true;
         }
 
+        protected virtual void PicFastInterruptCaptureInner()
+        {
+            this.ErrorLog("Attempted to call unimplemeneted {0}", nameof(PicFastInterruptCaptureInner));
+        }
+
+        [Export]
+        protected void PicFastInterruptCapture()
+        {
+            PicFastInterruptCaptureInner();
+        }
+
         protected virtual void PreStackAccessHook(ulong address, uint width, bool isWrite)
         {
             PreStackAccess?.Invoke(address, width, isWrite);
