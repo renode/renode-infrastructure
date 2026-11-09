@@ -14,6 +14,7 @@ using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.CPU;
+using Antmicro.Renode.UserInterface;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.IRQControllers
@@ -46,6 +47,40 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         + "use '{1}' to add gateway registers if any interrupt source should have them",
                         nameof(notAllGatewaysAreConfigurable), nameof(AddGatewayRegistersForInterruptSources)
                 );
+            }
+        }
+
+        [HideInMonitor]
+        public void CaptureHighestPrioritySourceAndItsLevel()
+        {
+            lock(interruptSources)
+            {
+                var enabledPendingSources = interruptSources.Where(source => source.IsEnabled && source.IsPending);
+                if(!enabledPendingSources.Any())
+                {
+                    // Setting claimid to 0 is based on the "Support for Vectored External Interrupts" chapter in the docs:
+                    // "It is possible in some corner cases that the captured claim ID read from the meihap register is 0 (i.e., no
+                    // interrupt request is pending). To keep the interrupt latency at a minimum, the external interrupt handler above
+                    // should not check for this condition. Instead, the pointer stored at the base address of the external interrupt
+                    // vector table (i.e., pointer 0) must point to a ‘no-interrupt’ handler, as shown in Fig. 8.5 above. That handler
+                    // can be as simple as executing a return from interrupt (i.e., mret) instruction."
+                    CapturedHighestPrioritySourceId = NoInterruptSourceId;
+                    return;
+                }
+
+                // Regardless of the order, out of sources with the same priority level the one with a smaller id wins.
+                // Therefore levels are taken directly for reversed order, for which level 0 has priority over level 15,
+                // but negated for standard priority order.
+                var modifier = PriorityOrderReversed ? 1 : -1;
+
+                // `First` can be safely used as this code is unreachable with empty `enabledPendingSources` and the collection is locked.
+                var highestPrioritySource = enabledPendingSources.OrderBy(source => (source.PriorityLevel * 1000 * modifier) + source.Id).First();
+
+                capturedHighestPriorityLevel.Value = highestPrioritySource.PriorityLevel;
+                CapturedHighestPrioritySourceId = highestPrioritySource.Id;
+
+                this.NoisyLog("Captured external interrupt source with the highest priority level ({0}), source ID: {1}",
+                        highestPrioritySource.PriorityLevel, highestPrioritySource.Id);
             }
         }
 
@@ -292,39 +327,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         protected const uint InterruptSourcesMax = 255u;
         protected const uint InterruptSourcesMin = 2u;
         protected const uint NoInterruptSourceId = 0u;
-
-        private void CaptureHighestPrioritySourceAndItsLevel()
-        {
-            lock(interruptSources)
-            {
-                var enabledPendingSources = interruptSources.Where(source => source.IsEnabled && source.IsPending);
-                if(!enabledPendingSources.Any())
-                {
-                    // Setting claimid to 0 is based on the "Support for Vectored External Interrupts" chapter in the docs:
-                    // "It is possible in some corner cases that the captured claim ID read from the meihap register is 0 (i.e., no
-                    // interrupt request is pending). To keep the interrupt latency at a minimum, the external interrupt handler above
-                    // should not check for this condition. Instead, the pointer stored at the base address of the external interrupt
-                    // vector table (i.e., pointer 0) must point to a ‘no-interrupt’ handler, as shown in Fig. 8.5 above. That handler
-                    // can be as simple as executing a return from interrupt (i.e., mret) instruction."
-                    CapturedHighestPrioritySourceId = NoInterruptSourceId;
-                    return;
-                }
-
-                // Regardless of the order, out of sources with the same priority level the one with a smaller id wins.
-                // Therefore levels are taken directly for reversed order, for which level 0 has priority over level 15,
-                // but negated for standard priority order.
-                var modifier = PriorityOrderReversed ? 1 : -1;
-
-                // `First` can be safely used as this code is unreachable with empty `enabledPendingSources` and the collection is locked.
-                var highestPrioritySource = enabledPendingSources.OrderBy(source => (source.PriorityLevel * 1000 * modifier) + source.Id).First();
-
-                capturedHighestPriorityLevel.Value = highestPrioritySource.PriorityLevel;
-                CapturedHighestPrioritySourceId = highestPrioritySource.Id;
-
-                this.NoisyLog("Captured external interrupt source with the highest priority level ({0}), source ID: {1}",
-                        highestPrioritySource.PriorityLevel, highestPrioritySource.Id);
-            }
-        }
 
         private void DefineMemoryMappedRegisters(uint sourcesCount, bool defineAllGatewayRegisters)
         {
