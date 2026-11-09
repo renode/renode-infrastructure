@@ -163,7 +163,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                         .WithReservedBits(3, 29));
                 registerDictionary.Add(startOffset + blockSize * i + addrOffset,
                     new DoubleWordRegister(this, 0x8000000)
-
                         .WithValueField(0, 32, valueProviderCallback: _ => buffer[i].Address, writeCallback: (_, value) => buffer[i].Address = (uint)(value & 0xFFFFFFFC), name: "REG_67_FIELD_23"));
                 registerDictionary.Add(startOffset + blockSize * i + wOffOffset,
                     new DoubleWordRegister(this)

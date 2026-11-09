@@ -17,8 +17,6 @@ namespace Antmicro.Renode.Peripherals.Wireless
 {
     public static class InterferenceQueue
     {
-        static readonly List<PacketInfo> overTheAirPackets = new List<PacketInfo>();
-
         static InterferenceQueue()
         {
             // This queue and its subscriber list are process-global, while the radios using them belong
@@ -30,33 +28,41 @@ namespace Antmicro.Renode.Peripherals.Wireless
         // Drops all over-the-air packets and subscribers. Called when the emulation is replaced.
         public static void Clear()
         {
-            overTheAirPackets.Clear();
-            InterferenceQueueChanged = null;
+            lock(sync)
+            {
+                overTheAirPackets.Clear();
+                InterferenceQueueChanged = null;
+            }
         }
 
         public static void Add(IRadio sender, PhySignature signature, int channel, int txPowerDbm, byte[] content)
         {
-            // First we check if there is already a packet from this sender in the queue. If that is the case,
-            // it should be stale and we are going to remove it.
-            var entry = PacketLookup(sender);
-            if(entry != null)
+            TimeInterval addTime;
+            lock(sync)
             {
-                if(!entry.PacketIsStale)
+                // First we check if there is already a packet from this sender in the queue. If that is the case,
+                // it should be stale and we are going to remove it.
+                var entry = PacketLookup(sender);
+                if(entry != null)
                 {
-                    Logger.Log(LogLevel.Error, "InterferenceQueue.Add: sender non-stale entry present");
-                    return;
+                    if(!entry.PacketIsStale)
+                    {
+                        Logger.Log(LogLevel.Error, "InterferenceQueue.Add: sender non-stale entry present");
+                        return;
+                    }
+                    // The previous transmission from this sender is retired (completed or aborted; its entry
+                    // lingered for late lookups). Drop it before adding the new one.
+                    overTheAirPackets.Remove(entry);
                 }
-                // The previous transmission from this sender is retired (completed or aborted; its entry
-                // lingered for late lookups). Drop it before adding the new one.
-                overTheAirPackets.Remove(entry);
+
+                addTime = IPeripheralExtensions.GetMachine(sender).LocalTimeSource.ElapsedVirtualTime;
+                var newEntry = new PacketInfo(sender, signature, channel, txPowerDbm, content);
+                newEntry.StartTxTimestamp = addTime;
+                overTheAirPackets.Add(newEntry);
+                Logger.Log(LogLevel.Noisy, "InterferenceQueue.Add at {0}: [{1}]", addTime, BitConverter.ToString(content));
             }
 
-            var addTime = IPeripheralExtensions.GetMachine(sender).LocalTimeSource.ElapsedVirtualTime;
-            var newEntry = new PacketInfo(sender, signature, channel, txPowerDbm, content);
-            newEntry.StartTxTimestamp = addTime;
-            overTheAirPackets.Add(newEntry);
-            Logger.Log(LogLevel.Noisy, "InterferenceQueue.Add at {0}: [{1}]", addTime, BitConverter.ToString(content));
-            InterferenceQueueChanged?.Invoke();
+            NotifyQueueChanged(addTime);
         }
 
         // Retires the over-the-air entry for a sender, recording how the transmission ended.
@@ -66,8 +72,11 @@ namespace Antmicro.Renode.Peripherals.Wireless
         // notified of it yet) when the sender is already done with it. Keeping the retired entry lets
         // such a receiver still resolve the TX start time, the PHY signature, and — importantly — whether
         // this particular transmission completed or was aborted. A retired entry is excluded from
-        // energy/overlap queries (GetCurrentRssi, AnyOtherOnAir) and is physically dropped when the
-        // sender starts transmitting again (see Add).
+        // energy/overlap queries made at a time at or after its end (GetCurrentRssi, AnyOtherOnAir,
+        // GetLivePackets), and is physically dropped when the sender starts transmitting again (see Add).
+        // A query made at an earlier time still sees it: that is a receiver whose clock is behind the
+        // sender's. Only the latest transmission of a sender is kept, which covers a lag shorter than the
+        // gap between two transmissions of the same radio.
         //
         // transmissionCompleted == false marks the entry as aborted, which is what lets a receiver
         // distinguish "the frame I am receiving was cut short" from "the sender has simply moved on".
@@ -75,32 +84,37 @@ namespace Antmicro.Renode.Peripherals.Wireless
         // An entry that is already retired is physically dropped: it has already had its grace window.
         public static void Remove(IRadio sender, bool transmissionCompleted)
         {
-            var entry = PacketLookup(sender);
-
-            if(entry == null)
+            TimeInterval now;
+            lock(sync)
             {
-                Logger.Log(LogLevel.Error, "InterferenceQueue.Remove: entry not found");
-                return;
+                var entry = PacketLookup(sender);
+
+                if(entry == null)
+                {
+                    Logger.Log(LogLevel.Error, "InterferenceQueue.Remove: entry not found");
+                    return;
+                }
+
+                now = IPeripheralExtensions.GetMachine(entry.Sender).LocalTimeSource.ElapsedVirtualTime;
+
+                if(!entry.PacketIsStale)
+                {
+                    Logger.Log(LogLevel.Noisy, "InterferenceQueue.Remove at {0}, OTA time={1}: [{2}] - marking it {3}",
+                            now, now - entry.StartTxTimestamp, BitConverter.ToString(entry.PacketContent),
+                            transmissionCompleted ? "stale" : "aborted");
+                    entry.EndTxTimestamp = now;
+                    entry.PacketIsStale = true;
+                    entry.PacketWasAborted = !transmissionCompleted;
+                }
+                else
+                {
+                    Logger.Log(LogLevel.Noisy, "InterferenceQueue.Remove at {0}, OTA time={1}: [{2}] - removed",
+                            now, now - entry.StartTxTimestamp, BitConverter.ToString(entry.PacketContent));
+                    overTheAirPackets.Remove(entry);
+                }
             }
 
-            var now = IPeripheralExtensions.GetMachine(entry.Sender).LocalTimeSource.ElapsedVirtualTime;
-
-            if(!entry.PacketIsStale)
-            {
-                Logger.Log(LogLevel.Noisy, "InterferenceQueue.Remove at {0}, OTA time={1}: [{2}] - marking it {3}",
-                        now, now - entry.StartTxTimestamp, BitConverter.ToString(entry.PacketContent),
-                        transmissionCompleted ? "stale" : "aborted");
-                entry.PacketIsStale = true;
-                entry.PacketWasAborted = !transmissionCompleted;
-            }
-            else
-            {
-                Logger.Log(LogLevel.Noisy, "InterferenceQueue.Remove at {0}, OTA time={1}: [{2}] - removed",
-                        now, now - entry.StartTxTimestamp, BitConverter.ToString(entry.PacketContent));
-                overTheAirPackets.Remove(entry);
-            }
-
-            InterferenceQueueChanged?.Invoke();
+            NotifyQueueChanged(now);
         }
 
         public static TimeInterval GetTxStartTime(IRadio sender)
@@ -108,16 +122,19 @@ namespace Antmicro.Renode.Peripherals.Wireless
             // Here we want to look up also stale packets, since it is possible that the sender already "completed"
             // the transmission while the receiver hasn't been notified yet (possibly due to a combination of the packet
             // being short and the QuantumTime being long enough).
-            var entry = PacketLookup(sender);
-
-            // An aborted transmission never fully went on air, so there is no start time to hand out: a
-            // receiver asking about it is trying to start a reception that must be dropped.
-            if(entry == null || entry.PacketWasAborted)
+            lock(sync)
             {
-                return TimeInterval.Empty;
-            }
+                var entry = PacketLookup(sender);
 
-            return entry.StartTxTimestamp;
+                // An aborted transmission's start time is not handed out: a receiver asking about it is
+                // trying to start a reception that must be dropped.
+                if(entry == null || entry.PacketWasAborted)
+                {
+                    return TimeInterval.Empty;
+                }
+
+                return entry.StartTxTimestamp;
+            }
         }
 
         // Returns the PHY signature of the (possibly stale) over-the-air packet from the given
@@ -125,15 +142,18 @@ namespace Antmicro.Renode.Peripherals.Wireless
         // the local RX configuration.
         public static bool TryGetTxSignature(IRadio sender, out PhySignature signature)
         {
-            var entry = PacketLookup(sender);
-            if(entry == null)
+            lock(sync)
             {
-                signature = default(PhySignature);
-                return false;
-            }
+                var entry = PacketLookup(sender);
+                if(entry == null)
+                {
+                    signature = default(PhySignature);
+                    return false;
+                }
 
-            signature = entry.Signature;
-            return true;
+                signature = entry.Signature;
+                return true;
+            }
         }
 
         // Simple initial implementation: we return a "high" hardcoded RSSI value if there is at
@@ -146,45 +166,51 @@ namespace Antmicro.Renode.Peripherals.Wireless
         // - take into account the distance between sender and receiver
         // - the sender TX power
         // - occupied bandwidth / adjacent-channel overlap (currently only exact co-channel)
+        //
+        // The channel is evaluated at the receiver's own virtual time (`at`), so that a receiver whose
+        // clock is behind or ahead of the sender's sees what was on the air at its own time.
 #pragma warning disable IDE0060
-        public static int GetCurrentRssi(IRadio receiver, int channel)
+        public static int GetCurrentRssi(IRadio receiver, int channel, TimeInterval at)
 #pragma warning restore IDE0060
         {
-            if(ForceBusyRssi)
+            lock(sync)
             {
-                return RssiBusyChannelHardCodedValueDbm;
-            }
-
-            foreach(var entry in overTheAirPackets)
-            {
-                // Stale entries are completed transmissions kept only for late sender lookups; they no
-                // longer contribute energy.
-                if(!entry.PacketIsStale && entry.Channel == channel)
+                if(forceBusyRssi)
                 {
                     return RssiBusyChannelHardCodedValueDbm;
                 }
-            }
 
-            return RssiClearChannelHardCodedValueDbm;
+                foreach(var entry in overTheAirPackets)
+                {
+                    if(entry.Channel == channel && entry.IsOnAirAt(at))
+                    {
+                        return RssiBusyChannelHardCodedValueDbm;
+                    }
+                }
+
+                return RssiClearChannelHardCodedValueDbm;
+            }
         }
 
         // Returns true if there is at least one on-air packet on the given channel from a sender other
-        // than the excluded one. Used by a receiver to detect co-channel interference that is already
-        // present (overlapping in time) at the moment a reception begins. Energy-based, so it ignores
+        // than the excluded one that was on the air at some point in [from, to]. Used by a receiver to
+        // detect co-channel interference overlapping in time with a reception it is beginning: `from` is
+        // the start of that reception and `to` the receiver's own time. Energy-based, so it ignores
         // modulation: any co-channel transmission corrupts an in-progress reception.
-        public static bool AnyOtherOnAir(IRadio excludedSender, int channel)
+        public static bool AnyOtherOnAir(IRadio excludedSender, int channel, TimeInterval from, TimeInterval to)
         {
-            foreach(var entry in overTheAirPackets)
+            lock(sync)
             {
-                // Stale entries are completed transmissions kept only for late sender lookups; they are no
-                // longer on air and cannot interfere.
-                if(!entry.PacketIsStale && entry.Channel == channel && entry.Sender != excludedSender)
+                foreach(var entry in overTheAirPackets)
                 {
-                    return true;
+                    if(entry.Channel == channel && entry.Sender != excludedSender && entry.IsOnAirDuring(from, to))
+                    {
+                        return true;
+                    }
                 }
-            }
 
-            return false;
+                return false;
+            }
         }
 
         // True if the identified transmission (sender plus the TX start time the receiver locked onto)
@@ -196,32 +222,57 @@ namespace Antmicro.Renode.Peripherals.Wireless
         // attribute that later outcome to the frame still being received here.
         public static bool WasTransmissionAborted(IRadio sender, TimeInterval txStartTime)
         {
-            var entry = PacketLookup(sender);
-
-            if(entry == null || entry.StartTxTimestamp != txStartTime)
+            lock(sync)
             {
-                return false;
-            }
+                var entry = PacketLookup(sender);
 
-            return entry.PacketWasAborted;
+                if(entry == null || entry.StartTxTimestamp != txStartTime)
+                {
+                    return false;
+                }
+
+                return entry.PacketWasAborted;
+            }
         }
 
-        // Snapshot of transmissions that are still on the air. Receivers use this to join a packet
-        // that started before they were on-channel or in RxSearch. Stale entries are omitted.
-        public static PacketInfo[] GetLivePackets()
+        // Snapshot of transmissions that are on the air at time `at`, the receiver's own virtual time.
+        // Receivers use this to join a packet that started before they were on-channel or in RxSearch.
+        // A transmission that has not started yet at `at` (the receiver is behind the sender) is
+        // omitted: it reaches the receiver through the medium instead.
+        public static PacketInfo[] GetLivePackets(TimeInterval at)
         {
-            var result = new List<PacketInfo>();
-            foreach(var entry in overTheAirPackets)
+            lock(sync)
             {
-                if(!entry.PacketIsStale)
+                var result = new List<PacketInfo>();
+                foreach(var entry in overTheAirPackets)
                 {
-                    result.Add(entry);
+                    if(entry.IsOnAirAt(at))
+                    {
+                        result.Add(entry);
+                    }
+                }
+                return result.ToArray();
+            }
+        }
+
+        public static bool ForceBusyRssi
+        {
+            get
+            {
+                lock(sync)
+                {
+                    return forceBusyRssi;
                 }
             }
-            return result.ToArray();
-        }
 
-        public static bool ForceBusyRssi = false;
+            set
+            {
+                lock(sync)
+                {
+                    forceBusyRssi = value;
+                }
+            }
+        }
 
         private static PacketInfo PacketLookup(IRadio sender)
         {
@@ -236,10 +287,26 @@ namespace Antmicro.Renode.Peripherals.Wireless
             return null;
         }
 
+        // Runs on the thread that added or removed an entry, after the queue lock is released.
+        // `changeTime` is the sender's virtual time of the change. Subscribers must not take their
+        // radio's lock or touch their state from here: the sender's thread may be running in parallel
+        // with theirs and holds its own radio's lock. They hand the work to their own time source,
+        // and evaluate the queue at `changeTime`, which reproduces the edge even when the
+        // transmission is over by the time they get to run.
+        private static void NotifyQueueChanged(TimeInterval changeTime)
+        {
+            InterferenceQueueChanged?.Invoke(changeTime);
+        }
+
+        private static bool forceBusyRssi;
+
         private const int RssiBusyChannelHardCodedValueDbm = 20;
         private const int RssiClearChannelHardCodedValueDbm = -120;
 
-        public static event Action InterferenceQueueChanged;
+        private static readonly object sync = new object();
+        private static readonly List<PacketInfo> overTheAirPackets = new List<PacketInfo>();
+
+        public static event Action<TimeInterval> InterferenceQueueChanged;
     }
 
     public class PacketInfo
@@ -258,6 +325,19 @@ namespace Antmicro.Renode.Peripherals.Wireless
         }
 
         // Methods
+        // True if this transmission is on the air at time `at`: it has started and, once retired, has
+        // not ended yet. Called with the queue lock held.
+        public bool IsOnAirAt(TimeInterval at)
+        {
+            return IsOnAirDuring(at, at);
+        }
+
+        // True if this transmission is on the air at some point in [from, to].
+        public bool IsOnAirDuring(TimeInterval from, TimeInterval to)
+        {
+            return startTx <= to && (!packetIsStale || EndTxTimestamp > from);
+        }
+
         public IRadio Sender => sender;
 
         public PhySignature Signature => signature;
@@ -284,6 +364,10 @@ namespace Antmicro.Renode.Peripherals.Wireless
         // Set when the transmission was cut short instead of completing. Only meaningful once the
         // packet is stale, i.e. once the sender has retired it.
         public bool PacketWasAborted { get; set; }
+
+        // When the sender retired the transmission, completed or aborted. Only meaningful once the
+        // packet is stale.
+        public TimeInterval EndTxTimestamp { get; set; }
 
         public TimeInterval StartTxTimestamp
         {

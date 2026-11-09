@@ -163,7 +163,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                         .WithReservedBits(3, 29));
                 registerDictionary.Add(startOffset + blockSize * i + addrOffset,
                     new DoubleWordRegister(this, 0x8000000)
-
                         .WithValueField(0, 32, valueProviderCallback: _ => buffer[i].Address, writeCallback: (_, value) => buffer[i].Address = (uint)(value & 0xFFFFFFFC), name: "REG_63_FIELD_23"));
                 registerDictionary.Add(startOffset + blockSize * i + wOffOffset,
                     new DoubleWordRegister(this)
@@ -327,7 +326,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Reg_65                = 0x0128,
             Reg_66                = 0x012C,
             Reg_67                = 0x0130,
-
             Reg_68                = 0x1000,
             Reg_69                = 0x1004,
             Reg_70                = 0x1008,
@@ -395,7 +393,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Reg_132               = 0x1128,
             Reg_133               = 0x112C,
             Reg_134               = 0x1130,
-
             Reg_135               = 0x2000,
             Reg_136               = 0x2004,
             Reg_137               = 0x2008,
@@ -463,7 +460,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Reg_199               = 0x2128,
             Reg_200               = 0x212C,
             Reg_201               = 0x2130,
-
             Reg_202               = 0x3000,
             Reg_203               = 0x3004,
             Reg_204               = 0x3008,
