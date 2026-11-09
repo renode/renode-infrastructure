@@ -3495,9 +3495,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                         bool ok = verifier.VerifySignature(signature);
                         return ok ? ResponseCode.Ok : ResponseCode.InvalidSignature;
                     }
-                    catch(ArgumentException)
+                    catch(ArgumentException e)
                     {
-                        // The public key does not decode to a valid curve point
+                        // The SE reports a public key that is not a valid curve point as a failed verification
+                        parent.Log(LogLevel.Debug, "{0}: invalid public key: {1}", logTag, e.Message);
                         return ResponseCode.InvalidSignature;
                     }
                     catch(Exception e)
