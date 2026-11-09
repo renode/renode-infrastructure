@@ -76,7 +76,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         public override uint BaudRate { get { return 115200; } }
 
-        public long Size { get { return 0x4000; } }
+        public long Size { get { return 0x1000; } }
 
         protected override void CharWritten()
         {
