@@ -16,7 +16,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public class SiLabs_SEQACC_1 : SiLabs_SequencerAccelerator
     {
-        public SiLabs_SEQACC_1(Machine machine, ISiLabs_ProtocolTimer protocolTimer = null)
+        public SiLabs_SEQACC_1(Machine machine, ISiLabs_ProtocolTimer protocolTimer)
             : base(machine, protocolTimer)
         {
         }
@@ -144,12 +144,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             for(var index = 0; index < NumberOfSequenceConfigurations; index++)
             {
                 var i = index;
-
                 registerDictionary.Add(startOffset + blockSize * i + startAddressOffset,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, out sequence[i].Field_14, name: "REG_11_FIELD_12")
                 );
-
                 registerDictionary.Add(startOffset + blockSize * i + configOffset,
                     new DoubleWordRegister(this, 0x10)
                         .WithValueField(0, 5, out sequence[i].Field_3, name: "REG_11_FIELD_13")
@@ -168,7 +166,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             for(var index = 0; index < NumberOfBaseAddresses; index++)
             {
                 var i = index;
-
                 registerDictionary.Add(startOffset + blockSize * i + baseAddressOffset,
                     new DoubleWordRegister(this)
                         .WithValueField(0, 32, out Field_1[i], name: "REG_11_FIELD_18")
@@ -265,7 +262,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Reg_49                = 0x0104,
             Reg_50                = 0x0108,
             Reg_51                = 0x010C,
-
             Reg_52                = 0x1000,
             Reg_53                = 0x1004,
             Reg_54                = 0x1008,
@@ -317,7 +313,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Reg_100               = 0x1104,
             Reg_101               = 0x1108,
             Reg_102               = 0x110C,
-
             Reg_103               = 0x2000,
             Reg_104               = 0x2004,
             Reg_105               = 0x2008,
@@ -369,7 +364,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             Reg_151               = 0x2104,
             Reg_152               = 0x2108,
             Reg_153               = 0x210C,
-
             Reg_154               = 0x3000,
             Reg_155               = 0x3004,
             Reg_156               = 0x3008,

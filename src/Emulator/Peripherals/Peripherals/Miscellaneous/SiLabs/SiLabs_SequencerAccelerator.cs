@@ -18,7 +18,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public abstract class SiLabs_SequencerAccelerator : SiLabsPeripheral
     {
-        public SiLabs_SequencerAccelerator(Machine machine, ISiLabs_ProtocolTimer protocolTimer = null) : base(machine, false)
+        public SiLabs_SequencerAccelerator(Machine machine, ISiLabs_ProtocolTimer protocolTimer) : base(machine, false)
         {
             ProtocolTimer = protocolTimer;
             ProtocolTimer.PreCountOverflowsEvent += PreCountOverflowsEventCallback;
@@ -117,7 +117,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             switch(reason)
             {
             case TimerStartReason.DeferredStart:
-
                 timer.Frequency = ProtocolTimer.GetPreCountOverflowFrequency();
                 timer.Limit = 1;
                 break;
@@ -221,6 +220,19 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 }
 
                 return ret;
+            }
+        }
+
+        public string AbsoluteDelayCounterLogValue
+        {
+            get
+            {
+                if(Field_15.Value == TimeBase.Clock)
+                {
+                    return "n/a (clock timebase)";
+                }
+
+                return AbsoluteDelayCounter.ToString();
             }
         }
 
@@ -570,7 +582,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 string symbol;
                 bool symbolFound = (parent.machine.SystemBus.TryFindSymbolAt(currentAddress, out symbol, out var _)
                                     && !symbol.Contains("guessed"));
-
                 if(deferStart)
                 {
                     parent.StartTimer(index, TimerStartReason.DeferredStart);
@@ -616,7 +627,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             public IFlagRegisterField Field_4;
             public IEnumRegisterField<Enumeration_C> Field_8;
             public IEnumRegisterField<Enumeration_B> Field_7;
-
             public IValueRegisterField Field_3;
             public IValueRegisterField Field_14;
             public IFlagRegisterField Field_11;
@@ -626,9 +636,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             protected Enumeration_A ExecuteSingleInstruction()
             {
                 var o = (int)Field_3.Value;
-
                 var l = (int)parent.Field_2.Value - (int)Field_3.Value;
-
                 var b = 28 - (int)parent.Field_2.Value;
 
                 uint word = parent.machine.SystemBus.ReadDoubleWord(currentAddress);
@@ -757,10 +765,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                         throw new Exception("SEQACC: Clock timebase not supported");
                     }
 
-                    inDelay = true;
                     delayIsRelative = (Enumeration_E)lengthOrOpExt != Enumeration_E.EnumerationEValue1;
                     delayRemainingTicksOrTopValue = time;
 
+                    if(delayIsRelative && time == 0)
+                    {
+                        newCurrentAddress = currentAddress + 8;
+                        break;
+                    }
+
+                    if(!delayIsRelative && parent.AbsoluteDelayCounter >= time)
+                    {
+                        newCurrentAddress = currentAddress + 8;
+                        break;
+                    }
+
+                    inDelay = true;
                     parent.StartTimer(index, TimerStartReason.Delay);
 
                     newCurrentAddress = currentAddress + 8;
@@ -866,7 +886,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 case Enumeration_D.EnumerationDValue10:
                 {
                     uint dataWord = parent.machine.SystemBus.ReadDoubleWord(currentAddress + 4);
-
                     if(dataWord == 0)
                     {
                         newCurrentAddress = currentAddress + 8;
@@ -1043,7 +1062,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             EnumerationEValue0    = 0x0,
             EnumerationEValue1    = 0x1,
-
             EnumerationEValue2    = 0x0,
             EnumerationEValue3    = 0x1,
             EnumerationEValue4    = 0x2,
@@ -1052,12 +1070,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             EnumerationEValue7    = 0x5,
             EnumerationEValue8    = 0x6,
             EnumerationEValue9    = 0x7,
-
             EnumerationEValue10   = 0x0,
             EnumerationEValue11   = 0x1,
             EnumerationEValue12   = 0x2,
             EnumerationEValue13   = 0x3,
-
             EnumerationEValue14   = 0x0,
             EnumerationEValue15   = 0x1,
             EnumerationEValue16   = 0x2,
@@ -1074,7 +1090,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             EnumerationEValue27   = 0xD,
             EnumerationEValue28   = 0xE,
             EnumerationEValue29   = 0xF,
-
             EnumerationEValue30   = 0x0,
             EnumerationEValue31   = 0x1,
         }
