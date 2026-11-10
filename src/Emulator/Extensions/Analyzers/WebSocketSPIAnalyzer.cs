@@ -55,14 +55,10 @@ public class WebSocketSPIAnalyzer : BasicPeripheralBackendAnalyzer<SPIBackend>, 
 
     public ISPIController SPIController => (Backend as SPIBackend)?.SPIController;
 
-    public int SPINumber { get; private set; }
-
-    private static int spiCount;
-
     private void StartServer()
     {
-        SPINumber = Interlocked.Increment(ref spiCount);
-        server = new WebSocketBufferedServer($"/spiAnalyzer/{SPINumber}", true);
+        var machineName = EmulationManager.Instance.CurrentEmulation[machine];
+        server = new WebSocketBufferedServer($"/spi/{machineName}/{machine.GetAnyNameOrTypeName(SPIController)}", true);
         server.Start();
     }
 
