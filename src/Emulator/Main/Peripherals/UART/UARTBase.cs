@@ -14,6 +14,8 @@ using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
 using Antmicro.Renode.Logging;
 
+#nullable enable
+
 namespace Antmicro.Renode.Peripherals.UART
 {
     public abstract class UARTBaseWithFrameInfo : UARTBase, IUARTWithFrameInfo
@@ -27,7 +29,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
         }
 
-        protected bool TryGetCharacterWithFrame(out byte character, out UARTFrame frame, bool peek = false)
+        protected bool TryGetCharacterWithFrame(out byte character, out UARTFrame? frame, bool peek = false)
         {
             return TryGetCharacterInner(out character, out frame, peek);
         }
@@ -66,18 +68,15 @@ namespace Antmicro.Renode.Peripherals.UART
         public abstract uint BaudRate { get; }
 
         [field: Transient]
-        public event Action<byte> CharReceived;
+        public event Action<byte>? CharReceived;
 
         protected UARTBase(IMachine machine) : base(machine)
         {
-            queue = new Queue<Tuple<Byte, UARTFrame>>();
+            queue = new Queue<Tuple<Byte, UARTFrame?>>();
             innerLock = new object();
         }
 
-        /// <remark>
-        /// when upgrading to C# 8.0, change the type of `frame` to UARTFrame?
-        /// </remark>
-        protected virtual void WriteCharInner(byte value, UARTFrame frame)
+        protected virtual void WriteCharInner(byte value, UARTFrame? frame)
         {
             lock(innerLock)
             {
@@ -97,7 +96,7 @@ namespace Antmicro.Renode.Peripherals.UART
             return TryGetCharacterInner(out character, out var _, peek);
         }
 
-        protected bool TryGetCharacterInner(out byte character, out UARTFrame frame, bool peek = false)
+        protected bool TryGetCharacterInner(out byte character, out UARTFrame? frame, bool peek = false)
         {
             lock(innerLock)
             {
@@ -166,6 +165,6 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        private readonly Queue<Tuple<byte, UARTFrame>> queue;
+        private readonly Queue<Tuple<byte, UARTFrame?>> queue;
     }
 }
