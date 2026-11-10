@@ -132,6 +132,11 @@ namespace Antmicro.Renode.Peripherals.UART
         // Not reset on peripheral reset, as it is an emulation setting, not part of the peripheral state
         public bool DisableTransmissionCompleteDelay { get; set; } = true;
 
+        // The actual USART only has a one character buffer (except on certain models), but some of our tests like the h7 suite can't keep up with the baudrate, leading to dropped characters
+        // New platforms should have it disabled, and it should eventually be removed as it is a hack.
+        // Not reset on peripheral reset, as it is an emulation setting, not part of the peripheral state
+        public bool EnableUnlimitedFifo { get; set; } = true;
+
         public event Action<BufferState> BufferStateChanged;
 
         protected override void CharWritten()
@@ -212,14 +217,14 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTag("ADD", 24, 8);
 
             var cr3 = Registers.ControlRegister3.Define(RegistersCollection)
-                .WithTaggedFlag("EIE", 0)
+                .WithFlag(0, out errorInterruptEnable, name: "EIE")
                 .WithTaggedFlag("HDSEL", 3)
                 .WithFlag(6, out receiveDmaEnabled, name: "DMAR")
                 .WithFlag(7, name: "DMAT")
                 .WithTaggedFlag("RTSE", 8)
                 .WithTaggedFlag("CTSE", 9)
                 .WithTaggedFlag("CTSIE", 10)
-                .WithTaggedFlag("OVRDIS", 12)
+                .WithFlag(12, out overrunDisable, name : "OVRDIS")
                 .WithTaggedFlag("DDRE", 13)
                 .WithTaggedFlag("DEM", 14)
                 .WithTaggedFlag("DEP", 15)
@@ -256,7 +261,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("PE", 0)
                 .WithTaggedFlag("FE", 1)
                 .WithTaggedFlag("NF", 2)
-                .WithTaggedFlag("ORE", 3)
+                .WithFlag(3, out overrunOccured, FieldMode.Read, name: "ORE")
                 .WithTaggedFlag("IDLE", 4)
                 .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => (Count != 0), name: "RXNE")
                 .WithFlag(6, out transferComplete, FieldMode.Read, name: "TC")
@@ -278,7 +283,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("PECF", 0)
                 .WithTaggedFlag("FECF", 1)
                 .WithTaggedFlag("NCF", 2)
-                .WithTaggedFlag("ORECF", 3)
+                .WithFlag(3, FieldMode.Read | FieldMode.WriteOneToClear, name: "ORECF",
+                    writeCallback: (_, val) => { if(val) overrunOccured.Value = false; })
                 .WithTaggedFlag("IDLECF", 4)
                 .WithReservedBits(5, 1)
                 // the TC flag is cleared by writing 1 to TCCF
@@ -450,7 +456,9 @@ namespace Antmicro.Renode.Peripherals.UART
             // This interrupt is expected to fire if there are not additional bits incoming after some specified time after last reception
             var receiverTimeoutInterrupt = (receiverTimeoutOccurred?.Value ?? false) && receiverTimeoutInterruptEnable.Value;
 
-            IRQ.Set(transmitRegisterEmptyInterrupt || transferCompleteInterrupt || readRegisterNotEmptyInterrupt || receiverTimeoutInterrupt);
+            var overrunOccuredInterrupt = overrunOccured.Value && (errorInterruptEnable.Value || readRegisterNotEmptyInterruptEnabled.Value);
+
+            IRQ.Set(transmitRegisterEmptyInterrupt || transferCompleteInterrupt || readRegisterNotEmptyInterrupt || receiverTimeoutInterrupt || overrunOccuredInterrupt);
         }
 
         private void ReportRxTimeout(CancellationToken ct)
@@ -494,6 +502,26 @@ namespace Antmicro.Renode.Peripherals.UART
                             }
                         }
 
+                        this.DebugLog("Inner Received character 0x{0:X}", value);
+
+                        // UARTBase has a unlimited FIFO, but the F7 UART only has one byte buffer.
+                        // If there is already a byte in the buffer, we handle the overrun condition
+                        if(Count > 0 && !EnableUnlimitedFifo)
+                        {
+                            if(overrunDisable.Value)
+                            {
+                                TryGetCharacter(out var dropped);
+                                this.DebugLog("already received character 0x{0:X} dropped as the USART has overrun disabled", dropped);
+                            }
+                            else
+                            {
+                                // With overrun enabled, we drop the incoming character and set the overrun flag
+                                this.DebugLog("character 0x{0:X} dropped. There is a pending byte and the USART is in overrun mode", value);
+                                overrunOccured.Value = true;
+                                UpdateInterrupt();
+                                return;
+                            }
+                        }
                         WriteCharInner(value, null);
                     },
                     period: this.GetActualTransmissionDuration(8),
@@ -574,6 +602,9 @@ namespace Antmicro.Renode.Peripherals.UART
         private bool wasEnabledBeforeCurrentWrite;
 
         private IManagedThread receiverThread;
+        private IFlagRegisterField overrunDisable;
+        private IFlagRegisterField overrunOccured;
+        private IFlagRegisterField errorInterruptEnable;
         private IFlagRegisterField transmitDataRegisterEmpty;
         private readonly Queue<byte> intermediateReceiveQueue = new();
         private readonly object receiverThreadLock = new();
