@@ -14,7 +14,7 @@ using Antmicro.Renode.Peripherals.Bus;
 namespace Antmicro.Renode.Peripherals.Timers
 {
     [AllowedTranslations(AllowedTranslation.DoubleWordToQuadWord)]
-    public class RiscVMachineTimer : IQuadWordPeripheral, IKnownSize, IHasFrequency
+    public class RiscVMachineTimer : IQuadWordPeripheral, IKnownSize, IHasFrequency, IRiscVTimeProvider
     {
         public RiscVMachineTimer(IMachine machine, ulong frequency)
         {
@@ -71,14 +71,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             set => mTimer.Frequency = value;
         }
 
-        private void UpdateInterrupts()
-        {
-            bool shouldInterrupt = mTimer.Value >= mTimer.Compare;
-            this.Log(LogLevel.Noisy, "Setting IRQ: {0}", shouldInterrupt);
-            IRQ.Set(shouldInterrupt);
-        }
-
-        private ulong TimerValue
+        public ulong TimerValue
         {
             get
             {
@@ -88,6 +81,13 @@ namespace Antmicro.Renode.Peripherals.Timers
                 }
                 return mTimer.Value;
             }
+        }
+
+        private void UpdateInterrupts()
+        {
+            bool shouldInterrupt = mTimer.Value >= mTimer.Compare;
+            this.Log(LogLevel.Noisy, "Setting IRQ: {0}", shouldInterrupt);
+            IRQ.Set(shouldInterrupt);
         }
 
         private readonly IMachine machine;
