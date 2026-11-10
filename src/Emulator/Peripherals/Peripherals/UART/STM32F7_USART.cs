@@ -127,6 +127,11 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        // Simulated transmission delays causes emulation to be very slow running Zephyr, and breaks a few test
+        // So using them is opt-in for now
+        // Not reset on peripheral reset, as it is an emulation setting, not part of the peripheral state
+        public bool DisableTransmissionCompleteDelay { get; set; } = true;
+
         public event Action<BufferState> BufferStateChanged;
 
         protected override void CharWritten()
@@ -255,7 +260,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithTaggedFlag("IDLE", 4)
                 .WithFlag(5, FieldMode.Read, valueProviderCallback: _ => (Count != 0), name: "RXNE")
                 .WithFlag(6, out transferComplete, FieldMode.Read, name: "TC")
-                .WithFlag(7, FieldMode.Read, name: "TXE", valueProviderCallback: _ => true)
+                .WithFlag(7, out transmitDataRegisterEmpty, FieldMode.Read, name: "TXE")
                 .WithTaggedFlag("CTSIF", 9)
                 .WithTaggedFlag("CTS", 10)
                 .WithReservedBits(13, 1)
@@ -405,9 +410,21 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             if(transmitEnabled.Value && enabled.Value)
             {
-                base.TransmitCharacter((byte)value);
-                transferComplete.Value = true;
+                transmitDataRegisterEmpty.Value = false;
+                transferComplete.Value = false;
                 UpdateInterrupt();
+                base.TransmitCharacter((byte)value);
+                // Delay marking the transmission as done for 8 bit times
+                var delay_amount = DisableTransmissionCompleteDelay ? TimeInterval.Empty : this.GetActualTransmissionDuration(8);
+                var before_delay = machine.ElapsedVirtualTime;
+                Machine.ScheduleAction(delay_amount, (_) =>
+                {
+                    var after_delay = machine.ElapsedVirtualTime;
+                    this.DebugLog("Data transmission of 0x{2:X} done. Started {0}, ended {1}", before_delay.TimeElapsed, after_delay.TimeElapsed, value);
+                    transmitDataRegisterEmpty.Value = true;
+                    transferComplete.Value = true;
+                    UpdateInterrupt();
+                });
             }
             else
             {
@@ -557,7 +574,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private bool wasEnabledBeforeCurrentWrite;
 
         private IManagedThread receiverThread;
-
+        private IFlagRegisterField transmitDataRegisterEmpty;
         private readonly Queue<byte> intermediateReceiveQueue = new();
         private readonly object receiverThreadLock = new();
         private readonly IMachine machine;
