@@ -393,8 +393,14 @@ namespace Antmicro.Renode.Utilities
             // HACK - calling .CloseAsync() on websocket closes only websocket (Application layer) and leaves
             // socket (Transport layer) in half open state. To fix that we need to .Close() the httpListenerContext
             // and completly close the connection
-            listenerContext.Response.Close();
+            // Both Dispose and the reader task close the connection; a second Close() throws on the disposed stream
+            if(Interlocked.Exchange(ref socketClosed, 1) == 0)
+            {
+                listenerContext.Response.Close();
+            }
         }
+
+        private int socketClosed;
 
         private readonly CancellationTokenSource cancellationToken;
         private readonly WebSocket webSocket;
