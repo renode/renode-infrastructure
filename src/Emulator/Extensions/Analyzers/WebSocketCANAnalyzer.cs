@@ -6,7 +6,6 @@
 //
 using System;
 using System.Text.Json;
-using System.Threading;
 
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
@@ -51,10 +50,6 @@ public class WebSocketCANAnalyzer : BasicPeripheralBackendAnalyzer<CANBackend>, 
         // Intentionally empty
     }
 
-    public uint CANNumber { get; private set; }
-
-    private static uint canCount;
-
     /// <summary>
     /// Encodes a can message frame as json and sends it over the websocket connection
     /// </summary>
@@ -74,11 +69,16 @@ public class WebSocketCANAnalyzer : BasicPeripheralBackendAnalyzer<CANBackend>, 
 
     private void StartServer()
     {
-        CANNumber = Interlocked.Increment(ref canCount);
-        this.DebugLog("Opening CAN endpoint at /can/{0}", CANNumber);
-        server = new WebSocketBufferedServer($"/can/{CANNumber}", true);
+        var canHub = ((CANBackend)Backend).CANHub;
+        if(!EmulationManager.Instance.CurrentEmulation.ExternalsManager.TryGetName(canHub, out var hubName))
+        {
+            this.WarningLog("Cannot open CAN endpoint for an unnamed CAN hub");
+            return;
+        }
+        this.DebugLog("Opening CAN endpoint at /can/{0}", hubName);
+        server = new WebSocketBufferedServer($"/can/{hubName}", true);
         server.Start();
-        ((CANBackend)Backend).CANHub.FrameReceived += SendFrameToWebsocket;
+        canHub.FrameReceived += SendFrameToWebsocket;
     }
 
     private WebSocketBufferedServer? server;
