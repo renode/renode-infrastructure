@@ -5,8 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System.Diagnostics.CodeAnalysis;
-
 using Antmicro.Renode.Core.Structure.Registers;
 
 #nullable enable
@@ -15,13 +13,7 @@ namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 public partial class ARM_EthosU55
 {
-    [MemberNotNull(
-        nameof(irqHistoryMask), nameof(commandEndReached), nameof(commandParseError),
-        nameof(busStatus), nameof(irqRaised), nameof(isRunning),
-        nameof(lockValue), nameof(queueBase0), nameof(queueBase1),
-        nameof(queueReadOffset), nameof(queueSize), nameof(pendingSecurityLevel),
-        nameof(pendingPrivilegeLevel), nameof(activeSecurityLevel), nameof(activePrivilegeLevel))]
-    private void DefineRegisters()
+    protected override void DefineRegisters()
     {
         Registers.Id.Define(this, Identifier);
 
@@ -128,9 +120,9 @@ public partial class ARM_EthosU55
 
     private uint SharedBufferSizeInKilobytes => (uint)(sharedBuffer.Length / 1024);
 
-    private const uint Identifier = 0x10104201;
+    private IValueRegisterField lockValue = null!;
 
-    private const uint BasePointerCount = 16;
+    private const uint Identifier = 0x10104201;
 
     private enum Registers : long
     {
@@ -180,17 +172,5 @@ public partial class ARM_EthosU55
         ComponentId1 = 0xFF4,
         ComponentId2 = 0xFF8,
         ComponentId3 = 0xFFC,
-    }
-
-    private enum SecurityLevel
-    {
-        Secure = 0,
-        NonSecure = 1,
-    }
-
-    private enum PrivilegeLevel
-    {
-        User = 0,
-        Privileged = 1,
     }
 }

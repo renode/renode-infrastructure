@@ -13,10 +13,9 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
-// Helpers shared by the Ethos-U models.
-public static class ARM_EthosCommon
+public abstract partial class ARM_EthosBase
 {
-    public static long ReadValue(byte[] bytes, int byteId, int byteLength, bool signed)
+    protected static long ReadValue(byte[] bytes, int byteId, int byteLength, bool signed)
     {
         if(byteId < 0 || byteId + byteLength > bytes.Length)
         {
@@ -32,7 +31,7 @@ public static class ARM_EthosCommon
         };
     }
 
-    public static void WriteValue(byte[] bytes, long byteId, long value, int byteLength)
+    protected static void WriteValue(byte[] bytes, long byteId, long value, int byteLength)
     {
         if(byteId < 0 || byteId + byteLength > bytes.Length)
         {
@@ -46,7 +45,7 @@ public static class ARM_EthosCommon
     }
 
     // Truncate to the requested width and interpret the result as signed.
-    public static long SignExtendTruncated(long value, int bitCount)
+    protected static long SignExtendTruncated(long value, int bitCount)
     {
         if(bitCount <= 0 || bitCount > 64)
         {
@@ -60,7 +59,7 @@ public static class ARM_EthosCommon
     }
 
     // U85 TRM rounded_shift_right
-    public static long RoundedShiftRight(long acc, int shift, RoundingMode mode, int doubleRoundShift = 0)
+    protected static long RoundedShiftRight(long acc, int shift, RoundingMode mode, int doubleRoundShift = 0)
     {
         if(shift < 0 || shift > 63)
         {
@@ -107,7 +106,7 @@ public static class ARM_EthosCommon
     }
 
     // Decode the activation type of an xFM precision register.
-    public static (bool Signed, int ByteLength) DecodeActivationType(ushort precision, bool isOfm, bool allow64 = true)
+    protected static (bool Signed, int ByteLength) DecodeActivationType(ushort precision, bool isOfm, bool allow64 = true)
     {
         var signed = (precision & 1) != 0;
         var precisionBits = isOfm ? (precision >> 1) & 0b11 : (precision >> 2) & 0b11;
@@ -122,21 +121,23 @@ public static class ARM_EthosCommon
         return (signed, byteLength);
     }
 
-    public enum FeatureMap
+    protected enum FeatureMap
     {
         Ifm,
         Ifm2,
         Ofm,
     }
 
-    public enum IfmUpscaleMode
+    protected enum IfmUpscaleMode
     {
         None = 0,
         Nearest = 1,
         InsertZeros = 2,
     }
 
-    public enum RoundingMode
+    // Model-neutral rounding modes. Each model decodes its own register encoding into these
+    // (U55: OFM_PRECISION bits 15:14, U85: OFM_SCALE.round_mode); never cast raw register values.
+    protected enum RoundingMode
     {
         DoubleSymmetric,
         DoubleAsymmetric,

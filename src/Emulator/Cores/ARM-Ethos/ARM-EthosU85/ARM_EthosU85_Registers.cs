@@ -5,8 +5,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 
-using System.Diagnostics.CodeAnalysis;
-
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 
@@ -16,14 +14,7 @@ namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 public partial class ARM_EthosU85
 {
-    [MemberNotNull(
-        nameof(isRunning), nameof(irqHistoryMask), nameof(busStatus),
-        nameof(queueBase0), nameof(queueBase1), nameof(queueSize),
-        nameof(pendingSecurityLevel), nameof(pendingPrivilegeLevel), nameof(activeSecurityLevel),
-        nameof(activePrivilegeLevel), nameof(commandParseError), nameof(queueReadOffset),
-        nameof(commandEndReached), nameof(irqRaised), nameof(branchFault),
-        nameof(conditionResultFlag), nameof(queueConfig))]
-    private void DefineRegisters()
+    protected override void DefineRegisters()
     {
         Registers.Id.Define(this, Identifier);
 
@@ -206,10 +197,9 @@ public partial class ARM_EthosU85
             .WithValueField(0, 8, FieldMode.Read, valueProviderCallback: _ => (pins >> 32) & 0xFF, name: $"{name}[39:32]");
     }
 
-    private IFlagRegisterField branchFault;
-    private IFlagRegisterField conditionResultFlag;
-    private IValueRegisterField queueConfig;
-    private readonly IValueRegisterField[] basePointers = new IValueRegisterField[BasePointerCount];
+    private IFlagRegisterField branchFault = null!;
+    private IFlagRegisterField conditionResultFlag = null!;
+    private IValueRegisterField queueConfig = null!;
     private readonly IValueRegisterField[] regionConfig = new IValueRegisterField[RegionCount];
     private readonly IValueRegisterField[] memoryType = new IValueRegisterField[MemoryAttributeCount];
     private readonly IFlagRegisterField[] axiPortExternal = new IFlagRegisterField[MemoryAttributeCount];
@@ -227,7 +217,6 @@ public partial class ARM_EthosU85
     private const ulong CommandStreamVersion = 1; // CONFIG.cmd_stream_version reset value
     private const int RegionCount = 8;
     private const int MemoryAttributeCount = 4;
-    private const uint BasePointerCount = 16;
 
     private enum Registers : long
     {
@@ -287,17 +276,5 @@ public partial class ARM_EthosU85
         ComponentId1 = 0xFF4,
         ComponentId2 = 0xFF8,
         ComponentId3 = 0xFFC,
-    }
-
-    private enum SecurityLevel
-    {
-        Secure = 0,
-        NonSecure = 1,
-    }
-
-    private enum PrivilegeLevel
-    {
-        User = 0,
-        Privileged = 1,
     }
 }

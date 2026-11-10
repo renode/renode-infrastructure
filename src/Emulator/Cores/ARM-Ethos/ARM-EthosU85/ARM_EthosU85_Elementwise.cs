@@ -11,8 +11,6 @@ using System.Numerics;
 
 using Antmicro.Renode.Logging;
 
-using static Antmicro.Renode.Peripherals.ARM_Ethos.ARM_EthosCommon;
-
 #nullable enable
 
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;

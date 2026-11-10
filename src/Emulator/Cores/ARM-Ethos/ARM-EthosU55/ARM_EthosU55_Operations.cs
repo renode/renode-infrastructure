@@ -12,8 +12,6 @@ using System.Numerics;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Utilities;
 
-using static Antmicro.Renode.Peripherals.ARM_Ethos.ARM_EthosCommon;
-
 namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 public partial class ARM_EthosU55

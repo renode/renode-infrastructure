@@ -394,14 +394,9 @@ public partial class ARM_EthosU85
         return null;
     }
 
-    private const uint MaximumCommandBytes = 0x1000000; // 16 MB
-
     // Model safeguard, not from the TRM: a branch loop runs inside the CMD write,
     // so an endless loop would otherwise hang the emulation.
     private const ulong MaximumExecutedCommands = 10_000_000;
-
-    private const uint Cmd0Encoding = 0b000000;
-    private const uint Cmd1Encoding = 0b010000;
 
     private enum DmaStride
     {
