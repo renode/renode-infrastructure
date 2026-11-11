@@ -46,5 +46,9 @@ public partial class ARM_EthosU55 : ARM_EthosBase
         sharedBuffer = new byte[(macsPerCycle == 128 ? 24 : 48) * 1024];
     }
 
+    protected override bool RaisesIrqOnParseError => false; // U55 TRM: only cmd_parse_error is documented
+
+    protected override bool Supports64BitActivations => false;
+
     private byte[] sharedBuffer = null!;
 }

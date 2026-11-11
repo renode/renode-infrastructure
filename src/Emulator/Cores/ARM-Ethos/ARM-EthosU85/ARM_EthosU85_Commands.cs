@@ -354,22 +354,6 @@ public partial class ARM_EthosU85
         return true;
     }
 
-    private void StopAndRaiseIrq(ushort irqMask = 0)
-    {
-        isRunning.Value = false;
-        irqHistoryMask.Value |= irqMask;
-        irqRaised.Value = true;
-        UpdateInterrupts();
-    }
-
-    private void ParseError(string reason)
-    {
-        // The NPU stops, sets cmd_parse_error and raises an IRQ (U85 TRM 3.3.1.2).
-        commandParseError.Value = true;
-        this.ErrorLog("U85 command parse error at +0x{0:X}: {1}", queueReadOffset.Value, reason);
-        StopAndRaiseIrq();
-    }
-
     private Place? GetDmaPlace(int region, ulong offset, string description, bool allowLut)
     {
         if(region == -1)

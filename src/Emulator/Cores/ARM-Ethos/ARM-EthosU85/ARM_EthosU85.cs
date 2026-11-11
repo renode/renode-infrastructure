@@ -62,6 +62,10 @@ public partial class ARM_EthosU85 : ARM_EthosBase
         resumeAfterStop = false;
     }
 
+    protected override bool RaisesIrqOnParseError => true; // U85 TRM 3.3.1.2
+
+    protected override bool Supports64BitActivations => true;
+
     private bool resumeAfterStop;
     private U85Config configs = null!;
     private readonly byte[] lookupTable = new byte[2048]; // U85 TRM 2.6.2

@@ -6,7 +6,6 @@
 //
 
 using System;
-using System.Diagnostics;
 
 using Antmicro.Renode.Logging;
 
@@ -16,51 +15,6 @@ namespace Antmicro.Renode.Peripherals.ARM_Ethos;
 
 public partial class ARM_EthosU85
 {
-    private ushort GetPrecision(FeatureMap map)
-    {
-        return map switch
-        {
-            FeatureMap.Ifm => commandRegisters.IfmPrecision,
-            FeatureMap.Ifm2 => commandRegisters.Ifm2Precision,
-            FeatureMap.Ofm => commandRegisters.OfmPrecision,
-            _ => throw new UnreachableException(),
-        };
-    }
-
-    private bool IsSigned(FeatureMap map)
-    {
-        return (GetPrecision(map) & 1) != 0;
-    }
-
-    private bool IsNHCWB16Layout(FeatureMap map)
-    {
-        return (GetPrecision(map) & (1 << 6)) != 0;
-    }
-
-    private (long X, long Y, long Channel) GetTensorStrides(FeatureMap map)
-    {
-        return map switch
-        {
-            FeatureMap.Ifm => (commandRegisters.IfmStrideX, commandRegisters.IfmStrideY, commandRegisters.IfmStrideC),
-            FeatureMap.Ifm2 => (commandRegisters.Ifm2StrideX, commandRegisters.Ifm2StrideY, commandRegisters.Ifm2StrideC),
-            FeatureMap.Ofm => (commandRegisters.OfmStrideX, commandRegisters.OfmStrideY, commandRegisters.OfmStrideC),
-            _ => throw new UnreachableException(),
-        };
-    }
-
-    private long GetZeroPoint(FeatureMap map, bool? signed = null)
-    {
-        var raw = map switch
-        {
-            FeatureMap.Ifm => commandRegisters.IfmZeroPoint,
-            FeatureMap.Ifm2 => commandRegisters.Ifm2ZeroPoint,
-            FeatureMap.Ofm => commandRegisters.OfmZeroPoint,
-            _ => throw new UnreachableException(),
-        };
-        // U85 encodes signed zero points as int16 and unsigned ones as uint16.
-        return (signed ?? IsSigned(map)) ? unchecked((short)raw) : raw;
-    }
-
     private bool ValidateZeroPoint(FeatureMap map, int byteLength, bool signed)
     {
         var value = GetZeroPoint(map, signed);
@@ -250,7 +204,7 @@ public partial class ARM_EthosU85
             return false;
         }
 
-        var (signed, byteLength) = DecodeActivationType(GetPrecision(map), isOfm: false);
+        var (signed, byteLength) = GetElementType(map);
         var bytes = sysbus.ReadBytes(address, byteLength);
         value = ReadValue(bytes, 0, byteLength, signed) - GetZeroPoint(map);
         return true;
@@ -327,7 +281,7 @@ public partial class ARM_EthosU85
             return false;
         }
 
-        var (_, byteLength) = DecodeActivationType(GetPrecision(FeatureMap.Ofm), isOfm: true);
+        var byteLength = GetElementByteLength(FeatureMap.Ofm);
         var bytes = new byte[byteLength];
         WriteValue(bytes, 0, value, byteLength);
         sysbus.WriteBytes(bytes, address);
@@ -338,7 +292,6 @@ public partial class ARM_EthosU85
     {
         address = 0;
         var precision = GetPrecision(map);
-        var (_, byteLength) = DecodeActivationType(precision, isOfm: map == FeatureMap.Ofm);
         var storage = (precision >> 14) & 0b11;
         var (width0, height0, _) = GetTensorDimensions(map);
         var height1 = GetTileHeight1(map);
@@ -348,17 +301,7 @@ public partial class ARM_EthosU85
         long tileColumn = column;
         if(storage == (int)TileStorage.Tile2x2)
         {
-            if(tileColumn >= width0)
-            {
-                tileColumn -= width0;
-                tile++;
-            }
-            var tileHeight = tile == 1 ? height1 : height0;
-            if(tileRow >= tileHeight)
-            {
-                tileRow -= tileHeight;
-                tile += 2;
-            }
+            (tile, tileRow, tileColumn) = SelectTile2x2(row, column, width0, height0, height1);
         }
         else if(storage == (int)TileStorage.Tile3x1)
         {
@@ -384,16 +327,10 @@ public partial class ARM_EthosU85
             return false;
         }
 
-        var (strideX, strideY, strideC) = GetTensorStrides(map);
         long offset;
         try
         {
-            offset = IsNHCWB16Layout(map)
-                ? checked((channel / 16) * strideC
-                    + tileRow * strideY
-                    + tileColumn * 16 * byteLength
-                    + (channel % 16) * byteLength)
-                : checked(channel * byteLength + tileRow * strideY + tileColumn * strideX);
+            offset = GetTensorAddress(map, tileRow, tileColumn, channel);
         }
         catch(OverflowException)
         {
@@ -423,96 +360,6 @@ public partial class ARM_EthosU85
         return true;
     }
 
-    private bool TryGetBaseAddress(FeatureMap map, int tile, out ulong address)
-    {
-        var (region, offset) = map switch
-        {
-            FeatureMap.Ifm => (commandRegisters.IfmRegion, tile switch
-            {
-                0 => commandRegisters.IfmBase0,
-                1 => commandRegisters.IfmBase1,
-                2 => commandRegisters.IfmBase2,
-                _ => commandRegisters.IfmBase3,
-            }),
-            FeatureMap.Ifm2 => (commandRegisters.Ifm2Region, tile switch
-            {
-                0 => commandRegisters.Ifm2Base0,
-                1 => commandRegisters.Ifm2Base1,
-                2 => commandRegisters.Ifm2Base2,
-                _ => commandRegisters.Ifm2Base3,
-            }),
-            FeatureMap.Ofm => (commandRegisters.OfmRegion, tile switch
-            {
-                0 => commandRegisters.OfmBase0,
-                1 => commandRegisters.OfmBase1,
-                2 => commandRegisters.OfmBase2,
-                _ => commandRegisters.OfmBase3,
-            }),
-            _ => throw new UnreachableException(),
-        };
-        return TryGetBufferAddress(region, offset, out address, $"{map} tile {tile}");
-    }
-
-    private bool TryGetBufferAddress(int region, ulong offset, out ulong address, string description)
-    {
-        address = 0;
-        if(region < 0 || region >= BasePointerCount / 2)
-        {
-            this.ErrorLog("Invalid {0} region: {1}", description, region);
-            return false;
-        }
-
-        var regionBase = (basePointers[2 * region + 1].Value << 32) | basePointers[2 * region].Value;
-        if(regionBase > ulong.MaxValue - offset)
-        {
-            this.ErrorLog("{0} address overflow", description);
-            return false;
-        }
-        address = regionBase + offset;
-        return true;
-    }
-
-    private long GetTileHeight1(FeatureMap map)
-    {
-        return 1 + map switch
-        {
-            FeatureMap.Ifm => commandRegisters.IfmHeight1M1,
-            FeatureMap.Ifm2 => commandRegisters.Ifm2Height1M1,
-            FeatureMap.Ofm => commandRegisters.OfmHeight1M1,
-            _ => throw new UnreachableException(),
-        };
-    }
-
-    private (int Width, int Height, int Depth) GetTensorDimensions(FeatureMap map)
-    {
-        return map switch
-        {
-            FeatureMap.Ifm => (commandRegisters.IfmWidth0M1 + 1, commandRegisters.IfmHeight0M1 + 1, commandRegisters.IfmDepthM1 + 1),
-            FeatureMap.Ifm2 => (commandRegisters.Ifm2Width0M1 + 1, commandRegisters.Ifm2Height0M1 + 1, commandRegisters.IfmDepthM1 + 1),
-            FeatureMap.Ofm => (commandRegisters.OfmWidth0M1 + 1, commandRegisters.OfmHeight0M1 + 1, commandRegisters.OfmDepthM1 + 1),
-            _ => throw new UnreachableException(),
-        };
-    }
-
-    private (int Width, int Height, int Depth) GetOfmStripeDimensions()
-    {
-        return (commandRegisters.OfmWidthM1 + 1, commandRegisters.OfmHeightM1 + 1, commandRegisters.OfmDepthM1 + 1);
-    }
-
-    private bool TryGetIfmUpscale(out IfmUpscaleMode upscale)
-    {
-        var raw = commandRegisters.IfmUpscale;
-        if(raw > (ushort)IfmUpscaleMode.InsertZeros)
-        {
-            this.ErrorLog("Unsupported IFM upscale mode: {0}", raw);
-            upscale = IfmUpscaleMode.None;
-            return false;
-        }
-
-        upscale = (IfmUpscaleMode)raw;
-        return true;
-    }
-
     private struct FusedActivation
     {
         public ActivationClipRange ClipRange;
@@ -520,12 +367,6 @@ public partial class ARM_EthosU85
         public long ClipMinimum;
         public long ClipMaximum;
         public bool OutputSigned;
-    }
-
-    private enum ActivationFormat
-    {
-        NHWC = 0,
-        NHCWB16 = 1,
     }
 
     private enum ActivationReverse

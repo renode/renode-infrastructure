@@ -234,12 +234,4 @@ public partial class ARM_EthosU55
 
         ParseError("Command stream has no NPU_OP_STOP");
     }
-
-    private void ParseError(string reason)
-    {
-        isRunning.Value = false;
-        commandParseError.Value = true;
-
-        this.Log(LogLevel.Error, "U55 command parse error at +0x{0:X}: {1}", queueReadOffset.Value, reason);
-    }
 }

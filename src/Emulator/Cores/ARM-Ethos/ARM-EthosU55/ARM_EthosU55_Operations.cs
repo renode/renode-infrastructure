@@ -57,13 +57,6 @@ public partial class ARM_EthosU55
         };
     }
 
-    private static long Accumulate(long accumulator, long value, int accumulatorBits)
-    {
-        // Accumulator values wrap at the width selected by NPU_SET_ACC_FORMAT
-        // (TRM 4.4, 0x124, and U85 TRM accumulate()).
-        return SignExtendTruncated(accumulator + value, accumulatorBits);
-    }
-
     private static (long Minimum, long Maximum) GetActivationRange(int byteLength, bool signed)
     {
         return (signed ? -(1L << (8 * byteLength - 1)) : 0, (1L << (8 * byteLength - (signed ? 1 : 0))) - 1);
@@ -164,116 +157,10 @@ public partial class ARM_EthosU55
         return true;
     }
 
-    private ushort GetPrecision(FeatureMap map)
-    {
-        return map switch
-        {
-            FeatureMap.Ifm => commandRegisters.IfmPrecision,
-            FeatureMap.Ifm2 => commandRegisters.Ifm2Precision,
-            FeatureMap.Ofm => commandRegisters.OfmPrecision,
-            _ => throw new UnreachableException(),
-        };
-    }
-
-    private bool IsSigned(FeatureMap map)
-    {
-        return (GetPrecision(map) & 1) != 0;
-    }
-
-    private int GetElementByteLength(FeatureMap map)
-    {
-        var (_, byteLength) = DecodeActivationType(GetPrecision(map), isOfm: map == FeatureMap.Ofm, allow64: false);
-        return byteLength != 0 ? byteLength : throw new InvalidOperationException($"Invalid {map} precision: 0x{GetPrecision(map):X}");
-    }
-
-    private bool IsNHCWB16Layout(FeatureMap map)
-    {
-        return (GetPrecision(map) & (1 << 6)) != 0;
-    }
-
     private bool HasValidLayout(FeatureMap map)
     {
         // Layout encodings 0 (NHWC) and 1 (NHCWB16) are valid, bit 7 selects a reserved encoding.
         return (GetPrecision(map) & (1 << 7)) == 0;
-    }
-
-    private (long X, long Y, long Channel) GetTensorStrides(FeatureMap map)
-    {
-        return map switch
-        {
-            FeatureMap.Ifm => (commandRegisters.IfmStrideX, commandRegisters.IfmStrideY, commandRegisters.IfmStrideC),
-            FeatureMap.Ifm2 => (commandRegisters.Ifm2StrideX, commandRegisters.Ifm2StrideY, commandRegisters.Ifm2StrideC),
-            FeatureMap.Ofm => (commandRegisters.OfmStrideX, commandRegisters.OfmStrideY, commandRegisters.OfmStrideC),
-            _ => throw new UnreachableException(),
-        };
-    }
-
-    private bool TryGetBaseAddress(FeatureMap map, int tile, out ulong address)
-    {
-        var (region, offset) = map switch
-        {
-            FeatureMap.Ifm => (commandRegisters.IfmRegion, tile switch
-            {
-                0 => commandRegisters.IfmBase0,
-                1 => commandRegisters.IfmBase1,
-                2 => commandRegisters.IfmBase2,
-                _ => commandRegisters.IfmBase3,
-            }),
-            FeatureMap.Ifm2 => (commandRegisters.Ifm2Region, tile switch
-            {
-                0 => commandRegisters.Ifm2Base0,
-                1 => commandRegisters.Ifm2Base1,
-                2 => commandRegisters.Ifm2Base2,
-                _ => commandRegisters.Ifm2Base3,
-            }),
-            FeatureMap.Ofm => (commandRegisters.OfmRegion, tile switch
-            {
-                0 => commandRegisters.OfmBase0,
-                1 => commandRegisters.OfmBase1,
-                2 => commandRegisters.OfmBase2,
-                _ => commandRegisters.OfmBase3,
-            }),
-            _ => throw new UnreachableException(),
-        };
-        return TryGetBufferAddress(region, offset, out address, $"{map} tile {tile}");
-    }
-
-    private bool TryGetBufferAddress(int region, ulong offset, out ulong address, string description, ulong length = 1)
-    {
-        address = 0;
-        if(region >= BasePointerCount / 2)
-        {
-            ParseError($"Invalid {description} region: {region}");
-            return false;
-        }
-
-        var regionBase = (basePointers[2 * region + 1].Value << 32) | basePointers[2 * region].Value;
-        if(regionBase > ulong.MaxValue - offset
-            || (length != 0 && length - 1 > ulong.MaxValue - (regionBase + offset)))
-        {
-            ParseError($"{description} address overflow");
-            return false;
-        }
-        address = regionBase + offset;
-        return true;
-    }
-
-    private long GetTensorAddress(FeatureMap map, long row, long column, long channel)
-    {
-        // U85 TRM element_address_in_region
-        var elementByteLength = GetElementByteLength(map);
-        var (columnStride, rowStride, channelStride) = GetTensorStrides(map);
-
-        if(IsNHCWB16Layout(map))
-        {
-            const int channelsPerBlock = 16;
-            return checked((channel / channelsPerBlock) * channelStride
-                + row * rowStride
-                + column * channelsPerBlock * elementByteLength
-                + (channel % channelsPerBlock) * elementByteLength);
-        }
-
-        return checked(channel * elementByteLength + row * rowStride + column * columnStride);
     }
 
     private (long Start, long Length) GetFeatureMapBufferRange(FeatureMap map, long width, long height, long depth)
@@ -539,49 +426,9 @@ public partial class ARM_EthosU55
         return true;
     }
 
-    // NPU_SET_xFM_HEIGHT1_M1 splits the right column, so tiles 1 and 3.
-    private long GetTileHeight1(FeatureMap map)
-    {
-        return 1 + map switch
-        {
-            FeatureMap.Ifm => commandRegisters.IfmHeight1M1,
-            FeatureMap.Ifm2 => commandRegisters.Ifm2Height1M1,
-            FeatureMap.Ofm => commandRegisters.OfmHeight1M1,
-            _ => throw new UnreachableException(),
-        };
-    }
-
-    private long GetZeroPoint(FeatureMap map, bool? signed = null)
-    {
-        var raw = map switch
-        {
-            FeatureMap.Ifm => commandRegisters.IfmZeroPoint,
-            FeatureMap.Ifm2 => commandRegisters.Ifm2ZeroPoint,
-            FeatureMap.Ofm => commandRegisters.OfmZeroPoint,
-            _ => throw new UnreachableException(),
-        };
-        // The zero point is encoded as a signed value for signed activations and as an
-        // unsigned value for unsigned activations.
-        return (signed ?? IsSigned(map)) ? (short)raw : raw;
-    }
-
     private RoundingMode GetRoundingMode(FeatureMap map)
     {
         return DecodeRoundingMode(GetPrecision(map)) ?? throw new InvalidOperationException("Reserved rounding mode");
-    }
-
-    private bool TryGetIfmUpscale(out IfmUpscaleMode upscale)
-    {
-        var raw = commandRegisters.IfmUpscale;
-        if(raw > (ushort)IfmUpscaleMode.InsertZeros)
-        {
-            this.ErrorLog("Unsupported IFM upscale mode: {0}", raw);
-            upscale = IfmUpscaleMode.None;
-            return false;
-        }
-
-        upscale = (IfmUpscaleMode)raw;
-        return true;
     }
 
     // Validate the buffer and scheduling registers.
@@ -647,8 +494,8 @@ public partial class ARM_EthosU55
 
     private bool ValidateElementwisePrecisions(ElementwiseMode mode, bool isUnary)
     {
-        var (ifmSigned, ifmByteLength) = DecodeActivationType(commandRegisters.IfmPrecision, isOfm: false, allow64: false);
-        var (ofmSigned, ofmByteLength) = DecodeActivationType(commandRegisters.OfmPrecision, isOfm: true, allow64: false);
+        var (ifmSigned, ifmByteLength) = DecodeActivationType(commandRegisters.IfmPrecision, isOfm: false);
+        var (ofmSigned, ofmByteLength) = DecodeActivationType(commandRegisters.OfmPrecision, isOfm: true);
         if(ifmByteLength == 0 || ofmByteLength == 0
             || (!ifmSigned && ifmByteLength != 1) || (!ofmSigned && ofmByteLength != 1))
         {
@@ -659,7 +506,7 @@ public partial class ARM_EthosU55
 
         if(!isUnary)
         {
-            var (ifm2Signed, ifm2ByteLength) = DecodeActivationType(commandRegisters.Ifm2Precision, isOfm: false, allow64: false);
+            var (ifm2Signed, ifm2ByteLength) = DecodeActivationType(commandRegisters.Ifm2Precision, isOfm: false);
             if(ifm2ByteLength == 0 || ifm2Signed != ifmSigned || ifm2ByteLength != ifmByteLength)
             {
                 this.ErrorLog("IFM2 precision 0x{0:X4} must match IFM precision 0x{1:X4}",
@@ -1150,24 +997,6 @@ public partial class ARM_EthosU55
         return checked(operandA + sign * operandB);
     }
 
-    // Tile 0, 2 (left-hand tiles) dimensions and depth.
-    private (int Width, int Height, int Depth) GetTensorDimensions(FeatureMap map)
-    {
-        return map switch
-        {
-            FeatureMap.Ifm => (commandRegisters.IfmWidth0M1 + 1, commandRegisters.IfmHeight0M1 + 1, commandRegisters.IfmDepthM1 + 1),
-            FeatureMap.Ifm2 => (commandRegisters.Ifm2Width0M1 + 1, commandRegisters.Ifm2Height0M1 + 1, commandRegisters.IfmDepthM1 + 1),
-            FeatureMap.Ofm => (commandRegisters.OfmWidth0M1 + 1, commandRegisters.OfmHeight0M1 + 1, commandRegisters.OfmDepthM1 + 1),
-            _ => throw new UnreachableException(),
-        };
-    }
-
-    // Whole stripe dimensions.
-    private (int Width, int Height, int Depth) GetOfmStripeDimensions()
-    {
-        return (commandRegisters.OfmWidthM1 + 1, commandRegisters.OfmHeightM1 + 1, commandRegisters.OfmDepthM1 + 1);
-    }
-
     private (int X, int Y) GetKernelStrides()
     {
         var kernelStrideXBottomBits = BitHelper.GetValue(commandRegisters.KernelStride, 0, 1);
@@ -1591,26 +1420,8 @@ public partial class ARM_EthosU55
     // Tile 0/1/2/3 are the top-left, top-right, bottom-left and bottom-right tiles.
     private class FeatureMapTiles
     {
-        public (int tile, long row, long column) GetTileCoordinates(long row, long column)
-        {
-            // U85 TRM element_address_in_region tile2x2.
-            // TODO: U85 supports also 3x1 tiles.
-            var tile = 0;
-            var tileHeight = Height0;
-            if(column >= Width0)
-            {
-                column -= Width0;
-                tile = 1;
-                tileHeight = Height1;
-            }
-            if(row >= tileHeight)
-            {
-                row -= tileHeight;
-                tile += 2;
-            }
-
-            return (tile, row, column);
-        }
+        public (int Tile, long Row, long Column) GetTileCoordinates(long row, long column)
+            => SelectTile2x2(row, column, Width0, Height0, Height1);
 
         public FeatureMap Map;
         public long Width;
