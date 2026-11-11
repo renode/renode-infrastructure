@@ -670,7 +670,6 @@ namespace Antmicro.Renode.Core
             }
         }
 
-        // This property should only be set while holding `machLock`
         public bool IsStarted
         {
             get
@@ -701,6 +700,11 @@ namespace Antmicro.Renode.Core
 
             private set
             {
+                if(!Monitor.IsEntered(machLock))
+                {
+                    throw new SynchronizationLockException("IsStarted must be set while holding machLock");
+                }
+
                 if(isStarted == value)
                 {
                     return;
