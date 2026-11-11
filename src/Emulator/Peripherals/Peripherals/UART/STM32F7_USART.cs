@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.UART
         }
 
         public override uint BaudRate =>
-            BaudRateMultiplier * frequency / Math.Max(1, BaudRateDivisor);
+            BaudRateMultiplier * (frequency / ClockDivider) / Math.Max(1, BaudRateDivisor);
 
         public override Bits StopBits
         {
@@ -331,6 +331,10 @@ namespace Antmicro.Renode.Peripherals.UART
                     writeCallback: (_, val) => HandleTransmitData((uint)val), name: "TDR")
                 .WithReservedBits(8, 24);
 
+            Registers.USARTPrescaler.Define(RegistersCollection)
+                .WithValueField(0, 4, out clockPrescaler, changeCallback: (_, _) => BaudRateChanged())
+                .WithReservedBits(4, 28);
+
             if(lowPowerMode)
             {
                 cr1
@@ -569,6 +573,44 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private uint BaudRateMultiplier => lowPowerMode ? 256u : Over8 ? 2u : 1u;
 
+        private uint ClockDivider
+        {
+            get
+            {
+                // Decoding rules taken from the L5 TRM
+                // If it is set to a non listed value, it is interpreted as a 256 divider
+                switch(clockPrescaler.Value)
+                {
+                case 0b0000:
+                    return 1;
+                case 0b0001:
+                    return 2;
+                case 0b0010:
+                    return 4;
+                case 0b0011:
+                    return 6;
+                case 0b0100:
+                    return 8;
+                case 0b0101:
+                    return 10;
+                case 0b0110:
+                    return 12;
+                case 0b0111:
+                    return 16;
+                case 0b1000:
+                    return 32;
+                case 0b1001:
+                    return 64;
+                case 0b1010:
+                    return 128;
+                case 0b1011:
+                    return 256;
+                default:
+                    return 256;
+                }
+            }
+        }
+
         private uint BaudRateDivisor
         {
             get
@@ -631,6 +673,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField overrunOccured;
         private IFlagRegisterField errorInterruptEnable;
         private IFlagRegisterField transmitDataRegisterEmpty;
+        private IValueRegisterField clockPrescaler;
         private readonly Queue<byte> intermediateReceiveQueue = new();
         private readonly object receiverThreadLock = new();
         private readonly IMachine machine;
@@ -650,6 +693,7 @@ namespace Antmicro.Renode.Peripherals.UART
             InterruptFlagClear = 0x20,
             ReceiveData        = 0x24,
             TransmitData       = 0x28,
+            USARTPrescaler     = 0x2C,
         }
     }
 }
