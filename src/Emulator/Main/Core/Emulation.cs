@@ -96,12 +96,26 @@ namespace Antmicro.Renode.Core
                     return;
                 }
 
-                lock(machLock)
+                lock(isPausingLock) // See IsStarted comment about this lock
                 {
-                    MasterTimeSource.Stop();
-                    Array.ForEach(machs.Rights, x => x.Pause());
-                    ExternalsManager.Pause();
-                    IsStarted = false;
+                    isPausing = true;
+                }
+                try
+                {
+                    lock(machLock)
+                    {
+                        MasterTimeSource.Stop();
+                        Array.ForEach(machs.Rights, x => x.Pause());
+                        ExternalsManager.Pause();
+                        IsStarted = false;
+                    }
+                }
+                finally
+                {
+                    lock(isPausingLock)
+                    {
+                        isPausing = false;
+                    }
                 }
             }
         }
@@ -659,7 +673,31 @@ namespace Antmicro.Renode.Core
         // This property should only be set while holding `machLock`
         public bool IsStarted
         {
-            get { lock(machLock) { return isStarted; } }
+            get
+            {
+                /* A call to PauseAll() holds machLock while stopping master time source. The stop
+                 * procedure blocks while master time source dispatcher thread waits for CPU
+                 * threads. So if a CPU thread is using IsStarted getter, it would be blocked by
+                 * machLock that would never be released because this CPU threads is waited to
+                 * report.
+                 * To avoid such deadlock, isPausing is used to shortcut the decision and return
+                 * without needing machLock (if a pause is in progress, the machine will be paused).
+                 * To avoid a race condition where isPausing value is set to true between the
+                 * if(isPausing) test and the lock(machLock) locking, isPausing must be guarded by
+                 * another lock to make this test & lock atomic.
+                 */
+                lock(isPausingLock)
+                {
+                    if(isPausing)
+                    {
+                        return false;
+                    }
+                    lock(machLock)
+                    {
+                        return isStarted;
+                    }
+                }
+            }
 
             private set
             {
@@ -802,6 +840,9 @@ namespace Antmicro.Renode.Core
         private bool isStarted;
 
         [Transient]
+        private bool isPausing = false;
+
+        [Transient]
         private bool disposed;
 
         [field: Transient]
@@ -811,6 +852,7 @@ namespace Antmicro.Renode.Core
 
         private readonly object machLock = new object();
         private readonly object disposedLock = new object();
+        private readonly object isPausingLock = new object();
 
         public IMachine this[String key]
         {
