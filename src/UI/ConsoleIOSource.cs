@@ -7,6 +7,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Utilities;
@@ -35,13 +36,11 @@ namespace Antmicro.Renode.UI
 
             checker = new UTF8Checker();
 
-            var inputHandler = new System.Threading.Thread(HandleInput)
+            inputThread = new Thread(HandleInput)
             {
                 IsBackground = true,
                 Name = "Console IO handler thread"
             };
-
-            inputHandler.Start();
         }
 
         public void Dispose()
@@ -80,7 +79,7 @@ namespace Antmicro.Renode.UI
             }
         }
 
-        public bool IsAnythingAttached => (ByteRead != null);
+        public bool IsAnythingAttached => (byteRead != null);
 
         public Position Size
         {
@@ -98,7 +97,30 @@ namespace Antmicro.Renode.UI
             }
         }
 
-        public event Action<int> ByteRead;
+        public event Action<int> ByteRead
+        {
+            add
+            {
+                // Start the input thread only once
+                lock(inputLock)
+                {
+                    byteRead += value;
+                    if(!inputStarted)
+                    {
+                        inputThread.Start();
+                        inputStarted = true;
+                    }
+                }
+            }
+
+            remove
+            {
+                lock(inputLock)
+                {
+                    byteRead -= value;
+                }
+            }
+        }
 
         public event Action Resized = () => {};
 
@@ -128,7 +150,7 @@ namespace Antmicro.Renode.UI
                 {
                     readByte = -1;
                 }
-                ByteRead?.Invoke(readByte);
+                byteRead?.Invoke(readByte);
             }
             while(readByte != -1);
         }
@@ -154,8 +176,8 @@ namespace Antmicro.Renode.UI
                 var key = Console.ReadKey(true);
                 if(key.Key == (ConsoleKey)0 && (key.Modifiers & ConsoleModifiers.Alt) != 0)
                 {
-                    ByteRead?.Invoke(ESCCode);
-                    ByteRead?.Invoke(CSICode);
+                    byteRead?.Invoke(ESCCode);
+                    byteRead?.Invoke(CSICode);
                     continue;
                 }
 
@@ -166,45 +188,50 @@ namespace Antmicro.Renode.UI
                     if(key.Key == ConsoleKey.RightArrow || key.Key == ConsoleKey.LeftArrow)
                     {
                         // Invoke correct Vt100 sequence for AntShell
-                        ByteRead?.Invoke(ESCCode);
-                        ByteRead?.Invoke(CSICode);
-                        ByteRead?.Invoke('1');
-                        ByteRead?.Invoke(';');
-                        ByteRead?.Invoke('5');
+                        byteRead?.Invoke(ESCCode);
+                        byteRead?.Invoke(CSICode);
+                        byteRead?.Invoke('1');
+                        byteRead?.Invoke(';');
+                        byteRead?.Invoke('5');
 
                         if(key.Key == ConsoleKey.LeftArrow)
                         {
-                            ByteRead?.Invoke('D');
+                            byteRead?.Invoke('D');
                         }
                         else if(key.Key == ConsoleKey.RightArrow)
                         {
-                            ByteRead?.Invoke('C');
+                            byteRead?.Invoke('C');
                         }
                     }
                 }
 
                 if(key.Modifiers.HasFlag(ConsoleModifiers.Alt))
                 {
-                    ByteRead?.Invoke(ESCCode);
+                    byteRead?.Invoke(ESCCode);
                 }
 
                 if(mappings.TryGetValue(key.Key, out var sequence))
                 {
                     foreach(var b in sequence)
                     {
-                        ByteRead?.Invoke(b);
+                        byteRead?.Invoke(b);
                     }
                 }
                 else
                 {
                     foreach(var b in checker.UTF8Encoder.GetBytes(new[] { key.KeyChar }))
                     {
-                        ByteRead?.Invoke(b);
+                        byteRead?.Invoke(b);
                     }
                 }
             }
         }
 
+        private Action<int> byteRead;
+        private bool inputStarted;
+
+        private readonly Thread inputThread;
+        private readonly object inputLock = new object();
         private readonly PosixSignalRegistration winchRegistration;
 
         private readonly UTF8Checker checker;
