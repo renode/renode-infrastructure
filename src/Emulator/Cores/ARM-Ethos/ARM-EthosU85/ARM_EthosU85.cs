@@ -58,7 +58,7 @@ public partial class ARM_EthosU85 : ARM_EthosBase
         base.ResetNPU();
         // All registers and internal RAMs are cleared on reset (U85 TRM 2.2, 2.3.5)
         Array.Clear(lookupTable);
-        commandRegisters = new CommandRegisterState();
+        commandRegisters = new U85CommandRegisterState();
         resumeAfterStop = false;
     }
 

@@ -33,8 +33,8 @@ public partial class ARM_EthosU55 : ARM_EthosBase
     {
         base.ResetNPU();
         // The shared buffer RAMs are cleared on reset (U55 TRM 3.3.4.1).
-        commandRegisters = new CommandRegisterState();
         Array.Clear(sharedBuffer);
+        commandRegisters = new U55CommandRegisterState();
     }
 
     protected override void SetConfig()
