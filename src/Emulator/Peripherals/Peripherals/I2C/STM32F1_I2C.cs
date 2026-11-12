@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -30,7 +31,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 owner: this,
                 localName: "transaction-delay",
                 enabled: false,
-                workMode: WorkMode.OneShot
+                workMode: WorkMode.Periodic
             ));
         }
 
@@ -162,7 +163,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                             bool wasStop = (oldValue & StopBitMask) != 0;
                             bool isStop = (newValue & StopBitMask) != 0;
                             // Single-byte case: For multi-byte reads, the last byte is readed by handleDataread()
-                            // with LastRead to end the transmission. Since this doesn't happen for a 
+                            // with LastRead to end the transmission. Since this doesn't happen for a
                             // single-byte read, the processor attempts to restart transmission by setting the stop bit again
                             if(wasStop && isStop)
                             {
@@ -340,10 +341,13 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         private void ExecuteScheduledAction()
         {
-            lock(updateLock)
+            if(!Monitor.TryEnter(updateLock))
             {
-                scheduledAction?.Invoke();
+                return;
             }
+
+            scheduledAction?.Invoke();
+            Monitor.Exit(updateLock);
         }
 
         private void UpdateSchedule(bool? enable = null)
@@ -372,12 +376,12 @@ namespace Antmicro.Renode.Peripherals.I2C
                 this.NoisyLog("TxE updated in scheduled action");
                 txDataEmpty.Value = true;
                 byteTransferFinished.Value = false;
-                QueueUpdate(UpdateDataTransmission);
             }
             else
             {
                 this.NoisyLog("TxE's BTF updated in scheduled action");
                 byteTransferFinished.Value = true;
+                FinishScheduledAction();
             }
             UpdateInterrupts();
         }
@@ -389,14 +393,24 @@ namespace Antmicro.Renode.Peripherals.I2C
                 this.NoisyLog("RxNE updated in scheduled action");
                 rxDataNotEmpty.Value = true;
                 byteTransferFinished.Value = false;
-                QueueUpdate(UpdateDataReceive);
             }
             else if(dataState != DataState.LastRead)
             {
                 this.NoisyLog("RxNE's BTF updated in scheduled action");
                 byteTransferFinished.Value = true;
+                FinishScheduledAction();
             }
             UpdateInterrupts();
+        }
+
+        private void FinishScheduledAction()
+        {
+            lock(updateLock)
+            {
+                scheduledAction = null;
+                machine.ClockSource.ExchangeClockEntryWith(ExecuteScheduledAction,
+                    entry => entry.With(enabled: false));
+            }
         }
 
         private void HandleDataWrite(byte value)
