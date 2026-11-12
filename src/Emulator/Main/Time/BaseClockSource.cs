@@ -128,6 +128,11 @@ namespace Antmicro.Renode.Time
                 }
                 clockEntries[i] = result;
 
+                if(elapsed == TimeInterval.Empty)
+                {
+                    return result;
+                }
+
                 // Clear elapsed and deposit it as unaccounted time on all other enabled clock entries
                 var triggerFullUpdate = false;
                 for(int j = 0; j < clockEntries.Count; ++j)
