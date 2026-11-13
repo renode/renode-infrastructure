@@ -34,8 +34,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             cpu.RegisterCSRStub((ushort)CustomCSR.MachineCacheControlBeginAddress, "MCCTLBEGINADDR");
             cpu.RegisterCSRStub((ushort)CustomCSR.MachineCacheControlCommand, "MCCTLCOMMAND");
             cpu.RegisterCSRStub((ushort)CustomCSR.MachineCacheControlData, "MCCTLDATA");
-            cpu.RegisterCSR((ushort)CustomCSR.InstructionCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc0) is not supported"); });
-            cpu.RegisterCSR((ushort)CustomCSR.DataCacheAndMemoryConfiguration, () => 0x0, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc1) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.InstructionCacheAndMemoryConfiguration, () => InstructionMemoryConfiguration, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc0) is not supported"); });
+            cpu.RegisterCSR((ushort)CustomCSR.DataCacheAndMemoryConfiguration, () => DataMemoryConfiguration, value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc1) is not supported"); });
             // Bit 16 is checked by Zephyr driver to see if CCTL is supported
             cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfiguration, () => ReadMiscellaneousConfiguration(), value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc2) is not supported"); });
             cpu.RegisterCSR((ushort)CustomCSR.MachineMiscellaneousConfigurationRV32, () => ReadMiscellaneousConfiguration(upperWord: true), value => { cpu.Log(LogLevel.Warning, "Writing to the Machine Custom read-only CSR (0xfc3) is not supported"); });
@@ -122,6 +122,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             // TODO: CoDense extension (NDS.EXEC.IT/NDS.NEXEC.IT), and set mmsc_cfg (0xfc2) ECD (bit[3]).
         }
 
+        public ulong InstructionMemoryConfiguration { get; set; }
+
+        public ulong DataMemoryConfiguration { get; set; }
+
         private static ulong LoadExtractorByte(ulong opcode)
         {
             return LoadExtractorWord(opcode) | BitHelper.GetValue(opcode, 14, 1);
@@ -181,6 +185,10 @@ namespace Antmicro.Renode.Peripherals.CPU
             if(cpu.SupportsInstructionSet(BaseRiscV.InstructionSet.V))
             {
                 value |= 1ul << 36; // VECCFG
+            }
+            if(BitHelper.GetValue(InstructionMemoryConfiguration | DataMemoryConfiguration, 21, 2) != 0)
+            {
+                value |= 1ul; // ECC (ILM_ECC or DLM_ECC)
             }
             if(bfloat16Registered)
             {

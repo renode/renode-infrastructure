@@ -474,6 +474,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public IEnumerable<InstructionSet> ArchitectureSets => architectureDecoder.InstructionSets;
 
+        public Andes_AndeStarV5Extension AndesExtension => architectureDecoder.AndesExtension;
+
         public override Endianess DisassemblyHexFormatting => Endianess.LittleEndian;
 
         public override string LLVMModel => RiscVLLVMModelEncoder.GetModel(this);
@@ -1483,6 +1485,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 get => standardExtensions;
             }
+
+            public Andes_AndeStarV5Extension AndesExtension => andesExtension;
 
             private void Decode(string architectureString)
             {
