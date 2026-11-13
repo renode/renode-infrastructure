@@ -81,13 +81,18 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private uint GetChannelVoltage(uint dataChannelId)
         {
-            if(resdStream[dataChannelId] == null || resdStream[dataChannelId].TryGetCurrentSample(this, (sample) => sample.Voltage, out var voltage, out _) != RESDStreamStatus.OK)
+            uint voltage;
+            if(resdStream[dataChannelId] != null && resdStream[dataChannelId].TryGetCurrentSample(this, (sample) => sample.Voltage, out voltage, out _) == RESDStreamStatus.OK)
             {
-                voltage = rawVoltage[dataChannelId];
+                rawVoltage[dataChannelId] = voltage;
+            }
+            else if(ADCContainer.TryGetByAddress((int)dataChannelId, out var sampleSource))
+            {
+                voltage = sampleSource.Sample.Voltage;
             }
             else
             {
-                rawVoltage[dataChannelId] = voltage;
+                voltage = rawVoltage[dataChannelId];
             }
 
             voltage = (uint)((float)voltage * GetGain(channelGain[DataToConfigChannel(dataChannelId)].Value));
