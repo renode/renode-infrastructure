@@ -37,9 +37,13 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             lock(hooks)
             {
-                foreach(var newHook in hooks.Where(x => x.Value.IsNew))
+                // Called before every execution chunk: no LINQ iterator and closure
+                foreach(var hook in hooks.Values)
                 {
-                    Activate(newHook.Value);
+                    if(hook.IsNew)
+                    {
+                        Activate(hook);
+                    }
                 }
             }
         }

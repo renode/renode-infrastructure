@@ -2452,7 +2452,8 @@ namespace Antmicro.Renode.Peripherals.CPU
 
             public void Initialize()
             {
-                guard.Value = new object();
+                // Called for every bus access; only whether the value is set matters
+                guard.Value = initializedGuard;
             }
 
             public void InitializeForWriting(ulong address, SysbusAccessWidth width, ulong value)
@@ -2540,6 +2541,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 }
                 guard.Value = null;
             }
+
+            private static readonly object initializedGuard = new object();
 
             private bool active;
             private bool restartTranslationBlock;
