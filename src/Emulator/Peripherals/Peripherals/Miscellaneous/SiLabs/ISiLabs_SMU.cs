@@ -10,6 +10,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 {
     public interface ISiLabs_SMU
     {
+        bool PeripheralSecurityEnabled { get; }
+
         bool GetPeripheralSecurityLevel(SiLabsPeripheral peripheral);
 
         void UpdateDirtyState(SiLabsPeripheral peripheral);

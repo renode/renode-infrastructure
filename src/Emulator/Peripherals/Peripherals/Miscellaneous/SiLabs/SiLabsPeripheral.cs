@@ -160,7 +160,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 TriggerBusFault(currentAbsoluteAddress);
                 return false;
             }
-            if(CurrentCpu is CortexM cortexM && cortexM.TrustZoneEnabled && Smu != null && Smu.GetPeripheralSecurityLevel(this) != IsSecureAccess)
+            if(CurrentCpu is CortexM && Smu != null && Smu.PeripheralSecurityEnabled && Smu.GetPeripheralSecurityLevel(this) != IsSecureAccess)
             {
                 this.Log(LogLevel.Error, "Accessing a {0} peripheral while peripheral security level is {1}",
                     IsSecureAccess ? "secure" : "non-secure",
