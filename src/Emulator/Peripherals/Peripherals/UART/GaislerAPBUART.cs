@@ -9,6 +9,7 @@ using System.Collections.Generic;
 
 using Antmicro.Migrant;
 using Antmicro.Renode.Core;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
@@ -97,7 +98,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         }
 
                         CharReceived?.Invoke((byte)value);
-                        UpdateInterrupt(txFinished: true);
+                        StartTransmission();
                     }, name: "DATA"
                 )
                 .WithReservedBits(8, 24)
@@ -105,8 +106,8 @@ namespace Antmicro.Renode.Peripherals.UART
 
             Registers.Status.Define(this, 0x86, name: "STATUS")
                 .WithFlag(0, FieldMode.Read, valueProviderCallback: _ => receiveFifo.Count > 0, name: "DR")
-                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => true, name: "TS")
-                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => true, name: "TE")
+                .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => !transmitterBusy, name: "TS")
+                .WithFlag(2, FieldMode.Read, valueProviderCallback: _ => !transmitterBusy, name: "TE")
                 .WithTaggedFlag("BR", 3)
                 .WithFlag(4, valueProviderCallback: _ => false, name: "OV")
                 .WithTaggedFlag("PE", 5)
@@ -158,6 +159,56 @@ namespace Antmicro.Renode.Peripherals.UART
             ;
         }
 
+        /// <summary>
+        /// Holds the transmitter busy for one character time and reports completion
+        /// afterwards, rather than at once inside the store to the data register.
+        ///
+        /// The delay is what makes the notification usable. Reporting completion
+        /// synchronously puts it inside the interrupt handler that is sending the next
+        /// byte, and a PLIC context's CompleteHandlingInterrupt re-samples the source
+        /// level and drops the pending status the notification had just set - so the
+        /// transfer stalls after two characters. Deferring it by the time the character
+        /// actually takes on the wire lands it outside the handler, where it survives.
+        /// </summary>
+        private void StartTransmission()
+        {
+            // Nothing has asked to be told when the character has gone, so there is
+            // nothing to defer. Guests that poll the status register, or ignore the
+            // transmitter entirely, keep the instantaneous behaviour they had - which
+            // keeps this change confined to the path that was broken.
+            if(!transmitterInterruptEnable.Value
+               && !transmitterShiftRegisterEmptyInterruptEnable.Value
+               && !transmitterFifoInterruptEnable.Value)
+            {
+                UpdateInterrupt(txFinished: true);
+                return;
+            }
+
+            transmitterBusy = true;
+            UpdateInterrupt();
+
+            // One character is ten bit times: a start bit, eight data bits and a stop
+            // bit. BaudRate is zero until the guest programs the scaler, in which case
+            // there is no meaningful duration to wait for.
+            var baudRate = BaudRate;
+            if(baudRate == 0)
+            {
+                FinishTransmission();
+                return;
+            }
+
+            machine.ScheduleAction(
+                TimeInterval.FromMicroseconds((BitsPerCharacter * 1000000UL) / baudRate),
+                _ => FinishTransmission(),
+                name: $"{nameof(GaislerAPBUART)} transmission");
+        }
+
+        private void FinishTransmission()
+        {
+            transmitterBusy = false;
+            UpdateInterrupt(txFinished: true);
+        }
+
         private void UpdateInterrupt(bool rxFinished = false, bool txFinished = false)
         {
             var txFifoIrq = TxHalfEmpty && transmitterFifoInterruptEnable.Value && transmitterEnable.Value;
@@ -175,7 +226,7 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
-        private bool TxHalfEmpty => true;
+        private bool TxHalfEmpty => !transmitterBusy;
 
         private bool RxHalfFull => receiveFifo.Count > (fifoDepth - 1) / 2;
 
@@ -189,6 +240,10 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField scaler;
         private IFlagRegisterField parityEnable;
         private IEnumRegisterField<ParitySelect> paritySelect;
+
+        private bool transmitterBusy;
+
+        private const ulong BitsPerCharacter = 10;
 
         private readonly uint fifoDepth;
         private readonly uint frequency;
