@@ -105,6 +105,15 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
         }
 
+        private static readonly Dictionary<CounterBus, uint> BusDrivingChannelNumbers = new()
+        {
+            { CounterBus.A, 23 },
+            { CounterBus.B, 0 },
+            { CounterBus.C, 8 },
+            { CounterBus.D, 16 },
+            { CounterBus.F, 22 },
+        };
+
         private Dictionary<long, DoubleWordRegister> DefineRegisters()
         {
             var registerMap = new Dictionary<long, DoubleWordRegister>();
@@ -163,11 +172,10 @@ namespace Antmicro.Renode.Peripherals.GPIOPort
             }
 
             // Connect Counter bus events to channels that can drive them
-            unifiedChannels[0].CounterTickEvent += (value) => OnCounterBusTick(CounterBus.B, value);
-            unifiedChannels[8].CounterTickEvent += (value) => OnCounterBusTick(CounterBus.C, value);
-            unifiedChannels[16].CounterTickEvent += (value) => OnCounterBusTick(CounterBus.D, value);
-            unifiedChannels[22].CounterTickEvent += (value) => OnCounterBusTick(CounterBus.F, value);
-            unifiedChannels[23].CounterTickEvent += (value) => OnCounterBusTick(CounterBus.A, value);
+            foreach(var (bus, channelNumber) in BusDrivingChannelNumbers)
+            {
+                unifiedChannels[channelNumber].CounterTickEvent += (value) => OnCounterBusTick(bus, value);
+            }
 
             return registerMap;
         }
