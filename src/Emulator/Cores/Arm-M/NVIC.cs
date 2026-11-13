@@ -158,7 +158,6 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
         {
             number += 16; // because this is HW interrupt
             this.NoisyLog("External IRQ {0}: {1}", number, value);
-            int? pendingInterrupt = null;
             lock(irqs)
             {
                 if(value)
@@ -170,21 +169,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     irqs[number] &= ~IRQState.Running;
                 }
-                pendingInterrupt = FindPendingInterrupt();
-            }
-            if(pendingInterrupt != null && value)
-            {
-                // We assume both SysTicks are woken up on exiting deep sleep
-                // docs aren't clear on this, but this seems like a logical behavior
-                if(!systick.NonSecureVal.Enabled)
-                {
-                    this.NoisyLog("Waking up from deep sleep");
-                }
-                systick.NonSecureVal.Enabled |= value;
-                if(cpu.TrustZoneEnabled)
-                {
-                    systick.SecureVal.Enabled |= value;
-                }
+                FindPendingInterrupt();
             }
         }
 
@@ -2207,6 +2192,10 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             {
                 InSleep.Unset();
                 InDeepSleep.Unset();
+                // Every wake source comes through here. Resume even if the halt option was
+                // cleared while asleep, so a halted counter cannot stay halted.
+                systick.NonSecureVal.SetDeepSleepHalted(false);
+                systick.SecureVal?.SetDeepSleepHalted(false);
                 return;
             }
 
@@ -2215,11 +2204,8 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 InDeepSleep.Set();
                 if(HaltSystickOnDeepSleep)
                 {
-                    systick.NonSecureVal.Enabled = false;
-                    if(cpu.TrustZoneEnabled)
-                    {
-                        systick.SecureVal.Enabled = false;
-                    }
+                    systick.NonSecureVal.SetDeepSleepHalted(true);
+                    systick.SecureVal?.SetDeepSleepHalted(true);
                 }
                 this.NoisyLog("Entering deep sleep");
             }
@@ -2944,12 +2930,39 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
             public void Reset()
             {
                 systickEnabled = false;
+                deepSleepHalted = false;
                 reloadValue = 0;
                 TickInterruptEnabled = false;
                 CountFlag = false;
 
                 systick.Reset();
                 systick.AutoUpdate = true;
+            }
+
+            // SLEEPDEEP stops a SysTick clocked from the processor clock. The programmed
+            // ENABLE bit stays as software left it, and any wake source resumes the counter.
+            public void SetDeepSleepHalted(bool halted)
+            {
+                if(deepSleepHalted == halted)
+                {
+                    return;
+                }
+                deepSleepHalted = halted;
+                if(halted)
+                {
+                    if(systick.Enabled)
+                    {
+                        parent.NoisyLog("Systick_{0} stopped for deep sleep", IsSecure ? "S" : "NS");
+                        systick.Enabled = false;
+                    }
+                    return;
+                }
+                if(!systickEnabled || Reload == 0)
+                {
+                    return;
+                }
+                parent.NoisyLog("Systick_{0} resumed after deep sleep", IsSecure ? "S" : "NS");
+                systick.Enabled = true;
             }
 
             public void UpdateSystickValue()
@@ -2988,6 +3001,11 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                         parent.DebugLog("Systick_{0} enabled but it won't be started as long as the reload value is zero", IsSecure ? "S" : "NS");
                         return;
                     }
+                    if(deepSleepHalted)
+                    {
+                        // Record the programmed bit. The counter stays stopped until deep sleep ends.
+                        return;
+                    }
                     parent.NoisyLog("Systick_{0} {1}", IsSecure ? "S" : "NS", value ? "enabled" : "disabled");
                     systick.Enabled = value;
                 }
@@ -3005,11 +3023,14 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
                 {
                     if(Enabled && reloadValue == 0 && value != 0 && !systick.Enabled)
                     {
-                        // We explicitly enable underlying SysTick counter only in the case it was blocked by RELOAD=0.
-                        // We ignore other cases, as we don't want to accidentally enable counter in DEEPSLEEP just by writing to this register.
-                        parent.DebugLog("Resuming Systick_{0} counter due to reload value change from 0x0 to 0x{1:X}", IsSecure ? "_S" : "_NS", value);
+                        // The counter was blocked by RELOAD=0. Load the new reload now, but leave the
+                        // counter stopped while deep sleep is holding it.
                         systick.Value = value;
-                        systick.Enabled = true;
+                        if(!deepSleepHalted)
+                        {
+                            parent.DebugLog("Resuming Systick_{0} counter due to reload value change from 0x0 to 0x{1:X}", IsSecure ? "_S" : "_NS", value);
+                            systick.Enabled = true;
+                        }
                     }
                     reloadValue = value;
                 }
@@ -3044,6 +3065,7 @@ namespace Antmicro.Renode.Peripherals.IRQControllers
 
             private ulong reloadValue;
             private bool systickEnabled; // ENABLE
+            private bool deepSleepHalted;
             private readonly LimitTimer systick;
             private readonly NVIC parent;
         }
