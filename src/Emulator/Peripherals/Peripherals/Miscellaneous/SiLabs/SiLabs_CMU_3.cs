@@ -29,6 +29,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         partial void CMU_Reset()
         {
+            // Bus reads use this collection. base.Reset() only clears RegistersCollection.
+            registers.Reset();
             sysclkctrl_clksel_field.Value = SYSCLKCTRL_CLKSEL.FSRCO;
             status_calrdy_bit.Value = true;
             status_lock_bit.Value = STATUS_LOCK.UNLOCKED;
