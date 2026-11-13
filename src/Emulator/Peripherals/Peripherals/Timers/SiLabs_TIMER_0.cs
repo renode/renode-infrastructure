@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
@@ -56,6 +57,10 @@ namespace Antmicro.Renode.Peripherals.Timers
         {
             get
             {
+                if(hostAllClocksGated)
+                {
+                    return frozenCounter;
+                }
                 if(timerIsRunning)
                 {
                     if(timer.Enabled)
@@ -319,6 +324,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void StartCommand()
         {
             timerIsRunning = true;
+            EnsureHostAllClockHooks();
             RestartTimer(true);
         }
 
@@ -347,13 +353,82 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             timer.Frequency = Frequency;
             timer.Direction = timerMode.Value == TimerMode.Up ? Direction.Ascending : Direction.Descending;
-            timer.Limit = topValue;
-            timer.Enabled = true;
+            // Up-count holds TOP, then wraps. LimitTimer's limit is exclusive, so the period is TOP + 1.
+            // Down-count reloads to TOP, so the period is TOP.
+            timer.Limit = timerMode.Value == TimerMode.Up ? (ulong)topValue + 1 : topValue;
             timer.Value = currentValue;
+            if(hostAllClocksGated)
+            {
+                frozenCounter = currentValue;
+            }
+            else
+            {
+                timer.Enabled = true;
+            }
 
             for(uint i = 0; i < NumberOfChannels; i++)
             {
-                channel[i].TimerRestartedCallback((uint)timer.Value, (uint)timer.Limit, timer.Direction);
+                channel[i].TimerRestartedCallback((uint)timer.Value, topValue, timer.Direction);
+            }
+        }
+
+        private void EnsureHostAllClockHooks()
+        {
+            if(hostAllClockHooksReady)
+            {
+                return;
+            }
+            var emu = machine.GetPeripheralsOfType<ISiLabs_Emu>().FirstOrDefault();
+            if(emu == null)
+            {
+                return;
+            }
+            emu.AddEnterHostAllClockGateHook(EnterHostAllClockGate);
+            emu.AddExitHostAllClockGateHook(ExitHostAllClockGate);
+            hostAllClockHooksReady = true;
+            hostAllClocksGated = !emu.HostAllClocksEnabled;
+        }
+
+        private void EnterHostAllClockGate()
+        {
+            if(hostAllClocksGated)
+            {
+                return;
+            }
+            if(timerIsRunning && timer.Enabled)
+            {
+                TrySyncTime();
+                frozenCounter = (uint)timer.Value;
+                timer.Enabled = false;
+            }
+            hostAllClocksGated = true;
+            foreach(var compareChannel in channel)
+            {
+                compareChannel.SetClockGated(true);
+            }
+        }
+
+        private void ExitHostAllClockGate()
+        {
+            if(!hostAllClocksGated)
+            {
+                return;
+            }
+            var resume = frozenCounter;
+            hostAllClocksGated = false;
+            foreach(var compareChannel in channel)
+            {
+                compareChannel.SetClockGated(false);
+            }
+            if(!timerIsRunning)
+            {
+                return;
+            }
+            timer.Value = resume;
+            timer.Enabled = true;
+            for(uint i = 0; i < NumberOfChannels; i++)
+            {
+                channel[i].TimerRestartedCallback(resume, topValue, timer.Direction);
             }
         }
 
@@ -397,16 +472,19 @@ namespace Antmicro.Renode.Peripherals.Timers
             }
         }
 
-        private IFlagRegisterField overflowInterrupt;
+        private IFlagRegisterField underflowInterrupt;
         private IFlagRegisterField underflowInterruptEnable;
+        private IFlagRegisterField overflowInterruptEnable;
+        private IFlagRegisterField overflowInterrupt;
         private IValueRegisterField prescaler;
         private IEnumRegisterField<ClockSource> clockSource;
         private IFlagRegisterField oneShotMode;
         private IEnumRegisterField<TimerMode> timerMode;
         private uint topValue = TopValueInitValue;
         private bool timerIsRunning = false;
-        private IFlagRegisterField underflowInterrupt;
-        private IFlagRegisterField overflowInterruptEnable;
+        private bool hostAllClockHooksReady;
+        private bool hostAllClocksGated;
+        private uint frozenCounter;
         private readonly LimitTimer timer;
         private readonly Channel[] channel;
         private const uint NumberOfChannels = 3;
@@ -423,8 +501,30 @@ namespace Antmicro.Renode.Peripherals.Timers
                 this.timer.LimitReached += TimerLimitReached;
             }
 
+            public void SetClockGated(bool gated)
+            {
+                if(gated)
+                {
+                    if(timer.Enabled)
+                    {
+                        compareRunning = true;
+                        timer.Enabled = false;
+                    }
+                    return;
+                }
+                if(compareRunning)
+                {
+                    compareRunning = false;
+                    timer.Enabled = true;
+                }
+            }
+
             public void TimerRestartedCallback(uint value, uint limit, Direction direction)
             {
+                if(parent.hostAllClocksGated)
+                {
+                    return;
+                }
                 if(Mode.Value == ChannelMode.OutputCompare)
                 {
                     if(OutputCompareValue > limit)
@@ -449,6 +549,7 @@ namespace Antmicro.Renode.Peripherals.Timers
             public void Reset()
             {
                 timer.Enabled = false;
+                compareRunning = false;
             }
 
             public bool Interrupt => (CaptureCompareInterrupt.Value && CaptureCompareInterruptEnable.Value);
@@ -475,6 +576,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                 parent.UpdateInterrupts();
             }
 
+            private bool compareRunning;
             private readonly SiLabs_TIMER_0 parent;
             private readonly uint index;
             private readonly LimitTimer timer;
