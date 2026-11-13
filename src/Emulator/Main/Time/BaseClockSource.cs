@@ -118,13 +118,23 @@ namespace Antmicro.Renode.Time
                     if(updateHandler(ref result, elapsed + unaccountedTimes[i], ref nearestLimitIn))
                     {
                         result.Handler();
+                        // The handler can add or remove clock entries, which moves this one in the list
+                        i = clockEntries.FindIndex(x => x.Handler == handler);
                     }
-                    // This elapsed time is now accounted for this entry so clear it
-                    unaccountedTimes[i] = TimeInterval.Empty;
+                    if(i != -1)
+                    {
+                        // This elapsed time is now accounted for this entry so clear it
+                        unaccountedTimes[i] = TimeInterval.Empty;
+                    }
                 }
                 finally
                 {
                     updateAlreadyInProgress.Value = false;
+                }
+                if(i == -1)
+                {
+                    // A handler removed this entry
+                    return result;
                 }
                 clockEntries[i] = result;
 
@@ -143,8 +153,12 @@ namespace Antmicro.Renode.Time
                 if(triggerFullUpdate)
                 {
                     UpdateLimits();
-                    // unaccountedTimes cleared by Update
-                    result = clockEntries[i];
+                    // unaccountedTimes cleared by Update, whose handlers can move this entry in the list
+                    i = clockEntries.FindIndex(x => x.Handler == handler);
+                    if(i != -1)
+                    {
+                        result = clockEntries[i];
+                    }
                 }
 
                 return result;
@@ -177,9 +191,14 @@ namespace Antmicro.Renode.Time
                     return false;
                 }
                 UpdateLimits();
-                clockEntries.RemoveAt(indexToRemove);
-                clockEntriesUpdateHandlers.RemoveAt(indexToRemove);
-                unaccountedTimes.RemoveAt(indexToRemove);
+                // UpdateLimits can run handlers that add or remove clock entries, which moves this one in the list
+                indexToRemove = clockEntries.FindIndex(x => x.Handler == handler);
+                if(indexToRemove != -1)
+                {
+                    clockEntries.RemoveAt(indexToRemove);
+                    clockEntriesUpdateHandlers.RemoveAt(indexToRemove);
+                    unaccountedTimes.RemoveAt(indexToRemove);
+                }
                 UpdateLimits();
             }
             NotifyNumberOfEntriesChanged(oldCount, clockEntries.Count);
