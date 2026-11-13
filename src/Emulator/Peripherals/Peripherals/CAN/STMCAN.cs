@@ -573,15 +573,13 @@ namespace Antmicro.Renode.Peripherals.CAN
             case RegisterOffset.CAN_MCR:
                 registers.CAN_MCR.SetValue(value);
 
-                if(registers.CAN_MCR.InitRequest == true &&
-                   registers.CAN_MCR.SleepRequest == false)
+                if(registers.CAN_MCR.InitRequest == true)
                 {
                     // Enter initialisation mode
                     registers.CAN_MSR.InitAck = true;
                     registers.CAN_MSR.SleepAck = false;
                 }
-                else if(registers.CAN_MCR.SleepRequest == true &&
-                        registers.CAN_MCR.InitRequest == false)
+                else if(registers.CAN_MCR.SleepRequest == true)
                 {
                     // Enter sleep mode
                     registers.CAN_MSR.SleepAck = true;
