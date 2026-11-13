@@ -17,8 +17,8 @@ namespace Antmicro.Renode.Peripherals.PCI
         {
             VendorId = 0x8086;
             DeviceId = 0x7010;
-            BaseClassCode = 0x1;
-            SubClassCode = 0x1;
+            BaseClassCode = PCIBaseClass.Storage;
+            SubClassCode = PCISubClass.StorageIDE;
 
             for(var i = 0; i < HeaderType.MaxNumberOfBARs(); ++i)
             {
