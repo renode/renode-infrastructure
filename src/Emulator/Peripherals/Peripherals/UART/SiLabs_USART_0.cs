@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -15,6 +16,7 @@ using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
+using Antmicro.Renode.Peripherals.Miscellaneous.SiLabs;
 using Antmicro.Renode.Peripherals.SPI;
 using Antmicro.Renode.Peripherals.Timers;
 using Antmicro.Renode.Time;
@@ -117,6 +119,7 @@ namespace Antmicro.Renode.Peripherals.UART
             startIndex = 0xFF;
             rxInProgress = false;
             compareTimer.Enabled = false;
+            compareTimerSuspended = false;
             deferTimer.Enabled = false;
             deferredActionsMask = 0;
             RxDataAvailableRequest.Set(false);
@@ -270,6 +273,17 @@ namespace Antmicro.Renode.Peripherals.UART
             // Start source will reset the counter and restart it
             compareTimer.Frequency = BaudRate;
             compareTimer.Limit = compareTimerCompare[timerIndex].Value;
+
+            EnsureHostAllClockHooks();
+            if(hostAllClocksGated)
+            {
+                // The USART has no clock: the counter starts from zero once the clock is back.
+                compareTimer.Enabled = false;
+                compareTimer.Value = 0;
+                compareTimerSuspended = true;
+                return;
+            }
+            compareTimerSuspended = false;
             compareTimer.Enabled = true;
         }
 
@@ -289,11 +303,12 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected void TriggerCompareTimerStopEvent(TimeCompareStopSource source)
         {
-            if(compareTimer.Enabled
+            if((compareTimer.Enabled || compareTimerSuspended)
                 && startIndex < NumberOfTimeCompareTimers
                 && source == timeCompareStopSource[startIndex].Value)
             {
                 compareTimer.Enabled = false;
+                compareTimerSuspended = false;
                 startIndex = 0xFF;
             }
         }
@@ -339,7 +354,55 @@ namespace Antmicro.Renode.Peripherals.UART
 
         protected override bool IsReceiveEnabled => receiverEnableFlag.Value;
 
-        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+        // The USART belongs to the HostAll clock domain: it is clocked in EM0 and EM1 only,
+        // so the time compare counter, which runs at the baud rate, stops in EM1P and EM2.
+        // The defer timer is not a hardware counter, it only releases the TX request lines.
+        private void EnsureHostAllClockHooks()
+        {
+            if(hostAllClockHooksReady)
+            {
+                return;
+            }
+            var emu = machine.GetPeripheralsOfType<ISiLabs_Emu>().FirstOrDefault();
+            if(emu == null)
+            {
+                return;
+            }
+            emu.AddEnterHostAllClockGateHook(EnterHostAllClockGate);
+            emu.AddExitHostAllClockGateHook(ExitHostAllClockGate);
+            hostAllClockHooksReady = true;
+            hostAllClocksGated = !emu.HostAllClocksEnabled;
+        }
+
+        private void EnterHostAllClockGate()
+        {
+            if(hostAllClocksGated)
+            {
+                return;
+            }
+            if(compareTimer.Enabled)
+            {
+                // Account for the time elapsed before the clock stops.
+                TrySyncTime();
+                compareTimer.Enabled = false;
+                compareTimerSuspended = true;
+            }
+            hostAllClocksGated = true;
+        }
+
+        private void ExitHostAllClockGate()
+        {
+            if(!hostAllClocksGated)
+            {
+                return;
+            }
+            hostAllClocksGated = false;
+            if(compareTimerSuspended)
+            {
+                compareTimerSuspended = false;
+                compareTimer.Enabled = true;
+            }
+        }
 
         private bool TrySyncTime()
         {
@@ -841,6 +904,8 @@ namespace Antmicro.Renode.Peripherals.UART
             return new DoubleWordRegisterCollection(this, registerDictionary);
         }
 
+        private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;
+
         private byte startIndex = 0xFF;
         private BufferState bufferState;
         private ISPIPeripheral spiSlaveDevice;
@@ -868,6 +933,9 @@ namespace Antmicro.Renode.Peripherals.UART
         private IValueRegisterField stopBitsModeField;
         private IEnumRegisterField<OperationMode> operationModeField;
         private IEnumRegisterField<OversamplingMode> oversamplingField;
+        private bool hostAllClockHooksReady;
+        private bool hostAllClocksGated;
+        private bool compareTimerSuspended;
         private readonly Machine machine;
         private readonly uint uartClockFrequency;
         private readonly DoubleWordRegisterCollection registersCollection;

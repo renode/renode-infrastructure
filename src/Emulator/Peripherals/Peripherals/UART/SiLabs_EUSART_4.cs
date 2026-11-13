@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -25,9 +26,11 @@ namespace Antmicro.Renode.Peripherals.UART
     [AllowedTranslations(AllowedTranslation.ByteToDoubleWord | AllowedTranslation.DoubleWordToByte)]
     public class SiLabs_EUSART_4 : UARTBase, IUARTWithBufferState, IDoubleWordPeripheral, IPeripheralContainer<ISPIPeripheral, NullRegistrationPoint>, IKnownSize, ISiLabs_Retention
     {
-        public SiLabs_EUSART_4(Machine machine) : base(machine)
+        // em2Capable marks the instance that can wake to EM1P for its DMA requests (EUSART0).
+        public SiLabs_EUSART_4(Machine machine, bool em2Capable = false) : base(machine)
         {
             this.machine = machine;
+            this.em2Capable = em2Capable;
 
             TransmitIRQ = new GPIO();
             ReceiveIRQ = new GPIO();
@@ -96,6 +99,7 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             base.Reset();
             isEnabled = false;
+            txWakeupCleared = false;
             syncBusy = false;
             rxInProgress = false;
             spiSlaveDevice = null;
@@ -107,6 +111,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
             registersCollection.Reset();
             UpdateInterrupts();
+            UpdateEm1pRequest();
             ScheduleDeferredAction(DeferredAction.ResetTxSignals);
         }
 
@@ -252,6 +257,8 @@ namespace Antmicro.Renode.Peripherals.UART
                 rxBufferFullInterrupt.Value = true;
                 UpdateInterrupts();
             }
+            // The bus clock has to run before the LDMA sees the request below.
+            UpdateEm1pRequest();
             BufferState = nextBufferState;
         }
 
@@ -261,6 +268,7 @@ namespace Antmicro.Renode.Peripherals.UART
             receiveDataValidFlag.Value = false;
             BufferState = BufferState.Empty;
             UpdateInterrupts();
+            UpdateEm1pRequest();
         }
 
         protected override bool IsReceiveEnabled => receiverEnableFlag.Value;
@@ -284,6 +292,7 @@ namespace Antmicro.Renode.Peripherals.UART
             if((deferredActionsMask & (uint)DeferredAction.ResetTxSignals) > 0)
             {
                 TxFifoLevelRequest.Set(true);
+                UpdateEm1pRequest();
             }
 
             deferredActionsMask = 0;
@@ -293,7 +302,44 @@ namespace Antmicro.Renode.Peripherals.UART
         {
             byte character;
             bool ret =  TryGetCharacter(out character);
+            UpdateEm1pRequest();
             return ret ? character : (byte)0;
+        }
+
+        private void UpdateEm1pRequest()
+        {
+            if(!em2Capable)
+            {
+                return;
+            }
+
+            machine.ClockSource.ExecuteInLock(delegate
+            {
+                var request = Em1pRequestActive;
+                if(request == em1pRequested)
+                {
+                    return;
+                }
+
+                var emu = machine.GetPeripheralsOfType<ISiLabs_Emu>().FirstOrDefault();
+                if(emu == null)
+                {
+                    return;
+                }
+
+                em1pRequested = request;
+                this.Log(LogLevel.Noisy, "EM1P request {0}", request ? "asserted" : "deasserted");
+                if(request)
+                {
+                    emu.SetEm1pHostClockRequest(this, true);
+                    emu.SetEm1pRequest(this, true);
+                }
+                else
+                {
+                    emu.SetEm1pRequest(this, false);
+                    emu.SetEm1pHostClockRequest(this, false);
+                }
+            });
         }
 
         private void UpdateInterrupts()
@@ -514,7 +560,11 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithWriteCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.Enable, new DoubleWordRegister(this)
-                    .WithFlag(0, changeCallback: (_, value) => { isEnabled = value; }, name: "EN")
+                    .WithFlag(0, changeCallback: (_, value) =>
+                    {
+                        isEnabled = value;
+                        UpdateEm1pRequest();
+                    }, name: "EN")
                     .WithFlag(1, name: "DISABLING")
                     .WithReservedBits(2, 30)
                 },
@@ -549,8 +599,8 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithFlag(3, name: "RTSINV")
                     .WithValueField(4, 3, name: "RXTIMEOUT")
                     .WithReservedBits(7,2)
-                    .WithFlag(9, name: "TXDMAWU")
-                    .WithFlag(10, name: "RXDMAWU")
+                    .WithFlag(9, out txDmaWakeUp, name: "TXDMAWU")
+                    .WithFlag(10, out rxDmaWakeUp, name: "RXDMAWU")
                     .WithFlag(11, name: "SFUBRX")
                     .WithReservedBits(12,3)
                     .WithFlag(15, name: "RXPRSEN")
@@ -560,6 +610,7 @@ namespace Antmicro.Renode.Peripherals.UART
                     .WithReservedBits(26,1)
                     .WithValueField(27, 4, out rxWatermark, name: "RXFIW")
                     .WithReservedBits(31,1)
+                    .WithChangeCallback((_, __) => UpdateEm1pRequest())
                 },
                 {(long)Registers.Cfg_2, new DoubleWordRegister(this, 0x20)
                     .WithFlag(0, name: "MASTER")
@@ -633,16 +684,32 @@ namespace Antmicro.Renode.Peripherals.UART
                         if(newValue)
                         {
                             transmitterEnableFlag.Value = true;
+                            txWakeupCleared = false;
                             txBufferLevelInterrupt.Value = true;
                             UpdateInterrupts();
+                            UpdateEm1pRequest();
                         }
                     }, name: "TXEN")
-                    .WithFlag(3, FieldMode.Set, writeCallback: (_, newValue) => { if(newValue) transmitterEnableFlag.Value = false; }, name: "TXDIS")
+                    .WithFlag(3, FieldMode.Set, writeCallback: (_, newValue) =>
+                    {
+                        if(newValue)
+                        {
+                            transmitterEnableFlag.Value = false;
+                            UpdateEm1pRequest();
+                        }
+                    }, name: "TXDIS")
                     .WithFlag(4, name: "RXBLOCKEN")
                     .WithFlag(5, name: "RXBLOCKDIS")
                     .WithFlag(6, name: "TXTRIEN")
                     .WithFlag(7, name: "TXTRIDIS")
-                    .WithFlag(8, name: "CLEARTX")
+                    .WithFlag(8, FieldMode.Set, writeCallback: (_, newValue) =>
+                    {
+                        if(newValue)
+                        {
+                            txWakeupCleared = true;
+                            UpdateEm1pRequest();
+                        }
+                    }, name: "CLEARTX")
                     .WithReservedBits(9, 23)
                 },
                 {(long)Registers.RxData, new DoubleWordRegister(this)
@@ -727,10 +794,20 @@ namespace Antmicro.Renode.Peripherals.UART
             }
         }
 
+        // The EM2 capable instance asks for EM1P while a DMA request is pending and its DMA
+        // wake-up enable is set: the receive FIFO holds RXFIW + 1 frames, or the transmitter
+        // is enabled. TXFL stays set once the FIFO has space, so the transmit wake-up is gated
+        // on the transmitter instead, and CLEARTX drops it until the next TXEN.
+        private bool TxDmaWakeupActive => isEnabled && transmitterEnableFlag.Value && !txWakeupCleared && TxFifoLevelRequest.IsSet;
+
+        private bool Em1pRequestActive => (rxDmaWakeUp.Value && Count >= (int)rxWatermark.Value + 1)
+            || (txDmaWakeUp.Value && TxDmaWakeupActive);
+
         private BufferState bufferState;
         private bool syncBusy = false;
         private bool rxInProgress = false;
         private bool isEnabled = false;
+        private bool txWakeupCleared;
         private uint deferredActionsMask = 0;
         private ISPIPeripheral spiSlaveDevice;
         private IFlagRegisterField txCompleteInterrupt;
@@ -745,6 +822,9 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField transmitterEnableFlag;
         private IFlagRegisterField rxBufferFullInterruptEnable;
         private IValueRegisterField rxWatermark;
+        private IFlagRegisterField rxDmaWakeUp;
+        private IFlagRegisterField txDmaWakeUp;
+        private bool em1pRequested;
         private IFlagRegisterField receiveDataValidFlag;
         private IFlagRegisterField transferCompleteFlag;
         private IValueRegisterField fractionalClockDividerField;
@@ -757,6 +837,7 @@ namespace Antmicro.Renode.Peripherals.UART
         private IFlagRegisterField rxUnderflowInterruptEnable;
         private ISiLabs_CMU cmu;
         private readonly Machine machine;
+        private readonly bool em2Capable;
         private readonly DoubleWordRegisterCollection registersCollection;
         private readonly LimitTimer deferTimer;
         private const uint SetRegisterOffset = 0x1000;
