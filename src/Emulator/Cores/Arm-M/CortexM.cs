@@ -970,6 +970,11 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 if(!state)
                 {
+                    // Clear the reset pause, keeping CPUWAIT's halt until the synchronized release.
+                    if(!machine.IsPaused && EmulationState == EmulationCPUState.InReset)
+                    {
+                        ClearPauseWhileHalted();
+                    }
                     var now = new TimeStamp(machine.LocalTimeSource.ElapsedVirtualTime, machine.LocalTimeSource.Domain);
                     releaseFromResetCancellationToken = machine.LocalTimeSource.ExecuteInSyncedState(releaseFromReset, now);
                     releaseFromResetPending = true;

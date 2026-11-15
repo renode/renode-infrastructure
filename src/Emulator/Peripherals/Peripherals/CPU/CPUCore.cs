@@ -108,7 +108,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         protected volatile bool isPaused;
 
         /// <summary>
-        /// Should be set by calling Pause method and unset by calling Resume. CPU won't resume if IsHalted is true.
+        /// Set by Pause and cleared when leaving the requested pause, even if the CPU remains halted.
         /// </summary>
         protected volatile bool isPausedRequested;
 

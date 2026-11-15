@@ -394,6 +394,22 @@ namespace Antmicro.Renode.Peripherals.CPU
             Clustered = new BaseCPU[] { this };
         }
 
+        protected void ClearPauseWhileHalted()
+        {
+            lock(pauseLock)
+            {
+                if(isAborted || !isPausedRequested || !isHaltedRequested)
+                {
+                    return;
+                }
+
+                // Allow time to advance without leaving the halt or invoking OnResume.
+                // Keep isPaused set so releasing the halt performs the actual resume.
+                isPausedRequested = false;
+                UpdateHaltedState(ignoreExecutionMode: false, fromPausedState: true);
+            }
+        }
+
         protected override bool UpdateHaltedState(bool ignoreExecutionMode = false, bool fromPausedState = false)
         {
             var shouldBeHalted = !isPausedRequested && (isHaltedRequested || (IsSingleStepMode && !IsSingleStepBlocking && !ignoreExecutionMode));
