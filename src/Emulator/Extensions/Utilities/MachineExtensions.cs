@@ -7,6 +7,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -107,11 +108,13 @@ namespace Antmicro.Renode.Utilities
 
         public static Dictionary<PeripheralTreeEntry, IEnumerable<IRegistrationPoint>> GetPeripheralsWithAllRegistrationPoints(this IMachine machine)
         {
+            var comparer = StringComparer.Create(CultureInfo.InvariantCulture, CompareOptions.NumericOrdering);
+
             var result = new Dictionary<PeripheralTreeEntry, IEnumerable<IRegistrationPoint>>();
 
             var peripheralEntries = machine.GetRegisteredPeripherals().ToArray();
             var sysbusEntry = peripheralEntries.First(x => x.Name == Machine.SystemBusName).Peripheral;
-            foreach(var entryList in peripheralEntries.OrderBy(x => x.Name).GroupBy(x => x.Peripheral))
+            foreach(var entryList in peripheralEntries.OrderBy(x => x.Name, comparer).GroupBy(x => x.Peripheral))
             {
                 var uniqueEntryList = entryList.DistinctBy(x => x.RegistrationPoint).ToArray();
                 var entry = uniqueEntryList.FirstOrDefault();
