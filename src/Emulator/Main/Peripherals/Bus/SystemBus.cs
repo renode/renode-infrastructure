@@ -1178,13 +1178,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public IPeripheral WhatPeripheralIsAt(ulong address, IPeripheral context = null, ulong? initiatorState = null)
         {
-            var registered = GetAccessiblePeripheralsForContext(context, initiatorState)
-                .FirstOrDefault(x => x.RegistrationPoint.Range.Contains(address));
-            if(registered != null)
-            {
-                return registered.Peripheral;
-            }
-            return null;
+            return GetBusRegistered(address, context, initiatorState)?.Peripheral;
         }
 
         /// <summary>Checks what is at a given address.</summary>
@@ -1202,7 +1196,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         /// </returns>
         public IBusRegistered<IBusPeripheral> WhatIsAt(ulong address, IPeripheral context = null)
         {
-            return GetAccessiblePeripheralsForContext(context).FirstOrDefault(x => x.RegistrationPoint.Range.Contains(address));
+            return GetBusRegistered(address, context);
         }
 
         public IEnumerable<IBusRegistered<IBusPeripheral>> GetRegistrationsForPeripheralType<T>(IPeripheral context = null)
@@ -1790,6 +1784,24 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             var locals = peripheralsCollectionByContext.GetValue(context, initiatorState).Peripherals;
             return context != null ? locals.Concat(peripheralsCollectionByContext[null].Peripherals) : locals;
+        }
+
+        /// <summary>
+        /// The method gets peripheral registered at the given address for the given context and falls back to searching the global (`null`) context
+        /// if no peripheral is found in a peripheral collection for given non-null `context` and `initiatorState`.
+        /// </summary>
+        /// <remarks>
+        /// This method has much better performance than calling `GetAccessiblePeripheralsForContext` and filtering its results because
+        /// `PeripheralCollection.FindBusRegistered` uses an optimized registration lookup.
+        /// </remarks>
+        private IBusRegistered<IBusPeripheral> GetBusRegistered(ulong address, IPeripheral context, ulong? initiatorState = null)
+        {
+            IBusRegistered<IBusPeripheral> localBusRegistered = null;
+            if(context is not null || initiatorState is not null)
+            {
+                localBusRegistered = peripheralsCollectionByContext.GetValue(context, initiatorState).FindBusRegistered(address);
+            }
+            return localBusRegistered ?? peripheralsCollectionByContext[null].FindBusRegistered(address);
         }
 
         private void FillAccessMethodsWithTaggedMethods(IBusPeripheral peripheral, string tag, ref PeripheralAccessMethods methods)
