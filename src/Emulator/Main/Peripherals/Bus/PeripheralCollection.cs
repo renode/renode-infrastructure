@@ -228,59 +228,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
             public PeripheralAccessMethods FindAccessMethods(ulong address, out ulong startAddress, out ulong endAddress, out ulong offset)
             {
-                // no need to lock here yet, cause last block is in the thread local storage
-                var lastBlock = lastBlockStorage.Value;
-#if DEBUG
-                Interlocked.Increment(ref queryCount);
-#endif
-                /// Note `< End` - End is currently one past the end in reality. Please also change <see cref="ICoalescable{T}.Coalesce"> after changing this.
-                if(address >= lastBlock.Start && address < lastBlock.End)
-                {
-#if DEBUG
-                    Interlocked.Increment(ref lastPeripheralCount);
-#endif
-                    startAddress = lastBlock.Start;
-                    endAddress = lastBlock.End;
-                    offset = lastBlock.Peripheral.RegistrationPoint.Offset;
-                    return lastBlock.AccessMethods;
-                }
-                sync.EnterWriteLock();
-                try
-                {
-                    // let's try dictionary
-                    Block block;
-                    if(!shortBlocks.TryGetValue(address & ~PageAlign, out block))
-                    {
-                        // binary search - our last resort
-                        var index = BinarySearch(address);
-                        if(index == -1)
-                        {
-                            startAddress = 0;
-                            endAddress = 0;
-                            offset = 0;
-                            return null;
-                        }
-#if DEBUG
-                        Interlocked.Increment(ref binarySearchCount);
-#endif
-                        block = blocks[index];
-                    }
-#if DEBUG
-                    else
-                    {
-                        Interlocked.Increment(ref dictionaryCount);
-                    }
-#endif
-                    startAddress = block.Start;
-                    endAddress = block.End;
-                    offset = block.Peripheral.RegistrationPoint.Offset;
-                    lastBlockStorage.Value = block;
-                    return block.AccessMethods;
-                }
-                finally
-                {
-                    sync.ExitWriteLock();
-                }
+                return FindAccessMethodsInternal(address, out startAddress, out endAddress, out offset);
             }
 
 #if DEBUG
@@ -365,6 +313,63 @@ namespace Antmicro.Renode.Peripherals.Bus
             private void InvalidateLastBlock()
             {
                 lastBlockStorage = new ThreadLocal<Block>();
+            }
+
+            private PeripheralAccessMethods FindAccessMethodsInternal(ulong address, out ulong startAddress, out ulong endAddress, out ulong offset)
+            {
+                // no need to lock here yet, cause last block is in the thread local storage
+                var lastBlock = lastBlockStorage.Value;
+#if DEBUG
+                Interlocked.Increment(ref queryCount);
+#endif
+                /// Note `< End` - End is currently one past the end in reality. Please also change <see cref="ICoalescable{T}.Coalesce"> after changing this.
+                if(address >= lastBlock.Start && address < lastBlock.End)
+                {
+#if DEBUG
+                    Interlocked.Increment(ref lastPeripheralCount);
+#endif
+                    startAddress = lastBlock.Start;
+                    endAddress = lastBlock.End;
+                    offset = lastBlock.Peripheral.RegistrationPoint.Offset;
+                    return lastBlock.AccessMethods;
+                }
+                sync.EnterWriteLock();
+                try
+                {
+                    // let's try dictionary
+                    Block block;
+                    if(!shortBlocks.TryGetValue(address & ~PageAlign, out block))
+                    {
+                        // binary search - our last resort
+                        var index = BinarySearch(address);
+                        if(index == -1)
+                        {
+                            startAddress = 0;
+                            endAddress = 0;
+                            offset = 0;
+                            return null;
+                        }
+#if DEBUG
+                        Interlocked.Increment(ref binarySearchCount);
+#endif
+                        block = blocks[index];
+                    }
+#if DEBUG
+                    else
+                    {
+                        Interlocked.Increment(ref dictionaryCount);
+                    }
+#endif
+                    startAddress = block.Start;
+                    endAddress = block.End;
+                    offset = block.Peripheral.RegistrationPoint.Offset;
+                    lastBlockStorage.Value = block;
+                    return block.AccessMethods;
+                }
+                finally
+                {
+                    sync.ExitWriteLock();
+                }
             }
 
             private IBusRegistered<IBusPeripheral>[] peripherals = Array.Empty<IBusRegistered<IBusPeripheral>>();
