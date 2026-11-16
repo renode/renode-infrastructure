@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2018 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -10,6 +10,7 @@ using System;
 using Xwt;
 #if !GUI_DISABLED
 using Xwt.GtkBackend;
+
 // for DllMap replacement
 using System.Reflection;
 using System.IO;
