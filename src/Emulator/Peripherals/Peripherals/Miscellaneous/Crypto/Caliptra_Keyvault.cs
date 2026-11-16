@@ -178,7 +178,7 @@ public class Caliptra_KeyVault : BasicDoubleWordPeripheral, IKnownSize
                 return false;
             }
             entry = newKey;
-            LastDword = newKey.Length;
+            LastDword = newKey.Length - 1;
             Destination = destination;
             return true;
         }
