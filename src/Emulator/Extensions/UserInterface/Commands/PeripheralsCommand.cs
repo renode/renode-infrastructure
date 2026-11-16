@@ -36,7 +36,9 @@ namespace Antmicro.Renode.UserInterface.Commands
             writer.WriteLine();
             writer.WriteLine("Usage:");
             writer.WriteLine($"{Name}               - print tree of peripherals");
-            writer.WriteLine($"{Name} export [path] - export registered peripherals to file");
+            writer.WriteLine($"{Name} name_filter   - print tree of peripherals having a name matching name_filter");
+            writer.WriteLine($"{Name} <range>       - print tree of peripherals whose address is in provided range");
+            writer.WriteLine($"{Name} export @path  - export registered peripherals to file");
         }
 
         [Runnable]
