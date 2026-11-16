@@ -102,7 +102,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 .WithFlag(17, out framingErrorFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "FE / Framing Error Flag")
                 .WithFlag(18, out noiseFlag, FieldMode.Read | FieldMode.WriteOneToClear, name: "NF / Noise Flag")
                 .WithFlag(19, out receiverOverrun, FieldMode.Read | FieldMode.WriteOneToClear, name: "OR / Receiver Overrun Flag")
-                .WithTaggedFlag("IDLE / Idle Line Flag", 20)
+                .WithTaggedFlag("IDLE / Idle Line Flag", 20, silent: true)
                 // Despite the name below flag should be set when Watermark level is exceeded
                 .WithFlag(21, FieldMode.Read,
                     valueProviderCallback: _ => (BufferState == BufferState.Ready || BufferState == BufferState.Full),
@@ -188,7 +188,7 @@ namespace Antmicro.Renode.Peripherals.UART
                         if(!this.TryGetCharacter(out var b))
                         {
                             receiveFifoUnderflowInterrupt.Value = true;
-                            this.Log(LogLevel.Warning, "Trying to read form an empty fifo");
+                            this.Log(LogLevel.Debug, "Trying to read form an empty fifo");
                         }
                         else
                         {
