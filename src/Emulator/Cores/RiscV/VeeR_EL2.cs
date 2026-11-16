@@ -39,7 +39,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             InstallCustomInstruction(pattern: WfiOpcodePattern,
                     handler: opcode => this.DebugLog("wfi instruction hit, it's a nop on this platform"));
 
-            AddHookAtInterruptBegin(UpdateSecondaryCauseRegister);
+            AddHookAtInterruptBegin(UpdateInterruptRegisters);
 
             AddHookAtWfiStateChange(enteredWfi =>
             {
@@ -130,13 +130,17 @@ namespace Antmicro.Renode.Peripherals.CPU
         /// Called on interrupt start to make sure that normal RISC-V exceptions triggered without
         /// the extra info do not end up with an invalid mscause value
         /// </remarks>
-        protected virtual void UpdateSecondaryCauseRegister(ulong exceptionType)
+        protected virtual void UpdateInterruptRegisters(ulong exceptionType)
         {
             mscauseValue = pendingSecondaryCause;
             switch(exceptionType)
             {
-            case (ulong)ExceptionCodes.InstructionAccessFault:
+            // RISC-V Privileged Architecture spec states 'On a breakpoint exception raised by an EBREAK or C.EBREAK instruction, mtval is written with either zero or the virtual address of the instruction.'.
+            // VeeR EL2 RTL sets the virtual address of the instruction.
             case (ulong)ExceptionCodes.Breakpoint:
+                MTVAL = PC;
+                break;
+            case (ulong)ExceptionCodes.InstructionAccessFault:
             case (ulong)ExceptionCodes.LoadAddressMisaligned:
             case (ulong)ExceptionCodes.LoadAccessFault:
             case (ulong)ExceptionCodes.StoreAddressMisaligned:
