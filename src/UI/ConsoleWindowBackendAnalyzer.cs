@@ -18,7 +18,7 @@ using AntShell.Terminal;
 
 namespace Antmicro.Renode.UI
 {
-    public class ConsoleWindowBackendAnalyzer : IAnalyzableBackendAnalyzer<UARTBackend>, IDisposable, IDisconnectableState
+    public class ConsoleWindowBackendAnalyzer : IUARTBackendAnalyzer, IDisposable, IDisconnectableState
     {
         // Default constructor is required for the showAnalyzer command.
         public ConsoleWindowBackendAnalyzer() : this(false)
@@ -123,6 +123,18 @@ namespace Antmicro.Renode.UI
         public IOProvider IO { get; private set; }
 
         public ISizeSource SizeSource { get; private set; }
+
+        public UartExtensions.LineEnding LineEnding
+        {
+            get => ((UARTBackend)Backend).LineEnding;
+            set => ((UARTBackend)Backend).LineEnding = value;
+        }
+
+        public bool SelfEcho
+        {
+            get => ((UARTBackend)Backend).SelfEcho;
+            set => ((UARTBackend)Backend).SelfEcho = value;
+        }
 
         public event Action Quitted;
 

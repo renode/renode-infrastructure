@@ -4,7 +4,6 @@
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
 //
-using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals.UART;
 using Antmicro.Renode.Utilities;
 
@@ -12,7 +11,7 @@ using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Peripherals
 {
-    public abstract class BasicUARTBackendAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IExternal
+    public abstract class BasicUARTBackendAnalyzer : BasicPeripheralBackendAnalyzer<UARTBackend>, IUARTBackendAnalyzer
     {
         public UartExtensions.LineEnding LineEnding
         {
