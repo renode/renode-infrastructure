@@ -829,7 +829,7 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             cpu = null;
             cpuState = default;
-            if(!threadLocalContext.InUse || !threadLocalContext.InitiatorState.HasValue)
+            if(!threadLocalContext.InitiatorState.HasValue)
             {
                 return false;
             }
@@ -868,7 +868,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         public bool TryGetTransactionInitiator(out IPeripheral initiator)
         {
-            if(threadLocalContext.InUse && threadLocalContext.Initiator != null)
+            if(threadLocalContext.Initiator != null)
             {
                 initiator = threadLocalContext.Initiator;
                 return true;
@@ -1650,7 +1650,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private bool TryGetCurrentCPUId(out int cpuId)
         {
-            if(threadLocalContext.InUse && threadLocalContext.Initiator is ICPU cpu)
+            if(threadLocalContext.Initiator is ICPU cpu)
             {
                 cpuId = idByCpu[cpu];
                 return true;
@@ -2775,7 +2775,8 @@ namespace Antmicro.Renode.Peripherals.Bus
         {
             public ThreadLocalContext()
             {
-                context = new ThreadLocal<Tuple<IPeripheral, ulong?>>(() => null, true);
+                // We don't need values from other threads which is why `trackAllValues: false`.
+                localContextStack = new ThreadLocal<ContextStack>(static () => new ContextStack(), trackAllValues: false);
                 emptyDisposable.Disable();
             }
 
@@ -2785,28 +2786,32 @@ namespace Antmicro.Renode.Peripherals.Bus
                 {
                     return emptyDisposable;
                 }
-                var previousContext = context.Value;
-                context.Value = Tuple.Create(cpu, initiatorState);
-                return DisposableWrapper.New(() =>
-                {
-                    context.Value = previousContext;
-                });
+                localContextStack.Value.Push((cpu, initiatorState));
+                return localContextStack.Value;
             }
 
             public void Dispose()
             {
-                context.Dispose();
+                localContextStack.Dispose();
             }
 
-            public bool InUse => context.Value != null;
+            public bool InUse => localContextStack.Value.Count > 0;
 
-            public IPeripheral Initiator => context.Value.Item1;
+            public IPeripheral Initiator => InUse ? localContextStack.Value.Peek().Initiator : null;
 
-            public ulong? InitiatorState => context.Value.Item2;
+            public ulong? InitiatorState => InUse ? localContextStack.Value.Peek().InitiatorState : null;
 
-            private readonly ThreadLocal<Tuple<IPeripheral, ulong?>> context;
+            private readonly ThreadLocal<ContextStack> localContextStack;
 
             private static readonly DisposableWrapper emptyDisposable = new DisposableWrapper();
+
+            private class ContextStack : Stack<(IPeripheral Initiator, ulong? InitiatorState)>, IDisposable
+            {
+                public void Dispose()
+                {
+                    _ = Pop();
+                }
+            }
         }
 
         // It doesn't implement IDictionary because serialization doesn't work correctly for dictionaries without two generic parameters.
