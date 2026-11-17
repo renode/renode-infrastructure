@@ -643,7 +643,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 return false;
             }
-            WriteCSR((ulong)register, value);
+            WriteCSRInner((ulong)register, value);
             return true;
         }
 
@@ -1157,7 +1157,12 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void WriteCSR(ulong csr, ulong value)
         {
-            WriteCSRInner(csr, value);
+            // CSR instructions terminate the translation block, so their callbacks can safely
+            // pause the machine to update memory mappings.
+            using(ObtainGenericPauseGuard())
+            {
+                WriteCSRInner(csr, value);
+            }
         }
 
         private List<GDBFeatureDescriptor> gdbFeatures = new List<GDBFeatureDescriptor>();
