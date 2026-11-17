@@ -1562,7 +1562,8 @@ namespace Antmicro.Renode.Peripherals.Bus
 
         private static MappedSegmentWrapper FromRegistrationPointToSegmentWrapper(IMappedSegment segment, BusRangeRegistration registrationPoint, ICPUWithMappedMemory context)
         {
-            if(segment.StartingOffset >= registrationPoint.Range.Size + registrationPoint.Offset)
+            if(segment.StartingOffset + segment.Size <= registrationPoint.Offset
+                || segment.StartingOffset >= registrationPoint.Range.Size + registrationPoint.Offset)
             {
                 return null;
             }
