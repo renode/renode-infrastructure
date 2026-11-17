@@ -10,6 +10,7 @@ using System.Linq;
 using Antmicro.Renode.Core.Structure.Registers;
 using Antmicro.Renode.Exceptions;
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.Bus.Wrappers;
 using Antmicro.Renode.Peripherals.PCI.BAR;
 using Antmicro.Renode.Peripherals.PCI.Capabilities;
 
@@ -17,7 +18,7 @@ using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.Peripherals.PCI
 {
-    public abstract class PCIeBasePeripheral : IPCIePeripheral
+    public abstract class PCIeBasePeripheral : IPCIePeripheral, IHasMappedRegisters
     {
         public virtual uint ConfigurationReadDoubleWord(long offset)
         {
@@ -72,6 +73,8 @@ namespace Antmicro.Renode.Peripherals.PCI
             return capabilities.Values.OfType<PCIeCapability>().Skip(nth).First();
         }
 
+        public virtual string OffsetToString(long offset) => configurationMapper.ToString(offset) ?? "<undefined>";
+
         public ushort DeviceId { get; set; }
 
         public ushort VendorId { get; set; }
@@ -93,6 +96,16 @@ namespace Antmicro.Renode.Peripherals.PCI
             if(!IsHeaderAcceptable(headerType))
             {
                 throw new ConstructionException($"Currently only devices of type {HeaderType.Bridge} or {HeaderType.Endpoint} are supported.");
+            }
+            configurationMapper = new RegisterMapper(typeof(RegistersCommon));
+            configurationMapper.RegisterEnumMapping(typeof(PCIeCapability.PCIeCapabilityRegisters), PCIeCapabilitiesOffset);
+            if(headerType == HeaderType.Bridge)
+            {
+                configurationMapper.RegisterEnumMapping(typeof(RegistersBridge));
+            }
+            else if(headerType == HeaderType.Endpoint)
+            {
+                configurationMapper.RegisterEnumMapping(typeof(RegistersEndpoint));
             }
             this.HeaderType = headerType;
             this.baseAddressRegisters = new BaseAddressRegister[headerType.MaxNumberOfBARs()];
@@ -228,6 +241,7 @@ namespace Antmicro.Renode.Peripherals.PCI
         }
 
         protected readonly DoubleWordRegisterCollection registers;
+        protected readonly RegisterMapper configurationMapper;
 
         private bool IsHeaderAcceptable(HeaderType header)
         {
