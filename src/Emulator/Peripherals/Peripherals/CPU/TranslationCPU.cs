@@ -1932,6 +1932,11 @@ namespace Antmicro.Renode.Peripherals.CPU
                     memoryManager.Free(blockBuffer);
                     this.NoisyLog("Memory mappings rebuilt, there are {0} host blocks now.", hostBlocks.Length);
                 }
+                else
+                {
+                    // Removing the last touched mapping must also discard its native pointer.
+                    RenodeFreeHostBlocks();
+                }
             }
         }
 
