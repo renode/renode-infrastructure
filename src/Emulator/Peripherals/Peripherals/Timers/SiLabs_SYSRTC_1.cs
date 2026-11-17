@@ -175,6 +175,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.Group0Control, new DoubleWordRegister(this)
+                    .WithWriteCallback((_, __) => BeginSynchronization(0, GroupSyncBusyControl))
                     .WithFlag(0, out group0Compare0Enable, name: "CMP0EN")
                     .WithFlag(1, out group0Compare1Enable, name: "CMP1EN")
                     .WithFlag(2, out group0Capture0Enable, name: "CAP0EN")
@@ -185,10 +186,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithChangeCallback((_, __) => RestartTimer())
                 },
                 {(long)Registers.Group0Compare0, new DoubleWordRegister(this)
+                    .WithWriteCallback((_, __) => BeginSynchronization(0, GroupSyncBusyCompare0))
                     .WithValueField(0, 32, out group0Compare0Value, name: "CMP0VALUE")
                     .WithChangeCallback((_, __) => RestartTimer())
                 },
                 {(long)Registers.Group0Compare1, new DoubleWordRegister(this)
+                    .WithWriteCallback((_, __) => BeginSynchronization(0, GroupSyncBusyCompare1))
                     .WithValueField(0, 32, out group0Compare1Value, name: "CMP1VALUE")
                     .WithChangeCallback((_, __) => RestartTimer())
                 },
@@ -197,8 +200,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithChangeCallback((_, __) => RestartTimer())
                 },
                 {(long)Registers.Group0SyncBusy, new DoubleWordRegister(this)
-                    // No synchronization is modeled, so SYNCBUSY always reads as 0
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0, name: "SYNCBUSY")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => GetSyncBusy(0), name: "SYNCBUSY")
                 },
                 {(long)Registers.Group1InterruptFlags, new DoubleWordRegister(this)
                     .WithFlag(0, out group1OverflowInterrupt, name: "OVFIF")
@@ -225,6 +227,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithChangeCallback((_, __) => UpdateInterrupts())
                 },
                 {(long)Registers.Group1Control, new DoubleWordRegister(this)
+                    .WithWriteCallback((_, __) => BeginSynchronization(1, GroupSyncBusyControl))
                     .WithFlag(0, out group1Compare0Enable, name: "CMP0EN")
                     .WithFlag(1, out group1Compare1Enable, name: "CMP1EN")
                     .WithFlag(2, out group1Capture0Enable, name: "CAP0EN")
@@ -235,10 +238,12 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithChangeCallback((_, __) => RestartTimer())
                 },
                 {(long)Registers.Group1Compare0, new DoubleWordRegister(this)
+                    .WithWriteCallback((_, __) => BeginSynchronization(1, GroupSyncBusyCompare0))
                     .WithValueField(0, 32, out group1Compare0Value, name: "CMP0VALUE")
                     .WithChangeCallback((_, __) => RestartTimer())
                 },
                 {(long)Registers.Group1Compare1, new DoubleWordRegister(this)
+                    .WithWriteCallback((_, __) => BeginSynchronization(1, GroupSyncBusyCompare1))
                     .WithValueField(0, 32, out group1Compare1Value, name: "CMP1VALUE")
                     .WithChangeCallback((_, __) => RestartTimer())
                 },
@@ -247,8 +252,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithChangeCallback((_, __) => RestartTimer())
                 },
                 {(long)Registers.Group1SyncBusy, new DoubleWordRegister(this)
-                    // No synchronization is modeled, so SYNCBUSY always reads as 0
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0, name: "SYNCBUSY")
+                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => GetSyncBusy(1), name: "SYNCBUSY")
                 },
             };
             return new DoubleWordRegisterCollection(this, registerDictionary);
@@ -361,6 +365,35 @@ namespace Antmicro.Renode.Peripherals.Timers
             UpdateInterrupts();
             RestartTimer(restartFromZero);
         }
+
+        // A write to a group register reaches the SYSRTC clock domain only after a few cycles of its
+        // (low frequency) clock. The driver waits for the group SYNCBUSY register to clear after such a write
+        // (for example sl_hal_sysrtc_wait_sync_group), and that wait is what keeps a loop that re-arms the compare
+        // register from running faster than the counter. SYNCBUSY therefore reads as busy for a few cycles.
+        private const uint GroupSyncBusyControl = 1u << 0;
+        private const uint GroupSyncBusyCompare0 = 1u << 1;
+        private const uint GroupSyncBusyCompare1 = 1u << 2;
+        private const ulong SynchronizationCycles = 3;
+
+        private uint GetSyncBusy(int group)
+        {
+            TrySyncTime();
+            if(GetTime() >= syncBusyUntil[group])
+            {
+                syncBusyBits[group] = 0;
+            }
+            return syncBusyBits[group];
+        }
+
+        private void BeginSynchronization(int group, uint busyBit)
+        {
+            TrySyncTime();
+            syncBusyBits[group] |= busyBit;
+            syncBusyUntil[group] = GetTime() + TimeInterval.FromMicroseconds(SynchronizationCycles * 1000000UL / timerFrequency);
+        }
+
+        private readonly uint[] syncBusyBits = new uint[2];
+        private readonly TimeInterval[] syncBusyUntil = new TimeInterval[2];
 
         private bool timerIsRunning = false;
 
