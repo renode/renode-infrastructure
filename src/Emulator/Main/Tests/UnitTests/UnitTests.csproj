@@ -4,7 +4,7 @@
     <RollForward>Major</RollForward>
     <RuntimeIdentifier Condition="$(PORTABLE) == 'true'">linux-x64</RuntimeIdentifier>
     <AssemblyName>UnitTests</AssemblyName>
-    <LangVersion>12.0</LangVersion>
+    <LangVersion>14.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- Do not compile. It is included as an embedded resource to test AdHocCompiler. -->

@@ -26,7 +26,7 @@ namespace Antmicro.Renode.Utilities
             var outputFilePath = Path.ChangeExtension(tempFilePath, ".dll");
             var outputFileName = Path.GetFileName(outputFilePath);
             var options = CSharpParseOptions.Default
-                .WithLanguageVersion(LanguageVersion.CSharp12);
+                .WithLanguageVersion(LanguageVersion.CSharp14);
 
             var parsedSyntaxTrees = new List<SyntaxTree> { };
 

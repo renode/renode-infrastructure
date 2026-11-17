@@ -3,7 +3,7 @@
     <TargetFrameworks>net10.0</TargetFrameworks>
     <RollForward>Major</RollForward>
     <AssemblyName>MonitorTests</AssemblyName>
-    <LangVersion>12.0</LangVersion>
+    <LangVersion>14.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NUnit" Version="3.13.1" />
