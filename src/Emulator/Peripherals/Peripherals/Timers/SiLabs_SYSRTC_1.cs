@@ -286,31 +286,33 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             // Compare interrupt fires "on the next cycle", therefore we just set 
             // the timer to the +1 value and fire the interrupt right away when
-            // we hit the limit.
+            // we hit the limit. A value the counter has just reached still matches: the write
+            // can be synchronized into the 32 kHz domain after the counter has moved on, and the
+            // comparator matches as soon as the new value arrives.
 
             if(group0Compare0Enable.Value
-                && currentValue < (group0Compare0Value.Value + 1)
+                && currentValue <= (group0Compare0Value.Value + 1)
                 && (group0Compare0Value.Value + 1) < limit)
             {
                 limit = (uint)group0Compare0Value.Value + 1;
             }
 
             if(group0Compare1Enable.Value
-                && currentValue < (group0Compare1Value.Value + 1)
+                && currentValue <= (group0Compare1Value.Value + 1)
                 && (group0Compare1Value.Value + 1) < limit)
             {
                 limit = (uint)group0Compare1Value.Value + 1;
             }
 
             if(group1Compare0Enable.Value
-                && currentValue < (group1Compare0Value.Value + 1)
+                && currentValue <= (group1Compare0Value.Value + 1)
                 && (group1Compare0Value.Value + 1) < limit)
             {
                 limit = (uint)group1Compare0Value.Value + 1;
             }
 
             if(group1Compare1Enable.Value
-                && currentValue < (group1Compare1Value.Value + 1)
+                && currentValue <= (group1Compare1Value.Value + 1)
                 && (group1Compare1Value.Value + 1) < limit)
             {
                 limit = (uint)group1Compare1Value.Value + 1;
