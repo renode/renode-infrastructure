@@ -63,6 +63,14 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         public void WriteDoubleWord(long offset, uint value)
         {
+            // Register handlers may call TrySyncTime (for example to read a running timer), which ends in
+            // TimeSourceBase.ReportTimeProgress. That method takes the time source's virtualTimeSyncLock and
+            // then, through TimePassed, the clock source lock. Another CPU thread reporting its own progress
+            // takes these two locks in that order, so doing the first synchronization while already holding the
+            // clock source lock can deadlock. Synchronizing here, before taking the lock, keeps one lock order;
+            // the synchronization done inside the handler then has nothing left to report.
+            TrySyncTime();
+
             machine.ClockSource.ExecuteInLock(delegate
             {
                 if(!VerifyPeripheralAccess(isWrite: true, offset))
