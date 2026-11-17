@@ -295,6 +295,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 simpleCSRs[key] = 0;
             }
+            AndesExtension?.Reset();
             UserState.Clear();
             SetPCFromResetVector();
             TlibSetPmpaddrBits(PMPNumberOfAddrBits);
