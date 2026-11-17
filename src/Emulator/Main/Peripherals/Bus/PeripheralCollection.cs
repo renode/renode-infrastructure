@@ -180,8 +180,9 @@ namespace Antmicro.Renode.Peripherals.Bus
                 sync.EnterWriteLock();
                 try
                 {
-                    blocks = blocks.Where(x => x.Start > end || x.End < start).ToArray();
-                    var toRemove = shortBlocks.Where(x => x.Value.Start >= start && x.Value.End <= end).Select(x => x.Key).ToArray();
+                    // Block.End is exclusive, whereas the range passed to Remove is inclusive.
+                    blocks = blocks.Where(x => x.Start > end || x.End <= start).ToArray();
+                    var toRemove = shortBlocks.Where(x => x.Value.Start >= start && x.Value.End - 1 <= end).Select(x => x.Key).ToArray();
                     foreach(var keyToRemove in toRemove)
                     {
                         shortBlocks.Remove(keyToRemove);
