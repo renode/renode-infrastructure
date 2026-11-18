@@ -402,6 +402,8 @@ namespace Antmicro.Renode.Peripherals.CPU
                 : base(machine, "rv32imfv_zve32x_zicsr_zifencei_zbb", hartId: hartId, privilegeLevels: PrivilegeLevels.Machine, pmpEntryCount: 0)
             {
                 this.parent = parent;
+                // NOTE: VLEN is preserved across resets. See `cpu_reset` in tlib.
+                this.VectorRegisterLength = 128;
 
                 this.AddHookAtWfiStateChange(HandleWfi);
                 this.AddHookAtInterruptBegin(exceptionIndex =>
