@@ -177,28 +177,28 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
     private void HandleKeyvaultKeyRead()
     {
         kvKeyReadValid.Value = true;
-        if(!keyVault.TryGetKey((uint)kvKeyReadSlot.Value, out var keyBytes, Caliptra_KeyVault.DestinationCode.HmacKey))
+        if(!keyVault.TryGetKey((uint)kvKeyReadSlot.Value, out var key, Caliptra_KeyVault.DestinationCode.HmacKey))
         {
             kvKeyReadStatus.Value = KeyvalutOperationStatus.ReadFail;
             this.Log(LogLevel.Warning, "Reading key from KeyVault slot {0} failed", kvKeyReadSlot.Value);
             return;
         }
 
-        Array.Copy(keyBytes, hmacKey, keyBytes.Length);
+        Array.Copy(key, hmacKey, key.Length);
         kvKeyReadStatus.Value = KeyvalutOperationStatus.Success;
     }
 
     private void HandleKeyvaultBlockRead()
     {
         kvBlockReadValid.Value = true;
-        if(!keyVault.TryGetKey((uint)kvBlockReadSlot.Value, out var blockBytes, Caliptra_KeyVault.DestinationCode.HmacBlock))
+        if(!keyVault.TryGetKey((uint)kvBlockReadSlot.Value, out var block, Caliptra_KeyVault.DestinationCode.HmacBlock))
         {
             kvBlockReadStatus.Value = KeyvalutOperationStatus.ReadFail;
             this.Log(LogLevel.Warning, "Reading block from KeyVault slot {0} failed", kvBlockReadSlot.Value);
             return;
         }
 
-        Array.Copy(blockBytes, hmacBlock, blockBytes.Length);
+        Array.Copy(block, hmacBlock, block.Length);
         kvBlockReadStatus.Value = KeyvalutOperationStatus.Success;
     }
 
