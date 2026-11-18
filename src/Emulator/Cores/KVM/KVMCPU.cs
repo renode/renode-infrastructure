@@ -292,10 +292,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             KvmDispose();
             TimeHandle.Dispose();
             binder.Dispose();
-            if(!EmulationManager.DisableEmulationFilesCleanup)
-            {
-                File.Delete(libraryFile);
-            }
+            File.Delete(libraryFile);
         }
 
         protected override void RequestPause()
