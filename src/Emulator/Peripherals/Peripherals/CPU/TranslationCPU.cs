@@ -1131,6 +1131,7 @@ namespace Antmicro.Renode.Peripherals.CPU
             TlibDispose();
             RenodeFreeHostBlocks();
             binder.Dispose();
+            File.Delete(libraryFile);
             if(dirtyAddressesPtr != IntPtr.Zero)
             {
                 memoryManager.Free(dirtyAddressesPtr);
