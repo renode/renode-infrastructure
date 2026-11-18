@@ -198,7 +198,11 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
             return;
         }
 
+        Array.Clear(hmacBlock);
         Array.Copy(block, hmacBlock, block.Length);
+        // Since Key Vault data is smaller that the hmacBlock buffer, this remains safely in bounds
+        hmacBlock[block.Length] = Sha2PaddingBit;
+        hmacBlock[hmacBlock.Length - 1] = (uint)((block.Length << BitsPerDwordShift) + BlockSizeInBits);
         kvBlockReadStatus.Value = KeyvalutOperationStatus.Success;
     }
 
@@ -242,7 +246,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
         }
         var blockBytes = ToBytesBigEndian(hmacBlock).ToArray();
 
-        var digest = new byte[TagLength * sizeof(uint)];
+        var digest = new byte[TagLength512 * sizeof(uint)];
         try
         {
             hmac.Next(blockBytes);
@@ -254,9 +258,12 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
             return;
         }
 
+        var tagDwords = (mode.Value == HMACMode.HMAC384) ? TagLength384 : TagLength512;
+        var uint32Digest = BitHelper.ToUInt32Array(digest, littleEndian: false);
+
         if(kvTagWrite.Value)
         {
-            if(keyVault.TrySetKey((uint)kvTagWriteSlot.Value, BitHelper.ToUInt32Array(digest, littleEndian: false), kvTagWriteAllowed.Value))
+            if(keyVault.TrySetKey((uint)kvTagWriteSlot.Value, uint32Digest.Take(tagDwords).ToArray(), kvTagWriteAllowed.Value))
             {
                 kvTagWriteStatus.Value = KeyvalutOperationStatus.Success;
             }
@@ -270,7 +277,8 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
         // Do not output the tag if the secret (key or block) was obtained from the Keyvault
         else if(!kvKeyReadValid.Value && !kvBlockReadValid.Value)
         {
-            Array.Copy(BitHelper.ToUInt32Array(digest, littleEndian: false), hmacTag, TagLength);
+            Array.Clear(hmacTag, 0, hmacTag.Length);
+            Array.Copy(uint32Digest, hmacTag, tagDwords);
         }
 
         valid.Value = true;
@@ -316,14 +324,20 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
 
     private readonly uint[] hmacKey = new uint[KeyLength];
     private readonly uint[] hmacBlock = new uint[BlockLength];
-    private readonly uint[] hmacTag = new uint[TagLength];
+    private readonly uint[] hmacTag = new uint[TagLength512];
+
+    private const uint Sha2PaddingBit = 0x80000000;
+    private const int BitsPerDwordShift = 5;
 
     private const int KeyLength = 16;
     private const int BlockLength = BlockSizeInBytes / sizeof(uint);
-    private const int TagLength = TagSizeInBytes / sizeof(uint);
+    private const int TagLength512 = TagSize512InBytes / sizeof(uint);
+    private const int TagLength384 = TagSize384InBytes / sizeof(uint);
 
     private const int BlockSizeInBytes = 128;
-    private const int TagSizeInBytes = 64;
+    private const int BlockSizeInBits = BlockSizeInBytes * 8;
+    private const int TagSize512InBytes = 64;
+    private const int TagSize384InBytes = 48;
 
     private const ulong HmacCoreName    = 0x61327368_6163686d; // "hmacsha2"
     private const ulong HmacCoreVersion = 0x00000000_3030322e; // "2.00"
@@ -370,7 +384,7 @@ public class Caliptra_HMAC : BasicDoubleWordPeripheral, IKnownSize
             hashOuter.DoFinal(Tag);
         }
 
-        public byte[] Tag { get; } = new byte[TagSizeInBytes];
+        public byte[] Tag { get; } = new byte[TagSize512InBytes];
 
         private byte[] opadBlock;
 
