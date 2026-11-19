@@ -22,6 +22,8 @@ using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Packets;
 
+using Range = Antmicro.Renode.Core.Range;
+
 namespace Antmicro.Renode.Peripherals.CAN
 {
     public class STM32_FDCAN : BasicDoubleWordPeripheral, ICAN, IKnownSize
@@ -68,6 +70,19 @@ namespace Antmicro.Renode.Peripherals.CAN
             }, TimeInterval.FromMicroseconds(20), "FDCAN rxDequeueThread", this, () => rxFIFOBuffers.All((buf) => buf.Count() == 0));
 
             Reset();
+
+            this.messageRam.OnWrite += (offset, size) =>
+            {
+                var range = new Range((ulong)offset, (ulong)size);
+                if(range.Intersects(ExtendedFiltersRange))
+                {
+                    CacheFilters((long)MessageRAMOffsets.ExtendedFilters, (int)numberOfExtendedFilters.Value, out extendedFilters);
+                }
+                if(range.Intersects(StandardFiltersRange))
+                {
+                    CacheFilters((long)MessageRAMOffsets.StandardFilters, (int)numberOfStandardFilters.Value, out standardFilters);
+                }
+            };
         }
 
         public void DumpStandardFilters()
@@ -94,6 +109,9 @@ namespace Antmicro.Renode.Peripherals.CAN
             UpdateTimerConfiguration();
             UpdateInterrupts();
             lastHighPrioBufferIndex.Value = 2;
+
+            CacheFilters((long)MessageRAMOffsets.ExtendedFilters, (int)numberOfExtendedFilters.Value, out extendedFilters);
+            CacheFilters((long)MessageRAMOffsets.StandardFilters, (int)numberOfStandardFilters.Value, out standardFilters);
         }
 
         public void OnFrameReceived(CANMessageFrame message)
@@ -118,7 +136,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             var filterIndex = 0;
             IFilterElement filter;
-            if(!(message.ExtendedFormat ? AcceptanceFilterMessage<ExtendedFilterElement>(message, out filterIndex, out filter) : AcceptanceFilterMessage<StandardFilterElement>(message, out filterIndex, out filter)))
+            if(!(message.ExtendedFormat ? AcceptanceFilterMessage<ExtendedFilterElement>(message, extendedFilters, out filterIndex, out filter) : AcceptanceFilterMessage<StandardFilterElement>(message, standardFilters, out filterIndex, out filter)))
             {
                 // Check config registers for how unmatched frames are handled
                 var nonMatchingFramesMode = message.ExtendedFormat ? acceptNonMatchingFramesExtended.Value : acceptNonMatchingFramesStandard.Value;
@@ -295,9 +313,11 @@ namespace Antmicro.Renode.Peripherals.CAN
                 .WithChangeCallback((_, __) => UpdateInterrupts());
             Registers.GlobalFilterConfigRegister.Define(this, name: "FDCAN_RXGFC")
                 .WithReservedBits(28, 4)
-                .WithConditionallyWritableValueField(24, 4, out numberOfExtendedFilters, ConfigChangeEnabled, name: "LSE")
+                .WithConditionallyWritableValueField(24, 4, out numberOfExtendedFilters, ConfigChangeEnabled, name: "LSE",
+                    changeCallback: (_, __) => CacheFilters((long)MessageRAMOffsets.ExtendedFilters, (int)numberOfExtendedFilters.Value, out extendedFilters))
                 .WithReservedBits(21, 3)
-                .WithConditionallyWritableValueField(16, 5, out numberOfStandardFilters, ConfigChangeEnabled, name: "LSS")
+                .WithConditionallyWritableValueField(16, 5, out numberOfStandardFilters, ConfigChangeEnabled, name: "LSS",
+                    changeCallback: (_, __) => CacheFilters((long)MessageRAMOffsets.StandardFilters, (int)numberOfStandardFilters.Value, out standardFilters))
                 .WithReservedBits(10, 6)
                 .WithConditionallyWritableFlag(9, out fifo0Overwrite, ConfigChangeEnabled, name: "F0OM")
                 .WithConditionallyWritableFlag(8, out fifo1Overwrite, ConfigChangeEnabled, name: "F1OM")
@@ -482,24 +502,33 @@ namespace Antmicro.Renode.Peripherals.CAN
             UpdateInterrupts();
         }
 
-        private bool AcceptanceFilterMessage<T>(CANMessageFrame message, out int filterIndex, out IFilterElement matchingFilter)
+        private bool AcceptanceFilterMessage<T>(CANMessageFrame message, T[] filters, out int filterIndex, out IFilterElement matchingFilter)
         where T : IFilterElement
         {
-            var filterLength = Packet.CalculateLength<T>();
-            filterIndex = 0;
-            matchingFilter = default(T);
-            for(filterIndex = 0; filterIndex < (int)(message.ExtendedFormat ? numberOfExtendedFilters.Value : numberOfStandardFilters.Value); filterIndex++)
+            for(var i = 0; i < filters.Length; i++)
             {
-                // Filters are parsed in order, and stop at first matching
-                var filterBase = message.ExtendedFormat ? MessageRAMOffsets.ExtendedFilters : MessageRAMOffsets.StandardFilters;
-                matchingFilter = Packet.Decode<T>(messageRam.ReadBytes((long)filterBase + filterIndex * filterLength, filterLength));
-                if(matchingFilter.MatchesId((ushort)message.Id, (uint)extendedIDMask.Value))
+                if(filters[i].MatchesId((ushort)message.Id, (uint)extendedIDMask.Value))
                 {
+                    filterIndex = i;
+                    matchingFilter = filters[i];
                     this.DebugLog("Standard message accepted by filter {0}, ({1})", filterIndex, matchingFilter);
                     return true;
                 }
             }
+
+            filterIndex = 0;
+            matchingFilter = default;
             return false;
+        }
+
+        private void CacheFilters<T>(long offset, int count, out T[] filters)
+        {
+            var filterLength = Packet.CalculateLength<T>();
+            filters = new T[count];
+            for(var i = 0; i < count; i++)
+            {
+                filters[i] = Packet.Decode<T>(messageRam.ReadBytes(offset + i * filterLength, filterLength));
+            }
         }
 
         private void StoreReceivedMessage(CANMessageFrame message, int rxFifo, int filterIndex, bool nonMatchingFrame = false, bool highPriority = false)
@@ -843,6 +872,8 @@ namespace Antmicro.Renode.Peripherals.CAN
         private IValueRegisterField inputClockDivider;
         private IFlagRegisterField bitRateSwitching;
         private IValueRegisterField requestPendingFlags;
+        private StandardFilterElement[] standardFilters;
+        private ExtendedFilterElement[] extendedFilters;
         private readonly IFlagRegisterField[] rxFIFOFull;
         private readonly IValueRegisterField[] rxFIFOPutIndex;
         private readonly IValueRegisterField[] rxFIFOGetIndex;
@@ -852,6 +883,9 @@ namespace Antmicro.Renode.Peripherals.CAN
         private readonly LimitTimer timestampCounter;
         private readonly LimitTimer timeoutCounter;
         private readonly uint kernelFrequency;
+
+        private static readonly Range StandardFiltersRange = new Range((ulong)MessageRAMOffsets.StandardFilters, (ulong)MessageRAMOffsets.ExtendedFilters - (ulong)MessageRAMOffsets.StandardFilters);
+        private static readonly Range ExtendedFiltersRange = new Range((ulong)MessageRAMOffsets.ExtendedFilters, (ulong)MessageRAMOffsets.RxFIFO0 - (ulong)MessageRAMOffsets.ExtendedFilters);
 
         private const int MessageBufferHeaderSize = 8;
         private const int MessageBufferMaxDataBytes = 64;
