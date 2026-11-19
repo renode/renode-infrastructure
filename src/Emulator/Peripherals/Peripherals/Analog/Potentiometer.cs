@@ -6,25 +6,25 @@
 //
 
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class Potentiometer : IRESDSampleSource<VoltageSample>
+    public class Potentiometer : IRESDSampleSource<VoltageSample>, IHasBounds
     {
         public Potentiometer(uint minMicroVolt, uint maxMicroVolt)
         {
-            if(minMicroVolt > maxMicroVolt)
+            if(minMicroVolt >= maxMicroVolt)
             {
                 throw new ConstructionException($"'{nameof(minMicroVolt)}' value should be less or equal to '{nameof(maxMicroVolt)}' value");
             }
 
-            Sample = new VoltageSample(min);
-
             min = minMicroVolt;
             max = maxMicroVolt;
             percentage = 0;
+            Sample = new VoltageSample(min);
         }
 
         public Potentiometer(double minVolt, double maxVolt) : this((uint)(minVolt * 1e6), (uint)(maxVolt * 1e6))
@@ -75,7 +75,7 @@ namespace Antmicro.Renode.Peripherals.Analog
             set => SetPercentage(value);
         }
 
-        public (uint, uint) Bounds => (min, max);
+        public (long, long) Bounds => (min, max);
 
         private decimal percentage;
 
