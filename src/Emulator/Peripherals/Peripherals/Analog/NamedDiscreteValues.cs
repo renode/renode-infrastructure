@@ -42,6 +42,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             CurrentState = this.First().Key;
         }
 
+        public bool TrySetSample(VoltageSample voltage) => false;
+
         public void Reset()
         {
             // The inputs are intentionally not reset on machine reset.
@@ -62,6 +64,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         }
 
         public VoltageSample Sample => this[CurrentState];
+
+        public bool ReadOnly => true;
 
         private string currentState;
     }

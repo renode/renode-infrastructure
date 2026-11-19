@@ -27,6 +27,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             // Intentionally left empty
         }
 
+        public bool TrySetSample(VoltageSample sample) => false;
+
         public VoltageSample Sample
         {
             get
@@ -46,6 +48,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         }
 
         public decimal Volts => Sample.Voltage / 1e6m;
+
+        public bool ReadOnly => true;
 
         private (VoltageSample, bool) GetState()
         {

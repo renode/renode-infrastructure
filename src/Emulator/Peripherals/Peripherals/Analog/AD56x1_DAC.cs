@@ -92,6 +92,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             index = 0;
         }
 
+        public bool TrySetSample(VoltageSample sample) => false;
+
         /// <summary>
         /// This is a workaround for properties with RESDSample types are not visible in monitor
         /// </summary>
@@ -103,6 +105,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         public VoltageSample Sample { get; private set; }
 
         public bool IsFloating { get; private set; }
+
+        public bool ReadOnly => true;
 
         // The supply voltage, which is used as the max output value, in microvolts
 

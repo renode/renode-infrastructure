@@ -53,7 +53,21 @@ namespace Antmicro.Renode.Peripherals.Analog
             return Sample.ToString();
         }
 
+        public bool TrySetSample(VoltageSample sample)
+        {
+            if(sample.Voltage < min || sample.Voltage > max)
+            {
+                return false;
+            }
+
+            Sample = sample;
+            percentage = (decimal)Misc.RemapNumber(sample.Voltage, min, max, 0, 100);
+            return true;
+        }
+
         public VoltageSample Sample { get; private set; }
+
+        public bool ReadOnly => false;
 
         public decimal Percentage
         {

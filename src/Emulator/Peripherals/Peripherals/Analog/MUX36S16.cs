@@ -27,6 +27,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             Reset();
         }
 
+        public bool TrySetSample(VoltageSample sample) => false;
+
         public VoltageSample Sample
         {
             get
@@ -65,6 +67,8 @@ namespace Antmicro.Renode.Peripherals.Analog
                 return false;
             }
         }
+
+        public bool ReadOnly => true;
 
         public int ADCChannelCount => InputOutputCount;
 
@@ -150,9 +154,13 @@ namespace Antmicro.Renode.Peripherals.Analog
                 // Intentionally empty
             }
 
+            public bool TrySetSample(VoltageSample sample) => false;
+
             public VoltageSample Sample => parent.GetSample(index);
 
             public bool IsFloating => parent.GetIsFloating(index);
+
+            public bool ReadOnly => true;
 
             private readonly MUX36S16_Output parent;
             private readonly int index;

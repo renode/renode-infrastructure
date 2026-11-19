@@ -48,6 +48,12 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
+        public bool TrySetSample(VoltageSample sample)
+        {
+            Sample = sample;
+            return true;
+        }
+
         public VoltageSample Sample
         {
             get
@@ -88,6 +94,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         public VoltageSample DefaultSample { get; set; }
 
         public bool IsFloating { get; set; }
+
+        public bool ReadOnly => false;
 
         private RESDStream<VoltageSample> resdStream;
 
