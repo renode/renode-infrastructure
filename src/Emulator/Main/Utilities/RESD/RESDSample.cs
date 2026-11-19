@@ -57,6 +57,15 @@ namespace Antmicro.Renode.Utilities.RESD
     [SampleType(SampleType.Temperature)]
     public class TemperatureSample : RESDSample
     {
+        public TemperatureSample()
+        {
+        }
+
+        public TemperatureSample(int rawSample)
+        {
+            this.temperature = rawSample;
+        }
+
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             return reader.TryReadInt32(out temperature);
@@ -77,6 +86,17 @@ namespace Antmicro.Renode.Utilities.RESD
     [SampleType(SampleType.Acceleration)]
     public class AccelerationSample : RESDSample
     {
+        public AccelerationSample()
+        {
+        }
+
+        public AccelerationSample(int rawX, int rawY, int rawZ)
+        {
+            this.accelerationX = rawX;
+            this.accelerationY = rawY;
+            this.accelerationZ = rawZ;
+        }
+
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             return reader.TryReadInt32(out accelerationX)
@@ -109,6 +129,17 @@ namespace Antmicro.Renode.Utilities.RESD
     [SampleType(SampleType.AngularRate)]
     public class AngularRateSample : RESDSample
     {
+        public AngularRateSample()
+        {
+        }
+
+        public AngularRateSample(int rawX, int rawY, int rawZ)
+        {
+            this.angularRateX = rawX;
+            this.angularRateY = rawY;
+            this.angularRateZ = rawZ;
+        }
+
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             return reader.TryReadInt32(out angularRateX)
@@ -191,6 +222,15 @@ namespace Antmicro.Renode.Utilities.RESD
     [SampleType(SampleType.ECG)]
     public class ECGSample : RESDSample
     {
+        public ECGSample()
+        {
+        }
+
+        public ECGSample(int rawSample)
+        {
+            this.ecg = rawSample;
+        }
+
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             return reader.TryReadInt32(out ecg);
@@ -211,6 +251,15 @@ namespace Antmicro.Renode.Utilities.RESD
     [SampleType(SampleType.Humidity)]
     public class HumiditySample : RESDSample
     {
+        public HumiditySample()
+        {
+        }
+
+        public HumiditySample(uint rawSample)
+        {
+            this.humidity = rawSample;
+        }
+
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             return reader.TryReadUInt32(out humidity);
@@ -231,6 +280,15 @@ namespace Antmicro.Renode.Utilities.RESD
     [SampleType(SampleType.Pressure)]
     public class PressureSample : RESDSample
     {
+        public PressureSample()
+        {
+        }
+
+        public PressureSample(ulong rawSample)
+        {
+            this.pressure = rawSample;
+        }
+
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             return reader.TryReadUInt64(out pressure);
@@ -251,6 +309,17 @@ namespace Antmicro.Renode.Utilities.RESD
     [SampleType(SampleType.MagneticFluxDensity)]
     public class MagneticSample : RESDSample
     {
+        public MagneticSample()
+        {
+        }
+
+        public MagneticSample(int rawX, int rawY, int rawZ)
+        {
+            this.magneticFluxDensityX = rawX;
+            this.magneticFluxDensityY = rawY;
+            this.magneticFluxDensityZ = rawZ;
+        }
+
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             return reader.TryReadInt32(out magneticFluxDensityX)
@@ -324,6 +393,15 @@ namespace Antmicro.Renode.Utilities.RESD
     [SampleType(SampleType.Illuminance)]
     public class IlluminanceSample : RESDSample
     {
+        public IlluminanceSample()
+        {
+        }
+
+        public IlluminanceSample(uint rawSample)
+        {
+            this.illuminance = rawSample;
+        }
+
         public override bool TryReadFromStream(SafeBinaryReader reader)
         {
             return reader.TryReadUInt32(out illuminance);
