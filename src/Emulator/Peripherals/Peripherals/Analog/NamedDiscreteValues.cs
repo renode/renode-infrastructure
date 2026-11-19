@@ -8,11 +8,12 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Antmicro.Renode.Exceptions;
+using Antmicro.Renode.Peripherals.Sensor;
 using Antmicro.Renode.Utilities.RESD;
 
 namespace Antmicro.Renode.Peripherals.Analog
 {
-    public class NamedDiscreteValues : Dictionary<string, VoltageSample>, IRESDSampleSource<VoltageSample>
+    public class NamedDiscreteValues : Dictionary<string, VoltageSample>, IRESDSampleSource<VoltageSample>, IHasNamedValues
     {
         public NamedDiscreteValues(Dictionary<string, uint> namedMicroVoltValues)
         {
@@ -66,6 +67,14 @@ namespace Antmicro.Renode.Peripherals.Analog
         public VoltageSample Sample => this[CurrentState];
 
         public bool ReadOnly => true;
+
+        public IDictionary<string, object> NamedValues => this.Select(kv => new KeyValuePair<string, object>(kv.Key, kv.Value)).ToDictionary();
+
+        public string ActiveNamedValue
+        {
+            get => CurrentState;
+            set => CurrentState = value;
+        }
 
         private string currentState;
     }
