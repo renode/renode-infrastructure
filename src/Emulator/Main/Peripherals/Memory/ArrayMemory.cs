@@ -55,6 +55,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
             var bytes = BitConverter.GetBytes(value);
             bytes.CopyTo(array, offset);
+            OnWrite?.Invoke(offset, sizeof(ulong));
         }
 
         public uint ReadDoubleWord(long offset)
@@ -76,6 +77,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
             var bytes = BitConverter.GetBytes(value);
             bytes.CopyTo(array, offset);
+            OnWrite?.Invoke(offset, sizeof(uint));
         }
 
         public void Reset()
@@ -102,6 +104,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
             var bytes = BitConverter.GetBytes(value);
             bytes.CopyTo(array, offset);
+            OnWrite?.Invoke(offset, sizeof(ushort));
         }
 
         public byte ReadByte(long offset)
@@ -123,6 +126,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             }
             var intOffset = (int)offset;
             array[intOffset] = value;
+            OnWrite?.Invoke(offset, sizeof(byte));
         }
 
         public byte[] ReadBytes(long offset, int count, IPeripheral context = null)
@@ -143,6 +147,7 @@ namespace Antmicro.Renode.Peripherals.Memory
                 return;
             }
             Array.Copy(bytes, startingIndex, array, offset, count);
+            OnWrite?.Invoke(offset, count);
         }
 
         public void LoadFileChunks(string path, IEnumerable<FileChunk> chunks, IPeripheral cpu)
@@ -153,11 +158,13 @@ namespace Antmicro.Renode.Peripherals.Memory
         public void Fill(byte value)
         {
             array.Fill(value);
+            OnWrite?.Invoke(0, array.Length);
         }
 
         public void FillRegion(byte value, int startIndex, int count)
         {
             array.Fill(value, startIndex, count);
+            OnWrite?.Invoke(startIndex, count);
         }
 
         public long Size
@@ -171,6 +178,8 @@ namespace Antmicro.Renode.Peripherals.Memory
         // ArrayMemory matches the host endianness because host-endian BitConverter operations are used for
         // accesses wider than a byte.
         public Endianess Endianness => BitConverter.IsLittleEndian ? Endianess.LittleEndian : Endianess.BigEndian;
+
+        public event Action<long, int> OnWrite;
 
         protected readonly byte[] array;
 
