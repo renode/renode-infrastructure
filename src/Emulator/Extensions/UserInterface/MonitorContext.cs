@@ -24,7 +24,7 @@ using AntShell.Commands;
 
 namespace Antmicro.Renode.UserInterface
 {
-    public record MonitorContext : IDisposable
+    public record MonitorContext
     {
         public static IEnumerable<MethodInfo> GetAvailableExtensions(Type type) =>
             TypeManager.Instance.GetExtensionMethods(type).Where(y => y.IsExtensionCallable()).OrderBy(y => y.Name);
@@ -32,7 +32,6 @@ namespace Antmicro.Renode.UserInterface
         public MonitorContext(string currentDirectory, Token oldOrigin = null)
         {
             InitializeBindings();
-            RegisterEmulationChanged();
 
             currentMachineOverride = new ThreadLocal<IMachine>();
             isMachineOverriden = new ThreadLocal<bool>();
@@ -597,6 +596,18 @@ namespace Antmicro.Renode.UserInterface
             }
         }
 
+        public void UpdateTokens()
+        {
+            foreach(var symbol in Variables.Keys)
+            {
+                var token = Variables[symbol];
+                if(token is PathToken pathToken)
+                {
+                    pathToken.Update(EmulationManager.Instance.CurrentEmulation.FileFetcher);
+                }
+            }
+        }
+
         public string MachineName => EmulationManager.Instance.CurrentEmulation.TryGetMachineName(CurrentMachine, out var name) ? name : null;
 
         public string MachineNameNormalized => NormalizeMachineName(MachineName);
@@ -686,32 +697,8 @@ namespace Antmicro.Renode.UserInterface
             InitializeBindings();
             currentMachineOverride = new ThreadLocal<IMachine>();
             isMachineOverriden = new ThreadLocal<bool>();
-            RegisterEmulationChanged();
-
             // Right after deserialization the EmulationManager is not yet fully set up thus
             // currentMachine can't be retrieved here.
-        }
-
-        private void UpdateTokens()
-        {
-            foreach(var symbol in Variables.Keys)
-            {
-                var token = Variables[symbol];
-                if(token is PathToken pathToken)
-                {
-                    pathToken.Update(EmulationManager.Instance.CurrentEmulation.FileFetcher);
-                }
-            }
-        }
-
-        private void RegisterEmulationChanged()
-        {
-            EmulationManager.Instance.EmulationChanged += UpdateTokens;
-        }
-
-        public void Dispose()
-        {
-            EmulationManager.Instance.EmulationChanged -= UpdateTokens;
         }
 
         [Transient]

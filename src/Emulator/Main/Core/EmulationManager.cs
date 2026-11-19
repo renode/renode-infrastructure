@@ -163,6 +163,7 @@ namespace Antmicro.Renode.Core
                 CurrentEmulation = emulation;
                 CurrentEmulation.BlobManager.Load(stream, fstream.Name);
                 ObjectCreator.Instance.GetSurrogate<Monitor>().MonitorContext = monitorContext;
+                monitorContext.UpdateTokens();
                 Logger.Log(LogLevel.Info, $"Monitor symbols loaded:\n\tMacros: {monitorContext.Macros.Keys.Stringify()}\n\tAliasses: {monitorContext.Aliases.Keys.Stringify()}\n\tVariables: {monitorContext.Variables.Keys.Stringify()}");
 
                 if(metadataStringFromFile != MetadataString)

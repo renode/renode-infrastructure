@@ -58,8 +58,7 @@ namespace Antmicro.Renode.UserInterface
                         MachineChanged?.Invoke(null);
                     }
                 };
-
-                monitorContext = new MonitorContext(startingCurrentDirectory, oldOrigin);
+                MonitorContext = new MonitorContext(startingCurrentDirectory, oldOrigin);
             };
 
             EmulationManager.Instance.EmulationChanged += handleEmulationChange;
@@ -486,16 +485,14 @@ namespace Antmicro.Renode.UserInterface
             {
                 if(monitorContextOverride.Value != null)
                 {
-                    monitorContextOverride.Value.Dispose();
                     monitorContextOverride.Value = value;
                 }
                 else
                 {
-                    if(monitorContext.CurrentMachine != value.CurrentMachine)
+                    if(monitorContext?.CurrentMachine != value.CurrentMachine)
                     {
                         MachineChanged?.Invoke(value.MachineName);
                     }
-                    monitorContext.Dispose();
                     monitorContext = value;
                 }
             }
