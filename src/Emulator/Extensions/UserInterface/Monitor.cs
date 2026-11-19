@@ -408,6 +408,16 @@ namespace Antmicro.Renode.UserInterface
             return ci;
         }
 
+        public void RegisterUICommandHandler(Action<string, IDictionary<string, object>> handler)
+        {
+            uiCommandHandler = handler;
+        }
+
+        public void HandleUICommand(string action, IDictionary<string, object> arguments)
+        {
+            uiCommandHandler?.Invoke(action, arguments);
+        }
+
         public string[] SuggestionNeeded(string cmd)
         {
             return SuggestCommands(cmd).ToArray();
@@ -848,6 +858,7 @@ namespace Antmicro.Renode.UserInterface
             Commands.Add(new ExecuteCommand(this, "runMacro", "MACRO", x => MonitorContext.ExpandVariable(x, MonitorContext.Macros), () => MonitorContext.Macros.Keys));
             Commands.Add(new MachCommand(this, () => Machine, x => Machine = x));
             Commands.Add(new ResdCommand(this));
+            Commands.Add(new UICommand(this));
             Commands.Add(new VerboseCommand(this, x => MonitorContext.VerboseMode = x));
             Commands.Add(new SetAndRevertAfterCommand(this));
             Commands.Add(new PrintEnvironmentCommand(this));
@@ -1084,6 +1095,7 @@ namespace Antmicro.Renode.UserInterface
 
         private Token[] TokensOfLastExecutedCommand = null;
 
+        private Action<string, IDictionary<string, object>> uiCommandHandler;
         private MonitorContext monitorContext;
         private readonly ThreadLocal<MonitorContext> monitorContextOverride = new ThreadLocal<MonitorContext>();
 
