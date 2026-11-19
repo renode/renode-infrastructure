@@ -201,11 +201,6 @@ namespace Antmicro.Renode.Utilities.Packets
                     continue;
                 }
                 var type = field.ElementType;
-                type = Nullable.GetUnderlyingType(type) ?? type;
-                if(type.IsEnum)
-                {
-                    type = type.GetEnumUnderlyingType();
-                }
 
                 if(field.ByteOffset.HasValue)
                 {
@@ -396,11 +391,6 @@ namespace Antmicro.Renode.Utilities.Packets
                     continue;
                 }
                 var type = field.ElementType;
-                type = Nullable.GetUnderlyingType(type) ?? type;
-                if(type.IsEnum)
-                {
-                    type = type.GetEnumUnderlyingType();
-                }
 
                 if(field.ByteOffset.HasValue)
                 {
@@ -752,12 +742,14 @@ namespace Antmicro.Renode.Utilities.Packets
             {
                 fieldInfo = info;
                 GetPresentMethod(info, out presentMethod, out presentArgs);
+                FillProperties();
             }
 
             public FieldPropertyInfoWrapper(PropertyInfo info)
             {
                 propertyInfo = info;
                 GetPresentMethod(info, out presentMethod, out presentArgs);
+                FillProperties();
             }
 
             public bool IsPresent(object o)
@@ -790,122 +782,27 @@ namespace Antmicro.Renode.Utilities.Packets
                 return true;
             }
 
-            public T GetAttribute<T>()
-            {
-                return (T)((MemberInfo)fieldInfo ?? propertyInfo).GetCustomAttributes(typeof(T), false).FirstOrDefault();
-            }
-
-            public bool IsLSBFirst => ((MemberInfo)fieldInfo ?? propertyInfo).DeclaringType.GetCustomAttribute<LeastSignificantByteFirst>(true) != null
-                    || GetAttribute<LeastSignificantByteFirst>() != null;
+            public bool IsLSBFirst { get; private set; }
 
             public bool IsOptional => presentMethod != null;
 
-            public int? ByteOffset => (int?)GetAttribute<OffsetAttribute>()?.OffsetInBytes;
+            public int? ByteOffset { get; private set; }
 
-            public int? BitOffset => (int?)GetAttribute<OffsetAttribute>()?.OffsetInBits;
+            public int? BitOffset { get; private set; }
 
-            public int? ByteAlign => (int?)GetAttribute<AlignAttribute>()?.AlignmentInBytes;
+            public int? ByteAlign { get; private set; }
 
-            public int? BytePaddingBefore => (int?)GetAttribute<PaddingBeforeAttribute>()?.PaddingInBytes;
+            public int? BytePaddingBefore { get; private set; }
 
             public int BytesRequired => ((BitOffset ?? 0) + BitWidth + 7) / 8 ?? (Width + (BitOffset > 0 ? 1 : 0));
 
-            public int Order => GetAttribute<PacketFieldAttribute>().Order;
+            public int Order { get; private set; }
 
-            public int Width
-            {
-                get
-                {
-                    var type = ElementType;
-                    type = Nullable.GetUnderlyingType(type) ?? type;
-                    if(type.IsEnum)
-                    {
-                        type = type.GetEnumUnderlyingType();
-                    }
+            public int Width { get; private set; }
 
-                    if(type == typeof(byte) || type == typeof(bool) || type == typeof(sbyte))
-                    {
-                        return 1;
-                    }
-                    if(type == typeof(ushort) || type == typeof(short))
-                    {
-                        return 2;
-                    }
-                    if(type == typeof(uint) || type == typeof(int))
-                    {
-                        return 4;
-                    }
-                    if(type == typeof(ulong) || type == typeof(long))
-                    {
-                        return 8;
-                    }
-                    if(type.IsArray)
-                    {
-                        // attribute value is in bits
-                        return (GetCustomWidth(type, GetAttribute<WidthAttribute>()) ?? throw new ArgumentException("Array type must have specified Width")) / 8;
-                    }
-                    if(Misc.IsStructType(type) || type.IsClass)
-                    {
-                        return CalculateLengthInner(type);
-                    }
+            public int? BitWidth { get; private set; }
 
-                    throw new ArgumentException($"Unknown width of type: {type}");
-                }
-            }
-
-            public int? BitWidth
-            {
-                get
-                {
-                    var type = ElementType;
-                    type = Nullable.GetUnderlyingType(type) ?? type;
-                    if(type.IsEnum)
-                    {
-                        type = type.GetEnumUnderlyingType();
-                    }
-
-                    if(type == typeof(bool))
-                    {
-                        return 1;
-                    }
-
-                    int inBytes;
-                    if(type == typeof(byte) || type == typeof(sbyte))
-                    {
-                        inBytes = sizeof(byte);
-                    }
-                    else if(type == typeof(ushort) || type == typeof(short))
-                    {
-                        inBytes = sizeof(ushort);
-                    }
-                    else if(type == typeof(uint) || type == typeof(int))
-                    {
-                        inBytes = sizeof(uint);
-                    }
-                    else if(type == typeof(ulong) || type == typeof(long))
-                    {
-                        inBytes = sizeof(ulong);
-                    }
-                    else
-                    {
-                        return null;
-                    }
-
-                    var width = inBytes << 3;
-                    var setWidth = GetCustomWidth(type, GetAttribute<WidthAttribute>());
-                    if(setWidth < 0)
-                    {
-                        throw new ArgumentException($"Width is less than zero.");
-                    }
-                    if(setWidth > width)
-                    {
-                        throw new ArgumentException($"Width is greater than the size of type: {type} ({width} bits).");
-                    }
-                    return setWidth ?? width;
-                }
-            }
-
-            public Type ElementType => fieldInfo?.FieldType ?? propertyInfo.PropertyType;
+            public Type ElementType { get; private set; }
 
             public string ElementName => fieldInfo?.Name ?? propertyInfo.Name;
 
@@ -949,6 +846,111 @@ namespace Antmicro.Renode.Utilities.Packets
                 foundArgs = args;
 
                 return true;
+            }
+
+            private T GetAttribute<T>()
+            {
+                return (T)((MemberInfo)fieldInfo ?? propertyInfo).GetCustomAttributes(typeof(T), false).FirstOrDefault();
+            }
+
+            private void FillProperties()
+            {
+                ElementType = GetElementType();
+                IsLSBFirst = ((MemberInfo)fieldInfo ?? propertyInfo).DeclaringType.GetCustomAttribute<LeastSignificantByteFirst>(true) != null
+                    || GetAttribute<LeastSignificantByteFirst>() != null;
+                ByteOffset = (int?)GetAttribute<OffsetAttribute>()?.OffsetInBytes;
+                BitOffset = (int?)GetAttribute<OffsetAttribute>()?.OffsetInBits;
+                ByteAlign = (int?)GetAttribute<AlignAttribute>()?.AlignmentInBytes;
+                BytePaddingBefore = (int?)GetAttribute<PaddingBeforeAttribute>()?.PaddingInBytes;
+                Order = GetAttribute<PacketFieldAttribute>().Order;
+                Width = CalculateWidth();
+                BitWidth = CalculateBitWidth();
+            }
+
+            private int CalculateWidth()
+            {
+                var type = ElementType;
+                if(type == typeof(byte) || type == typeof(bool) || type == typeof(sbyte))
+                {
+                    return 1;
+                }
+                if(type == typeof(ushort) || type == typeof(short))
+                {
+                    return 2;
+                }
+                if(type == typeof(uint) || type == typeof(int))
+                {
+                    return 4;
+                }
+                if(type == typeof(ulong) || type == typeof(long))
+                {
+                    return 8;
+                }
+                if(type.IsArray)
+                {
+                    // attribute value is in bits
+                    return (GetCustomWidth(type, GetAttribute<WidthAttribute>()) ?? throw new ArgumentException("Array type must have specified Width")) / 8;
+                }
+                if(Misc.IsStructType(type) || type.IsClass)
+                {
+                    return CalculateLengthInner(type);
+                }
+
+                throw new ArgumentException($"Unknown width of type: {type}");
+            }
+
+            private int? CalculateBitWidth()
+            {
+                var type = ElementType;
+                if(type == typeof(bool))
+                {
+                    return 1;
+                }
+
+                int inBytes;
+                if(type == typeof(byte) || type == typeof(sbyte))
+                {
+                    inBytes = sizeof(byte);
+                }
+                else if(type == typeof(ushort) || type == typeof(short))
+                {
+                    inBytes = sizeof(ushort);
+                }
+                else if(type == typeof(uint) || type == typeof(int))
+                {
+                    inBytes = sizeof(uint);
+                }
+                else if(type == typeof(ulong) || type == typeof(long))
+                {
+                    inBytes = sizeof(ulong);
+                }
+                else
+                {
+                    return null;
+                }
+
+                var width = inBytes << 3;
+                var setWidth = GetCustomWidth(type, GetAttribute<WidthAttribute>());
+                if(setWidth < 0)
+                {
+                    throw new ArgumentException($"Width is less than zero.");
+                }
+                if(setWidth > width)
+                {
+                    throw new ArgumentException($"Width is greater than the size of type: {type} ({width} bits).");
+                }
+                return setWidth ?? width;
+            }
+
+            private Type GetElementType()
+            {
+                var type = fieldInfo?.FieldType ?? propertyInfo.PropertyType;
+                type = Nullable.GetUnderlyingType(type) ?? type;
+                if(type.IsEnum)
+                {
+                    type = type.GetEnumUnderlyingType();
+                }
+                return type;
             }
 
             private readonly FieldInfo fieldInfo;
