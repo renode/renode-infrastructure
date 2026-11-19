@@ -1119,8 +1119,10 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         protected override void UpdateRequestedHaltedState()
         {
+            // Any thread can change the halted state, but tb_flush isn't thread safe.
+            // Let the CPU thread flush before it runs again.
+            RequestTranslationCacheClearing();
             base.UpdateRequestedHaltedState();
-            TlibInvalidateTranslationCache();
         }
 
         protected override void DisposeInner(bool silent = false)
