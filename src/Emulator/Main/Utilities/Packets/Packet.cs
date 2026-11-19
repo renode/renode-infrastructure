@@ -559,9 +559,13 @@ namespace Antmicro.Renode.Utilities.Packets
             var items = GetFieldsAndProperties(t);
             var bitmap = UInt128.Zero;
             var bit = UInt128.One;
-            foreach(var item in items.Where(x => x.IsOptional))
+            for(var i = 0; i < items.Length; i++)
             {
-                if(item.IsPresent(obj))
+                if(!items[i].IsOptional)
+                {
+                    continue;
+                }
+                if(items[i].IsPresent(obj))
                 {
                     bitmap |= bit;
                 }
