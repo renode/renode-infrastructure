@@ -74,7 +74,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void HandlePreOpcodeExecutionHook(UInt32 id, UInt64 pc, UInt64 opcode)
         {
-            this.NoisyLog($"Got pre-opcode hook for opcode `0x{opcode:X}` with id {id} from PC {pc}");
+            // Called for every hooked instruction: format the message only if it can be logged
+            if(Logger.MinimumLogLevel <= LogLevel.Noisy)
+            {
+                this.NoisyLog($"Got pre-opcode hook for opcode `0x{opcode:X}` with id {id} from PC {pc}");
+            }
             if(id < (uint)preOpcodeExecutionHooks.Count)
             {
                 preOpcodeExecutionHooks[(int)id].Invoke(pc, opcode);
@@ -88,7 +92,11 @@ namespace Antmicro.Renode.Peripherals.CPU
         [Export]
         private void HandlePostOpcodeExecutionHook(UInt32 id, UInt64 pc, UInt64 opcode)
         {
-            this.NoisyLog($"Got post-opcode hook for opcode `0x{opcode:X}` with id {id} from PC {pc}");
+            // Called for every hooked instruction: format the message only if it can be logged
+            if(Logger.MinimumLogLevel <= LogLevel.Noisy)
+            {
+                this.NoisyLog($"Got post-opcode hook for opcode `0x{opcode:X}` with id {id} from PC {pc}");
+            }
             if(id < (uint)postOpcodeExecutionHooks.Count)
             {
                 postOpcodeExecutionHooks[(int)id].Invoke(pc, opcode);
