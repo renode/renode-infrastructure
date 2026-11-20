@@ -90,6 +90,9 @@ namespace Antmicro.Renode.Peripherals.Analog
             this.hasChannelInjection = hasChannelInjection;
             this.resolutionRange = resolutionRange;
             this.hasChannelPreselection = hasChannelPreselection;
+            // The sequencer is selected with CHSELRMOD, whose configuration register bit
+            // is taken by JQM on the ADCs which have an injected sequence.
+            hasChannelSequencer = hasChannelSelect && hasChannelSequence && !hasChannelInjection;
 
             if(WatchdogCount < 1 || WatchdogCount > 3)
             {
@@ -113,6 +116,12 @@ namespace Antmicro.Renode.Peripherals.Analog
                                                                                  hasChannelInjection,
                                                                                  hasSeparateThresholdRegisters,
                                                                                  hasScanDirection));
+            if(hasChannelSelect)
+            {
+                // Both variants of the channel selection register are conditional, so they
+                // can only be added once the collection they select from exists.
+                BuildChannelSelectionRegisters();
+            }
 
             IRQ = new GPIO();
             this.dmaChannel = dmaChannel;
@@ -172,6 +181,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         public int ADCChannelCount { get; }
 
         public SimpleContainerHelper<IRESDSampleSource<VoltageSample>> ADCContainer { get; }
+
+        private bool SequencerSelected => hasChannelSequencer && channelSelectorMode.Value;
 
         private void WarnOnTooBigValue(int channel, double mv)
         {
@@ -240,8 +251,16 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             if(hasChannelSelect)
             {
-                // NOTE: We set current channel out of bounds to switch to first active channel
-                currentChannel = (scanDirection == ScanDirection.Ascending) ? -1 : ADCChannelCount;
+                // NOTE: We set current channel, or the sequence entry it comes from, out of
+                // bounds to switch to the first active channel
+                if(SequencerSelected)
+                {
+                    sequenceCounter = -1;
+                }
+                else
+                {
+                    currentChannel = (scanDirection == ScanDirection.Ascending) ? -1 : ADCChannelCount;
+                }
                 SwitchToNextActiveChannel();
             }
             else
@@ -400,7 +419,8 @@ namespace Antmicro.Renode.Peripherals.Analog
             {
                 iterationFinished = SwitchToNextChannel();
             }
-            while(!iterationFinished && hasChannelSelect && !channelSelected[currentChannel]);
+            // The sequencer names the channels to convert, so none of them is ever skipped
+            while(!iterationFinished && hasChannelSelect && !SequencerSelected && !channelSelected[currentChannel]);
 
             if(iterationFinished)
             {
@@ -414,7 +434,24 @@ namespace Antmicro.Renode.Peripherals.Analog
 
         private bool SwitchToNextChannel()
         {
-            if(hasChannelSelect)
+            if(SequencerSelected)
+            {
+                // The sequence is always walked from its first entry, no matter what the
+                // scan direction says, and ends on the first entry holding the end marker
+                sequenceCounter++;
+                if(sequenceCounter >= ChannelSequenceLength)
+                {
+                    return true;
+                }
+                currentChannel = (int)configurableSequence[sequenceCounter].Value;
+                if(currentChannel == ChannelSequenceEndMarker || currentChannel < ADCChannelCount)
+                {
+                    return currentChannel == ChannelSequenceEndMarker;
+                }
+                this.Log(LogLevel.Warning, "Sequence entry {0} selects channel {1}, which this ADC does not have, ending the sequence", sequenceCounter + 1, currentChannel);
+                return true;
+            }
+            else if(hasChannelSelect)
             {
                 currentChannel = (scanDirection == ScanDirection.Ascending) ? currentChannel + 1 : currentChannel - 1;
                 return currentChannel >= ADCChannelCount || currentChannel < 0;
@@ -612,7 +649,7 @@ namespace Antmicro.Renode.Peripherals.Analog
                 if(!hasChannelInjection)
                 {
                     configurationRegister1
-                        .WithFlag(21, name: "CHSELRMOD"); // no actual logic, but software expects to read the value back
+                        .WithFlag(21, out channelSelectorMode, name: "CHSELRMOD");
                 }
             }
             else
@@ -786,16 +823,8 @@ namespace Antmicro.Renode.Peripherals.Analog
 
             BuildSampingTimeRegisters(registers, samplingTime);
 
-            // Optional registers
-            if(hasChannelSelect)
-            {
-                registers.Add((long)Registers.ChannelSelection, new DoubleWordRegister(this)
-                    .WithFlags(0, ADCChannelCount,
-                           valueProviderCallback: (id, __) => channelSelected[id],
-                           writeCallback: (id, _, val) => { this.Log(LogLevel.Debug, "Channel {0} enable set as {1}", id, val); channelSelected[id] = val; })
-                    .WithReservedBits(ADCChannelCount, 32 - ADCChannelCount)
-                );
-            }
+            // NOTE: The channel selection register is added by BuildChannelSelectionRegisters,
+            // as its two variants have to be registered with a condition
 
             BuildWatchdogRegisters(registers, hasSeparateThresholdRegisters);
 
@@ -1007,6 +1036,30 @@ namespace Antmicro.Renode.Peripherals.Analog
             }
         }
 
+        private void BuildChannelSelectionRegisters()
+        {
+            var channelSelectionRegister = new DoubleWordRegister(this)
+                .WithFlags(0, ADCChannelCount,
+                       valueProviderCallback: (id, __) => channelSelected[id],
+                       writeCallback: (id, _, val) => { this.Log(LogLevel.Debug, "Channel {0} enable set as {1}", id, val); channelSelected[id] = val; })
+                .WithReservedBits(ADCChannelCount, 32 - ADCChannelCount);
+
+            if(!hasChannelSequencer)
+            {
+                RegistersCollection.AddRegister((long)Registers.ChannelSelection, channelSelectionRegister);
+                return;
+            }
+
+            // With CHSELRMOD set, the same register holds the sequence of channels to
+            // convert instead of the set of channels enabled for conversion
+            var channelSequenceRegister = new DoubleWordRegister(this)
+                .WithValueFields(0, ChannelSequenceEntryWidth, ChannelSequenceLength, out configurableSequence, name: "SQ",
+                       writeCallback: (id, _, val) => this.Log(LogLevel.Debug, "Sequence entry {0} set to channel {1}", id + 1, val));
+
+            RegistersCollection.AddConditionalRegister((long)Registers.ChannelSelection, channelSelectionRegister, () => !channelSelectorMode.Value);
+            RegistersCollection.AddConditionalRegister((long)Registers.ChannelSelection, channelSequenceRegister, () => channelSelectorMode.Value);
+        }
+
         private void BuildSampingTimeRegisters(Dictionary<long, DoubleWordRegister> registers, SamplingTime samplingTime)
         {
             if(samplingTime == SamplingTime.OneForAll)
@@ -1122,6 +1175,8 @@ namespace Antmicro.Renode.Peripherals.Analog
         private IFlagRegisterField endOfSamplingFlag;
 
         private IValueRegisterField regularSequenceLength;
+        private IFlagRegisterField channelSelectorMode;
+        private IValueRegisterField[] configurableSequence;
 
         private int currentChannel;
         private int sequenceCounter;
@@ -1143,6 +1198,7 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly IDMA dma;
         private readonly int dmaChannel;
         private readonly bool hasChannelSelect;
+        private readonly bool hasChannelSequencer;
         private readonly ResolutionRange resolutionRange;
         private readonly bool hasChannelPreselection;
         private readonly uint externalEventFrequency;
@@ -1155,6 +1211,9 @@ namespace Antmicro.Renode.Peripherals.Analog
         private readonly bool hasChannelInjection;
         private const int MaximumSequenceLength = 16;
         private const int MaximumInjectedSequenceLength = 4;
+        private const int ChannelSequenceLength = 8;
+        private const int ChannelSequenceEntryWidth = 4;
+        private const int ChannelSequenceEndMarker = 0xF;
 
         public enum SamplingTime
         {
