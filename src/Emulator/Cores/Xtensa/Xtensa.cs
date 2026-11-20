@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -19,7 +20,7 @@ using Endianess = ELFSharp.ELF.Endianess;
 
 namespace Antmicro.Renode.Peripherals.CPU
 {
-    public partial class Xtensa : TranslationCPU, IRegisterablePeripheral<SemihostingUart, NullRegistrationPoint>
+    public partial class Xtensa : TranslationCPU, IRegisterablePeripheral<SemihostingUart, NullRegistrationPoint>, ICpuWithGdbRegisterMap
     {
         public Xtensa(string cpuType, IMachine machine, uint cpuId = 0, ulong frequency = 10000000)
                 : base(cpuId, cpuType, machine, Endianess.LittleEndian)
@@ -83,6 +84,22 @@ namespace Antmicro.Renode.Peripherals.CPU
         public override string GDBArchitecture { get { return "xtensa"; } }
 
         public override List<GDBFeatureDescriptor> GDBFeatures => new List<GDBFeatureDescriptor>();
+
+        // Xtensa GDB builds are per core configuration and ignore target descriptions, so the
+        // register numbers are those of the matching xtensa-<core>-elf-gdb. Null for cores
+        // without a known layout (the stub then falls back to the register indices).
+        public IReadOnlyList<GdbRegisterSlot> GdbRegisterMap
+        {
+            get
+            {
+                if(gdbRegisterMap == null && GdbRegisterNames.TryGetValue(Model, out var names))
+                {
+                    gdbRegisterMap = names.Select(name =>
+                        new GdbRegisterSlot(Enum.TryParse<XtensaRegisters>(name, true, out var register) ? (int?)register : null, 32)).ToArray();
+                }
+                return gdbRegisterMap;
+            }
+        }
 
         public override string[] AllLLVMTriples => new[] { "xtensa" };
 
@@ -168,7 +185,37 @@ namespace Antmicro.Renode.Peripherals.CPU
             innerTimers[id].Compare = value;
         }
 
+        private static string[] Range(string prefix, int count) => Enumerable.Range(0, count).Select(i => prefix + i).ToArray();
+
         private SemihostingUart semihostingUart = null;
+        private GdbRegisterSlot[] gdbRegisterMap;
+
+        // The 'g' packet layout of each GDB build, from `maint print remote-registers`
+        // (xtensa-esp32-elf-gdb 14.2). Names resolve to XtensaRegisters case-insensitively;
+        // a name the core does not model is reported as unavailable.
+        private static readonly Dictionary<string, string[]> GdbRegisterNames = new Dictionary<string, string[]>
+        {
+            ["esp32"] = new[] { "pc" }
+                .Concat(Range("ar", 64))
+                .Concat(new[] { "lbeg", "lend", "lcount", "sar", "windowbase", "windowstart", "configid0", "configid1",
+                                "ps", "threadptr", "br", "scompare1", "acclo", "acchi" })
+                .Concat(Range("m", 4))
+                .Concat(new[] { "expstate", "f64r_lo", "f64r_hi", "f64s" })
+                .Concat(Range("f", 16))
+                .Concat(new[] { "fcr", "fsr", "mmid", "ibreakenable", "memctl", "atomctl", "ddr" })
+                .Concat(Range("ibreaka", 2))
+                .Concat(Range("dbreaka", 2))
+                .Concat(Range("dbreakc", 2))
+                .Concat(Enumerable.Range(1, 7).Select(i => "epc" + i))
+                .Concat(new[] { "depc" })
+                .Concat(Enumerable.Range(2, 6).Select(i => "eps" + i))
+                .Concat(Enumerable.Range(1, 7).Select(i => "excsave" + i))
+                .Concat(new[] { "cpenable", "interrupt", "intset", "intclear", "intenable", "vecbase", "exccause",
+                                "debugcause", "ccount", "prid", "icount", "icountlevel", "excvaddr" })
+                .Concat(Range("ccompare", 3))
+                .Concat(Range("misc", 4))
+                .ToArray(),
+        };
 
 #pragma warning disable 649
         // 649:  Field '...' is never assigned to, and will always have its default value null

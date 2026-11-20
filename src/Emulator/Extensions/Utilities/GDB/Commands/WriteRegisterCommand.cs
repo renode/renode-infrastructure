@@ -7,6 +7,7 @@
 using System.Linq;
 
 using Antmicro.Renode.Logging;
+using Antmicro.Renode.Peripherals.CPU;
 
 using ELFSharp.ELF;
 
@@ -23,8 +24,19 @@ namespace Antmicro.Renode.Utilities.GDB.Commands
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexNumber, Separator = '=')] int registerNumber,
             [Argument(Encoding = ArgumentAttribute.ArgumentEncoding.HexBytesString)] byte[] value)
         {
+            if(manager.Cpu is ICpuWithGdbRegisterMap mapped && mapped.GdbRegisterMap != null)
+            {
+                var index = registerNumber >= 0 && registerNumber < mapped.GdbRegisterMap.Count ? mapped.GdbRegisterMap[registerNumber].Index : null;
+                if(!index.HasValue)
+                {
+                    manager.Cpu.Log(LogLevel.Warning, "Writing to GDB register #{0} failed, the register is not modelled.", registerNumber);
+                    return PacketData.ErrorReply();
+                }
+                registerNumber = index.Value;
+            }
+
             var isLittleEndian = manager.Cpu.Endianness == Endianess.LittleEndian;
-            var reg = manager.Cpu.GetAllRegisters().SingleOrDefault(x => x.Index == registerNumber);
+            var reg =manager.Cpu.GetAllRegisters().SingleOrDefault(x => x.Index == registerNumber);
             if(reg.Width == 0)
             {
                 manager.Cpu.Log(LogLevel.Warning, "Writing to register #{0} failed, register doesn't exit.", registerNumber);
