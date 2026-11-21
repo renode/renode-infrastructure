@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.I2C
     {
         public BMA180()
         {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             Reset();
         }
 
@@ -492,8 +493,6 @@ namespace Antmicro.Renode.Peripherals.I2C
             sensorFlipState = (byte)SensorFlipStates.XYZ_111;
         }
 
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-
         private void UpdateImage()
         {
             // The following register values (0x20-0x3A) are images of EEPROM 
@@ -740,6 +739,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte registerData;
         private byte[] sendData;
         private byte sensorFlipState;
+
+        private readonly PseudorandomNumberGenerator random;
 
         private enum SensorFlipStates
         {

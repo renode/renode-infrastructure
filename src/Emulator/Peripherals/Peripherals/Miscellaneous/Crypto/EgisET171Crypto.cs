@@ -20,6 +20,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public EgisET171_Crypto(IMachine machine) : base(machine)
         {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             DefineRegisters();
         }
 
@@ -52,7 +53,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 32, valueProviderCallback: _ => (ulong)random.Next());
         }
 
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+        private readonly PseudorandomNumberGenerator random;
 
         private enum Registers
         {

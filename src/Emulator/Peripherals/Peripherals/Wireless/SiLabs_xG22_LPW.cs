@@ -27,6 +27,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
     {
         public SiLabs_xG22_LPW(Machine machine, CortexM sequencer, SiLabs_BUFC_1 bufferController, SiLabs_RTCC_1 prortc = null)
         {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             this.machine = machine;
             this.sequencer = sequencer;
             this.bufferController = bufferController;
@@ -6972,7 +6973,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private readonly PROTIMER_TimeoutCounter[] PROTIMER_timeoutCounter;
         private readonly Machine machine;
         private readonly CortexM sequencer;
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+        private readonly PseudorandomNumberGenerator random;
         private readonly SiLabs_BUFC_1 bufferController;
         private readonly LimitTimer seqTimer;
         private readonly LimitTimer proTimer;

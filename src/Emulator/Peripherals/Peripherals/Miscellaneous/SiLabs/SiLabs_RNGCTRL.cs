@@ -38,6 +38,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
     {
         public SiLabs_RNGCTRL(Machine machine)
         {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             this.machine = machine;
 
             fifo = new Queue<uint>();
@@ -141,8 +142,6 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         }
 
         public GPIO IRQ { get; }
-
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
 
         private void ProcessTestModeHealthTestSample()
         {
@@ -590,6 +589,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private uint testModeSampleCount;
         private bool apt64FailureScheduled;
         private readonly CbcBlockCipherMac cbcMacCipher;
+        private readonly PseudorandomNumberGenerator random;
         private readonly byte[] cbcMacBlock = new byte[16];
         private readonly byte[] key = new byte[16];
         private readonly Queue<uint> fifo;

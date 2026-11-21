@@ -14,6 +14,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
     {
         public FocalTechFT9001_TRNG(IMachine machine) : base(machine)
         {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             DefineRegisters();
         }
 
@@ -36,7 +37,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
                 .WithValueField(0, 32, valueProviderCallback: _ => (ulong)random.Next());
         }
 
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+        private readonly PseudorandomNumberGenerator random;
 
         // Based on https://github.com/focaltech-3545/zephyr-ft9001-public/blob/f982a55e89fe5584982e37ae2b6bd0f22f8d7816/focaltech/hal/ft/ft90/ft9001/standard_peripheral/source/drv/inc/trng_reg.h
         // No public documentation is available, therefore register names are taken directly from the HAL headers.

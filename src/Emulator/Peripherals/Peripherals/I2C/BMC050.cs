@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.I2C
     {
         public BMC050()
         {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             Reset();
         }
 
@@ -619,8 +620,6 @@ namespace Antmicro.Renode.Peripherals.I2C
         {
         }
 
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-
         private double SensorData(double mean, double sigma)
         {
             // mean = mean value of Gaussian (Normal) distribution and sigma = standard deviation
@@ -956,6 +955,8 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte registerData;
         private byte[] sendData;
         private byte sensorFlipState;
+
+        private readonly PseudorandomNumberGenerator random;
 
         private enum GRangeModes
         {

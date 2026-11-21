@@ -28,6 +28,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
     {
         public SiLabs_xG301_LPW(Machine machine, CV32E40P sequencer = null, ISiLabs_RvConfig sequencerConfig = null, SiLabs_BUFC_5 bufferController = null, SiLabs_SYSRTC_2 sysrtc = null)
         {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             this.machine = machine;
             this.sequencer = sequencer;
             this.sequencerConfig = sequencerConfig;
@@ -7288,7 +7289,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private readonly Machine machine;
         private readonly CV32E40P sequencer;
         private readonly ISiLabs_RvConfig sequencerConfig;
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+        private readonly PseudorandomNumberGenerator random;
         private readonly SiLabs_BUFC_5 bufferController;
         private readonly LimitTimer proTimer;
         private readonly LimitTimer paRampingTimer;

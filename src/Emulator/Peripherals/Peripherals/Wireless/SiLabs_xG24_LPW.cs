@@ -29,6 +29,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
     {
         public SiLabs_xG24_LPW(Machine machine, MappedMemory ram, CortexM sequencer, SiLabs_BUFC_4 bufferController, SiLabs_SYSRTC_1 sysrtc = null, bool pa0DbmSupport = false, bool pa10DbmSupport = false, bool pa20DbmSupport = false)
         {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             this.machine = machine;
             this.ram = ram;
             this.sequencer = sequencer;
@@ -7067,7 +7068,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private readonly Machine machine;
         private readonly MappedMemory ram;
         private readonly CortexM sequencer;
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
+        private readonly PseudorandomNumberGenerator random;
         private readonly SiLabs_BUFC_4 bufferController;
         private readonly LimitTimer seqTimer;
         private readonly LimitTimer proTimer;

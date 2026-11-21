@@ -17,6 +17,7 @@ namespace Antmicro.Renode.Peripherals.I2C
     {
         public SHT21()
         {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             MeanHumidity = 75.0;
             Reset();
         }
@@ -170,8 +171,6 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         public double MeanHumidity { get; set; }
 
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
-
         private double SensorData(double mean, double sigma)
         {
             // mean = mean value of Gaussian (Normal) distribution and sigma = standard deviation
@@ -313,6 +312,7 @@ namespace Antmicro.Renode.Peripherals.I2C
         private byte registerData;
         private byte[] sendData;
 
+        private readonly PseudorandomNumberGenerator random;
         private readonly byte[] resultArray = new byte[2] { 0, 0 };
 
         private enum UserControls

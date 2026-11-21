@@ -43,6 +43,7 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         public SiLabs_SecureElement(Machine machine, IDoubleWordPeripheral parent, Queue<uint> txFifo, Queue<uint> rxFifo, bool series3,
                                     uint flashSize, uint flashPageSize, uint flashRegionSize, uint flashCodeRegionStart, uint flashCodeRegionEnd = 0, uint flashDataRegionStart = 0, ISiLabs_KeyStorage ksuStorage = null)
         {
+            random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
             this.machine = machine;
             this.parent = parent;
             this.ksuStorage = ksuStorage;
@@ -4959,13 +4960,13 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private readonly IDoubleWordPeripheral parent;
         private readonly List<AsymmetricCipherKeyPair> ecKeyPairs = new List<AsymmetricCipherKeyPair>();
         private readonly byte[] userDataToken = new byte[UserDataTokenSize];
+        private readonly PseudorandomNumberGenerator random;
 
         // BouncyCastle's Sha{1,224,256,384,512}Digest classes hold H1..Hn as private (or internal-to-BC)
         // fields with no public accessor. The firmware exchanges raw H bytes with the host on every
         // HashUpdate/HashFinish, so we read/write those fields by reflection. Field names are stable
         // across BC's vendored history (see lib/bc-csharp/crypto/src/crypto/digests/).
         private const BindingFlags PrivateInstanceField = BindingFlags.NonPublic | BindingFlags.Instance;
-        private static readonly PseudorandomNumberGenerator random = EmulationManager.Instance.CurrentEmulation.RandomGenerator;
         private const uint NullDescriptor = 1;
         // Series3 specific value.
         // Related to PSEC-5391, once that gets resolved, we might need to update this accordingly.
