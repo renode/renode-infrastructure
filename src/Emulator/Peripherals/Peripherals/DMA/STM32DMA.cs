@@ -375,7 +375,6 @@ namespace Antmicro.Renode.Peripherals.DMA
             private ulong prevNrOfData;
             private IValueRegisterField peripheralAddress;
             private IValueRegisterField memory0Address;
-            private IFlagRegisterField directMode;
 
             private ulong dataOffset;
 
