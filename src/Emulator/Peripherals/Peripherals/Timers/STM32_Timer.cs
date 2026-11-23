@@ -62,6 +62,9 @@ namespace Antmicro.Renode.Peripherals.Timers
                 Limit = autoReloadValue;
                 this.Log(LogLevel.Noisy, "IRQ pending");
                 updateInterruptFlag = true;
+                if (masterModeSelection.Value == MasterModeSelection.Update) {
+                    TRGO.Blink();
+                }
 
                 for(var i = 0; i < NumberOfCCChannels; ++i)
                 {
@@ -171,7 +174,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     .WithReservedBits(1, 1)
                     .WithTaggedFlag("Capture/compare control update selection (CCUS)", 2)
                     .WithTaggedFlag("Capture/compare DMA selection (CCDS)", 3)
-                    .WithTag("Master mode selection (MMS)", 4, 2)
+                    .WithEnumField(4, 2, out masterModeSelection, name: "Master mode selection (MMS)")
                     .WithFlag(7, out timerInput1Selection, name: "TI1 selection (TI1S)")
                     .WithTaggedFlag("Output Idle state 1 (OC1 output) (OIS1)", 8)
                     .WithTaggedFlag("Output Idle state 1 (OC1N output) (OIS1N)", 9)
@@ -581,6 +584,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public GPIO CaptureCompareInterrupt { get; } = new GPIO();
 
+        public GPIO TRGO { get; } = new GPIO();
+
         public IReadOnlyDictionary<int, IGPIO> Connections => connections;
 
         public long Size => 0x400;
@@ -790,6 +795,7 @@ namespace Antmicro.Renode.Peripherals.Timers
         private readonly IFlagRegisterField triggerInterruptFlag;
         private readonly IEnumRegisterField<TriggerSelection> triggerSelection;
         private readonly IEnumRegisterField<SlaveModeSelection> slaveModeSelection;
+        private readonly IEnumRegisterField<MasterModeSelection> masterModeSelection;
         private readonly IEnumRegisterField<CenterAlignedMode> centerAlignedMode;
         private readonly IValueRegisterField repetitionCounter;
         private readonly DoubleWordRegisterCollection registers;
@@ -1013,6 +1019,18 @@ namespace Antmicro.Renode.Peripherals.Timers
             GatedMode = 5,
             TriggerMode = 6,
             ExternalClockMode1 = 7,
+        }
+
+        private enum MasterModeSelection
+        {
+            Reset = 0,
+            Enable = 1,
+            Update = 2,
+            ComparePulse = 3,
+            CompareOC1 = 4,
+            CompareOC2 = 5,
+            CompareOC3 = 6,
+            CompareOC4 = 7,
         }
     }
 }

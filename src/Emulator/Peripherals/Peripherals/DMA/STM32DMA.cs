@@ -29,6 +29,8 @@ namespace Antmicro.Renode.Peripherals.DMA
             engine = new DmaEngine(machine.GetSystemBus(this));
 
             transferCompleteIrqStatus = new IFlagRegisterField[NrOfStreams];
+            transferHalfCompleteIrqStatus = new IFlagRegisterField[NrOfStreams];
+
 
             DefineRegisters();
             Reset();
@@ -60,7 +62,6 @@ namespace Antmicro.Renode.Peripherals.DMA
         private void DefineRegisters()
         {
             var streamRegOffset = new int[] {0, 6, 16, 22};
-
             var lowInterruptStatusReg = Registers.LowInterruptStatus.Define(this)
                 .WithReservedBits(12, 4)
                 .WithReservedBits(28, 4);
@@ -85,7 +86,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(offset + 1, 1)
                     .WithTaggedFlag($"DMEIF{lowStreamIdx}", offset + 2)
                     .WithTaggedFlag($"TEIF{lowStreamIdx}", offset + 3)
-                    .WithTaggedFlag($"HTIF{lowStreamIdx}", offset + 4)
+                    .WithFlag(offset + 4, out transferHalfCompleteIrqStatus[lowStreamIdx], FieldMode.Read, name: $"HTIF{lowStreamIdx}")
                     .WithFlag(offset + 5, out transferCompleteIrqStatus[lowStreamIdx], FieldMode.Read, name: $"TCIF{lowStreamIdx}");
 
                 highInterruptStatusReg
@@ -93,7 +94,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(offset + 1, 1)
                     .WithTaggedFlag($"DMEIF{highStreamIdx}", offset + 2)
                     .WithTaggedFlag($"TEIF{highStreamIdx}", offset + 3)
-                    .WithTaggedFlag($"HTIF{highStreamIdx}", offset + 4)
+                    .WithFlag(offset + 4, out transferHalfCompleteIrqStatus[highStreamIdx], FieldMode.Read, name: $"HTIF{highStreamIdx}")
                     .WithFlag(offset + 5, out transferCompleteIrqStatus[highStreamIdx], FieldMode.Read, name: $"TCIF{highStreamIdx}");
 
                 lowInterruptClearReg
@@ -101,7 +102,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(offset + 1, 1)
                     .WithTaggedFlag($"CDMEIF{lowStreamIdx}", offset + 2)
                     .WithTaggedFlag($"CTEIF{lowStreamIdx}", offset + 3)
-                    .WithTaggedFlag($"CHTIF{lowStreamIdx}", offset + 4)
+                    .WithFlag(offset + 4, FieldMode.Set, name: $"CHTIF{lowStreamIdx}",
+                        writeCallback: (_, value) => ClearIrqFlagOnCondition(transferHalfCompleteIrqStatus[lowStreamIdx], value))
                     .WithFlag(offset + 5, FieldMode.Set, name: $"CTCIF{lowStreamIdx}",
                         writeCallback: (_, value) => ClearIrqFlagOnCondition(transferCompleteIrqStatus[lowStreamIdx], value));
 
@@ -110,7 +112,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(offset + 1, 1)
                     .WithTaggedFlag($"CDMEIF{highStreamIdx}", offset + 2)
                     .WithTaggedFlag($"CTEIF{highStreamIdx}", offset + 3)
-                    .WithTaggedFlag($"CHTIF{highStreamIdx}", offset + 4)
+                    .WithFlag(offset + 4, FieldMode.Set, name: $"CHTIF{highStreamIdx}",
+                        writeCallback: (_, value) => ClearIrqFlagOnCondition(transferHalfCompleteIrqStatus[highStreamIdx], value))
                     .WithFlag(offset + 5, FieldMode.Set, name: $"CTCIF{highStreamIdx}",
                         writeCallback: (_, value) => ClearIrqFlagOnCondition(transferCompleteIrqStatus[highStreamIdx], value));
             }
@@ -137,6 +140,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         }
 
         private readonly IFlagRegisterField[] transferCompleteIrqStatus;
+        private readonly IFlagRegisterField[] transferHalfCompleteIrqStatus;
 
         private readonly DmaEngine engine;
         private readonly Stream[] streams;
@@ -176,7 +180,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
                 // Only transfers from peripheral are using interrupt driven approach.
                 // In other cases we can just transfer all data immediately.
-                if(direction.Value == Direction.PeripheralToMemory)
+                if(direction.Value != Direction.MemoryToMemory)
                 {
                     PerformTransfer();
                 }
@@ -185,6 +189,7 @@ namespace Antmicro.Renode.Peripherals.DMA
             public IGPIO IRQ { get; } = new GPIO();
 
             public bool TransferCompleteIrqEnable => transferCompleteIrqEnable.Value;
+            public bool TransferHalfCompleteIrqEnable => transferHalfCompleteIrqEnable.Value;
 
             private void DefineRegisters()
             {
@@ -194,11 +199,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithFlag(0, out isEnabled, name: "EN", writeCallback: (_, value) => HandleEnable(value))
                     .WithTaggedFlag("DMEIE", 1)
                     .WithTaggedFlag("TEIE", 2)
-                    .WithTaggedFlag("HTIE", 3)
+                    .WithFlag(3, out transferHalfCompleteIrqEnable, name: "HTIE")
                     .WithFlag(4, out transferCompleteIrqEnable, name: "TCIE")
                     .WithTaggedFlag("PFCTRL", 5)
                     .WithEnumField(6, 2, out direction, name: "DIR")
-                    .WithTaggedFlag("CIRC", 8)
+                    .WithFlag(8, out isCircular, name: "CIRC")
                     .WithFlag(9, out peripheralIncrementOffset, name: "PINC")
                     .WithFlag(10, out memoryIncrementOffset, name: "MINC")
                     .WithEnumField(11, 2, out peripheralDataSize, name: "PSIZE")
@@ -213,7 +218,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(25, 7);
 
                 (Registers.StreamNumberOfData + streamOffset).Define(parent)
-                    .WithValueField(0, 16, out nrOfData, name: "NDT")
+                    .WithValueField(0, 16, out nrOfData, name: "NDT", writeCallback: (_, value) => HandleNrOfData(value))
                     .WithReservedBits(16, 16);
 
                 (Registers.StreamPeripheralAddress + streamOffset).Define(parent)
@@ -226,8 +231,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithTag("M1A", 0, 32);
 
                 (Registers.StreamFIFOControl + streamOffset).Define(parent)
-                    .WithEnumField(0, 2, out fifoThreshold, name: "FTH")
-                    .WithFlag(2, out directMode, name: "DMDIS")
+                    .WithTag("FTH", 0, 2)
+                    .WithTaggedFlag("DMDIS", 2)
                     .WithTag("FS", 3, 3)
                     .WithReservedBits(6, 1)
                     .WithTaggedFlag("FEIE", 7)
@@ -238,28 +243,39 @@ namespace Antmicro.Renode.Peripherals.DMA
             {
                 // Only transfers from peripheral are using interrupt driven approach.
                 // In other cases we can just transfer all data immediately.
-                if(value && direction.Value != Direction.PeripheralToMemory)
+                if(value && direction.Value == Direction.MemoryToMemory)
                 {
-                    PerformTransfer();
+                    while (nrOfData.Value > 0) PerformTransfer();
                 }
+            }
+
+            private void HandleNrOfData(ulong value)
+            {
+                prevNrOfData = value;
             }
 
             private void PerformTransfer()
             {
                 if(CreateRequest() is Request request)
                 {
-                    var dataUnitSize = direction.Value == Direction.PeripheralToMemory ?
-                        PeripheralDataSizeInBytes : MemoryDataSizeInBytes;
-                    var nrOfDataUnits = request.Size / dataUnitSize;
 
-                    nrOfData.Value -= (ulong)nrOfDataUnits;
+                    nrOfData.Value -= 1;
                     dataOffset += (ulong)request.Size;
                     parent.engine.IssueCopy(request);
-
+                    
                     if(nrOfData.Value == 0)
                     {
                         parent.transferCompleteIrqStatus[id].Value = true;
                         dataOffset = 0;
+                        if (isCircular.Value)
+                        {
+                            nrOfData.Value = prevNrOfData;
+                        }
+
+                        parent.UpdateInterrupts();
+                    } else if (nrOfData.Value == prevNrOfData / 2)
+                    {
+                        parent.transferHalfCompleteIrqStatus[id].Value = true;
                         parent.UpdateInterrupts();
                     }
                 }
@@ -318,7 +334,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 return new Request(
                     sourceAddress,
                     destinationAddress,
-                    GetCurrentTransferSize(),
+                    PeripheralDataSizeInBytes,
                     sourceTransferType,
                     destinationTransferType,
                     sourceIncrementOffset,
@@ -342,47 +358,29 @@ namespace Antmicro.Renode.Peripherals.DMA
                 }
             }
 
-            private int GetCurrentTransferSize()
-            {
-                switch(direction.Value)
-                {
-                case Direction.MemoryToMemory:
-                    return (int)nrOfData.Value * MemoryDataSizeInBytes;
-                case Direction.MemoryToPeripheral:
-                    return (int)nrOfData.Value * PeripheralDataSizeInBytes;
-                case Direction.PeripheralToMemory:
-                    return directMode.Value ? FIFOThresholdInBytes : PeripheralDataSizeInBytes;
-                default:
-                    parent.WarningLog("Trying to get transfer size for Reserved DataSize. Defaulting to 0.");
-                    return 0;
-                }
-            }
-
-            private int FIFOThresholdInBytes => (((int)fifoThreshold.Value + 1) * FIFOSizeInBytes) / 4;
-
             private int PeripheralDataSizeInBytes => 1 << (int)peripheralDataSize.Value;
 
             private int MemoryDataSizeInBytes => 1 << (int)memoryDataSize.Value;
 
             private IFlagRegisterField isEnabled;
+            private IFlagRegisterField isCircular;
             private IFlagRegisterField transferCompleteIrqEnable;
+            private IFlagRegisterField transferHalfCompleteIrqEnable;
             private IEnumRegisterField<Direction> direction;
             private IFlagRegisterField peripheralIncrementOffset;
             private IFlagRegisterField memoryIncrementOffset;
             private IEnumRegisterField<DataSize> peripheralDataSize;
             private IEnumRegisterField<DataSize> memoryDataSize;
             private IValueRegisterField nrOfData;
+            private ulong prevNrOfData;
             private IValueRegisterField peripheralAddress;
             private IValueRegisterField memory0Address;
-            private IEnumRegisterField<FIFOThreshold> fifoThreshold;
             private IFlagRegisterField directMode;
 
             private ulong dataOffset;
 
             private readonly STM32DMA parent;
             private readonly int id;
-
-            private const int FIFOSizeInBytes = 16;
 
             private enum Direction
             {
@@ -398,14 +396,6 @@ namespace Antmicro.Renode.Peripherals.DMA
                 HalfWord    = 0x1,
                 Word        = 0x2,
                 Reserved    = 0x3,
-            }
-
-            private enum FIFOThreshold
-            {
-                OneFourth       = 0x0,
-                Half            = 0x1,
-                ThreeFourths    = 0x2,
-                Full            = 0x3,
             }
         }
 
