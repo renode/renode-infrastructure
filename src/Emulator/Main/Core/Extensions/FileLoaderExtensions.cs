@@ -27,65 +27,15 @@ namespace Antmicro.Renode.Core.Extensions
     {
         public static void LoadBinary(this ICanLoadFiles loader, ReadFilePath fileName, ulong loadPoint, ICPU cpu = null, long offset = 0, ulong? size = null)
         {
-            const int bufferSize = 100 * 1024;
-            var chunks = new List<FileChunk>();
-
-            Logger.LogAs(loader, LogLevel.Debug, "Loading binary file {0}.", fileName);
+            Logger.LogAs(loader, LogLevel.Debug, "Loading binary file {0}", fileName);
 
             if(size == 0)
             {
-                Logger.LogAs(loader, LogLevel.Warning, $"Provided '{nameof(size)}' is zero for {fileName}, skipping load");
+                Logger.LogAs(loader, LogLevel.Warning, "Provided '{0}' is zero for {1}, skipping load", nameof(size), fileName);
                 return;
             }
 
-            try
-            {
-                using(var reader = new FileStream(fileName, FileMode.Open, FileAccess.Read))
-                {
-                    if(offset >= reader.Length)
-                    {
-                        Logger.LogAs(loader, LogLevel.Warning, $"Provided '{nameof(offset)}' for {fileName} points outside the file, skipping load");
-                        return;
-                    }
-
-                    reader.Seek(offset, SeekOrigin.Current);
-
-                    var buffer = new byte[bufferSize];
-                    var bytesCount = reader.Read(buffer, 0, buffer.Length);
-                    var addr = loadPoint;
-
-                    if(size < (ulong)bytesCount)
-                    {
-                        bytesCount = (int)size;
-                    }
-
-                    while(bytesCount > 0)
-                    {
-                        chunks.Add(new FileChunk() { Data = buffer.Take(bytesCount), OffsetToLoad = addr });
-                        addr += (ulong)bytesCount;
-                        size -= (ulong)bytesCount;
-                        buffer = new byte[bufferSize];
-                        bytesCount = reader.Read(buffer, 0, buffer.Length);
-
-                        if(size < (ulong)bytesCount)
-                        {
-                            bytesCount = (int)size;
-                        }
-                    }
-                }
-            }
-            catch(IOException e)
-            {
-                throw new RecoverableException(string.Format("Exception while loading file {0}: {1}", fileName, e.Message));
-            }
-
-            if(size > 0)
-            {
-                Logger.LogAs(loader, LogLevel.Warning, "Encountered end of file for {0} with {1} bytes left to read", fileName, size);
-            }
-
-            chunks = SortAndJoinConsecutiveFileChunks(chunks);
-            loader.LoadFileChunks(fileName, chunks, cpu);
+            loader.LoadFileChunks(fileName, GetFileChunks(loader, fileName, loadPoint, offset, size), cpu);
         }
 
         public static void LoadHEX(this ICanLoadFiles loader, ReadFilePath fileName, IInitableCPU cpu = null)
@@ -499,6 +449,78 @@ namespace Antmicro.Renode.Core.Extensions
             var loadOffset = chunks[0].OffsetToLoad;
             var data = chunks.SelectMany(chunk => chunk.Data);
             return new FileChunk() { Data = data, OffsetToLoad = loadOffset };
+        }
+
+        private static IEnumerable<FileChunk> GetFileChunks(ICanLoadFiles loader, ReadFilePath fileName, ulong loadPoint, long offset, ulong? size)
+        {
+            // Arbitrary chunkLength
+            const int chunkLength = 100 * 1024 * 1024;
+            FileStream reader;
+            try
+            {
+                reader = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+            }
+            catch(IOException e)
+            {
+                throw new RecoverableException($"Exception while loading file {fileName}: {e.Message}");
+            }
+
+            using(reader)
+            {
+                if(reader.Length == 0)
+                {
+                    Logger.LogAs(loader, LogLevel.Warning, "{0} is empty, skipping load", fileName);
+                    yield break;
+                }
+
+                if(offset < 0)
+                {
+                    Logger.LogAs(loader, LogLevel.Warning, "Provided negative '{0}' for {1}, skipping load", nameof(offset), fileName);
+                    yield break;
+                }
+
+                reader.Position = offset;
+                var remainingBytes = size ?? ulong.MaxValue;
+                var address = loadPoint;
+                var readUntilEOF = size == null;
+                while(readUntilEOF || remainingBytes > 0)
+                {
+                    var currentChunkLength = (int)Math.Min(remainingBytes, (ulong)chunkLength);
+                    var currentChunk = new byte[currentChunkLength];
+                    var readBytes = 0;
+                    try
+                    {
+                        while(readBytes < currentChunkLength)
+                        {
+                            var read = reader.Read(currentChunk, readBytes, currentChunkLength - readBytes);
+                            if(read == 0)
+                            {
+                                break;
+                            }
+                            readBytes += read;
+                        }
+                    }
+                    catch(IOException e)
+                    {
+                        throw new RecoverableException($"Exception while loading file {fileName}: {e.Message}");
+                    }
+
+                    if(readBytes == 0)
+                    {
+                        // Don't return empty FileChunk
+                        break;
+                    }
+
+                    if(readBytes != currentChunk.Length)
+                    {
+                        Array.Resize(ref currentChunk, readBytes);
+                    }
+
+                    yield return new FileChunk() { Data = currentChunk, OffsetToLoad = address };
+                    address = address + (ulong)readBytes;
+                    remainingBytes -= (ulong)readBytes;
+                }
+            }
         }
 
         private const char SRecStartOfRecord = 'S';
