@@ -57,7 +57,7 @@ namespace Antmicro.Renode.Peripherals.CAN
 
             rxDequeueThread = machine.ObtainManagedThread(() =>
             {
-                for(var i = 0; i < rxFIFOBuffers.Count(); i++)
+                for(var i = 0; i < rxFIFOBuffers.Length; i++)
                 {
                     lock(rxFIFOBuffers[i])
                     {
@@ -535,7 +535,7 @@ namespace Antmicro.Renode.Peripherals.CAN
         {
             lock(rxFIFOBuffers[rxFifo])
             {
-                if(rxFIFOFull[rxFifo].Value || rxFIFOBuffers[rxFifo].Any())
+                if(rxFIFOFull[rxFifo].Value || rxFIFOBuffers[rxFifo].Count != 0)
                 {
                     // The FIFO is full, so we buffer the function call to be executed later by the managed dequeuer thread
                     rxFIFOBuffers[rxFifo].Enqueue(() =>
@@ -628,16 +628,14 @@ namespace Antmicro.Renode.Peripherals.CAN
 
         private void UpdateInterrupts()
         {
-            // Mask out disabled interrupts
-            var interrupts = interruptStatusFlags.Zip(interruptEnableFlags, (st, en) => st.Value && en.Value);
             // Calculate IRQ for each interrupt group
-            var rxFIFO0 = interrupts.Where((_, index) => SelectInterruptRange(Interrupts.RxFIFO0NewMessage, Interrupts.RxFIFO0MessageLost, index)).Any(x => x);
-            var rxFIFO1 = interrupts.Where((_, index) => SelectInterruptRange(Interrupts.RxFIFO1NewMessage, Interrupts.RxFIFO1MessageLost, index)).Any(x => x);
-            var status = interrupts.Where((_, index) => SelectInterruptRange(Interrupts.HighPriorityMessage, Interrupts.TransmissionCancellationFinished, index)).Any(x => x);
-            var txFIFO = interrupts.Where((_, index) => SelectInterruptRange(Interrupts.TxFIFOEmpty, Interrupts.TxEventFIFOElementLost, index)).Any(x => x);
-            var misc = interrupts.Where((_, index) => SelectInterruptRange(Interrupts.TimestampWraparound, Interrupts.TimeoutOccured, index)).Any(x => x);
-            var bitError = interrupts.Where((_, index) => SelectInterruptRange(Interrupts.ErrorLoggingOverflow, Interrupts.ErrorPassive, index)).Any(x => x);
-            var protocolError = interrupts.Where((_, index) => SelectInterruptRange(Interrupts.WarningStatus, Interrupts.AccessToReservedAddress, index)).Any(x => x);
+            var rxFIFO0 = AnyInterruptInRange(Interrupts.RxFIFO0NewMessage, Interrupts.RxFIFO0MessageLost);
+            var rxFIFO1 = AnyInterruptInRange(Interrupts.RxFIFO1NewMessage, Interrupts.RxFIFO1MessageLost);
+            var status = AnyInterruptInRange(Interrupts.HighPriorityMessage, Interrupts.TransmissionCancellationFinished);
+            var txFIFO = AnyInterruptInRange(Interrupts.TxFIFOEmpty, Interrupts.TxEventFIFOElementLost);
+            var misc = AnyInterruptInRange(Interrupts.TimestampWraparound, Interrupts.TimeoutOccured);
+            var bitError = AnyInterruptInRange(Interrupts.ErrorLoggingOverflow, Interrupts.ErrorPassive);
+            var protocolError = AnyInterruptInRange(Interrupts.WarningStatus, Interrupts.AccessToReservedAddress);
             // Finally calculate each interrupt line based on group line select register and line enable flags
             Int1.Set(line1InterruptEnable.Value && (
                 (rxFIFO0 && rxFIFO0MessageLineSelect.Value) ||
@@ -659,10 +657,17 @@ namespace Antmicro.Renode.Peripherals.CAN
             ));
         }
 
-        private bool SelectInterruptRange(Interrupts firstInterrupt, Interrupts lastInterrupt, int index)
+        private bool AnyInterruptInRange(Interrupts firstInterrupt, Interrupts lastInterrupt)
         {
             DebugHelper.Assert(firstInterrupt < lastInterrupt, $"{firstInterrupt} must be smaller than {lastInterrupt}");
-            return ((uint)firstInterrupt <= index) && ((uint)lastInterrupt >= index);
+            for(var i = (int)firstInterrupt; i <= (int)lastInterrupt; i++)
+            {
+                if(interruptEnableFlags[i].Value && interruptStatusFlags[i].Value)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void OnTimeoutCounterWritten()
