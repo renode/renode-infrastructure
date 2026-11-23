@@ -28,6 +28,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
             keyStorage.Clear();
             statusRegister = 0;
+            // SETUPDONE (bit 0) tracks whether the SE has provisioned any KSU keys.
+            // Cleared on reset; set/cleared again from AddKey/RemoveKey.
             infoRegister = 0;
             rootControlRegister = 0;
             rootBaseAddressMetadata = 0;
@@ -53,7 +55,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         public void AddKey(uint slot, byte[] key)
         {
             keyStorage[slot] = key;
-            this.Log(LogLevel.Noisy, "AddKey(): slot={0} size={1}", slot, keyStorage.Count);
+            // Models the SE writing INFO.SETUPDONE after provisioning a KSU key.
+            UpdateSetupDone();
+            this.Log(LogLevel.Noisy, "AddKey(): slot={0} size={1} setupDone={2}", slot, keyStorage.Count, (infoRegister & SetupDoneBit) != 0);
         }
 
         public void RemoveKey(uint slot)
@@ -65,7 +69,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 throw new Exception($"Key not found in slot {slot}");
             }
             keyStorage.Remove(slot);
-            this.Log(LogLevel.Noisy, "RemoveKey() done: slot={0} size={1}", slot, keyStorage.Count);
+            // Clear SETUPDONE once the last KSU key is gone.
+            UpdateSetupDone();
+            this.Log(LogLevel.Noisy, "RemoveKey() done: slot={0} size={1} setupDone={2}", slot, keyStorage.Count, (infoRegister & SetupDoneBit) != 0);
         }
 
         public bool ContainsKey(uint slot)
@@ -81,8 +87,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
             {
-                {(long)Registers.IpVersion, new DoubleWordRegister(this)
-                    .WithValueField(0, 32, FieldMode.Read, valueProviderCallback: _ => 0x00000001U, name: "IPVERSION")
+                {(long)Registers.IpVersion, new DoubleWordRegister(this, 0x00000001)
+                    .WithValueField(0, 32, FieldMode.Read, name: "IPVERSION")
                 },
                 {(long)Registers.Enable, new DoubleWordRegister(this)
                     .WithFlag(0, out enableField, name: "ENABLE")
@@ -199,8 +205,22 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
 
         protected override Type RegistersType => typeof(Registers);
 
+        private void UpdateSetupDone()
+        {
+            if(keyStorage.Count > 0)
+            {
+                infoRegister |= SetupDoneBit;
+            }
+            else
+            {
+                infoRegister &= ~SetupDoneBit;
+            }
+        }
+
         private IFlagRegisterField enableField;
         private uint statusRegister;
+        // INFO.SETUPDONE (bit 0): SE/user handshake. Host crypto waits for this
+        // before using KSU keys. Updated when SE adds/removes keys via AddKey/RemoveKey.
         private uint infoRegister;
         private uint rootControlRegister;
         private uint rootBaseAddressMetadata;
@@ -212,6 +232,8 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         private uint crypto1InterruptFlags;
 
         private readonly Dictionary<uint, byte[]> keyStorage = new Dictionary<uint, byte[]>();
+
+        private const uint SetupDoneBit = 1u << 0;
 
         private enum Registers
         {
