@@ -89,7 +89,7 @@ public class WebSocketCANAnalyzer : BasicPeripheralBackendAnalyzer<CANBackend>, 
         {
             CanHub = EmulationManager.Instance.CurrentEmulation.ExternalsManager.TryGetName(canHub, out var name) ? name : "";
             TimeStamp = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp().TimeElapsed.ToString();
-            Sender = sender.GetName();
+            Sender = canHub.GetSenderName(sender);
             Message = message;
             DecodedMessage = decodedMessage;
         }

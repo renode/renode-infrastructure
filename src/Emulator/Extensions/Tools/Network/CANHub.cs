@@ -73,6 +73,14 @@ namespace Antmicro.Renode.Tools.Network
             DbcDecoder = new DBCDecoder(path);
         }
 
+        public string GetSenderName(ICAN sender)
+        {
+            lock(sync)
+            {
+                return descriptors.GetValueOrDefault(sender)?.Name ?? sender.GetType().Name;
+            }
+        }
+
         public bool UseNetworkByteOrderForLogging { get; set; }
 
         public DBCDecoder DbcDecoder { get; private set; }
