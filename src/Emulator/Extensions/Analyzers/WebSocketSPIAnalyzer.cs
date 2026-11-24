@@ -13,6 +13,7 @@ using Antmicro.Migrant;
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Peripherals;
 using Antmicro.Renode.Peripherals.SPI;
+using Antmicro.Renode.Time;
 using Antmicro.Renode.Utilities;
 
 namespace Antmicro.Renode.Analyzers;
@@ -64,16 +65,17 @@ public class WebSocketSPIAnalyzer : BasicPeripheralBackendAnalyzer<SPIBackend>, 
 
     private void ExchangedBytesToWebSocket((byte pico, byte poci) bytes, IPeripheral slave)
     {
-        var data = new SPIMessage
-        {
-            TimeStamp = machine.ElapsedVirtualTime.TimeElapsed.ToString(),
-            PICO = bytes.pico,
-            POCI = bytes.poci,
-            PeripheralName = machine.TryGetLocalName(slave, out var name) ? name : "",
-        };
+        var time = machine.ElapsedVirtualTime.TimeElapsed;
+        var name = machine.TryGetLocalName(slave, out var localName) ? localName : "";
         lock(messagesLock)
         {
-            messages.Enqueue(data);
+            // All bytes of a synchronous DMA burst have the same virtual timestamp.
+            if(time != lastTime || lastTimeString == null)
+            {
+                lastTime = time;
+                lastTimeString = time.ToString();
+            }
+            messages.Enqueue(new SPIMessage { TimeStamp = lastTimeString, PICO = bytes.pico, POCI = bytes.poci, PeripheralName = name });
             if(messages.Count >= MaxAggregateCount)
             {
                 Send();
@@ -103,15 +105,17 @@ public class WebSocketSPIAnalyzer : BasicPeripheralBackendAnalyzer<SPIBackend>, 
     }
 
     private WebSocketBufferedServer server;
+    private TimeInterval lastTime;
+    private string lastTimeString;
     private IMachine machine;
     private Timer aggregatorTimer;
     private readonly Queue<SPIMessage> messages = new Queue<SPIMessage>();
     private readonly object messagesLock = new object();
 
-    private const uint MaxAggregateCount = 60; // empirical value
+    private const uint MaxAggregateCount = 1024; // empirical value
     private const uint MaxAggregateTimeMs = 250;
 
-    private class SPIMessage
+    private readonly struct SPIMessage
     {
         public string TimeStamp { get; init; }
 
