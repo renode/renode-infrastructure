@@ -63,7 +63,12 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public void WriteByte(long offset, byte value)
         {
-            if(offset % 4 == 0)
+            if(offset == (long)Registers.Data)
+            {
+                // DR only forwards the value to the transmitter.
+                HandleDataWrite(value);
+            }
+            else if(offset % 4 == 0)
             {
                 WriteDoubleWord(offset, (uint)value);
             }
