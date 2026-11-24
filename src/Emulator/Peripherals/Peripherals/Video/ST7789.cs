@@ -261,7 +261,7 @@ namespace Antmicro.Renode.Peripherals.Video
                 }
                 break;
             case DeviceState.DrawPixel:
-                this.NoisyLog("Pixel data: '{0}'", string.Join(", ", currentPixelData));
+                this.NoisyLog("Drawing pixel");
                 var bytesPerPixel = (int)Format.GetByteCount(1);
                 var offset = (counter.row * Width + counter.col) * bytesPerPixel;
                 for(var i = 0; i < bytesPerPixel; i++)
