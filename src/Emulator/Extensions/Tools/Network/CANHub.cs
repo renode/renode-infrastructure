@@ -7,7 +7,6 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.CAN;
@@ -35,7 +34,7 @@ namespace Antmicro.Renode.Tools.Network
         {
             sync = new object();
             attached = new List<ICAN>();
-            handlers = new Dictionary<ICAN, Action<CANMessageFrame>>();
+            descriptors = new Dictionary<ICAN, InterfaceDescriptor>();
             this.loopback = loopback;
             UseNetworkByteOrderForLogging = useNetworkByteOrderForLogging;
         }
@@ -44,13 +43,15 @@ namespace Antmicro.Renode.Tools.Network
         {
             lock(sync)
             {
-                if(attached.Contains(iface))
+                if(descriptors.ContainsKey(iface))
                 {
                     throw new RecoverableException("Cannot attach to the provided CAN periperal as it is already registered in this hub.");
                 }
+
                 attached.Add(iface);
-                handlers.Add(iface, message => Transmit(iface, message));
-                iface.FrameSent += handlers[iface];
+                var desc = new InterfaceDescriptor(iface, this);
+                descriptors[iface] = desc;
+                iface.FrameSent += desc.Transmit;
             }
         }
 
@@ -58,9 +59,12 @@ namespace Antmicro.Renode.Tools.Network
         {
             lock(sync)
             {
-                attached.Remove(iface);
-                iface.FrameSent -= handlers[iface];
-                handlers.Remove(iface);
+                if(descriptors.TryGetValue(iface, out var desc))
+                {
+                    iface.FrameSent -= desc.Transmit;
+                    attached.Remove(iface);
+                    descriptors.Remove(iface);
+                }
             }
         }
 
@@ -79,20 +83,11 @@ namespace Antmicro.Renode.Tools.Network
 
         public event Action<IExternal, ICAN, CANMessageFrame> FrameReceived;
 
-        private void Transmit(ICAN sender, CANMessageFrame message)
+        private void Transmit(ICAN sender, string name, CANMessageFrame message)
         {
             lock(sync)
             {
-                string senderName = null;
-                if(sender is CANTester)
-                {
-                    senderName = "CANTester";
-                }
-                else
-                {
-                    senderName = sender.GetName();
-                }
-                this.Log(LogLevel.Debug, "Received from {0}: {1}", senderName, message);
+                this.Log(LogLevel.Debug, "Received from {0}: {1}", name, message);
                 FrameReceived?.Invoke(this, sender, message);
 
                 byte[] frame = null;
@@ -110,17 +105,23 @@ namespace Antmicro.Renode.Tools.Network
                 }
 
                 var vts = TimeDomainsManager.Instance.GetEffectiveVirtualTimeStamp();
-                foreach(var iface in attached.Where(x => (x != sender || loopback)))
+                foreach(var iface in attached)
                 {
-                    var isTimeSourceIndependent = iface is CANTester || iface is CANExternalControlBus;
-                    if(isTimeSourceIndependent)
+                    if(iface == sender && !loopback)
+                    {
+                        continue;
+                    }
+
+                    var desc = descriptors[iface];
+
+                    if(!desc.IsEmulated)
                     {
                         TransmitToNonEmulatedInterface(iface, message, vts);
                     }
                     else
                     {
-                        iface.GetMachine().HandleTimeDomainEvent(iface.OnFrameReceived, message, vts,
-                            frame != null ? () => FrameTransmitted?.Invoke(this, sender, iface, frame) : (Action)null);
+                        desc.Machine.HandleTimeDomainEvent(iface.OnFrameReceived, message, vts,
+                            frame is not null ? () => FrameTransmitted?.Invoke(this, sender, iface, frame) : (Action)null);
                     }
                 }
             }
@@ -142,8 +143,47 @@ namespace Antmicro.Renode.Tools.Network
         }
 
         private readonly List<ICAN> attached;
-        private readonly Dictionary<ICAN, Action<CANMessageFrame>> handlers;
+        private readonly Dictionary<ICAN, InterfaceDescriptor> descriptors;
         private readonly object sync;
         private readonly bool loopback;
+
+        private class InterfaceDescriptor
+        {
+            public InterfaceDescriptor(ICAN iface, CANHub parent)
+            {
+                Interface = iface;
+                this.parent = parent;
+                switch(iface)
+                {
+                case CANTester:
+                    Machine = null;
+                    Name = nameof(CANTester);
+                    break;
+                case CANExternalControlBus:
+                    Machine = null;
+                    Name = nameof(CANExternalControlBus);
+                    break;
+                default:
+                    Machine = iface.GetMachine();
+                    Name = iface.GetName();
+                    break;
+                }
+            }
+
+            public void Transmit(CANMessageFrame message)
+            {
+                parent.Transmit(Interface, Name, message);
+            }
+
+            public ICAN Interface { get; }
+
+            public IMachine Machine { get; }
+
+            public string Name { get; }
+
+            public bool IsEmulated => Machine is not null;
+
+            private readonly CANHub parent;
+        }
     }
 }
