@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2025 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 // Copyright (c) 2011-2015 Realtime Embedded
 //
 // This file is licensed under the MIT License.
@@ -11,6 +11,8 @@ using System.Linq;
 using Antmicro.Renode.Debugging;
 using Antmicro.Renode.Peripherals.Bus;
 using Antmicro.Renode.Peripherals.Memory;
+
+using ELFSharp.ELF;
 
 namespace Antmicro.Renode.Peripherals.DMA
 {
@@ -202,6 +204,31 @@ namespace Antmicro.Renode.Peripherals.DMA
             return IssueCopy(sysbus, request, context);
         }
 
+        // Transfer one source unit.
+        public void IssueSingleTransfer(ulong sourceAddress, ulong destinationAddress, TransferType readTransferType, TransferType writeTransferType,
+            bool incrementReadAddress = true, bool incrementWriteAddress = true, IPeripheral context = null)
+        {
+            if(readTransferType == writeTransferType)
+            {
+                // Use the matching bus access width to avoid allocating a copy buffer for each DMA transfer.
+                switch(readTransferType)
+                {
+                case TransferType.Byte:
+                    sysbus.WriteByte(destinationAddress, sysbus.ReadByte(sourceAddress, context), context);
+                    return;
+                case TransferType.Word when((sourceAddress | destinationAddress) & 1) == 0 && sysbus.Endianess == HostEndianness:
+                    sysbus.WriteWord(destinationAddress, sysbus.ReadWord(sourceAddress, context), context);
+                    return;
+                }
+            }
+
+            IssueCopy(new Request(sourceAddress, destinationAddress, (int)readTransferType, readTransferType, writeTransferType,
+                incrementReadAddress, incrementWriteAddress), context);
+        }
+
         private readonly IBusController sysbus;
+
+        // IssueCopy converts between raw memory bytes and peripheral words with BitConverter.
+        private static readonly Endianess HostEndianness = BitConverter.IsLittleEndian ? Endianess.LittleEndian : Endianess.BigEndian;
     }
 }

@@ -272,9 +272,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     destinationAddress += (uint)sourceTransferType * (initialNumberOfData - numberOfData);
                 }
 
-                var request = new Request(sourceAddress, destinationAddress, (int)sourceTransferType, sourceTransferType, destinationTransferType,
-                                  incrementSourceAddress, incrementDestinationAddress);
-                parent.engine.IssueCopy(request);
+                parent.engine.IssueSingleTransfer(sourceAddress, destinationAddress, sourceTransferType, destinationTransferType,
+                    incrementSourceAddress, incrementDestinationAddress);
 
                 numberOfData--;
                 if(numberOfData == 0)
