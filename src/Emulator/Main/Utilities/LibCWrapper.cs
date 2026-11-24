@@ -345,7 +345,7 @@ namespace Antmicro.Renode.Utilities
         [DllImport("libc", EntryPoint = "strcpy")]
         private static extern IntPtr strcpy(IntPtr dst, IntPtr src);
 
-        [DllImport("libc", EntryPoint = "ioctl")]
+        [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
         private static extern int ioctl(int d, int request, IntPtr a);
 
         [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
