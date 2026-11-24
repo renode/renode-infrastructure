@@ -6,7 +6,6 @@
 // Full license text is available in 'licenses/MIT.txt'.
 //
 using System;
-using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure;
@@ -22,28 +21,23 @@ namespace Antmicro.Renode.Peripherals.SPI
     {
         public STM32SPI(IMachine machine, STM32Series series, int bufferCapacity = DefaultBufferCapacity) : base(machine)
         {
-            var supportedSeries = new List<STM32Series>{
-                STM32Series.F0,
-                STM32Series.F1,
-                STM32Series.F4,
-                STM32Series.F7,
-                STM32Series.G0,
-                STM32Series.L0,
-                STM32Series.L1,
-                STM32Series.L5,
-            };
-            if(!supportedSeries.Contains(series))
+            // SPI v1.3.x adds FIFO data packing and CR2.NSSP/DS/FRXTH, and replaces CR1.DFF with CR1.CRCL.
+            // See ST AN5543, Table 1, and the SPI control registers in RM0091 (F0), RM0385 (F7), RM0444 (G0), and RM0438 (L5).
+            var usesFifoRegisterLayout = series switch
             {
-                throw new ConstructionException($"Unsupported STM32 series value: {series}!");
-            }
-            this.series = series;
+                STM32Series.F0 or STM32Series.F7 or STM32Series.G0 or STM32Series.L5 => true,
+                STM32Series.F1 or STM32Series.F4 or STM32Series.L0 or STM32Series.L1 => false,
+                _ => throw new ConstructionException($"Unsupported STM32 series value: {series}!"),
+            };
+            // The same peripheral revision also adds packed DR read/write support.
+            hasDataPacking = usesFifoRegisterLayout;
 
             receiveBuffer = new CircularBuffer<byte>(bufferCapacity);
             IRQ = new GPIO();
             DMAReceive = new GPIO();
             DMASend = new GPIO();
             registers = new DoubleWordRegisterCollection(this);
-            SetupRegisters();
+            SetupRegisters(usesFifoRegisterLayout);
             Reset();
         }
 
@@ -80,12 +74,19 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public ushort ReadWord(long offset)
         {
-            return (ushort)ReadDoubleWord(offset);
+            return IsPackedDataAccess(offset) ? (ushort)HandleDataRead(packed: true) : (ushort)ReadDoubleWord(offset);
         }
 
         public void WriteWord(long offset, ushort value)
         {
-            WriteDoubleWord(offset, (uint)value);
+            if(IsPackedDataAccess(offset))
+            {
+                HandleDataWrite(value, packed: true);
+            }
+            else
+            {
+                WriteDoubleWord(offset, value);
+            }
         }
 
         public uint ReadDoubleWord(long offset)
@@ -108,6 +109,8 @@ namespace Antmicro.Renode.Peripherals.SPI
                 receiveBuffer.Clear();
             }
             registers.Reset();
+            dataSize = 8;
+            frameMask = byte.MaxValue;
         }
 
         public long Size
@@ -126,15 +129,27 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         public event Action<(byte pico, byte poci), IPeripheral> BytesExchanged;
 
-        private uint HandleDataRead()
+        // A halfword access to DR transfers two frames, low byte first, when each frame fits in a byte.
+        // See "Data packing" in RM0091 (F0), RM0385 (F7), RM0444 (G0), and RM0438 (L5).
+        private bool IsPackedDataAccess(long offset)
+        {
+            return offset == (long)Registers.Data && hasDataPacking && dataSize <= 8;
+        }
+
+        private uint HandleDataRead(bool packed = false)
         {
             IRQ.Unset();
             lock(receiveBuffer)
             {
                 if(receiveBuffer.TryDequeue(out var value))
                 {
+                    uint result = value;
+                    if(packed && receiveBuffer.TryDequeue(out var high))
+                    {
+                        result |= (uint)high << 8;
+                    }
                     Update();
-                    return value;
+                    return result;
                 }
                 // We don't warn when the data register is read while it's empty because the HAL
                 // (for example L0, F4) does this intentionally.
@@ -143,9 +158,8 @@ namespace Antmicro.Renode.Peripherals.SPI
             }
         }
 
-        private void HandleDataWrite(uint value)
+        private void HandleDataWrite(uint value, bool packed = false)
         {
-            IRQ.Unset();
             DMASend.Set(false);
             lock(receiveBuffer)
             {
@@ -154,33 +168,50 @@ namespace Antmicro.Renode.Peripherals.SPI
                 {
                     this.Log(LogLevel.Warning, "SPI transmission while no SPI peripheral is connected.");
                     receiveBuffer.Enqueue(0x0);
+                    if(packed)
+                    {
+                        receiveBuffer.Enqueue(0x0);
+                    }
                     return;
                 }
-                var response = peripheral.Transmit((byte)value); // currently byte mode is the only one we support
-                BytesExchanged?.Invoke(((byte)value, response), peripheral);
-                if(receiveBuffer.Count == receiveBuffer.Capacity)
+                TransmitByte(peripheral, (byte)value);
+                if(packed)
                 {
-                    this.Log(LogLevel.Debug, "Receiving response while RXFIFO is full, dropping it");
-                    overrun.Value = true;
+                    TransmitByte(peripheral, (byte)(value >> 8));
                 }
-                else
-                {
-                    receiveBuffer.Enqueue(response);
-                }
-                if(rxDmaEnable.Value)
-                {
-                    // This blink is used to signal the DMA that it should perform the peripheral -> memory transaction now
-                    // Without this signal DMA will never move data from the receive buffer to memory
-                    // See STM32DMA:OnGPIO
-                    DMAReceive.Blink();
-                }
-                this.NoisyLog("Transmitted 0x{0:X}, received 0x{1:X}.", value, response);
             }
             if(txDmaEnable.Value)
             {
                 DMASend.Set(true);
             }
             Update();
+        }
+
+        private void TransmitByte(ISPIPeripheral peripheral, byte value)
+        {
+            value &= frameMask;
+            var response = (byte)(peripheral.Transmit(value) & frameMask);
+            BytesExchanged?.Invoke((value, response), peripheral);
+            if(receiveBuffer.Count == receiveBuffer.Capacity)
+            {
+                if(!overrun.Value)
+                {
+                    this.DebugLog("Receiving response while RXFIFO is full, dropping it");
+                    overrun.Value = true;
+                }
+            }
+            else
+            {
+                receiveBuffer.Enqueue(response);
+            }
+            if(rxDmaEnable.Value && IsRxBufferNotEmpty())
+            {
+                // This blink is used to signal the DMA that it should perform the peripheral -> memory transaction now
+                // Without this signal DMA will never move data from the receive buffer to memory
+                // See STM32DMA:OnGPIO
+                DMAReceive.Blink();
+            }
+            this.NoisyLog("Transmitted 0x{0:X}, received 0x{1:X}.", value, response);
         }
 
         private void Update()
@@ -196,7 +227,7 @@ namespace Antmicro.Renode.Peripherals.SPI
 
         private bool IsRxBufferNotEmpty()
         {
-            if(series == STM32Series.L5 && !fifoReceptionThreshold.Value)
+            if(fifoReceptionThreshold != null && !fifoReceptionThreshold.Value)
             {
                 return receiveBuffer.Count >= 2;
             }
@@ -204,7 +235,7 @@ namespace Antmicro.Renode.Peripherals.SPI
             return receiveBuffer.Count != 0;
         }
 
-        private void SetupRegisters()
+        private void SetupRegisters(bool usesFifoRegisterLayout)
         {
             // Some fields relate to the physical layer of the SPI protocol, these are not
             // taken into account in Renode and are defined as flags or value fields without
@@ -241,20 +272,20 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(8, name: "SSI") // Internal slave select
                 .WithFlag(9, name: "SSM") // Software slave management
                 .WithTaggedFlag("RXONLY", 10)
-                .WithTaggedFlag("DFF", 11)
+                .WithTaggedFlag(usesFifoRegisterLayout ? "CRCL" : "DFF", 11)
                 .WithTaggedFlag("CRCNEXT", 12)
                 .WithTaggedFlag("CRCEN", 13)
                 .WithTaggedFlag("BIDIOE", 14)
                 .WithTaggedFlag("BIDIMODE", 15);
 
-            Registers.Control2.Define(registers)
+            Registers.Control2.Define(registers, usesFifoRegisterLayout ? 0x0700u : 0u)
                 .WithFlag(0, out rxDmaEnable, name: "RXDMAEN")
                 .WithFlag(1, out txDmaEnable, writeCallback: (_, value) =>
                 {
                     DMASend.Set(value);
                 }, name: "TXDMAEN")
                 .WithTaggedFlag("SSOE", 2)
-                .If(series == STM32Series.L5)
+                .If(usesFifoRegisterLayout)
                     .Then(reg => reg
                           .WithFlag(3, name: "NSSP") // Physical
                     )
@@ -265,14 +296,21 @@ namespace Antmicro.Renode.Peripherals.SPI
                 .WithFlag(5, out errorInterruptEnable, name: "ERRIE")
                 .WithFlag(6, out rxBufferNotEmptyInterruptEnable, name: "RXNEIE")
                 .WithFlag(7, out txBufferEmptyInterruptEnable, name: "TXEIE")
-                .If(series == STM32Series.L5)
+                .If(usesFifoRegisterLayout)
                     .Then(reg => reg
-                          .WithValueField(8, 4, writeCallback: (_, dataSizeBits) =>
+                          .WithValueField(8, 4, valueProviderCallback: _ => dataSize - 1, writeCallback: (_, dataSizeM1) =>
                           {
-                              if(dataSizeBits > 0b111)
+                              dataSize = dataSizeM1 + 1;
+                              if(dataSize < 4)
+                              {
+                                  // The reserved encodings read back as the reset value (8 bits).
+                                  dataSize = 8;
+                              }
+                              else if(dataSize > 8)
                               {
                                   this.Log(LogLevel.Warning, "Data size > 8 bits not supported");
                               }
+                              frameMask = (byte)((1u << (int)dataSize) - 1);
                           }, name: "DS")
                           .WithFlag(12, out fifoReceptionThreshold, name: "FRXTH")
                     )
@@ -349,14 +387,15 @@ namespace Antmicro.Renode.Peripherals.SPI
         private IFlagRegisterField masterMode;
         private IFlagRegisterField overrun;
         private IFlagRegisterField errorInterruptEnable;
-        //STM32L5 specific flags
         private IFlagRegisterField fifoReceptionThreshold;
+        private ulong dataSize;
+        private byte frameMask;
 
         private readonly DoubleWordRegisterCollection registers;
 
         private readonly CircularBuffer<byte> receiveBuffer;
 
-        private readonly STM32Series series;
+        private readonly bool hasDataPacking;
 
         private const int DefaultBufferCapacity = 4;
 
