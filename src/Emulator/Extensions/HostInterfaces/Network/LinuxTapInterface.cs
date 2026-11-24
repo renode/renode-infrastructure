@@ -163,7 +163,7 @@ namespace Antmicro.Renode.HostInterfaces.Network
                 // If we don't have rw access to /dev/net/tun we will loop here indefinitely
                 // because we won't be able to open tap
                 // Fortunately /dev/net/tun has rw by default
-                tapFileDescriptor = TAPTools.OpenTAP(devName, persistent);
+                tapFileDescriptor = TAPTools.OpenTAP(devName, null, null, persistent);
                 if(tapFileDescriptor < 0)
                 {
                     var process = new Process();

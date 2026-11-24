@@ -20,15 +20,15 @@ namespace Antmicro.Renode.TAPHelper
     public static class TAPTools
     {
         [SupportedRID("linux")]
-        public static int OpenTUN(IntPtr dev, bool persistent = false)
+        public static int OpenTUN(IntPtr dev, int? uid, int? gid, bool persistent = false)
         {
-            return Open_TUNTAP(dev, IFF_TUN, persistent);
+            return Open_TUNTAP(dev, IFF_TUN, uid, gid, persistent);
         }
 
         [SupportedRID("linux")]
-        public static int OpenTAP(IntPtr dev, bool persistent = false)
+        public static int OpenTAP(IntPtr dev, int? uid, int? gid, bool persistent = false)
         {
-            return Open_TUNTAP(dev, IFF_TAP_IFF_NO_PI, persistent);
+            return Open_TUNTAP(dev, IFF_TAP_IFF_NO_PI, uid, gid, persistent);
         }
 
         private static bool DoesInterfaceExist(string name)
@@ -91,7 +91,7 @@ namespace Antmicro.Renode.TAPHelper
             return err;
         }
 
-        private static int Open_TUNTAP(IntPtr dev, UInt16 flags, bool persistent)
+        private static int Open_TUNTAP(IntPtr dev, UInt16 flags, int? uid, int? gid, bool persistent)
         {
             var fd = LibCWrapper.Open("/dev/net/tun", O_RDWR);
             if(fd < 0)
@@ -129,6 +129,26 @@ namespace Antmicro.Renode.TAPHelper
                     return err;
                 }
 
+                if(uid != null)
+                {
+                    if((err = LibCWrapper.Ioctl(fd, TUNSETOWNER, uid.Value)) < 0)
+                    {
+                        Logger.Log(LogLevel.Debug, "Could not set TUNSETOWNER, error: {0}", Marshal.GetLastWin32Error());
+                        LibCWrapper.Close(fd);
+                        return err;
+                    }
+                }
+
+                if(gid != null)
+                {
+                    if((err = LibCWrapper.Ioctl(fd, TUNSETGROUP, gid.Value)) < 0)
+                    {
+                        Logger.Log(LogLevel.Debug, "Could not set TUNSETGROUP, error: {0}", Marshal.GetLastWin32Error());
+                        LibCWrapper.Close(fd);
+                        return err;
+                    }
+                }
+
                 if(persistent)
                 {
                     if((err = LibCWrapper.Ioctl(fd, TUNSETPERSIST, 1)) < 0)
@@ -164,6 +184,9 @@ namespace Antmicro.Renode.TAPHelper
         private const int IFNAMSIZ                = 0x10;
         private const int TUNSETIFF               = 1074025674;
         private const int TUNSETPERSIST           = 0x400454cb;
+        private const int TUNSETOWNER             = 0x400454cc;
+        private const int TUNSETGROUP             = 0x400454ce;
+
         private const UInt16 IFF_TUN              = 0x1;
         private const UInt16 IFF_TAP_IFF_NO_PI    = 0x0002 | 0x1000;
         private const int IFR_SIZE                = 80;

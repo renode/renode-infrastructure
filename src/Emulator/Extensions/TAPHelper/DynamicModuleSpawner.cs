@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2010-2022 Antmicro
+// Copyright (c) 2010-2026 Antmicro
 //
 // This file is licensed under the MIT License.
 // Full license text is available in 'licenses/MIT.txt'.
@@ -48,25 +48,25 @@ namespace Antmicro.Renode.TAPHelper
 
         private static void GenerateTAPHelper(string path, string filename)
         {
-            var sourceCode = @"
+            var sourceCode = $@"
                 using System.Runtime.InteropServices;
                 using Antmicro.Renode.TAPHelper;
                 public class TAP
-                {
+                {{
                     public static int Main(string[] args)
-                    {
+                    {{
                         var deviceName = args[0];
                         var persistent = bool.Parse(args[1]);
                         var dev = Marshal.StringToCoTaskMemAuto(deviceName);
-                        var err = TAPTools.OpenTAP(dev, persistent);
+                        var err = TAPTools.OpenTAP(dev, {LibCWrapper.GetUid()}, {LibCWrapper.GetGid()}, persistent);
                         Marshal.FreeCoTaskMem(dev);
                         if (err < 0)
-                        {
+                        {{
                             return 1;
-                        }
+                        }}
                         return 0;
-                    }
-                }";
+                    }}
+                }}";
             var codeString = SourceText.From(sourceCode);
             var options = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp9);
 

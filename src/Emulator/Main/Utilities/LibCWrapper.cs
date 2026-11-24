@@ -313,6 +313,24 @@ namespace Antmicro.Renode.Utilities
             return bind(domain, ref addr, addrSize);
         }
 
+        public static int GetUid()
+        {
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
+            return getuid();
+        }
+
+        public static int GetGid()
+        {
+            if(RuntimeInfo.IsWindows())
+            {
+                throw new NotSupportedException("This API is available on Unix only!");
+            }
+            return getgid();
+        }
+
         public static int O_CREAT => RuntimeInfo.IsMacOS() ? 0x200 : 0x40;
 
         public static int O_EXCL => RuntimeInfo.IsMacOS() ? 0x800 : 0x80;
@@ -377,6 +395,12 @@ namespace Antmicro.Renode.Utilities
 
         [DllImport("libc", EntryPoint = "memset")]
         private static extern IntPtr memset(IntPtr pointer, byte value, int length);
+
+        [DllImport("libc", EntryPoint = "getuid")]
+        private static extern int getuid();
+
+        [DllImport("libc", EntryPoint = "getgid")]
+        private static extern int getgid();
 
         private const int EINTR = 4;
 
