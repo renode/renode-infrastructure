@@ -191,7 +191,7 @@ namespace Antmicro.Renode.Peripherals.DMA
                 var streamOffset = id * StreamStep;
 
                 (Registers.StreamConfiguration + streamOffset).Define(parent)
-                    .WithFlag(0, out isEnabled, name: "EN", writeCallback: (_, value) => HandleEnable(value))
+                    .WithFlag(0, out isEnabled, name: "EN", writeCallback: (previousValue, value) => HandleEnable(previousValue, value))
                     .WithTaggedFlag("DMEIE", 1)
                     .WithTaggedFlag("TEIE", 2)
                     .WithTaggedFlag("HTIE", 3)
@@ -234,8 +234,13 @@ namespace Antmicro.Renode.Peripherals.DMA
                     .WithReservedBits(8, 24);
             }
 
-            private void HandleEnable(bool value)
+            private void HandleEnable(bool previousValue, bool value)
             {
+                if(value && !previousValue)
+                {
+                    dataOffset = 0;
+                }
+
                 // Only transfers from peripheral are using interrupt driven approach.
                 // In other cases we can just transfer all data immediately.
                 if(value && direction.Value != Direction.PeripheralToMemory)
