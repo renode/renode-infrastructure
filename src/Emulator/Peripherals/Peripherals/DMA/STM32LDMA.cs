@@ -203,8 +203,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                 peripheralAddress = 0u;
                 memoryAddress = 0u;
                 memoryIncrement = false;
-                memoryTransferType = 0;
-                peripheralTransferType = 0;
+                memoryTransferType = TransferType.Byte;
+                peripheralTransferType = TransferType.Byte;
                 completeInterruptEnabled = false;
                 transferErrorInterruptEnabled = false;
                 numberOfData = 0;
@@ -272,6 +272,10 @@ namespace Antmicro.Renode.Peripherals.DMA
                     destinationAddress += (uint)sourceTransferType * (initialNumberOfData - numberOfData);
                 }
 
+                // PSIZE and MSIZE mask the low bits of each bus address. CPAR and CMAR keep the programmed values.
+                // See L1 DMA (RM0038, 11.4.5-6), L5 DMA (RM0438, 14.6.5-7) and H7 BDMA (RM0433, 16.6.5-7).
+                sourceAddress &= ~((uint)sourceTransferType - 1);
+                destinationAddress &= ~((uint)destinationTransferType - 1);
                 parent.engine.IssueSingleTransfer(sourceAddress, destinationAddress, sourceTransferType, destinationTransferType,
                     incrementSourceAddress, incrementDestinationAddress);
 
