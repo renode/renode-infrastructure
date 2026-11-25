@@ -52,7 +52,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             SetKeyShare();
 
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x205);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x405);
             WriteInputData(decrypted);
 
             for(int i = 0; i < 4; i++)
@@ -94,7 +94,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             SetKeyShare();
 
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x206);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x406);
 
             WriteInputData(encrypted);
 
@@ -139,7 +139,7 @@ namespace Antmicro.Renode.PeripheralsTests
         {
             SetKeyShare();
 
-            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x206);
+            peripheral.WriteDoubleWord((long)OpenTitan_AES.Registers.Control, 0x406);
 
             WriteInputData(decrypted);
             WriteInputData(encrypted);
