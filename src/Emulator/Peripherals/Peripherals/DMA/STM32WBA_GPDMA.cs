@@ -433,7 +433,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                     destinationAddress.Value = response.WriteAddress.Value;
                     currentDestinationAddress = response.WriteAddress.Value;
 
-                    blockNumberDataBytesFromSource.Value -= 1;
+                    // BNDT is a number of bytes: decrement it by the bytes of the data beat
+                    blockNumberDataBytesFromSource.Value -= Math.Min(toCopy, blockNumberDataBytesFromSource.Value);
                     HalfTransfer = blockNumberDataBytesFromSource.Value <= originalBlockNumberDataBytesFromSource / 2;
                     TransferComplete = blockNumberDataBytesFromSource.Value == 0;
                     Update();
