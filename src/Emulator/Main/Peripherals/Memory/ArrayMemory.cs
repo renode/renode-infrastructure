@@ -58,7 +58,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             OnWrite?.Invoke(offset, sizeof(ulong));
         }
 
-        public uint ReadDoubleWord(long offset)
+        public virtual uint ReadDoubleWord(long offset)
         {
             if(!IsCorrectOffset(offset, sizeof(uint)))
             {
@@ -80,12 +80,12 @@ namespace Antmicro.Renode.Peripherals.Memory
             OnWrite?.Invoke(offset, sizeof(uint));
         }
 
-        public void Reset()
+        public virtual void Reset()
         {
             // nothing happens
         }
 
-        public ushort ReadWord(long offset)
+        public virtual ushort ReadWord(long offset)
         {
             if(!IsCorrectOffset(offset, sizeof(ushort)))
             {
@@ -107,7 +107,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             OnWrite?.Invoke(offset, sizeof(ushort));
         }
 
-        public byte ReadByte(long offset)
+        public virtual byte ReadByte(long offset)
         {
             if(!IsCorrectOffset(offset, sizeof(byte)))
             {
@@ -129,7 +129,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             OnWrite?.Invoke(offset, sizeof(byte));
         }
 
-        public byte[] ReadBytes(long offset, int count, IPeripheral context = null)
+        public virtual byte[] ReadBytes(long offset, int count, IPeripheral context = null)
         {
             if(!IsCorrectOffset(offset, count))
             {
@@ -140,7 +140,7 @@ namespace Antmicro.Renode.Peripherals.Memory
             return result;
         }
 
-        public void WriteBytes(long offset, byte[] bytes, int startingIndex, int count, IPeripheral context = null)
+        public virtual void WriteBytes(long offset, byte[] bytes, int startingIndex, int count, IPeripheral context = null)
         {
             if(!IsCorrectOffset(offset, count))
             {
