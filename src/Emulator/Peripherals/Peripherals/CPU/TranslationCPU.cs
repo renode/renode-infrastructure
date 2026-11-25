@@ -1117,12 +1117,6 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.Log((LogLevel)level, s);
         }
 
-        protected override void UpdateRequestedHaltedState()
-        {
-            base.UpdateRequestedHaltedState();
-            TlibInvalidateTranslationCache();
-        }
-
         protected override void DisposeInner(bool silent = false)
         {
             base.DisposeInner(silent);
@@ -1209,6 +1203,13 @@ namespace Antmicro.Renode.Peripherals.CPU
             {
                 pauseGuard.OrderPause();
             }
+        }
+
+        protected override void OnResume()
+        {
+            // Halted cores miss dirty-address updates, so flush cached instructions before execution
+            TlibInvalidateTranslationCache();
+            base.OnResume();
         }
 
         [Export]
