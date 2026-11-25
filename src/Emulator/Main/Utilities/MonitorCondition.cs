@@ -165,24 +165,41 @@ namespace Antmicro.Renode.Utilities
         private readonly Queue<Waiter> waiters;
         private readonly Queue<Waiter> waitersPool;
 
+        // A binary semaphore that spins only until `SpinWait` would start yielding,
+        // then blocks. `SemaphoreSlim.Wait` yields the CPU dozens of times before
+        // it blocks, which is slow when CPU-bound processes fill every core.
         private class Waiter
         {
-            public Waiter()
-            {
-                semaphore = new(0, 1);
-            }
-
             public void Wait()
             {
-                semaphore.Wait();
+                var spinner = new SpinWait();
+                while(!Volatile.Read(ref signaled) && !spinner.NextSpinWillYield)
+                {
+                    spinner.SpinOnce();
+                }
+
+                lock(sync)
+                {
+                    while(!signaled)
+                    {
+                        Monitor.Wait(sync);
+                    }
+
+                    signaled = false;
+                }
             }
 
             public void Signal()
             {
-                semaphore.Release();
+                lock(sync)
+                {
+                    signaled = true;
+                    Monitor.Pulse(sync);
+                }
             }
 
-            private readonly SemaphoreSlim semaphore;
+            private bool signaled;
+            private readonly object sync = new();
         }
     }
 }
