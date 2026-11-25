@@ -18,7 +18,6 @@ namespace Antmicro.Renode.Peripherals.Timers
     public class STM32_IndependentWatchdog : BasicDoubleWordPeripheral, IKnownSize
     {
         //TODO: Stop timer on debug stop.
-        //TODO: Use RCC to set restart cause.
         public STM32_IndependentWatchdog(IMachine machine, ulong frequency, bool windowOption = true, uint defaultPrescaler = 0) : base(machine)
         {
             watchdogTimer = new LimitTimer(machine.ClockSource, frequency, this, "STM32_IWDG", DefaultReloadValue, workMode: WorkMode.OneShot, enabled: false, eventEnabled: true, autoUpdate: true, divider: DefaultPrescalerValue);
@@ -41,6 +40,10 @@ namespace Antmicro.Renode.Peripherals.Timers
 
         public long Size => 0x400;
 
+        // Raised right before the watchdog requests a machine reset, so that a reset and clock controller
+        // can record the reset cause (e.g. STM32F4_RCC sets IWDGRSTF in RCC_CSR).
+        public event Action ResetTriggered;
+
         private void DefineRegisters()
         {
             Registers.Key.Define(this)
@@ -53,7 +56,7 @@ namespace Antmicro.Renode.Peripherals.Timers
                     if(windowEnabled && watchdogTimer.Value > window)
                     {
                         this.Log(LogLevel.Warning, "Watchdog reloaded outside of window, triggering reset!");
-                        machine.RequestReset();
+                        TriggerReset();
                     }
                     else
                     {
@@ -137,6 +140,12 @@ namespace Antmicro.Renode.Peripherals.Timers
         private void TimerLimitReachedCallback()
         {
             this.Log(LogLevel.Warning, "Watchdog reset triggered!");
+            TriggerReset();
+        }
+
+        private void TriggerReset()
+        {
+            ResetTriggered?.Invoke();
             machine.RequestReset();
         }
 
