@@ -7,6 +7,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Antmicro.Renode.Time;
 
@@ -117,6 +118,61 @@ namespace Antmicro.Renode.UnitTests
             Assert.AreEqual(entryA.Period, 1000);
             Assert.AreEqual(entryB.Value, 0);
             Assert.AreEqual(entryB.Period, 100);
+        }
+
+        [Test]
+        public void ShouldRemoveTheGivenEntryWhenAHandlerRemovesAnEntryBeforeIt()
+        {
+            var clockSource = new BaseClockSource();
+            Action handlerA = () => { };
+            Action handlerX = () => { };
+            Action handlerW = () => { };
+            var removeA = false;
+            // An entry with a zero period is reached on every update, so this handler
+            // also runs when TryRemoveClockEntry updates the limits before removing
+            Action handlerZ = () =>
+            {
+                if(removeA)
+                {
+                    removeA = false;
+                    clockSource.TryRemoveClockEntry(handlerA);
+                }
+            };
+            clockSource.AddClockEntry(new ClockEntry(1000, 1, handlerA, null, String.Empty));
+            clockSource.AddClockEntry(new ClockEntry(0, 1, handlerZ, null, String.Empty));
+            clockSource.AddClockEntry(new ClockEntry(1000, 1, handlerX, null, String.Empty));
+            clockSource.AddClockEntry(new ClockEntry(1000, 1, handlerW, null, String.Empty));
+
+            removeA = true;
+            Assert.IsTrue(clockSource.TryRemoveClockEntry(handlerX));
+
+            CollectionAssert.AreEqual(new[] { handlerZ, handlerW }, clockSource.GetAllClockEntries().Select(x => x.Handler));
+        }
+
+        [Test]
+        public void ShouldKeepOtherEntriesWhenAHandlerRunByGetClockEntryRemovesAnEntry()
+        {
+            var clockSource = new BaseClockSource();
+            Action handlerA = () => { };
+            Action handlerW = () => { };
+            var removeA = false;
+            // An entry with a zero period is reached on every update, so GetClockEntry runs its handler
+            Action handlerZ = () =>
+            {
+                if(removeA)
+                {
+                    removeA = false;
+                    clockSource.TryRemoveClockEntry(handlerA);
+                }
+            };
+            clockSource.AddClockEntry(new ClockEntry(1000, 1, handlerA, null, String.Empty));
+            clockSource.AddClockEntry(new ClockEntry(0, 1, handlerZ, null, String.Empty));
+            clockSource.AddClockEntry(new ClockEntry(1000, 1, handlerW, null, String.Empty));
+
+            removeA = true;
+            clockSource.GetClockEntry(handlerZ);
+
+            CollectionAssert.AreEqual(new[] { handlerZ, handlerW }, clockSource.GetAllClockEntries().Select(x => x.Handler));
         }
     }
 
