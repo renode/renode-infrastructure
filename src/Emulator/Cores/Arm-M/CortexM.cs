@@ -642,7 +642,7 @@ namespace Antmicro.Renode.Peripherals.CPU
                 {
                     throw new RecoverableException("You need to enable TrustZone to use VTOR_NS");
                 }
-                vtorInitialized = true;
+                vtorNonSecureInitialized = true;
                 if(machine.SystemBus.WhatPeripheralIsAt(value, this) == null)
                 {
                     this.Log(LogLevel.Warning, "Tried to set VTOR_NS address at 0x{0:X} which is not mapped on the system bus. Aborted.", value);
@@ -941,6 +941,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         {
             pcNotInitialized = true;
             vtorInitialized = false;
+            vtorNonSecureInitialized = false;
             base.Reset();
         }
 
@@ -1065,11 +1066,11 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         private void TryInitVTOR()
         {
-            if(InitVectorTableOffset != null)
+            if(!vtorInitialized && InitVectorTableOffset != null)
             {
                 VectorTableOffset = InitVectorTableOffset.Value;
             }
-            if(InitVectorTableOffsetNonSecure != null)
+            if(!vtorNonSecureInitialized && InitVectorTableOffsetNonSecure != null)
             {
                 VectorTableOffsetNonSecure = InitVectorTableOffsetNonSecure.Value;
             }
@@ -1078,7 +1079,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private void InitPCAndSP()
         {
             var firstNotNullSection = machine.SystemBus.GetLookup(this).FirstNotNullSectionAddress;
-            if(!vtorInitialized && firstNotNullSection.HasValue)
+            if(!vtorInitialized && !vtorNonSecureInitialized && firstNotNullSection.HasValue)
             {
                 if((firstNotNullSection.Value & (2 << 6 - 1)) > 0)
                 {
@@ -1211,6 +1212,7 @@ namespace Antmicro.Renode.Peripherals.CPU
         private CortexMImplementationDefinedAttributionUnit idau;
         private bool pcNotInitialized = true;
         private bool vtorInitialized;
+        private bool vtorNonSecureInitialized;
         private bool releaseFromResetPending;
         private ulong releaseFromResetCancellationToken;
         private readonly object reset = new object();
