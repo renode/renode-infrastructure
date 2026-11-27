@@ -176,6 +176,10 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 if(cfg_wdogrstdis_bit.Value == CFG_WDOGRSTDIS.EN)
                 {
                     this.Log(LogLevel.Warning, "WDOG{0} timeout expired: requesting machine reset", instance);
+                    if(Emu is SiLabs_EMU_3 emu3)
+                    {
+                        emu3.SetPendingWatchdogReset(instance);
+                    }
                     machine.RequestReset();
                 }
             }
