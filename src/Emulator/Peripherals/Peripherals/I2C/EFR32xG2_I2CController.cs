@@ -8,6 +8,7 @@ using System.Collections.Generic;
 
 using Antmicro.Renode.Core;
 using Antmicro.Renode.Core.Structure.Registers;
+using Antmicro.Renode.Logging;
 using Antmicro.Renode.Peripherals.Bus;
 
 namespace Antmicro.Renode.Peripherals.I2C
@@ -22,8 +23,9 @@ namespace Antmicro.Renode.Peripherals.I2C
                     .WithTag("IPVERSION", 0, 32)
                 },
                 {(long)Registers.Enable, new DoubleWordRegister(this)
-                    .WithTaggedFlag("ENABLE", 0)
-                    .WithReservedBits(1, 31)
+                    .WithFlag(0, name: "EN")
+                    .WithFlag(1, FieldMode.Read, valueProviderCallback: _ => false, name: "DISABLING")
+                    .WithReservedBits(2, 30)
                 },
                 {(long)Registers.Control, GenerateControlRegister()},
                 {(long)Registers.Command, GenerateCommandRegister()},
@@ -40,6 +42,7 @@ namespace Antmicro.Renode.Peripherals.I2C
                 {(long)Registers.TransmitBufferDoubleData, GenerateTransmitBufferDoubleDataRegister()},
                 {(long)Registers.InterruptFlag, GenerateInterruptFlagRegister()},
                 {(long)Registers.InterruptEnable, GenerateInterruptEnableRegister()},
+                {(long)Registers.InterruptFlagSet, GenerateInterruptFlagSetRegister()},
                 {(long)Registers.InterruptFlagClear, GenerateInterruptFlagClearRegister()},
             };
             registers = new DoubleWordRegisterCollection(this, map);
@@ -47,12 +50,47 @@ namespace Antmicro.Renode.Peripherals.I2C
 
         public uint ReadDoubleWord(long offset)
         {
-            return registers.Read(offset);
+            if((offset & AliasMask) != 0)
+            {
+                this.Log(LogLevel.Warning, "Reading from Set/Clr/Tgl alias at offset 0x{0:X} is not supported", offset);
+            }
+            return registers.Read(offset & InternalOffsetMask);
         }
 
         public void WriteDoubleWord(long offset, uint value)
         {
-            registers.Write(offset, value);
+            // Dedicated alias registers (e.g., IF_SET / IF_CLR) handle their own semantics directly.
+            if(registers.HasRegisterAtOffset(offset))
+            {
+                registers.Write(offset, value);
+                return;
+            }
+
+            var internalOffset = offset & InternalOffsetMask;
+            switch(offset & AliasMask)
+            {
+            case SetRegisterOffset:
+                registers.Write(internalOffset, registers.Read(internalOffset) | value);
+                break;
+            case ClearRegisterOffset:
+                registers.Write(internalOffset, registers.Read(internalOffset) & ~value);
+                break;
+            case ToggleRegisterOffset:
+                if(internalOffset == (long)Registers.InterruptFlag)
+                {
+                    var current = registers.Read(internalOffset);
+                    registers.Write((long)Registers.InterruptFlagClear, current & value);
+                    registers.Write((long)Registers.InterruptFlagSet, ~current & value);
+                }
+                else
+                {
+                    registers.Write(internalOffset, registers.Read(internalOffset) ^ value);
+                }
+                break;
+            default:
+                registers.Write(offset, value);
+                break;
+            }
         }
 
         public override void Reset()
@@ -62,6 +100,12 @@ namespace Antmicro.Renode.Peripherals.I2C
         }
 
         private readonly DoubleWordRegisterCollection registers;
+
+        private const long InternalOffsetMask = 0x0FFF;
+        private const long AliasMask = 0xF000;
+        private const long SetRegisterOffset = 0x1000;
+        private const long ClearRegisterOffset = 0x2000;
+        private const long ToggleRegisterOffset = 0x3000;
 
         private enum Registers
         {
@@ -82,6 +126,7 @@ namespace Antmicro.Renode.Peripherals.I2C
             TransmitBufferDoubleData = 0x38,
             InterruptFlag = 0x3C,
             InterruptEnable = 0x40,
+            InterruptFlagSet = 0x103C,
             InterruptFlagClear = 0x203C
         }
     }
