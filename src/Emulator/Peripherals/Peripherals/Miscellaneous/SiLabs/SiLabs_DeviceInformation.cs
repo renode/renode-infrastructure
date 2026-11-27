@@ -65,6 +65,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
         {
             var registerDictionary = new Dictionary<long, DoubleWordRegister>
             {
+                {(long)Registers.DeviceInformation, new DoubleWordRegister(this, 0x0B00_0000)
+                    .WithValueField(0, 16, FieldMode.Read, name: "CRC")
+                    .WithValueField(16, 8, FieldMode.Read, valueProviderCallback: _ => productRevision, name: "PRODREV")
+                    .WithValueField(24, 8, FieldMode.Read, name: "DEVINFOREV")
+                },
                 {(long)Registers.ModuleInformation, new DoubleWordRegister(this, 0xFFFFFFFF)
                 },
                 {(long)Registers.ExtendedUniqueIdentifier48Low, new DoubleWordRegister(this, 0x1)
@@ -116,9 +121,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                 },
                 {(long)Registers.PartInformation, new DoubleWordRegister(this)
                     .WithValueField(0, 16, FieldMode.Read, valueProviderCallback: _ => deviceNumber, name: "DEVICE_NUMBER")
-                    .WithValueField(16, 6, FieldMode.Read, valueProviderCallback: _ => (uint)deviceFamily, name: "FAMILY_NUMBER")
+                    .WithValueField(16, 6, FieldMode.Read, valueProviderCallback: _ => GetPartFamilyNumber(), name: "FAMILY_NUMBER")
                     .WithReservedBits(22, 2)
-                    .WithValueField(24, 6, FieldMode.Read, valueProviderCallback: _ => productRevision, name: "DEVICE_FAMILY")
+                    .WithValueField(24, 6, FieldMode.Read, valueProviderCallback: _ => GetPartDeviceFamily(), name: "DEVICE_FAMILY")
                     .WithReservedBits(30, 2)
                 },
                 {(long)Registers.HighFrequencyRcOscillatorDigitalPhasedLockedLoopCalibration0, new DoubleWordRegister(this, 0xB040_1E44)
@@ -553,14 +558,92 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
                     .WithValueField(26, 2, name: "CMPSEL")
                     .WithValueField(28, 4, name: "IREFTC")
                 },
+                {(long)Registers.IncrementalAnalogDigitalConverterGain0Calibration, new DoubleWordRegister(this, 0x8000_8000)
+                    .WithValueField(0, 16, FieldMode.Read, name: "GAINCANA1")
+                    .WithValueField(16, 16, FieldMode.Read, name: "GAINCANA2")
+                },
+                {(long)Registers.IncrementalAnalogDigitalConverterGain1Calibration, new DoubleWordRegister(this, 0x8000_8000)
+                    .WithValueField(0, 16, FieldMode.Read, name: "GAINCANA3")
+                    .WithValueField(16, 16, FieldMode.Read, name: "GAINCANA4")
+                },
+                {(long)Registers.IncrementalAnalogDigitalConverterOffsetCalibration, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 16, FieldMode.Read, name: "OFFSETANABASE")
+                    .WithValueField(16, 16, FieldMode.Read, name: "OFFSETANA1HIACC")
+                },
+                {(long)Registers.IncrementalAnalogDigitalConverterNormalOffsetCalibrarion0, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 16, FieldMode.Read, name: "OFFSETANA1NORM")
+                    .WithValueField(16, 16, FieldMode.Read, name: "OFFSETANA2NORM")
+                },
+                {(long)Registers.IncrementalAnalogDigitalConverterNormalOffsetCalibrarion1, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 16, FieldMode.Read, name: "OFFSETANA3NORM")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)Registers.IncrementalAnalogDigitalConverterHighSpeedOffsetCalibration0, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 16, FieldMode.Read, name: "OFFSETANA1HISPD")
+                    .WithValueField(16, 16, FieldMode.Read, name: "OFFSETANA2HISPD")
+                },
+                {(long)Registers.IncrementalAnalogDigitalConverterHighSpeedOffsetCalibration1, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 16, FieldMode.Read, name: "OFFSETANA3HISPD")
+                    .WithReservedBits(16, 16)
+                },
                 {(long)Registers.LegacyDeviceInformation, new DoubleWordRegister(this, 0x0080_0000)
                     .WithReservedBits(0, 16)
                     .WithValueField(16, 8, name: "DEVICEFAMILY")
                     .WithReservedBits(24, 8)
                 },
+                // Reserved Series 2 DEVINFO factory calibration words read by RAIL.
+                {(long)Registers.ReservedCalibration0, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 32, FieldMode.Read, name: "RESERVED_248")
+                },
+                {(long)Registers.ReservedCalibration1, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 32, FieldMode.Read, name: "RESERVED_24C")
+                },
+                {(long)Registers.ReservedCalibration2, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 32, FieldMode.Read, name: "RESERVED_250")
+                },
+                {(long)Registers.ThermistorCalibration, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 16, FieldMode.Read, name: "RTHERM")
+                    .WithReservedBits(16, 16)
+                },
+                {(long)Registers.ReservedCalibration3, new DoubleWordRegister(this, 0x0)
+                    .WithValueField(0, 32, FieldMode.Read, name: "RESERVED_260")
+                },
+                {(long)Registers.FenotchCalibration, new DoubleWordRegister(this, 0xFF)
+                    .WithValueField(0, 4, FieldMode.Read, name: "FENOTCHCAPCRSE")
+                    .WithValueField(4, 4, FieldMode.Read, name: "FENOTCHCAPFINE")
+                    .WithReservedBits(8, 24)
+                },
             };
 
             return new DoubleWordRegisterCollection(this, registerDictionary);
+        }
+
+        private uint GetPartFamilyNumber()
+        {
+            switch(deviceFamily)
+            {
+            case DeviceFamily.EFR32MG22:
+                return 22;
+            case DeviceFamily.EFR32MG24:
+                return 24;
+            case DeviceFamily.EFR32MG26:
+                return 26;
+            default:
+                return (uint)deviceFamily & 0x3F;
+            }
+        }
+
+        private uint GetPartDeviceFamily()
+        {
+            switch(deviceFamily)
+            {
+            case DeviceFamily.EFR32MG22:
+            case DeviceFamily.EFR32MG24:
+            case DeviceFamily.EFR32MG26:
+                return 1; // DEVINFO_PART_FAMILY_MG
+            default:
+                return (uint)productRevision & 0x3F;
+            }
         }
 
         private static readonly ulong OUI64 = 0xCCCCCC0000000000;
@@ -638,7 +721,11 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             IncrementalAnalogDigitalConverterHighSpeedOffsetCalibration0    = 0x194,
             IncrementalAnalogDigitalConverterHighSpeedOffsetCalibration1    = 0x198,
             LegacyDeviceInformation                                         = 0x1FC,
+            ReservedCalibration0                                            = 0x248,
+            ReservedCalibration1                                            = 0x24C,
+            ReservedCalibration2                                            = 0x250,
             ThermistorCalibration                                           = 0x25C,
+            ReservedCalibration3                                            = 0x260,
             FenotchCalibration                                              = 0x264,
         }
     }
