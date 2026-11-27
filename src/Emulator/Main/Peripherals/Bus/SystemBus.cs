@@ -893,7 +893,6 @@ namespace Antmicro.Renode.Peripherals.Bus
             cachedCpuId.Dispose();
             threadLocalContext.Dispose();
             globalLookup.Dispose();
-            cpuSync.Dispose();
             foreach(var lookup in localLookups.Values)
             {
                 lookup.Dispose();
@@ -905,6 +904,7 @@ namespace Antmicro.Renode.Peripherals.Bus
 #endif
                 peripherals.Dispose();
             }
+            cpuSync.Dispose();
         }
 
         public void WriteBytes(byte[] bytes, ulong address, long count, bool onlyMemory = false, IPeripheral context = null, ulong? cpuState = null)
