@@ -972,11 +972,15 @@ namespace Antmicro.Renode.Peripherals.DMA
                             goto default;
                         }
                     case SourceSelect.USART0:
+                    case SourceSelect.USART1:
+                    case SourceSelect.USART2:
                         switch(Signal)
                         {
                         case SignalSelect.USART0_DMA_RXDATAV:
+                        case SignalSelect.USART0_DMA_RXDATAVRIGHT:
                             return false;
                         case SignalSelect.USART0_DMA_TXBL:
+                        case SignalSelect.USART0_DMA_TXBLRIGHT:
                         case SignalSelect.USART0_DMA_TXEMPTY:
                             return true;
                         default:
@@ -984,6 +988,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                         }
                     case SourceSelect.EUSART0:
                     case SourceSelect.EUSART1:
+                    case SourceSelect.EUSART2:
+                    case SourceSelect.EUSART3:
                         switch(Signal)
                         {
                         case SignalSelect.EUSART0_DMA_RXFL:
@@ -995,6 +1001,8 @@ namespace Antmicro.Renode.Peripherals.DMA
                         }
                     case SourceSelect.I2C0:
                     case SourceSelect.I2C1:
+                    case SourceSelect.I2C2:
+                    case SourceSelect.I2C3:
                         switch(Signal)
                         {
                         case SignalSelect.I2C0_DMA_RXDATAV:
@@ -1009,6 +1017,11 @@ namespace Antmicro.Renode.Peripherals.DMA
                     case SourceSelect.TIMER2:
                     case SourceSelect.TIMER3:
                     case SourceSelect.TIMER4:
+                    case SourceSelect.TIMER5:
+                    case SourceSelect.TIMER6:
+                    case SourceSelect.TIMER7:
+                    case SourceSelect.TIMER8:
+                    case SourceSelect.TIMER9:
                         switch(Signal)
                         {
                         case SignalSelect.TIMER0_DMA_CC0:
@@ -1023,6 +1036,22 @@ namespace Antmicro.Renode.Peripherals.DMA
                         switch(Signal)
                         {
                         case SignalSelect.MSC_DMA_WDATA:
+                            return false;
+                        default:
+                            goto default;
+                        }
+                    case SourceSelect.LCD:
+                        switch(Signal)
+                        {
+                        case SignalSelect.LCD_DMA_LCD:
+                            return false;
+                        default:
+                            goto default;
+                        }
+                    case SourceSelect.MVP:
+                        switch(Signal)
+                        {
+                        case SignalSelect.MVP_DMA_MVPREQ:
                             return false;
                         default:
                             goto default;
@@ -1366,6 +1395,59 @@ namespace Antmicro.Renode.Peripherals.DMA
             // if VDAC1
             VDAC1_DMA_CH0_REQ                   = 0x0,
             VDAC1_DMA_CH1_REQ                   = 0x1,
+            // if SOURCESEL is EUSART2
+            EUSART2_DMA_RXFL                    = 0x0,
+            EUSART2_DMA_TXFL                    = 0x1,
+            // if SOURCESEL is EUSART3
+            EUSART3_DMA_RXFL                    = 0x0,
+            EUSART3_DMA_TXFL                    = 0x1,
+            // if SOURCESEL is USART1
+            USART1_DMA_RXDATAV                  = 0x0,
+            USART1_DMA_RXDATAVRIGHT             = 0x1,
+            USART1_DMA_TXBL                     = 0x2,
+            USART1_DMA_TXBLRIGHT                = 0x3,
+            USART1_DMA_TXEMPTY                  = 0x4,
+            // if SOURCESEL is USART2
+            USART2_DMA_RXDATAV                  = 0x0,
+            USART2_DMA_RXDATAVRIGHT             = 0x1,
+            USART2_DMA_TXBLRIGHT                = 0x2,
+            USART2_DMA_TXEMPTY                  = 0x3,
+            USART2_DMA_TXBL                     = 0x4,
+            // if SOURCESEL is TIMER5
+            TIMER5_DMA_CC0                      = 0x0,
+            TIMER5_DMA_CC1                      = 0x1,
+            TIMER5_DMA_CC2                      = 0x2,
+            TIMER5_DMA_UFOF                     = 0x3,
+            // if SOURCESEL is TIMER6
+            TIMER6_DMA_CC0                      = 0x0,
+            TIMER6_DMA_CC1                      = 0x1,
+            TIMER6_DMA_CC2                      = 0x2,
+            TIMER6_DMA_UFOF                     = 0x3,
+            // if SOURCESEL is TIMER7
+            TIMER7_DMA_CC0                      = 0x0,
+            TIMER7_DMA_CC1                      = 0x1,
+            TIMER7_DMA_CC2                      = 0x2,
+            TIMER7_DMA_UFOF                     = 0x3,
+            // if SOURCESEL is TIMER8
+            TIMER8_DMA_CC0                      = 0x0,
+            TIMER8_DMA_CC1                      = 0x1,
+            TIMER8_DMA_CC2                      = 0x2,
+            TIMER8_DMA_UFOF                     = 0x3,
+            // if SOURCESEL is TIMER9
+            TIMER9_DMA_CC0                      = 0x0,
+            TIMER9_DMA_CC1                      = 0x1,
+            TIMER9_DMA_CC2                      = 0x2,
+            TIMER9_DMA_UFOF                     = 0x3,
+            // if SOURCESEL is I2C2
+            I2C2_DMA_RXDATAV                    = 0x0,
+            I2C2_DMA_TXBL                       = 0x1,
+            // if SOURCESEL is I2C3
+            I2C3_DMA_RXDATAV                    = 0x0,
+            I2C3_DMA_TXBL                       = 0x1,
+            // if SOURCESEL is LCD
+            LCD_DMA_LCD                         = 0x0,
+            // if SOURCESEL is MVP
+            MVP_DMA_MVPREQ                      = 0x0,
         }
 
         private enum SourceSelect
@@ -1386,6 +1468,19 @@ namespace Antmicro.Renode.Peripherals.DMA
             EUSART1  = 0x10,
             VDAC0    = 0x11,
             VDAC1    = 0x12,
+            EUSART2  = 0x13,
+            EUSART3  = 0x14,
+            USART1   = 0x15,
+            USART2   = 0x16,
+            TIMER5   = 0x17,
+            TIMER6   = 0x18,
+            TIMER7   = 0x19,
+            TIMER8   = 0x1A,
+            TIMER9   = 0x1B,
+            I2C2     = 0x1C,
+            I2C3     = 0x1D,
+            LCD      = 0x1E,
+            MVP      = 0x1F,
         }
 
         [RegistersDescription("ldma")]
