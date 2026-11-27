@@ -1530,6 +1530,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private void Write<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, uint value)
         where T : struct, IComparable, IFormattable
         {
+            // Sync time before taking the clock source lock, not inside it, so that register handlers
+            // calling TrySyncTime() never acquire virtualTimeSyncLock while already holding ClockSource lock.
+            TrySyncTime();
             machine.ClockSource.ExecuteInLock(delegate
             {
                 var internal_offset = offset;
@@ -1538,19 +1541,19 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 if(offset >= SetRegisterOffset && offset < ClearRegisterOffset)
                 {
                     internal_offset = offset - SetRegisterOffset;
-                    var old_value = Read<T>(registersCollection, regionName, internal_offset, true);
+                    var old_value = ReadInner<T>(registersCollection, internal_offset, true);
                     internal_value = old_value | value;
                 }
                 else if(offset >= ClearRegisterOffset && offset < ToggleRegisterOffset)
                 {
                     internal_offset = offset - ClearRegisterOffset;
-                    var old_value = Read<T>(registersCollection, regionName, internal_offset, true);
+                    var old_value = ReadInner<T>(registersCollection, internal_offset, true);
                     internal_value = old_value & ~value;
                 }
                 else if(offset >= ToggleRegisterOffset)
                 {
                     internal_offset = offset - ToggleRegisterOffset;
-                    var old_value = Read<T>(registersCollection, regionName, internal_offset, true);
+                    var old_value = ReadInner<T>(registersCollection, internal_offset, true);
                     internal_value = old_value ^ value;
                 }
 
@@ -1575,6 +1578,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 #pragma warning restore IDE0060
         where T : struct, IComparable, IFormattable
         {
+            TrySyncTime();
             var result = 0U;
             machine.ClockSource.ExecuteInLock(() => result = ReadInner<T>(registersCollection, offset, internal_read));
             return result;
@@ -5819,6 +5823,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
 
         private void RAC_UpdateRadioStateMachine(Enumeration_AC signal = Enumeration_AC.EnumerationACValue0)
         {
+            TrySyncTime();
             machine.ClockSource.ExecuteInLock(delegate
             {
                 var previousState = RAC_currentRadioState;
