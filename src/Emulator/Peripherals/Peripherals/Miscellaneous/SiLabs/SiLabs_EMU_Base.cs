@@ -50,6 +50,55 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous.SiLabs
             HostAllClocksEnabled = true;
         }
 
+        public void Reset()
+        {
+            if(currentBusFaulters.Count > 0)
+            {
+                var sysbusRegistration = machine.GetSystemBus(parent) as IRegisterablePeripheral<IBusPeripheral, BusRangeRegistration>;
+                if(sysbusRegistration != null)
+                {
+                    foreach(var faulters in currentBusFaulters.Values)
+                    {
+                        foreach(var faulter in faulters)
+                        {
+                            sysbusRegistration.Unregister(faulter);
+                        }
+                    }
+                }
+                currentBusFaulters.Clear();
+            }
+
+            CurrentEnergyMode = SiLabs_EnergyMode.EM0;
+            pd1PoweredDownSinceEm0 = false;
+            isUpdatingEnergyMode = false;
+            energyModeUpdatePending = false;
+            isUpdatingHostClocks = false;
+            hostClockUpdatePending = false;
+            em1pRequesters.Clear();
+            em1pHostClockRequesters.Clear();
+            qChannelBusyPeripherals.Clear();
+            if(cpuWfiState != null)
+            {
+                foreach(var cpu in cpuWfiState.Keys.ToList())
+                {
+                    cpuWfiState[cpu] = false;
+                }
+            }
+
+            var wasHostClocksEnabled = HostClocksEnabled;
+            var wasHostAllClocksEnabled = HostAllClocksEnabled;
+            HostClocksEnabled = true;
+            HostAllClocksEnabled = true;
+            if(!wasHostClocksEnabled)
+            {
+                ExitHostClockGate?.Invoke();
+            }
+            if(!wasHostAllClocksEnabled)
+            {
+                ExitHostAllClockGate?.Invoke();
+            }
+        }
+
         public void AddWFIHook()
         {
             if(!isWFIHookAdded)
