@@ -37,6 +37,8 @@ namespace Antmicro.Renode.Peripherals.Timers
 
             timerIsRunning = false;
             timer.Enabled = false;
+            Array.Clear(syncBusyBits, 0, syncBusyBits.Length);
+            Array.Clear(syncBusyUntil, 0, syncBusyUntil.Length);
         }
 
         public void CaptureGroup0()
