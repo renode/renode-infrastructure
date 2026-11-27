@@ -107,9 +107,15 @@ namespace Antmicro.Renode.Core
                 localTimeSource.TimePassed -= HandleTimeProgress;
             }
 
-            // ordering below is due to the fact that the CPU can use other peripherals, e.g. Memory so it should be disposed first
-            // Mapped memory can be used as storage by other disposable peripherals which may want to read it while being disposed
-            foreach(var peripheral in GetPeripheralsOfType<IDisposable>().OrderBy(x => x is ICPU ? 0 : x is IMapped ? 2 : 1))
+            // Ordering below is due to the fact that the CPU can use other peripherals, e.g. Memory so it should be disposed first.
+            // Mapped memory and bus controllers can be used by other disposable peripherals while being disposed.
+            var toDispose = GetPeripheralsOfType<IDisposable>().OrderBy(x => x switch
+                            {
+                                ICPU => 0,
+                                IMapped or IBusController => 2,
+                                _ => 1,
+                            });
+            foreach(var peripheral in toDispose)
             {
                 this.DebugLog("Disposing {0}.", GetAnyNameOrTypeName((IPeripheral)peripheral));
                 peripheral.Dispose();
