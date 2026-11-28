@@ -173,6 +173,7 @@ namespace Antmicro.Renode.Peripherals.DMA
         private void Write<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, uint value)
         where T : struct, IComparable, IFormattable
         {
+            TrySyncTime();
             machine.ClockSource.ExecuteInLock(delegate
             {
                 long internal_offset = offset;
@@ -444,6 +445,7 @@ namespace Antmicro.Renode.Peripherals.DMA
 
         private void ExitHostClockGate()
         {
+            TrySyncTime();
             machine.ClockSource.ExecuteInLock(delegate
             {
                 hostClocksGated = false;
@@ -453,6 +455,16 @@ namespace Antmicro.Renode.Peripherals.DMA
                     channel.ResumeHeldTransfer();
                 }
             });
+        }
+
+        private bool TrySyncTime()
+        {
+            if(machine.SystemBus.TryGetCurrentCPU(out var cpu))
+            {
+                cpu.SyncTime();
+                return true;
+            }
+            return false;
         }
 
         private TimeInterval GetTime() => machine.LocalTimeSource.ElapsedVirtualTime;

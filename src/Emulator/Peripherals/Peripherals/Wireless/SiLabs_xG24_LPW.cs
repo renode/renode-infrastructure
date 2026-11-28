@@ -1462,6 +1462,9 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private void Write<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, uint value)
         where T : struct, IComparable, IFormattable
         {
+            // Sync time before taking the clock source lock, not inside it, so that register handlers
+            // calling TrySyncTime() never acquire virtualTimeSyncLock while already holding ClockSource lock.
+            TrySyncTime();
             machine.ClockSource.ExecuteInLock(delegate
             {
                 var internal_offset = offset;
@@ -1471,7 +1474,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 {
                     // Set register
                     internal_offset = offset - SetRegisterOffset;
-                    var old_value = Read<T>(registersCollection, regionName, internal_offset, true);
+                    var old_value = ReadInner<T>(registersCollection, regionName, internal_offset, true);
                     internal_value = old_value | value;
                     this.Log(LogLevel.Noisy, "SET Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, SET_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
                 }
@@ -1479,7 +1482,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 {
                     // Clear register
                     internal_offset = offset - ClearRegisterOffset;
-                    var old_value = Read<T>(registersCollection, regionName, internal_offset, true);
+                    var old_value = ReadInner<T>(registersCollection, regionName, internal_offset, true);
                     internal_value = old_value & ~value;
                     this.Log(LogLevel.Noisy, "CLEAR Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, CLEAR_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
                 }
@@ -1487,7 +1490,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
                 {
                     // Toggle register
                     internal_offset = offset - ToggleRegisterOffset;
-                    var old_value = Read<T>(registersCollection, regionName, internal_offset, true);
+                    var old_value = ReadInner<T>(registersCollection, regionName, internal_offset, true);
                     internal_value = old_value ^ value;
                     this.Log(LogLevel.Noisy, "TOGGLE Operation on {0}, offset=0x{1:X}, internal_offset=0x{2:X}, TOGGLE_value=0x{3:X}, old_value=0x{4:X}, new_value=0x{5:X}", Enum.Format(typeof(T), internal_offset, "G"), offset, internal_offset, value, old_value, internal_value);
                 }
@@ -1506,6 +1509,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         private uint Read<T>(DoubleWordRegisterCollection registersCollection, string regionName, long offset, bool internal_read = false)
         where T : struct, IComparable, IFormattable
         {
+            TrySyncTime();
             var result = 0U;
             machine.ClockSource.ExecuteInLock(() => result = ReadInner<T>(registersCollection, regionName, offset, internal_read));
             return result;
@@ -5836,6 +5840,7 @@ namespace Antmicro.Renode.Peripherals.Wireless
         {
             //this.Log(LogLevel.Debug, "RAC_UpdateRadioStateMachine signal={0} current state={1} at {2}", signal, RAC_currentRadioState, GetTime());
 
+            TrySyncTime();
             machine.ClockSource.ExecuteInLock(delegate
             {
                 var previousState = RAC_currentRadioState;
