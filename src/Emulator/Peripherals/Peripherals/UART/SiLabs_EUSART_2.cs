@@ -372,6 +372,7 @@ namespace Antmicro.Renode.Peripherals.UART
                 return;
             }
 
+            TrySyncTime();
             machine.ClockSource.ExecuteInLock(delegate
             {
                 var request = Em1pRequestActive;
@@ -457,6 +458,7 @@ namespace Antmicro.Renode.Peripherals.UART
 
         private void WriteRegister(long offset, uint value)
         {
+            TrySyncTime();
             machine.ClockSource.ExecuteInLock(delegate
             {
                 long internal_offset = offset;
